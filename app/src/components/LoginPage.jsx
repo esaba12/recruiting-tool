@@ -82,6 +82,14 @@ export default function LoginPage() {
           <Button type="button" variant="secondary" onClick={google} className="w-full flex items-center justify-center gap-2">
             <GoogleIcon /> Continue with Google
           </Button>
+
+          <a href="/demo"
+            className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
+              bg-accent-50 text-accent-700 border border-dashed border-accent-200
+              hover:bg-accent-100 hover:border-accent-300 transition-colors group">
+            <span>✨ Try the live demo</span>
+            <span className="text-accent-400 transition-transform group-hover:translate-x-0.5">→</span>
+          </a>
         </div>
 
         <p className="text-[11px] text-ink-400 text-center mt-4">
