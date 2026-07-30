@@ -4,6 +4,10 @@ A near zero-touch **recruiting operating system** for a student or early-career
 job search — a lightweight CRM, application tracker, and job-board aggregator
 with AI assistance, wrapped in a **React** dashboard.
 
+![Recruiting OS demo](docs/media/recruiter-demo.gif)
+
+▶ [Watch with sound](https://ethansaba.com/videos/recruiter.mp4) — built to read my own Gmail.
+
 > **Multi-tenant, bring-your-own-key.** Sign up with email/password or Google,
 > then add your own Anthropic/OpenAI/Exa/GitHub API keys in Settings. Your data
 > (contacts, applications, interactions) lives in your own Supabase-backed

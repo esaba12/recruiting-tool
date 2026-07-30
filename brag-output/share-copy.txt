@@ -1,0 +1,1 @@
+I got tired of manually tracking my own internship search, so I built an AI recruiting OS that reads my Gmail for me. Real Notion-CRM-turned-Postgres CRM, a real referral graph, and a Claude-powered email pipeline that logs contacts and applications on its own.
