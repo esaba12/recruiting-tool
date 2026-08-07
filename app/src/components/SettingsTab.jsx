@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { authHeader, supabase } from '../lib/supabaseClient.js'
-import { connectGoogleCalendar, disconnectGoogleCalendar, getGoogleCalendarStatus } from '../lib/googleAuth.js'
+import { connectGoogleCalendar, disconnectGoogleCalendar, getGoogleCalendarStatus, linkGoogleIdentity } from '../lib/googleAuth.js'
 import Button from './ui/Button.jsx'
 import Input from './ui/Input.jsx'
 import { Badge } from '../shared.jsx'
@@ -25,6 +25,13 @@ export default function SettingsTab() {
   const [profileForm, setProfileForm] = useState(null)
   const [savingProfile, setSavingProfile] = useState(false)
   const [error, setError] = useState(null)
+
+  const isApiKeyAccount = !!user?.email?.endsWith('@byok.local')
+  const hasGoogleIdentity = !!user?.identities?.some(i => i.provider === 'google')
+  const [recoveryPassword, setRecoveryPassword] = useState('')
+  const [savingRecovery, setSavingRecovery] = useState(false)
+  const [recoveryInfo, setRecoveryInfo] = useState(null)
+  const [linkingGoogle, setLinkingGoogle] = useState(false)
 
   const loadKeys = useCallback(async () => {
     setKeysLoading(true)
@@ -91,6 +98,32 @@ export default function SettingsTab() {
     finally { setSavingProfile(false) }
   }
 
+  // Password-only on purpose — this project's auth config has double_confirm_changes
+  // enabled, which requires confirming an email change via BOTH the old and new
+  // address. This account's old address (key-<hash>@byok.local) can't receive mail,
+  // so an email change would sit permanently pending. A password-only update has no
+  // such confirmation step (secure_password_change is off), so it applies instantly.
+  // The system email stays as the fallback login identifier — shown read-only above
+  // so the user can pair it with this password to sign in without their API key.
+  async function saveRecoveryCredentials(e) {
+    e.preventDefault()
+    setSavingRecovery(true); setError(null); setRecoveryInfo(null)
+    try {
+      const { error } = await supabase.auth.updateUser({ password: recoveryPassword })
+      if (error) throw error
+      setRecoveryPassword('')
+      setRecoveryInfo('Password set. Save your account email above + this password somewhere safe — that combination now works even without your API key.')
+    } catch (e) { setError(e.message) }
+    finally { setSavingRecovery(false) }
+  }
+
+  async function linkGoogle() {
+    setLinkingGoogle(true); setError(null)
+    try {
+      await linkGoogleIdentity() // redirects away; returns to Settings on success
+    } catch (e) { setError(e.message); setLinkingGoogle(false) }
+  }
+
   async function toggleCalendar() {
     if (calStatus.connected) {
       await disconnectGoogleCalendar()
@@ -108,6 +141,46 @@ export default function SettingsTab() {
       </div>
 
       {error && <div className="p-3 bg-danger-50 border border-danger-200 rounded-xl text-xs text-danger-700">{error}</div>}
+
+      {/* Account recovery — only shown for accounts created via "sign in with API key"
+          (apiKeyAuth.js), where the Anthropic key itself doubles as the account password
+          with no real email behind it. Rotating that key with no recovery method set up
+          here means permanent lockout, so this is surfaced as a warning, not a footnote. */}
+      {isApiKeyAccount && (
+        <section className="bg-warning-50 rounded-2xl border border-warning-200 p-5 space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-ink-900">⚠ Secure your account</h3>
+            <p className="text-xs text-ink-500 mt-0.5">
+              You signed in with an Anthropic API key — that key is currently your only way back into this account.
+              If you ever rotate or revoke it, you'll lose access for good. Fix that with either option below
+              (linking Google is simpler and takes one click).
+            </p>
+          </div>
+          {recoveryInfo && <p className="text-xs text-success-700">{recoveryInfo}</p>}
+
+          <div>
+            {hasGoogleIdentity ? (
+              <Badge label="Google linked — you're covered" color="bg-success-50 text-success-700" />
+            ) : (
+              <Button size="sm" variant="secondary" onClick={linkGoogle} disabled={linkingGoogle}>
+                {linkingGoogle ? 'Redirecting...' : 'Link Google account'}
+              </Button>
+            )}
+          </div>
+
+          <div className="pt-2 border-t border-warning-200/60 space-y-2">
+            <p className="text-xs text-ink-400">Or set a password. Your account's login email (save it too):</p>
+            <Input readOnly value={user?.email || ''} className="font-mono text-xs bg-ink-50 cursor-text" onFocus={e => e.target.select()} />
+            <form onSubmit={saveRecoveryCredentials} className="flex gap-2">
+              <Input type="password" placeholder="Choose a password" value={recoveryPassword}
+                onChange={e => setRecoveryPassword(e.target.value)} minLength={6} required className="flex-1" />
+              <Button type="submit" size="sm" disabled={savingRecovery}>
+                {savingRecovery ? 'Saving...' : 'Set password'}
+              </Button>
+            </form>
+          </div>
+        </section>
+      )}
 
       {/* Profile / onboarding */}
       <section className="bg-white rounded-2xl border border-ink-100 p-5 space-y-3">

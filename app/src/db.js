@@ -229,13 +229,14 @@ export async function fetchCalls() {
 
 // ── Applications ─────────────────────────────────────────────────────────────
 
-export async function addApplication({ company, role, jdLink, location, sourceRepo, datePosted }) {
+export async function addApplication({ company, role, jdLink, location, sourceRepo, datePosted, referredById }) {
   if (isDemoMode()) {
     const id = nextDemoId()
     demoStore().applications.push({
       id, company, role: role || '', stage: 'Wishlist', triage: 'Needs Review', location: location || '',
       sourceRepo: sourceRepo || '', appliedDate: null, closedDate: null, lastActivity: todayStr(), daysInStage: null,
       jdLink: jdLink || '', notes: datePosted ? `Posted ${datePosted}` : '', createdTime: todayStr(),
+      referredById: referredById || null,
     })
     return { id }
   }
@@ -248,6 +249,7 @@ export async function addApplication({ company, role, jdLink, location, sourceRe
     notes: datePosted ? `Posted ${datePosted}` : null,
     stage: 'Wishlist',
     triage: 'Needs Review',
+    referred_by_id: referredById || null,
   }).select('id').single()
   throwIfError(error, 'addApplication')
   return data
@@ -277,7 +279,7 @@ export async function updateApplication(id, fields) {
   if (isDemoMode()) {
     const a = demoStore().applications.find(a => a.id === id)
     if (!a) return
-    for (const k of ['company', 'role', 'location', 'jdLink', 'notes', 'stage', 'appliedDate', 'closedDate']) {
+    for (const k of ['company', 'role', 'location', 'jdLink', 'notes', 'stage', 'appliedDate', 'closedDate', 'referredById']) {
       if (k in fields) a[k] = fields[k]
     }
     return
@@ -291,6 +293,7 @@ export async function updateApplication(id, fields) {
   if ('stage' in fields) patch.stage = fields.stage || null
   if ('appliedDate' in fields) patch.applied_date = fields.appliedDate || null
   if ('closedDate' in fields) patch.closed_date = fields.closedDate || null
+  if ('referredById' in fields) patch.referred_by_id = fields.referredById || null
   const { error } = await supabase.from('applications').update(patch).eq('id', id)
   throwIfError(error, 'updateApplication')
 }
@@ -315,6 +318,7 @@ export async function fetchApplications() {
     jdLink: r.jd_link,
     notes: r.notes || '',
     createdTime: r.created_at,
+    referredById: r.referred_by_id || null,
   }))
 }
 

@@ -76,7 +76,7 @@ function DuplicatesPanel({ apps, onRefresh }) {
 
 // ── Pipeline Tab ──────────────────────────────────────────────────────────────
 
-export default function PipelineTab({ apps, onRefresh }) {
+export default function PipelineTab({ apps, contacts = [], onRefresh }) {
   const [filter, setFilter] = useState('active')
   const [search, setSearch] = useState('')
   const [selectedAppId, setSelectedAppId] = useState(null)
@@ -157,6 +157,11 @@ export default function PipelineTab({ apps, onRefresh }) {
                             className="text-xs text-accent-500 hover:underline">JD ↗</a>
                         )}
                       </div>
+                      {a.referredById && (
+                        <p className="text-xs text-accent-600 mt-0.5">
+                          Referred by {contacts.find(c => c.id === a.referredById)?.name || '—'}
+                        </p>
+                      )}
                       {a.notes && <p className="text-xs text-ink-400 mt-0.5 line-clamp-1">{a.notes}</p>}
                     </div>
                   </div>
@@ -169,6 +174,7 @@ export default function PipelineTab({ apps, onRefresh }) {
       {(selectedApp || addingNew) && (
         <ApplicationDetailModal
           app={selectedApp}
+          contacts={contacts}
           onStatusChange={s => changeTriage(selectedApp, s)}
           onClose={() => { setSelectedAppId(null); setAddingNew(false) }}
           onDelete={async () => { await archiveApplication(selectedApp.id); setSelectedAppId(null); onRefresh() }}
