@@ -1,12 +1,16 @@
 import { useState } from 'react'
 import { Handshake } from 'lucide-react'
-import { addContact, updateContact, archiveContact } from '../db.js'
+import { addContact, updateContact, archiveContact, addContactRelationship, deleteContactRelationship } from '../db.js'
 import { logMetWithContact } from '../lib/quickLog.js'
-import { ROLE_OPTIONS, SOURCE_OPTIONS, STATUS_OPTIONS, URGENCY_OPTIONS, AFFINITY_OPTIONS, REFERRAL_STATUS_OPTIONS, TYPE_COLOR, Badge, fmt } from '../shared.jsx'
+import { ROLE_OPTIONS, SOURCE_OPTIONS, STATUS_OPTIONS, URGENCY_OPTIONS, affinityOptionsFor, LIFE_DOMAIN_OPTIONS, RELATIONSHIP_TYPES, REFERRAL_STATUS_OPTIONS, TYPE_COLOR, Badge, fmt } from '../shared.jsx'
+import { useAuth } from '../lib/AuthContext.jsx'
+import ChipToggleGroup from './ui/ChipToggleGroup.jsx'
 import LogInteractionModal from './LogInteractionModal.jsx'
 import DraftPanel from './DraftPanel.jsx'
 
-export default function ContactDetailModal({ contact, contacts, interactions, onClose, onSaved, initial = {} }) {
+export default function ContactDetailModal({ contact, contacts, interactions, contactRelationships = [], onClose, onSaved, onRefreshRelationships, initial = {} }) {
+  const { profile } = useAuth()
+  const schoolLabel = profile?.school ? `${profile.school} alum` : 'UMich'
   const isNew = !contact
   const [form, setForm] = useState(() => ({
     name:        contact?.name || initial.name || '',
@@ -24,6 +28,7 @@ export default function ContactDetailModal({ contact, contacts, interactions, on
     followUpDate: contact?.followUpDate ? contact.followUpDate.slice(0, 10) : '',
     isUMichAlum: contact?.isUMichAlum || false,
     affinity:    contact?.affinity || [],
+    lifeDomain:  contact?.lifeDomain || [],
     wantsToSchedule: contact?.wantsToSchedule || false,
     scheduleBy:      contact?.scheduleBy ? contact.scheduleBy.slice(0, 10) : '',
     scheduleNote:    contact?.scheduleNote || '',
@@ -34,22 +39,32 @@ export default function ContactDetailModal({ contact, contacts, interactions, on
   const [logOpen, setLogOpen] = useState(false)
   const [draftOpen, setDraftOpen] = useState(false)
   const [metLogging, setMetLogging] = useState(false)
+  const [relType, setRelType] = useState(RELATIONSHIP_TYPES[0])
+  const [relTarget, setRelTarget] = useState('')
+  const [addingRel, setAddingRel] = useState(false)
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
   // Keeps the checkbox and the multi-select in sync in both directions — toggling either
-  // one updates 'UMich' in the other, so they never drift apart.
+  // one updates the school-alum tag in the other, so they never drift apart. The tag text
+  // itself (schoolLabel) is computed from the signed-in user's profile, not hardcoded.
   function toggleUMichAlum() {
     setForm(f => {
       const next = !f.isUMichAlum
-      return { ...f, isUMichAlum: next, affinity: next ? [...new Set([...f.affinity, 'UMich'])] : f.affinity.filter(a => a !== 'UMich') }
+      return { ...f, isUMichAlum: next, affinity: next ? [...new Set([...f.affinity, schoolLabel])] : f.affinity.filter(a => a !== schoolLabel) }
     })
   }
   function toggleAffinity(tag) {
     setForm(f => {
       const has = f.affinity.includes(tag)
       const affinity = has ? f.affinity.filter(a => a !== tag) : [...f.affinity, tag]
-      return { ...f, affinity, isUMichAlum: tag === 'UMich' ? !has : f.isUMichAlum }
+      return { ...f, affinity, isUMichAlum: tag === schoolLabel ? !has : f.isUMichAlum }
+    })
+  }
+  function toggleLifeDomain(tag) {
+    setForm(f => {
+      const has = f.lifeDomain.includes(tag)
+      return { ...f, lifeDomain: has ? f.lifeDomain.filter(t => t !== tag) : [...f.lifeDomain, tag] }
     })
   }
 
@@ -58,6 +73,37 @@ export default function ContactDetailModal({ contact, contacts, interactions, on
     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 
   const referralOptions = (contacts || []).filter(c => c.id !== contact?.id)
+
+  const nameOf = (id) => contacts?.find(c => c.id === id)?.name || 'Unknown'
+  const myRelationships = (contactRelationships || []).filter(r => r.fromContactId === contact?.id || r.toContactId === contact?.id)
+
+  // Uses onRefreshRelationships (re-fetch just this data, without touching the parent's
+  // `loading` flag), not onSaved (which closes the modal AND would unmount it via
+  // `loading` — see App.jsx's refreshContactRelationships comment). Adding/removing a
+  // relationship is a small in-place edit, not a "done with this contact" action, and the
+  // modal should stay open to add several in a row if needed.
+  async function addRelationship() {
+    if (!relTarget) return
+    setAddingRel(true); setError(null)
+    try {
+      await addContactRelationship({ fromContactId: contact.id, toContactId: relTarget, relationshipType: relType })
+      setRelTarget('')
+      await onRefreshRelationships?.()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setAddingRel(false)
+    }
+  }
+
+  async function removeRelationship(id) {
+    try {
+      await deleteContactRelationship(id)
+      await onRefreshRelationships?.()
+    } catch (e) {
+      setError(e.message)
+    }
+  }
 
   async function save() {
     if (!form.name.trim()) { setError('Name is required'); return }
@@ -71,7 +117,7 @@ export default function ContactDetailModal({ contact, contacts, interactions, on
           linkedin: form.linkedin, source: form.source || null, status: form.status, urgency: form.urgency,
           referredById: form.referredById || null, referralStatus: form.referralStatus, whatTheyDid: form.whatTheyDid, notes: form.notes,
           followUpDate: form.followUpDate || null,
-          isUMichAlum: form.isUMichAlum, affinity: form.affinity,
+          isUMichAlum: form.isUMichAlum, affinity: form.affinity, lifeDomain: form.lifeDomain,
           wantsToSchedule: form.wantsToSchedule, scheduleBy: form.scheduleBy || null, scheduleNote: form.scheduleNote,
         })
       }
@@ -147,6 +193,11 @@ export default function ContactDetailModal({ contact, contacts, interactions, on
             {select('Source', 'source', SOURCE_OPTIONS)}
           </div>
 
+          <div className="pt-3 border-t border-ink-100">
+            <label className="block text-xs text-ink-400 mb-1.5">Life domain — what kind of relationship is this?</label>
+            <ChipToggleGroup options={LIFE_DOMAIN_OPTIONS} value={form.lifeDomain} onToggle={toggleLifeDomain} />
+          </div>
+
           {!isNew && (
             <div className="grid grid-cols-2 gap-3 pt-3 border-t border-ink-100">
               {select('Status', 'status', STATUS_OPTIONS)}
@@ -169,21 +220,47 @@ export default function ContactDetailModal({ contact, contacts, interactions, on
           )}
 
           {!isNew && (
+            <div className="pt-3 border-t border-ink-100 space-y-2">
+              <label className="block text-xs text-ink-400">Relationships</label>
+              {myRelationships.length === 0 && <p className="text-xs text-ink-400">No tagged relationships yet.</p>}
+              {myRelationships.map(r => {
+                const outgoing = r.fromContactId === contact.id
+                return (
+                  <div key={r.id} className="flex items-center justify-between text-sm bg-ink-50 rounded-lg px-2.5 py-1.5">
+                    <span className="text-ink-700">
+                      {outgoing
+                        ? <><strong>{r.relationshipType}</strong> {nameOf(r.toContactId)}</>
+                        : <>{nameOf(r.fromContactId)} <strong>{r.relationshipType}</strong> this contact</>}
+                    </span>
+                    <button onClick={() => removeRelationship(r.id)} className="text-ink-400 hover:text-danger-600 text-xs">✕</button>
+                  </div>
+                )
+              })}
+              <div className="flex items-center gap-1.5 pt-1">
+                <select value={relType} onChange={e => setRelType(e.target.value)}
+                  className="px-2 py-1.5 border border-ink-200 rounded-lg text-xs focus:outline-none focus:border-accent-400 bg-white">
+                  {RELATIONSHIP_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <select value={relTarget} onChange={e => setRelTarget(e.target.value)}
+                  className="flex-1 px-2 py-1.5 border border-ink-200 rounded-lg text-xs focus:outline-none focus:border-accent-400 bg-white">
+                  <option value="">— choose contact —</option>
+                  {referralOptions.map(c => <option key={c.id} value={c.id}>{c.name}{c.company ? ` @ ${c.company}` : ''}</option>)}
+                </select>
+                <button onClick={addRelationship} disabled={!relTarget || addingRel}
+                  className="px-2.5 py-1.5 bg-white border border-ink-200 rounded-lg text-xs font-medium text-ink-600 hover:border-accent-300 disabled:opacity-40 shrink-0">
+                  {addingRel ? 'Adding…' : '+ Add'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!isNew && (
             <div className="pt-3 border-t border-ink-100">
               <label className="flex items-center gap-2 text-xs text-ink-600 mb-2 cursor-pointer">
                 <input type="checkbox" checked={form.isUMichAlum} onChange={toggleUMichAlum} className="rounded border-ink-300" />
-                🎓 UMich alum <span className="text-ink-400 font-normal">— the single warmest cold-outreach signal available</span>
+                🎓 {schoolLabel} <span className="text-ink-400 font-normal">— the single warmest cold-outreach signal available</span>
               </label>
-              <div className="flex flex-wrap gap-1.5">
-                {AFFINITY_OPTIONS.map(tag => (
-                  <button key={tag} type="button" onClick={() => toggleAffinity(tag)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${form.affinity.includes(tag)
-                      ? 'bg-accent-600 text-white border-accent-600'
-                      : 'bg-white text-ink-500 border-ink-200 hover:border-accent-300'}`}>
-                    {tag}
-                  </button>
-                ))}
-              </div>
+              <ChipToggleGroup options={affinityOptionsFor(profile)} value={form.affinity} onToggle={toggleAffinity} />
             </div>
           )}
 

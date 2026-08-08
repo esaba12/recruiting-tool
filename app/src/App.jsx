@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls } from './db.js'
+import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships } from './db.js'
 import { useAuth } from './lib/AuthContext.jsx'
 import { finishGoogleCalendarConnect } from './lib/googleAuth.js'
 import LoginPage from './components/LoginPage.jsx'
 import SettingsTab from './components/SettingsTab.jsx'
-import { STATUS_COLOR, URGENCY_COLOR, REFERRAL_STATUS_COLOR, daysSince, daysUntil, fmt, Badge, EmptyState, isOverdue } from './shared.jsx'
+import { STATUS_COLOR, URGENCY_COLOR, REFERRAL_STATUS_COLOR, daysSince, daysUntil, fmt, Badge, EmptyState, isOverdue, isStaleApplication } from './shared.jsx'
 import { statusIconFor, URGENCY_ICON } from './lib/icons.js'
 import AppShell from './components/layout/AppShell.jsx'
 import ContactDetailModal from './components/ContactDetailModal.jsx'
@@ -48,7 +48,7 @@ const NETWORK_VIEWS = [
 // rendering over the seeded demo data, so they work perfectly with no backend at all.
 const DEMO_NETWORK_VIEWS = NETWORK_VIEWS.filter(v => ['table', 'cards', 'graph'].includes(v.key))
 
-function NetworkTab({ contacts, apps, interactions, onRefresh, initialView = 'table', initialFocusCompany = null, views = NETWORK_VIEWS }) {
+function NetworkTab({ contacts, apps, interactions, contactRelationships = [], onRefresh, onRefreshRelationships, initialView = 'table', initialFocusCompany = null, views = NETWORK_VIEWS }) {
   const [filter, setFilter]   = useState('ALL')
   const [search, setSearch]   = useState('')
   const [view, setView]       = useState(initialView) // 'table' | 'cards' | 'graph'
@@ -122,10 +122,10 @@ function NetworkTab({ contacts, apps, interactions, onRefresh, initialView = 'ta
         ? <KeepInTouchTab contacts={contacts} interactions={interactions}
             onEdit={c => setEditing(c)} onLog={c => setLogContact(c)} onMet={handleMet} />
         : view === 'coverage'
-        ? <ReferralCoverageTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={onRefresh}
+        ? <ReferralCoverageTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={onRefresh}
             onFindPeople={company => { setFocusCompany({ company, ts: Date.now() }); setView('discover') }} />
         : view === 'graph'
-        ? <NetworkGraphTab contacts={contacts} />
+        ? <NetworkGraphTab contacts={contacts} contactRelationships={contactRelationships} />
         : view === 'outbox'
         ? <OutboxTab contacts={contacts} interactions={interactions} />
         : filtered.length === 0
@@ -191,8 +191,10 @@ function NetworkTab({ contacts, apps, interactions, onRefresh, initialView = 'ta
           contact={editing === 'new' ? null : editing}
           contacts={contacts}
           interactions={interactions}
+          contactRelationships={contactRelationships}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); onRefresh() }}
+          onRefreshRelationships={onRefreshRelationships}
         />
       )}
 
@@ -247,6 +249,7 @@ function AppInner() {
   const [apps, setApps]         = useState([])
   const [interactions, setInteractions] = useState([])
   const [calls, setCalls]       = useState([])
+  const [contactRelationships, setContactRelationships] = useState([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
   const [lastLoaded, setLastLoaded] = useState(null)
@@ -262,19 +265,23 @@ function AppInner() {
   async function load() {
     setLoading(true); setError(null)
     try {
-      const [c, a, i, cl] = await Promise.all([fetchContacts(), fetchApplications(), fetchInteractions(), fetchCalls()])
-      setContacts(c); setApps(a); setInteractions(i); setCalls(cl)
+      const [c, a, i, cl, cr] = await Promise.all([fetchContacts(), fetchApplications(), fetchInteractions(), fetchCalls(), fetchContactRelationships()])
+      setContacts(c); setApps(a); setInteractions(i); setCalls(cl); setContactRelationships(cr)
       setLastLoaded(new Date().toLocaleTimeString())
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
   }
 
+  // Narrower than load() on purpose: doesn't touch `loading`, which gates whether
+  // NetworkTab (and any modal it has open, like ContactDetailModal) is even mounted —
+  // toggling it while a modal is mid-edit would unmount and silently close it.
+  async function refreshContactRelationships() {
+    setContactRelationships(await fetchContactRelationships())
+  }
+
   const activeApps = apps.filter(a => !['Rejected','Accepted'].includes(a.stage))
   const overdueCount = contacts.filter(isOverdue).length
-  const staleCount = activeApps.filter(a => {
-    const d = a.daysInStage ?? (a.lastActivity ? Math.floor((Date.now() - new Date(a.lastActivity)) / 86400000) : null)
-    return d !== null && d > 14
-  }).length
+  const staleCount = activeApps.filter(isStaleApplication).length
   const scheduleCount = contacts.filter(c => c.wantsToSchedule).length
   const actionCount = overdueCount + staleCount + scheduleCount
 
@@ -303,7 +310,8 @@ function AppInner() {
           onOpenActions={() => setTab('actions')} />
       )}
       {!loading && tab === 'network'  && (
-        <NetworkTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load}
+        <NetworkTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={load}
+          onRefreshRelationships={refreshContactRelationships}
           initialView={networkInitialView} initialFocusCompany={networkFocusCompany} />
       )}
       {!loading && tab === 'explore'  && (
@@ -347,15 +355,22 @@ function DemoApp() {
   const [contacts, setContacts] = useState([])
   const [apps, setApps] = useState([])
   const [interactions, setInteractions] = useState([])
+  const [contactRelationships, setContactRelationships] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { load() }, [])
 
   async function load() {
     setLoading(true)
-    const [c, a, i] = await Promise.all([fetchContacts(), fetchApplications(), fetchInteractions()])
-    setContacts(c); setApps(a); setInteractions(i)
+    const [c, a, i, cr] = await Promise.all([fetchContacts(), fetchApplications(), fetchInteractions(), fetchContactRelationships()])
+    setContacts(c); setApps(a); setInteractions(i); setContactRelationships(cr)
     setLoading(false)
+  }
+
+  // See AppInner's identical helper: avoids toggling `loading` (which would unmount
+  // NetworkTab and close any open ContactDetailModal mid-edit).
+  async function refreshContactRelationships() {
+    setContactRelationships(await fetchContactRelationships())
   }
 
   const activeApps = apps.filter(a => !['Rejected', 'Accepted'].includes(a.stage))
@@ -377,7 +392,8 @@ function DemoApp() {
           onOpenGraph={() => setTab('network')} onOpenActions={() => setTab('actions')} />
       )}
       {!loading && tab === 'network' && (
-        <NetworkTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} views={DEMO_NETWORK_VIEWS} />
+        <NetworkTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={load}
+          onRefreshRelationships={refreshContactRelationships} views={DEMO_NETWORK_VIEWS} />
       )}
       {!loading && tab === 'pipeline' && <PipelineTab apps={apps} contacts={contacts} onRefresh={load} />}
       {!loading && tab === 'actions' && <ActionsTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} />}

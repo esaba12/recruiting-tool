@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-table'
 import { STATUS_COLOR, URGENCY_COLOR, REFERRAL_STATUS_COLOR, Badge, fmt, daysUntil } from '../shared.jsx'
 import { statusIconFor, URGENCY_ICON } from '../lib/icons.js'
+import { useAuth } from '../lib/AuthContext.jsx'
 import MetButton from './MetButton.jsx'
 
 const col = createColumnHelper()
@@ -21,6 +22,8 @@ function FacetFilter({ column, options }) {
 }
 
 export default function ContactsTable({ contacts, onEdit, onMet }) {
+  const { profile } = useAuth()
+  const schoolLabel = profile?.school ? `${profile.school} alum` : 'UMich alum'
   const [sorting, setSorting] = useState([{ id: 'urgency', desc: false }])
   const [columnFilters, setColumnFilters] = useState([])
 
@@ -30,7 +33,7 @@ export default function ContactsTable({ contacts, onEdit, onMet }) {
       cell: info => (
         <span className="font-medium text-ink-900">
           {info.getValue()}
-          {info.row.original.isUMichAlum && <span title="UMich alum" className="ml-1">🎓</span>}
+          {info.row.original.isUMichAlum && <span title={schoolLabel} className="ml-1">🎓</span>}
           {info.row.original.wantsToSchedule && <span title="Want to schedule" className="ml-1">📅</span>}
           {info.row.original.referralStatus === 'Confirmed' && <span title="Referral confirmed" className="ml-1">🎁</span>}
         </span>
@@ -64,6 +67,16 @@ export default function ContactsTable({ contacts, onEdit, onMet }) {
     col.accessor('referredByName', {
       header: 'Referred By',
       cell: info => info.getValue() || '—',
+    }),
+    col.accessor('lifeDomain', {
+      header: 'Life Domain',
+      cell: info => {
+        const tags = info.getValue() || []
+        return tags.length
+          ? <div className="flex flex-wrap gap-1">{tags.map(t => <Badge key={t} label={t} color="bg-ink-100 text-ink-600" />)}</div>
+          : '—'
+      },
+      filterFn: (row, columnId, value) => (row.original[columnId] || []).includes(value),
     }),
     col.accessor('referralStatus', {
       header: 'Referral',
@@ -102,6 +115,7 @@ export default function ContactsTable({ contacts, onEdit, onMet }) {
   ], [onMet])
 
   const uniq = (key) => [...new Set(contacts.map(c => c[key]).filter(Boolean))].sort()
+  const uniqFlat = (key) => [...new Set(contacts.flatMap(c => c[key] || []))].sort()
 
   const table = useReactTable({
     data: contacts,
@@ -134,6 +148,9 @@ export default function ContactsTable({ contacts, onEdit, onMet }) {
                   )}
                   {['role','status','source','urgency','referralStatus'].includes(h.column.id) && (
                     <FacetFilter column={h.column} options={uniq(h.column.id)} />
+                  )}
+                  {h.column.id === 'lifeDomain' && (
+                    <FacetFilter column={h.column} options={uniqFlat('lifeDomain')} />
                   )}
                 </th>
               ))}

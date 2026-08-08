@@ -8,7 +8,8 @@
 // imported it (ContactDetailModal, LogInteractionModal, PipelineTab, etc.)
 // needed zero changes beyond the import path.
 import { supabase } from './lib/supabaseClient.js'
-import { DEMO_CONTACTS, DEMO_APPLICATIONS, DEMO_INTERACTIONS, DEMO_CALLS, nextDemoId } from './demoData.js'
+import { DEMO_CONTACTS, DEMO_APPLICATIONS, DEMO_INTERACTIONS, DEMO_CALLS, DEMO_CONTACT_RELATIONSHIPS, nextDemoId } from './demoData.js'
+import { ROLE_OPTIONS } from './shared.jsx'
 
 function todayStr() { return new Date().toISOString().split('T')[0] }
 function plusDays(n) { return new Date(Date.now() + n * 86400000).toISOString().split('T')[0] }
@@ -38,6 +39,7 @@ function demoStore() {
       applications: DEMO_APPLICATIONS.map(a => ({ ...a })),
       interactions: DEMO_INTERACTIONS.map(i => ({ ...i })),
       calls: DEMO_CALLS.map(c => ({ ...c })),
+      contactRelationships: DEMO_CONTACT_RELATIONSHIPS.map(r => ({ ...r })),
     }
   }
   return demo
@@ -66,6 +68,7 @@ function mapContactRow(r) {
     followUpDraftKind: r.follow_up_draft_kind || '',
     isUMichAlum: !!r.is_school_alum,
     affinity: r.affinity || [],
+    lifeDomain: r.life_domain || [],
     wantsToSchedule: !!r.wants_to_schedule,
     scheduleBy: r.schedule_by,
     scheduleNote: r.schedule_note || '',
@@ -91,7 +94,6 @@ export async function searchContactByName(name) {
 }
 
 export async function addContact({ name, company, role, email }) {
-  const ROLE_OPTIONS = ['SWE', 'PM', 'Recruiter', 'Alumni', 'Referral', 'Other']
   const roleSelect = ROLE_OPTIONS.find(r => role?.toLowerCase().includes(r.toLowerCase())) || 'Other'
   if (isDemoMode()) {
     const id = nextDemoId()
@@ -99,7 +101,7 @@ export async function addContact({ name, company, role, email }) {
       id, name, company: company || '', role: roleSelect, email: email || '', linkedin: null, source: '',
       status: '🟡 Cooling', urgency: 'LOW', lastInteraction: todayStr(), followUpDate: plusDays(3), notes: '',
       whatTheyDid: '', referredById: null, followUpDraft: '', followUpDraftTier: null, followUpDraftKind: '',
-      isUMichAlum: false, affinity: [], wantsToSchedule: false, scheduleBy: null, scheduleNote: '',
+      isUMichAlum: false, affinity: [], lifeDomain: [], wantsToSchedule: false, scheduleBy: null, scheduleNote: '',
       referralStatus: 'Not Asked', referredByName: null,
     })
     return { id }
@@ -131,7 +133,7 @@ const CONTACT_FIELD_MAP = {
 const CONTACT_DEMO_KEYS = [
   'name', 'company', 'role', 'email', 'linkedin', 'notes', 'whatTheyDid', 'followUpDraft', 'scheduleNote',
   'source', 'status', 'urgency', 'lastInteraction', 'followUpDate', 'referredById', 'followUpDraftTier',
-  'followUpDraftKind', 'isUMichAlum', 'affinity', 'exaEnriched', 'wantsToSchedule', 'scheduleBy', 'referralStatus',
+  'followUpDraftKind', 'isUMichAlum', 'affinity', 'lifeDomain', 'exaEnriched', 'wantsToSchedule', 'scheduleBy', 'referralStatus',
 ]
 
 export async function updateContact(id, fields) {
@@ -161,6 +163,7 @@ export async function updateContact(id, fields) {
   if ('followUpDraftKind' in fields) patch.follow_up_draft_kind = fields.followUpDraftKind || null
   if ('isUMichAlum' in fields) patch.is_school_alum = !!fields.isUMichAlum
   if ('affinity' in fields) patch.affinity = fields.affinity || []
+  if ('lifeDomain' in fields) patch.life_domain = fields.lifeDomain || []
   if ('exaEnriched' in fields) patch.exa_enriched = !!fields.exaEnriched
   if ('wantsToSchedule' in fields) patch.wants_to_schedule = !!fields.wantsToSchedule
   if ('scheduleBy' in fields) patch.schedule_by = fields.scheduleBy || null
@@ -374,6 +377,52 @@ export async function fetchInteractions() {
       body: r.body || '',
     }))
     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+}
+
+// ── Contact Relationships ───────────────────────────────────────────────────
+// Typed, directed edges between two contacts (Mentor Of, College Friend Of, etc.) —
+// additive alongside contacts.referred_by_id, not a replacement for it. Mirrors
+// interactions' insert/list shape, plus a delete since a relationship is a mutable
+// fact the user can mis-tag and remove, not an append-only log entry.
+
+export async function fetchContactRelationships() {
+  if (isDemoMode()) return demoStore().contactRelationships.map(r => ({ ...r }))
+  const { data, error } = await supabase.from('contact_relationships').select('*')
+  throwIfError(error, 'fetchContactRelationships')
+  return (data || []).map(r => ({
+    id: r.id,
+    fromContactId: r.from_contact_id,
+    toContactId: r.to_contact_id,
+    relationshipType: r.relationship_type,
+    note: r.note || '',
+  }))
+}
+
+export async function addContactRelationship({ fromContactId, toContactId, relationshipType, note }) {
+  if (isDemoMode()) {
+    const id = nextDemoId()
+    demoStore().contactRelationships.push({ id, fromContactId, toContactId, relationshipType, note: note || '' })
+    return { id }
+  }
+  const { data, error } = await supabase.from('contact_relationships').insert({
+    from_contact_id: fromContactId,
+    to_contact_id: toContactId,
+    relationship_type: relationshipType,
+    note: note || null,
+  }).select('id').single()
+  throwIfError(error, 'addContactRelationship')
+  return data
+}
+
+export async function deleteContactRelationship(id) {
+  if (isDemoMode()) {
+    const { contactRelationships } = demoStore()
+    const idx = contactRelationships.findIndex(r => r.id === id)
+    if (idx !== -1) contactRelationships.splice(idx, 1)
+    return
+  }
+  const { error } = await supabase.from('contact_relationships').delete().eq('id', id)
+  throwIfError(error, 'deleteContactRelationship')
 }
 
 // ── Target companies (Explore/Discover/Coverage's shared target-company list) ──

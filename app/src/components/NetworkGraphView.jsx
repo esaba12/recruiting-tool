@@ -5,7 +5,21 @@ import { buildGraph, hexToRgba } from '../lib/networkGraph.js'
 
 const COMPANY_COLOR = GRAPH_NODE_NEUTRAL_DARK // neutral dot color against the dark canvas, accent reserved for the referral highlight
 
-export default function NetworkGraphView({ contacts, compact = false, height = 520, onNodeSelect }) {
+// Per-relationship-kind link styling. 'works-at' stays a faint background thread (its own
+// branch below, unchanged from before typed relationships existed). 'referred-by' keeps its
+// original tuned look. Any other kind — i.e. a contact_relationships row's relationshipType
+// (Mentor Of, College Friend Of, etc.) — falls back to one shared "named relationship" style
+// rather than growing a new hardcoded branch per type.
+const NAMED_RELATIONSHIP_COLOR = { 'referred-by': CHART_SERIES }
+const DEFAULT_RELATIONSHIP_COLOR = '#a78bfa' // generic named-relationship purple, distinct from the referral accent
+const RELATIONSHIP_STYLE = {
+  'referred-by': { width: 2, curvature: 0.3, arrow: 4 },
+}
+const DEFAULT_RELATIONSHIP_STYLE = { width: 1.5, curvature: 0.25, arrow: 3 }
+const colorFor = (kind) => NAMED_RELATIONSHIP_COLOR[kind] || DEFAULT_RELATIONSHIP_COLOR
+const styleFor = (kind) => RELATIONSHIP_STYLE[kind] || DEFAULT_RELATIONSHIP_STYLE
+
+export default function NetworkGraphView({ contacts, contactRelationships = [], compact = false, height = 520, onNodeSelect }) {
   const containerRef = useRef()
   const fgRef = useRef()
   const [hoverNode, setHoverNode] = useState(null)
@@ -26,7 +40,7 @@ export default function NetworkGraphView({ contacts, compact = false, height = 5
     return () => ro.disconnect()
   }, [])
 
-  const data = useMemo(() => buildGraph(contacts), [contacts])
+  const data = useMemo(() => buildGraph(contacts, contactRelationships), [contacts, contactRelationships])
 
   const adjacency = useMemo(() => {
     const m = new Map()
@@ -141,22 +155,24 @@ export default function NetworkGraphView({ contacts, compact = false, height = 5
 
         ctx.restore()
       }}
+      linkLabel={l => l.label || l.kind}
       linkColor={l => {
         const sid = typeof l.source === 'object' ? l.source.id : l.source
         const tid = typeof l.target === 'object' ? l.target.id : l.target
         const dimmed = hoverNode && hoverNode.id !== sid && hoverNode.id !== tid
-        if (l.kind === 'referred-by') return dimmed ? hexToRgba(CHART_SERIES, 0.15) : CHART_SERIES
         // "works-at" threads stay faint by default — a quiet connective web, not grid lines
-        return hexToRgba(GRAPH_LINK_DARK, dimmed ? 0.04 : 0.18)
+        if (l.kind === 'works-at') return hexToRgba(GRAPH_LINK_DARK, dimmed ? 0.04 : 0.18)
+        const color = colorFor(l.kind)
+        return dimmed ? hexToRgba(color, 0.15) : color
       }}
-      linkWidth={l => l.kind === 'referred-by' ? 2 : 1}
-      linkCurvature={l => l.kind === 'referred-by' ? 0.3 : 0.15}
-      linkDirectionalArrowLength={l => l.kind === 'referred-by' ? 4 : 0}
+      linkWidth={l => l.kind === 'works-at' ? 1 : styleFor(l.kind).width}
+      linkCurvature={l => l.kind === 'works-at' ? 0.15 : styleFor(l.kind).curvature}
+      linkDirectionalArrowLength={l => l.kind === 'works-at' ? 0 : styleFor(l.kind).arrow}
       linkDirectionalArrowRelPos={1}
-      linkDirectionalArrowColor={() => CHART_SERIES}
+      linkDirectionalArrowColor={l => colorFor(l.kind)}
       linkDirectionalParticles={l => l.kind === 'referred-by' ? (compact ? 2 : 3) : 0}
       linkDirectionalParticleWidth={l => l.kind === 'referred-by' ? 2.5 : 0}
-      linkDirectionalParticleColor={() => CHART_SERIES}
+      linkDirectionalParticleColor={l => colorFor(l.kind)}
       linkDirectionalParticleSpeed={0.006}
       onEngineStop={handleEngineStop}
       onNodeHover={n => setHoverNode(n)}

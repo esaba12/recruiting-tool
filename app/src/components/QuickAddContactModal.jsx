@@ -3,10 +3,11 @@ import { Sparkles, Loader2, Target, GraduationCap, Users, Globe, Link2 } from 'l
 import { searchContactByName, addContact, updateContact } from '../db.js'
 import { enrichContact, fitSummary } from '../lib/enrichment.js'
 import { DEFAULT_PROFILE, DEFAULT_WEIGHTS } from '../lib/discovery.js'
-import { ROLE_OPTIONS } from '../shared.jsx'
+import { ROLE_OPTIONS, LIFE_DOMAIN_OPTIONS } from '../shared.jsx'
 import { lsGet } from '../lib/scopedStorage.js'
 import Modal from './ui/Modal.jsx'
 import Button from './ui/Button.jsx'
+import ChipToggleGroup from './ui/ChipToggleGroup.jsx'
 
 const PROFILE_KEY = 'rec_affinity_profile'   // shared with DiscoverTab
 const TARGETS_KEY = 'rec_target_companies'   // shared with Coverage/Discover
@@ -26,6 +27,15 @@ export default function QuickAddContactModal({ contacts = [], onClose, onSaved }
   const [error, setError]     = useState(null)
 
   const set = (key, val) => setDraft(d => ({ ...d, [key]: val }))
+  function toggleLifeDomain(tag) {
+    setDraft(d => {
+      const has = (d.lifeDomain || []).includes(tag)
+      return { ...d, lifeDomain: has ? d.lifeDomain.filter(t => t !== tag) : [...(d.lifeDomain || []), tag] }
+    })
+  }
+  // Best-effort default so the review card isn't blank — a company/target match reads as
+  // a professional contact, otherwise left for the user to pick (never forced).
+  const defaultLifeDomain = (targetMatch, company) => (targetMatch || company) ? ['Professional'] : []
 
   async function runEnrich() {
     if (!name.trim()) { setError('Name is required'); return }
@@ -38,7 +48,7 @@ export default function QuickAddContactModal({ contacts = [], onClose, onSaved }
         name, company, whatTheyDo: role,
         profile, targetCompanies, existingContacts: contacts,
       })
-      setDraft({ ...result, email: '', referredById: '' })
+      setDraft({ ...result, email: '', referredById: '', lifeDomain: defaultLifeDomain(result.targetMatch, result.company) })
       setStep('review')
     } catch (e) {
       // Enrichment is fail-soft, but if the whole thing throws, fall back to the raw entry
@@ -47,6 +57,7 @@ export default function QuickAddContactModal({ contacts = [], onClose, onSaved }
         name: name.trim(), company: company.trim(), role: 'Other', title: role.trim(),
         descriptor: '', linkedin: '', email: '', affinity: [], isUMichAlum: false,
         targetMatch: false, alsoAt: [], enrichedFromWeb: false, exaError: e.message, referredById: '',
+        lifeDomain: defaultLifeDomain(false, company.trim()),
       })
       setStep('review')
     }
@@ -70,6 +81,7 @@ export default function QuickAddContactModal({ contacts = [], onClose, onSaved }
         notes: draft.descriptor || '',
         isUMichAlum: draft.isUMichAlum,
         affinity: draft.affinity || [],
+        lifeDomain: draft.lifeDomain || [],
         referredById: draft.referredById || null,
         exaEnriched: !!draft.enrichedFromWeb,
       })
@@ -141,8 +153,8 @@ export default function QuickAddContactModal({ contacts = [], onClose, onSaved }
                 <p className="text-[11px] font-semibold text-accent-700 uppercase tracking-wide mb-1.5">How they fit</p>
                 <div className="flex flex-wrap gap-1.5">
                   {draft.targetMatch && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-accent-200 text-xs text-accent-700"><Target size={11} /> Target company</span>}
-                  {draft.isUMichAlum && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-accent-200 text-xs text-accent-700"><GraduationCap size={11} /> UMich alum</span>}
-                  {(draft.affinity || []).filter(a => a !== 'UMich').map(a => (
+                  {draft.isUMichAlum && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-accent-200 text-xs text-accent-700"><GraduationCap size={11} /> {draft.schoolTagLabel || 'UMich alum'}</span>}
+                  {(draft.affinity || []).filter(a => a !== draft.schoolTagLabel && a !== 'UMich').map(a => (
                     <span key={a} className="px-2 py-0.5 rounded-full bg-white border border-accent-200 text-xs text-accent-700">{a}</span>
                   ))}
                   {draft.alsoAt?.length > 0 && (
@@ -199,6 +211,11 @@ export default function QuickAddContactModal({ contacts = [], onClose, onSaved }
               <textarea value={draft.descriptor} onChange={e => set('descriptor', e.target.value)} rows={2}
                 placeholder="One line on what they work on"
                 className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 resize-none" />
+            </div>
+
+            <div>
+              <label className="block text-xs text-ink-400 mb-1">Life domain <span className="text-ink-300">(optional — broaden or override the guess above)</span></label>
+              <ChipToggleGroup options={LIFE_DOMAIN_OPTIONS} value={draft.lifeDomain || []} onToggle={toggleLifeDomain} />
             </div>
 
             {draft.alsoAt?.length > 0 && (

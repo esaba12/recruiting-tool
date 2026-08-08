@@ -16,7 +16,7 @@ import DraftPanel from './DraftPanel.jsx'
 // just "any contact at all" — a company where your only contact is a total stranger you
 // added but never talked to isn't meaningfully covered.
 const STRONG_COVERAGE_THRESHOLD = 3
-export default function ReferralCoverageTab({ contacts, apps, interactions, onRefresh, onFindPeople }) {
+export default function ReferralCoverageTab({ contacts, apps, interactions, contactRelationships = [], onRefresh, onFindPeople }) {
   const { targets, setTargets, loaded } = useTargetCompanies()
   const [editingList, setEditingList] = useState(false)
   const [draft, setDraft] = useState('')
@@ -48,9 +48,10 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, onRe
       const matchedApps = apps.filter(a => a.company?.trim() && normalizeCompanyName(a.company) === key)
       const bestScore = matchedContacts.length > 0 ? Math.max(...matchedContacts.map(c => affinityScore(c, interactions))) : -1
       const status = matchedContacts.length === 0 ? 'gap' : bestScore >= STRONG_COVERAGE_THRESHOLD ? 'strong' : 'weak'
-      // Shortest referral chain into this company, if any of the matched contacts were
-      // introduced to you rather than added cold — surfaces a path you might've forgotten.
-      const paths = matchedContacts.length > 0 ? warmPathsToCompany(contacts, company) : []
+      // Shortest path into this company — referral chains plus tagged relationships —
+      // if any of the matched contacts were introduced to you or are connected to someone
+      // you know rather than added cold. Surfaces a path you might've forgotten.
+      const paths = matchedContacts.length > 0 ? warmPathsToCompany(contacts, company, contactRelationships) : []
       const bestPath = paths.find(p => p.chain.length > 0) || null
       return { company, matchedContacts, matchedApps, status, bestPath }
     })
@@ -150,6 +151,7 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, onRe
           initial={{ company: addingFor }}
           contacts={contacts}
           interactions={interactions}
+          contactRelationships={contactRelationships}
           onClose={() => setAddingFor(null)}
           onSaved={() => { setAddingFor(null); onRefresh() }}
         />

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TERMINAL_STAGES, daysSince, daysUntil, fmt, Badge, EmptyState, isUntriaged, isOverdue } from '../shared.jsx'
+import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TERMINAL_STAGES, daysSince, daysUntil, fmt, Badge, EmptyState, isUntriaged, isOverdue, isStaleApplication } from '../shared.jsx'
 import { updateContact, addInteraction } from '../db.js'
 import DraftPanel from './DraftPanel.jsx'
 
@@ -22,10 +22,7 @@ export default function ActionsTab({ contacts, apps, interactions = [], onRefres
     .sort((a, b) => daysUntil(a.followUpDate) - daysUntil(b.followUpDate))
 
   const staleApps = activeApps
-    .filter(a => {
-      const d = a.daysInStage ?? daysSince(a.lastActivity)
-      return d !== null && d > 14
-    })
+    .filter(isStaleApplication)
     .sort((a, b) => {
       const da = a.daysInStage ?? daysSince(a.lastActivity)
       const db = b.daysInStage ?? daysSince(b.lastActivity)

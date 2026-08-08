@@ -1,5 +1,26 @@
 import { aiJSON, AI_MODELS } from './ai.js'
 
+// Sentence fragment describing who's sending the message, built from the signed-in
+// user's profile instead of a hardcoded student persona — empty when the user hasn't
+// filled in a school (e.g. a personal-CRM-only user with no recruiting profile), so
+// the surrounding prompt still reads cleanly with no dangling "from ... to a contact."
+export function personaClause(profile) {
+  if (!profile?.school) return ''
+  const focus = profile.focus && profile.focus !== 'Both' ? profile.focus : 'CS'
+  return `a ${focus} student at ${profile.school}`
+}
+
+// True when a contact is tagged as a personal (non-recruiting) relationship — a friend,
+// family member, mentor, or community contact who isn't also a professional/recruiting
+// one. Used to suppress the recruiting persona clause even when the signed-in user's own
+// profile is fully filled in, since a message to Mom shouldn't claim to be job-search framing.
+export function isPersonalContact(contact) {
+  const domains = contact?.lifeDomain || []
+  const personal = domains.some(d => ['Friend', 'Family', 'Mentor', 'Community'].includes(d))
+  const professional = domains.some(d => ['Professional', 'Recruiting'].includes(d))
+  return personal && !professional
+}
+
 // Escalation tier for an overdue follow-up, derived from days-overdue rather than a
 // stored counter (no client-side scheduler exists — App.jsx only fetches on mount/
 // manual refresh, so there's nothing to "advance" a counter on a timer). Tone should
@@ -23,14 +44,15 @@ const TIER_GUIDANCE = {
 // 10-15%+ for genuinely personalized messages, so a template fallback here would
 // silently defeat the point of the feature. Enforced here (not just in the UI) so any
 // future caller can't accidentally bypass it.
-export function buildDraftPrompt({ contact, kind, tier, personalizationContext }) {
-  const student = 'a CS student targeting SWE internships'
+export function buildDraftPrompt({ contact, kind, tier, personalizationContext, profile }) {
+  const clause = isPersonalContact(contact) ? '' : personaClause(profile)
+  const from = clause ? ` from ${clause}` : ''
 
   if (kind === 'cold_open') {
     if (!personalizationContext?.trim()) {
       throw new Error('personalizationContext is required for a cold-open draft — a shared connection, mutual interest, or specific signal about the company/role. Generic messages get a fraction of the response rate of personalized ones.')
     }
-    return `Draft a short cold-outreach LinkedIn message / email from ${student} to a new contact. Return ONLY valid JSON, no explanation, no markdown.
+    return `Draft a short cold-outreach LinkedIn message / email${from} to a new contact. Return ONLY valid JSON, no explanation, no markdown.
 
 Contact: ${contact.name}${contact.company ? ` (${contact.company}${contact.role ? `, ${contact.role}` : ''})` : ''}
 Personalization / reason for reaching out to them specifically: ${personalizationContext}
@@ -46,7 +68,7 @@ Rules:
 - Keep it under 120 words.`
   }
 
-  return `Draft a follow-up message from ${student} to a contact who hasn't responded to an earlier outreach. Return ONLY valid JSON, no explanation, no markdown.
+  return `Draft a follow-up message${from} to a contact who hasn't responded to an earlier outreach. Return ONLY valid JSON, no explanation, no markdown.
 
 Contact: ${contact.name}${contact.company ? ` (${contact.company}${contact.role ? `, ${contact.role}` : ''})` : ''}
 This is follow-up tier ${tier} of 3. ${TIER_GUIDANCE[tier]}
@@ -62,7 +84,7 @@ Rules:
 - Tier 3 must include an explicit low-pressure opt-out.`
 }
 
-export async function draftMessage({ contact, kind, tier, personalizationContext }) {
-  const content = buildDraftPrompt({ contact, kind, tier, personalizationContext })
+export async function draftMessage({ contact, kind, tier, personalizationContext, profile }) {
+  const content = buildDraftPrompt({ contact, kind, tier, personalizationContext, profile })
   return aiJSON({ model: AI_MODELS.MINI, content, maxTokens: 400 })
 }

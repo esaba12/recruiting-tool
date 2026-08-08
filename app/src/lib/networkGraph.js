@@ -14,7 +14,9 @@ export function normalizeCompanyName(name) {
   return name.trim().toLowerCase()
 }
 
-export function buildGraph(contacts) {
+// relationships: contact_relationships rows ({fromContactId, toContactId, relationshipType}),
+// additive alongside the existing works-at/referred-by edges derived from contacts alone.
+export function buildGraph(contacts, relationships = []) {
   const nodes = []
   const links = []
   const companyId = (name) => `company:${normalizeCompanyName(name)}`
@@ -33,6 +35,10 @@ export function buildGraph(contacts) {
     if (c.referredById) {
       links.push({ source: c.referredById, target: c.id, kind: 'referred-by' })
     }
+  })
+
+  relationships.forEach(r => {
+    links.push({ source: r.fromContactId, target: r.toContactId, kind: r.relationshipType, label: r.relationshipType })
   })
 
   return { nodes, links }

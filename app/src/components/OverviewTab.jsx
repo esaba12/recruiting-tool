@@ -1,4 +1,4 @@
-import { STATUS_COLOR, TERMINAL_STAGES, INTERVIEW_STAGES, daysSince, daysUntil, isUntriaged, isOverdue } from '../shared.jsx'
+import { STATUS_COLOR, TERMINAL_STAGES, INTERVIEW_STAGES, daysSince, daysUntil, isUntriaged, isOverdue, isStaleApplication } from '../shared.jsx'
 import BarChartWrapper from './charts/BarChart.jsx'
 import DonutChart from './charts/DonutChart.jsx'
 import TrendChart from './charts/TrendChart.jsx'
@@ -37,10 +37,8 @@ export default function OverviewTab({ contacts, apps, interactions = [], onOpenG
   const overdueContacts = contacts.filter(isOverdue)
     .sort((a, b) => daysUntil(a.followUpDate) - daysUntil(b.followUpDate))
 
-  const staleApps = activeApps.filter(a => {
-    const d = a.daysInStage ?? daysSince(a.lastActivity)
-    return d !== null && d > 14
-  })
+  const staleApps = activeApps.filter(isStaleApplication)
+  const hasRecruitingActivity = apps.length > 0
 
   const stageCounts = {}
   triagedApps.forEach(a => { stageCounts[a.stage] = (stageCounts[a.stage] || 0) + 1 })
@@ -92,36 +90,39 @@ export default function OverviewTab({ contacts, apps, interactions = [], onOpenG
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPI label="Contacts" value={contacts.length} sub={`${warmContacts.length} warm`} />
-        <KPI label="Active Apps" value={activeApps.length} sub={`${apps.filter(a=>a.stage==='Applied').length} awaiting response`} />
-        <KPI label="Interviews" value={interviews.length} accent={interviews.length > 0} sub={interviews.length ? interviews.map(i=>i.company).join(', ') : 'none yet'} />
-        <KPI label="Offers" value={offers.length} accent={offers.length > 0} sub={offers.length ? offers.map(o=>o.company).join(', ') : 'keep pushing'} />
-      </div>
-
-      {/* Pipeline funnel */}
-      <div className="bg-white rounded-xl p-5 shadow-sm border border-ink-100">
-        <h2 className="text-sm font-semibold text-ink-700 mb-4">Application Funnel</h2>
-        {apps.length === 0 ? (
-          <p className="text-sm text-ink-400">No applications yet. Add them in Notion or let the email pipeline populate them.</p>
-        ) : (
+        {hasRecruitingActivity ? (
           <>
-            <BarChartWrapper data={funnelData} height={180} />
-            {conversions.length > 0 && (
-              <p className="text-xs text-ink-400 mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                {conversions.map(c => (
-                  <span key={c.to}>{c.from} → {c.to}: <span className="font-medium text-ink-600">{c.pct}%</span></span>
-                ))}
-              </p>
-            )}
-            {(stageCounts.Rejected || stageCounts.Accepted) && (
-              <p className="text-xs text-ink-400 mt-2">
-                {stageCounts.Rejected ? `${stageCounts.Rejected} rejected` : ''}
-                {stageCounts.Rejected && stageCounts.Accepted ? ' · ' : ''}
-                {stageCounts.Accepted ? `${stageCounts.Accepted} accepted` : ''}
-              </p>
-            )}
+            <KPI label="Active Apps" value={activeApps.length} sub={`${apps.filter(a=>a.stage==='Applied').length} awaiting response`} />
+            <KPI label="Interviews" value={interviews.length} accent={interviews.length > 0} sub={interviews.length ? interviews.map(i=>i.company).join(', ') : 'none yet'} />
+            <KPI label="Offers" value={offers.length} accent={offers.length > 0} sub={offers.length ? offers.map(o=>o.company).join(', ') : 'keep pushing'} />
           </>
+        ) : (
+          <KPI label="Companies" value={companyCount} sub={companyCount === 1 ? '1 company' : `${companyCount} companies`} />
         )}
       </div>
+
+      {/* Pipeline funnel — only for users with recruiting activity, so a personal-CRM-only
+          user doesn't get a permanently-empty card taking up space. */}
+      {hasRecruitingActivity && (
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-ink-100">
+          <h2 className="text-sm font-semibold text-ink-700 mb-4">Application Funnel</h2>
+          <BarChartWrapper data={funnelData} height={180} />
+          {conversions.length > 0 && (
+            <p className="text-xs text-ink-400 mt-2 flex flex-wrap gap-x-3 gap-y-1">
+              {conversions.map(c => (
+                <span key={c.to}>{c.from} → {c.to}: <span className="font-medium text-ink-600">{c.pct}%</span></span>
+              ))}
+            </p>
+          )}
+          {(stageCounts.Rejected || stageCounts.Accepted) && (
+            <p className="text-xs text-ink-400 mt-2">
+              {stageCounts.Rejected ? `${stageCounts.Rejected} rejected` : ''}
+              {stageCounts.Rejected && stageCounts.Accepted ? ' · ' : ''}
+              {stageCounts.Accepted ? `${stageCounts.Accepted} accepted` : ''}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Attention */}
       {(overdueContacts.length > 0 || staleApps.length > 0) && (

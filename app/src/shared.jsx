@@ -56,8 +56,22 @@ export const STATUS_OPTIONS = Object.keys(STATUS_COLOR)
 export const URGENCY_OPTIONS = ['HIGH','MED','LOW']
 // Shared-background signals, distinct from ROLE_OPTIONS's 'Alumni' (which describes this
 // contact's relationship *type* to you, not a background they happen to share with you).
-export const AFFINITY_OPTIONS = ['UMich','Same Hometown','Shared Club/Activity','Warm Intro']
+// Default vocabulary for spots that can't reach the signed-in user's profile.
+export const AFFINITY_OPTIONS_DEFAULT = ['UMich','Same Hometown','Shared Club/Activity','Warm Intro']
+// Profile-driven version — the first option reads whatever school the user set in
+// Settings (profiles.school) instead of hardcoding UMich, so this vocabulary doesn't
+// silently assume every user/contact is a Michigan CS student.
+export function affinityOptionsFor(profile) {
+  const school = profile?.school ? `${profile.school} alum` : 'UMich'
+  return [school, 'Same Hometown', 'Shared Club/Activity', 'Warm Intro']
+}
 export const REFERRAL_STATUS_OPTIONS = Object.keys(REFERRAL_STATUS_COLOR)
+export const LIFE_DOMAIN_OPTIONS = ['Professional', 'Recruiting', 'Friend', 'Family', 'Mentor', 'Community']
+// Directed contact-to-contact relationship types (contact_relationships table) — read
+// literally as "<from> is <type> <to>", e.g. "Mentor Of" from A to B means A mentors B.
+// Distinct from contacts.referred_by_id, which stays a separate, narrower "who introduced
+// me to this contact" field.
+export const RELATIONSHIP_TYPES = ['Mentor Of', 'Introduced To', 'Referred To', 'College Friend Of', 'Coworker Of', 'Family Of', 'Other']
 
 export function daysSince(d) {
   if (!d) return null
@@ -92,6 +106,14 @@ export function isOverdue(c) {
 // Overview/Pipeline/Actions "active" stats so a big board import doesn't drown out real activity.
 export function isUntriaged(a) {
   return (a.triage === 'Needs Review' && a.stage === 'Wishlist') || a.triage === 'Pass'
+}
+
+// An active application with no stage movement in 14+ days — the single source of truth
+// for "stale," previously computed identically-but-independently in App.jsx, OverviewTab.jsx,
+// and ActionsTab.jsx.
+export function isStaleApplication(a) {
+  const d = a.daysInStage ?? daysSince(a.lastActivity)
+  return d !== null && d > 14
 }
 
 // Groups applications that normalize to the same Company+Role (trim + lowercase) —
