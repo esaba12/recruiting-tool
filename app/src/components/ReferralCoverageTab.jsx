@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { lsGet, lsSet } from './jobBoards/helpers.js'
 import { normalizeCompanyName } from '../lib/networkGraph.js'
 import { affinityScore } from '../lib/affinity.js'
+import { warmPathsToCompany, pathLabel } from '../lib/warmIntro.js'
 import { STAGE_COLOR, Badge, EmptyState } from '../shared.jsx'
 import ContactDetailModal from './ContactDetailModal.jsx'
 import DraftPanel from './DraftPanel.jsx'
@@ -38,7 +39,11 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, onRe
       const matchedApps = apps.filter(a => a.company?.trim() && normalizeCompanyName(a.company) === key)
       const bestScore = matchedContacts.length > 0 ? Math.max(...matchedContacts.map(c => affinityScore(c, interactions))) : -1
       const status = matchedContacts.length === 0 ? 'gap' : bestScore >= STRONG_COVERAGE_THRESHOLD ? 'strong' : 'weak'
-      return { company, matchedContacts, matchedApps, status }
+      // Shortest referral chain into this company, if any of the matched contacts were
+      // introduced to you rather than added cold — surfaces a path you might've forgotten.
+      const paths = matchedContacts.length > 0 ? warmPathsToCompany(contacts, company) : []
+      const bestPath = paths.find(p => p.chain.length > 0) || null
+      return { company, matchedContacts, matchedApps, status, bestPath }
     })
     .sort((a, b) => ({ gap: 0, weak: 1, strong: 2 }[a.status]) - ({ gap: 0, weak: 1, strong: 2 }[b.status]))
 
@@ -96,6 +101,11 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, onRe
                   {r.matchedContacts.length > 0 && (
                     <p className="text-xs text-ink-500 mt-1 truncate">
                       {r.matchedContacts.map(c => c.name).join(', ')}
+                    </p>
+                  )}
+                  {r.bestPath && (
+                    <p className="text-[11px] text-indigo-600 mt-0.5 truncate" title="Referral chain that led to this contact">
+                      ↩ Path: {pathLabel(r.bestPath)}
                     </p>
                   )}
                   {draftingCompany === r.company && r.matchedContacts[0] && (

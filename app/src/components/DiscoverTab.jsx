@@ -32,7 +32,7 @@ const ROLE_FOR_CATEGORY = { engineer: 'SWE', manager: 'SWE', pm: 'PM', recruiter
 // Personalization seed for a cold-open draft — the shared résumé signals, not the
 // scoring meta-reasons ("Reachable engineer", "First contact...").
 function personalizationSeed(person, reasons) {
-  const signal = reasons.filter(r => !/(Reachable|reply odds|First contact|new angle|already know|Already in)/i.test(r))
+  const signal = reasons.filter(r => !/(Reachable|reply odds|First contact|new angle|already know|Already in|also worked at)/i.test(r))
   return signal.join('; ') || `They're ${person.title || 'on the team'} at ${person.company}`
 }
 
@@ -111,7 +111,7 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
             priorResultHash: item.priorResultHash, knownUrls,
           })
           if (!skippedExtraction && people) {
-            const ranked = rankCandidates(people, profile, contactsAt(item.company))
+            const ranked = rankCandidates(people, profile, contactsAt(item.company), contacts)
             nextDiscovered[item.key] = ranked
             found += ranked.filter(isLive).length
           }
@@ -148,7 +148,7 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
       const prior = meta.perCompany?.[key]?.resultHash || null
       const { people, resultHash, skippedExtraction } = await discoverPeople({ company, roles: DISCOVER_ROLES, profile, priorResultHash: prior, knownUrls })
       const nextDiscovered = (!skippedExtraction && people)
-        ? { ...discovered, [key]: rankCandidates(people, profile, contactsAt(company)) }
+        ? { ...discovered, [key]: rankCandidates(people, profile, contactsAt(company), contacts) }
         : discovered
       if (nextDiscovered !== discovered) persistDiscovered(nextDiscovered)
       persistMeta({ ...meta, perCompany: { ...(meta.perCompany || {}), [key]: { lastRun: Date.now(), resultHash, count: (nextDiscovered[key] || []).length } } })

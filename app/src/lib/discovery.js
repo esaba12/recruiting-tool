@@ -6,6 +6,7 @@
 //
 // Same philosophy as affinity.js: an inspectable, overridable nudge (every point of
 // score carries a human-readable reason) — not a hard filter.
+import { possibleConnectionFor } from './warmIntro.js'
 
 export const DEFAULT_WEIGHTS = { pastEmployer: 4, program: 3, university: 2, hometown: 1 }
 
@@ -79,14 +80,25 @@ function signalOverlap(person, profile) {
 
 // person: { name, title, company, school, pastCompanies[], programs[], linkedinUrl }
 // existingContactsAtCompany: your Contacts already at this company (name + role).
-// -> { score, reasons[], category, isDuplicate }
-export function discoveryScore(person, profile = DEFAULT_PROFILE, existingContactsAtCompany = []) {
+// allContacts: your full Contacts list — only used for the possible-connection bridge
+// below, which searches across companies, not just this one.
+// -> { score, reasons[], category, isDuplicate, bridgeContact }
+export function discoveryScore(person, profile = DEFAULT_PROFILE, existingContactsAtCompany = [], allContacts = []) {
   const reasons = []
   let score = 0
 
   const sig = signalOverlap(person, profile)
   score += sig.score
   reasons.push(...sig.reasons)
+
+  // Not a graph edge to this stranger (we have no data on who they know) — a shared-
+  // employer bridge with someone already in your Contacts, worth a small nudge and a
+  // concrete "ask them" reason.
+  const bridgeContact = possibleConnectionFor(person, allContacts)
+  if (bridgeContact) {
+    score += 1
+    reasons.push(`${bridgeContact.name} also worked at ${bridgeContact.company}`)
+  }
 
   const category = roleCategory(person.title)
   const reach = REACHABILITY[category] ?? 0
@@ -97,7 +109,7 @@ export function discoveryScore(person, profile = DEFAULT_PROFILE, existingContac
   // Already a contact? Sink it so re-runs don't re-surface people you know.
   if (existingContactsAtCompany.some(c => norm(c.name) === norm(person.name))) {
     reasons.push('Already in your contacts')
-    return { score: -Infinity, reasons, category, isDuplicate: true }
+    return { score: -Infinity, reasons, category, isDuplicate: true, bridgeContact }
   }
 
   // "Next best person" coverage logic.
@@ -115,13 +127,13 @@ export function discoveryScore(person, profile = DEFAULT_PROFILE, existingContac
     }
   }
 
-  return { score, reasons, category, isDuplicate: false }
+  return { score, reasons, category, isDuplicate: false, bridgeContact }
 }
 
 // Convenience: score + sort a whole batch (best first). Duplicates sink to the bottom.
-export function rankCandidates(people, profile = DEFAULT_PROFILE, existingContactsAtCompany = []) {
+export function rankCandidates(people, profile = DEFAULT_PROFILE, existingContactsAtCompany = [], allContacts = []) {
   return people
-    .map(p => ({ person: p, ...discoveryScore(p, profile, existingContactsAtCompany) }))
+    .map(p => ({ person: p, ...discoveryScore(p, profile, existingContactsAtCompany, allContacts) }))
     .sort((a, b) => b.score - a.score)
 }
 
