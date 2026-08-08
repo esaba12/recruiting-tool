@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { CalendarDays, ListTodo } from 'lucide-react'
 import { listEvents } from '../googleCalendar.js'
 import { updateApplicationTriage, archiveApplication } from '../db.js'
 import { BUCKET_TO_TRIAGE, MONTH_NAMES } from './jobBoards/helpers.js'
+import { buildTimelineItems, groupTimelineItems } from '../lib/timeline.js'
 import { Badge } from '../shared.jsx'
 import ContactDetailModal from './ContactDetailModal.jsx'
 import ApplicationDetailModal from './ApplicationDetailModal.jsx'
@@ -14,6 +16,11 @@ const OVERLAYS = [
   { key: 'followups',    label: 'Follow-ups',   dot: 'bg-indigo-500',  chipActive: 'bg-indigo-500 text-white border-indigo-500' },
   { key: 'applications', label: 'Applications', dot: 'bg-success-500', chipActive: 'bg-success-500 text-white border-success-500' },
 ]
+
+// How far ahead/behind "today" the Feed view's Google Calendar window covers — wide
+// enough to catch anything worth seeing in "Later" without an unbounded fetch.
+const FEED_DAYS_BACK = 3
+const FEED_DAYS_FORWARD = 60
 
 function pad(n) { return String(n).padStart(2, '0') }
 function dayKey(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}` }
@@ -37,6 +44,10 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
   const [selectedApp, setSelectedApp] = useState(null)
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [addEventOpen, setAddEventOpen] = useState(false)
+  const [viewMode, setViewMode] = useState('grid') // 'grid' | 'feed'
+  const [feedEvents, setFeedEvents] = useState(null) // null = not yet fetched
+  const [feedLoading, setFeedLoading] = useState(false)
+  const [feedError, setFeedError] = useState(null)
 
   const year = viewDate.getFullYear()
   const mo   = viewDate.getMonth()
@@ -73,6 +84,27 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
     }
   }
 
+  // Feed view needs a rolling window of events (not just whichever month the grid
+  // happens to be showing), so it fetches separately the first time it's opened.
+  async function fetchFeedEvents() {
+    setFeedLoading(true); setFeedError(null)
+    try {
+      const timeMin = new Date(Date.now() - FEED_DAYS_BACK * 86400000).toISOString()
+      const timeMax = new Date(Date.now() + FEED_DAYS_FORWARD * 86400000).toISOString()
+      const events = await listEvents({ timeMin, timeMax })
+      setFeedEvents(events)
+    } catch (e) {
+      setFeedError(e.message)
+    } finally {
+      setFeedLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (viewMode === 'feed' && feedEvents === null) fetchFeedEvents()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode])
+
   // Build a day -> { events[], followups[], applications[] } map for the visible month
   const itemsByDay = {}
   function addItem(key, type, item) {
@@ -107,14 +139,35 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
 
   const selectedItems = selectedDay ? (itemsByDay[selectedDay] || { events: [], followups: [], applications: [] }) : null
 
+  const timelineGroups = viewMode === 'feed'
+    ? groupTimelineItems(buildTimelineItems({ contacts, apps, interactions, calendarEvents: feedEvents || [] }))
+    : null
+
+  function openTimelineItem(item) {
+    if (item.refType === 'contact') setSelectedContact(item.ref)
+    else if (item.refType === 'application') setSelectedApp(item.ref)
+    else if (item.refType === 'event') setSelectedEvent(item.ref)
+  }
+
   return (
     <div className="space-y-4">
       <TimelineFindsPanel apps={apps} calls={calls} interactions={interactions} contacts={contacts}
         onEventCreated={refetchMonth} />
 
-      {/* Overlay toggles + add event */}
+      {/* View toggle + overlay toggles + add event */}
       <div className="flex gap-2 flex-wrap items-center">
-        {OVERLAYS.map(o => (
+        <div className="flex border border-ink-200 rounded-full overflow-hidden text-xs font-medium shrink-0">
+          <button onClick={() => setViewMode('grid')}
+            className={`px-3 py-1 flex items-center gap-1.5 transition-colors ${viewMode === 'grid' ? 'bg-ink-900 text-white' : 'bg-white text-ink-500 hover:bg-ink-50'}`}>
+            <CalendarDays size={13} strokeWidth={2.25} /> Grid
+          </button>
+          <button onClick={() => setViewMode('feed')}
+            className={`px-3 py-1 flex items-center gap-1.5 transition-colors ${viewMode === 'feed' ? 'bg-ink-900 text-white' : 'bg-white text-ink-500 hover:bg-ink-50'}`}>
+            <ListTodo size={13} strokeWidth={2.25} /> Feed
+          </button>
+        </div>
+
+        {viewMode === 'grid' && OVERLAYS.map(o => (
           <button key={o.key} onClick={() => toggle(o.key)}
             className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors flex items-center gap-1.5 ${visible[o.key]
               ? o.chipActive
@@ -129,12 +182,14 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
         </button>
       </div>
 
-      {eventsError && (
+      {viewMode === 'grid' && eventsError && (
         <div className="p-3 bg-danger-50 border border-danger-200 rounded-xl text-xs text-danger-700">
           Couldn't load Google Calendar events: {eventsError}
         </div>
       )}
 
+      {viewMode === 'grid' && (
+      <>
       {/* Month grid */}
       <div className="bg-white rounded-xl p-5 shadow-sm border border-ink-100">
         <div className="flex items-center justify-between mb-4">
@@ -208,6 +263,12 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
           )}
         </div>
       )}
+      </>
+      )}
+
+      {viewMode === 'feed' && (
+        <TimelineFeed groups={timelineGroups} loading={feedLoading} error={feedError} onOpen={openTimelineItem} />
+      )}
 
       {selectedContact && (
         <ContactDetailModal
@@ -242,6 +303,73 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
           onCreated={() => { setAddEventOpen(false); refetchMonth() }}
         />
       )}
+    </div>
+  )
+}
+
+const FEED_LATER_CAP = 25
+
+function relativeDayLabel(item) {
+  if (item.days === null) return '—'
+  if (item.days < 0) return `${Math.abs(item.days)}d overdue`
+  if (item.days === 0) return 'Today'
+  return `in ${item.days}d`
+}
+
+const FEED_SECTIONS = [
+  { key: 'overdue', title: 'Overdue', heading: 'text-danger-700', border: 'border-danger-200', dayColor: 'text-danger-600' },
+  { key: 'soon', title: 'Next 7 Days', heading: 'text-warning-700', border: 'border-warning-200', dayColor: 'text-warning-700' },
+  { key: 'later', title: 'Later', heading: 'text-ink-700', border: 'border-ink-200', dayColor: 'text-ink-500' },
+]
+
+// The unified feed: application deadlines + Google Calendar events + explicit contact
+// follow-ups/schedule-by dates + Keep in Touch reconnect cadence, merged into one
+// urgency-sorted list — a single "what needs my attention, in order" view, since none of
+// those four signals previously overlapped anywhere in the app.
+function TimelineFeed({ groups, loading, error, onOpen }) {
+  const total = groups ? groups.overdue.length + groups.soon.length + groups.later.length : 0
+
+  return (
+    <div className="space-y-4">
+      {loading && <p className="text-xs text-ink-400 px-1">Loading calendar events...</p>}
+      {error && (
+        <div className="p-3 bg-danger-50 border border-danger-200 rounded-xl text-xs text-danger-700">
+          Couldn't load Google Calendar events for the feed: {error}
+        </div>
+      )}
+
+      {total === 0 && !loading && (
+        <div className="bg-white rounded-xl p-8 shadow-sm border border-ink-100 text-center">
+          <p className="text-sm text-ink-400">✓ Nothing on the horizon — deadlines, events, follow-ups, and reconnects will show up here.</p>
+        </div>
+      )}
+
+      {groups && FEED_SECTIONS.map(section => {
+        const items = groups[section.key]
+        if (items.length === 0) return null
+        const shown = section.key === 'later' ? items.slice(0, FEED_LATER_CAP) : items
+        return (
+          <div key={section.key} className={`bg-white rounded-xl p-5 shadow-sm border ${section.border}`}>
+            <h2 className={`text-sm font-semibold ${section.heading} mb-3`}>{section.title} ({items.length})</h2>
+            <div className="divide-y divide-ink-100">
+              {shown.map(item => (
+                <button key={item.id} onClick={() => onOpen(item)}
+                  className="w-full text-left py-2.5 flex items-center gap-3 hover:bg-ink-50 -mx-1 px-1 rounded-lg transition-colors">
+                  <Badge label={item.badgeLabel} color={item.badgeColor} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-ink-900 truncate">{item.title}</p>
+                    <p className="text-xs text-ink-500 truncate">{item.subtitle}</p>
+                  </div>
+                  <p className={`text-xs font-medium shrink-0 ${section.dayColor}`}>{relativeDayLabel(item)}</p>
+                </button>
+              ))}
+            </div>
+            {section.key === 'later' && items.length > FEED_LATER_CAP && (
+              <p className="text-xs text-ink-400 text-center pt-2">+{items.length - FEED_LATER_CAP} more further out</p>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
