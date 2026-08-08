@@ -201,7 +201,7 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
 
   const lastRunMs = Math.max(0, ...Object.values(meta.perCompany || {}).map(v => v.lastRun || 0))
   const cardProps = (c) => ({
-    cand: c, profile,
+    cand: c, profile, authProfile: userProfile,
     isAdded: added.has(candKey(c.person.company, c.person.name)),
     onDismiss: () => dismiss(candKey(c.person.company, c.person.name)),
     onAdded: () => { markAdded(candKey(c.person.company, c.person.name)); onRefresh() },
@@ -315,7 +315,11 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
 }
 
 // ── Candidate card ──────────────────────────────────────────────────────────────
-function CandidateCard({ cand, profile, showCompany, isAdded, onDismiss, onAdded }) {
+// Note: `profile` here is Discover's own affinity-scoring profile (university/pastEmployers/
+// weights — see lib/discovery.js's DEFAULT_PROFILE), used for addToContacts's affinity
+// tagging. `authProfile` is the separate Settings/profiles-table row (school/focus), used
+// only for the AI draft's persona clause — the two are intentionally not conflated.
+function CandidateCard({ cand, profile, authProfile, showCompany, isAdded, onDismiss, onAdded }) {
   const { person, score, reasons } = cand
   const [adding, setAdding] = useState(false)
   const [addErr, setAddErr] = useState(null)
@@ -359,6 +363,7 @@ function CandidateCard({ cand, profile, showCompany, isAdded, onDismiss, onAdded
         contact: { name: person.name, company: person.company, role: person.title },
         kind: 'cold_open',
         personalizationContext: personalizationSeed(person, reasons),
+        profile: authProfile,
       })
       setDraft(res.draft || '')
     } catch (e) {

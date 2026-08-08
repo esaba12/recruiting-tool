@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { Phone, MessageCircle, Users, Mail, MoreHorizontal } from 'lucide-react'
 import { searchContactByName, addContact, addCallEntry, addInteraction, updateContact } from '../db.js'
 import { aiJSON, AI_MODELS, AI_PROVIDER_LABEL } from '../lib/ai.js'
-import { AFFINITY_OPTIONS } from '../shared.jsx'
+import { ROLE_OPTIONS, affinityOptionsFor } from '../shared.jsx'
+import { personaClause, isPersonalContact } from '../lib/drafting.js'
+import { useAuth } from '../lib/AuthContext.jsx'
 import Modal from './ui/Modal.jsx'
 import Button from './ui/Button.jsx'
 import Tabs from './ui/Tabs.jsx'
@@ -18,22 +20,26 @@ const CHANNELS = [
 const CHANNEL_TO_TYPE = { call: 'Call', linkedin: 'LinkedIn', meeting: 'Meeting', email: 'Email', other: 'Other' }
 const TRANSCRIPT_CHANNELS = new Set(['call', 'linkedin'])
 
-async function extractWithAI(channel, text) {
+async function extractWithAI(channel, text, { profile, contact } = {}) {
   const isCall = channel === 'call'
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  const roleVocab = ROLE_OPTIONS.join('|')
+  const affinityVocab = affinityOptionsFor(profile).join(', ')
+  const clause = isPersonalContact(contact) ? '' : personaClause(profile)
+  const draftFrom = clause ? ` from ${clause}` : ''
   const prompt = isCall
     ? `Today is ${today}. Extract recruiting data from this call summary/transcript. Return ONLY valid JSON, no explanation.
 
 {
   "contact_name": "full name",
   "contact_company": "company name",
-  "contact_role": "their job title or type: SWE|PM|Recruiter|Alumni|Referral|Other",
+  "contact_role": "their job title or type: ${roleVocab}",
   "contact_email": "email or null",
   "summary": "3-sentence summary of the conversation",
   "key_insights": "what they shared about company culture, role, process, or advice",
   "my_commitments": "what I said I would do next — or null",
-  "follow_up_draft": "A warm 3-4 sentence follow-up email from the candidate (a CS student targeting SWE internships)",
-  "notable_affinity_detected": "comma-separated subset of UMich, Same Hometown, Shared Club/Activity, Warm Intro — only if EXPLICITLY mentioned in the transcript, do not guess. Or null."
+  "follow_up_draft": "A warm 3-4 sentence follow-up email${draftFrom}",
+  "notable_affinity_detected": "comma-separated subset of ${affinityVocab} — only if EXPLICITLY mentioned in the transcript, do not guess. Or null."
 }
 
 Call summary / transcript:
@@ -43,10 +49,10 @@ ${text}`
 {
   "contact_name": "the other person's full name",
   "contact_company": "their company or null",
-  "contact_role": "their job title or type: SWE|PM|Recruiter|Alumni|Referral|Other",
+  "contact_role": "their job title or type: ${roleVocab}",
   "summary": "2-3 sentence summary of what was discussed",
   "key_points": "anything notable they offered (referral, intro, advice) — or null",
-  "notable_affinity_detected": "comma-separated subset of UMich, Same Hometown, Shared Club/Activity, Warm Intro — only if EXPLICITLY mentioned in the conversation, do not guess. Or null."
+  "notable_affinity_detected": "comma-separated subset of ${affinityVocab} — only if EXPLICITLY mentioned in the conversation, do not guess. Or null."
 }
 
 LinkedIn conversation:
@@ -56,6 +62,8 @@ ${text}`
 }
 
 export default function LogInteractionModal({ contacts = [], contact = null, onClose, onSaved }) {
+  const { profile } = useAuth()
+  const schoolLabel = profile?.school ? `${profile.school} alum` : 'UMich'
   const [channel, setChannel] = useState('call')
 
   // Transcript channels (Call / LinkedIn)
@@ -96,7 +104,7 @@ export default function LogInteractionModal({ contacts = [], contact = null, onC
   async function extract() {
     if (!text.trim()) return
     setExtracting(true); setError(null); setExtracted(null); setEdit({})
-    try { setExtracted(await extractWithAI(channel, text)) }
+    try { setExtracted(await extractWithAI(channel, text, { profile, contact })) }
     catch (e) { setError(e.message) }
     finally { setExtracting(false) }
   }
@@ -126,7 +134,7 @@ export default function LogInteractionModal({ contacts = [], contact = null, onC
         })
       }
       if (affinityTags.length > 0) {
-        await updateContact(contactId, { affinity: affinityTags, isUMichAlum: affinityTags.includes('UMich') })
+        await updateContact(contactId, { affinity: affinityTags, isUMichAlum: affinityTags.includes(schoolLabel) })
       }
       await addInteraction({
         contactId, contactName, type: CHANNEL_TO_TYPE[channel], direction: 'N/A',
@@ -215,7 +223,7 @@ export default function LogInteractionModal({ contacts = [], contact = null, onC
                   <div className="mt-3 pt-3 border-t border-ink-100">
                     <p className="text-xs text-ink-400 mb-1.5">Notable affinity (auto-detected, review before saving)</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {AFFINITY_OPTIONS.map(tag => (
+                      {affinityOptionsFor(profile).map(tag => (
                         <button key={tag} type="button" onClick={() => toggleAffinityTag(tag)}
                           className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${affinityTags.includes(tag)
                             ? 'bg-accent-600 text-white border-accent-600'

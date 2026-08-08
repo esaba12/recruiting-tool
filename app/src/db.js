@@ -9,6 +9,7 @@
 // needed zero changes beyond the import path.
 import { supabase } from './lib/supabaseClient.js'
 import { DEMO_CONTACTS, DEMO_APPLICATIONS, DEMO_INTERACTIONS, DEMO_CALLS, nextDemoId } from './demoData.js'
+import { ROLE_OPTIONS } from './shared.jsx'
 
 function todayStr() { return new Date().toISOString().split('T')[0] }
 function plusDays(n) { return new Date(Date.now() + n * 86400000).toISOString().split('T')[0] }
@@ -66,6 +67,7 @@ function mapContactRow(r) {
     followUpDraftKind: r.follow_up_draft_kind || '',
     isUMichAlum: !!r.is_school_alum,
     affinity: r.affinity || [],
+    lifeDomain: r.life_domain || [],
     wantsToSchedule: !!r.wants_to_schedule,
     scheduleBy: r.schedule_by,
     scheduleNote: r.schedule_note || '',
@@ -91,7 +93,6 @@ export async function searchContactByName(name) {
 }
 
 export async function addContact({ name, company, role, email }) {
-  const ROLE_OPTIONS = ['SWE', 'PM', 'Recruiter', 'Alumni', 'Referral', 'Other']
   const roleSelect = ROLE_OPTIONS.find(r => role?.toLowerCase().includes(r.toLowerCase())) || 'Other'
   if (isDemoMode()) {
     const id = nextDemoId()
@@ -99,7 +100,7 @@ export async function addContact({ name, company, role, email }) {
       id, name, company: company || '', role: roleSelect, email: email || '', linkedin: null, source: '',
       status: '🟡 Cooling', urgency: 'LOW', lastInteraction: todayStr(), followUpDate: plusDays(3), notes: '',
       whatTheyDid: '', referredById: null, followUpDraft: '', followUpDraftTier: null, followUpDraftKind: '',
-      isUMichAlum: false, affinity: [], wantsToSchedule: false, scheduleBy: null, scheduleNote: '',
+      isUMichAlum: false, affinity: [], lifeDomain: [], wantsToSchedule: false, scheduleBy: null, scheduleNote: '',
       referralStatus: 'Not Asked', referredByName: null,
     })
     return { id }
@@ -131,7 +132,7 @@ const CONTACT_FIELD_MAP = {
 const CONTACT_DEMO_KEYS = [
   'name', 'company', 'role', 'email', 'linkedin', 'notes', 'whatTheyDid', 'followUpDraft', 'scheduleNote',
   'source', 'status', 'urgency', 'lastInteraction', 'followUpDate', 'referredById', 'followUpDraftTier',
-  'followUpDraftKind', 'isUMichAlum', 'affinity', 'exaEnriched', 'wantsToSchedule', 'scheduleBy', 'referralStatus',
+  'followUpDraftKind', 'isUMichAlum', 'affinity', 'lifeDomain', 'exaEnriched', 'wantsToSchedule', 'scheduleBy', 'referralStatus',
 ]
 
 export async function updateContact(id, fields) {
@@ -161,6 +162,7 @@ export async function updateContact(id, fields) {
   if ('followUpDraftKind' in fields) patch.follow_up_draft_kind = fields.followUpDraftKind || null
   if ('isUMichAlum' in fields) patch.is_school_alum = !!fields.isUMichAlum
   if ('affinity' in fields) patch.affinity = fields.affinity || []
+  if ('lifeDomain' in fields) patch.life_domain = fields.lifeDomain || []
   if ('exaEnriched' in fields) patch.exa_enriched = !!fields.exaEnriched
   if ('wantsToSchedule' in fields) patch.wants_to_schedule = !!fields.wantsToSchedule
   if ('scheduleBy' in fields) patch.schedule_by = fields.scheduleBy || null

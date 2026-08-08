@@ -18,9 +18,11 @@ const norm = s => (s || '').trim().toLowerCase()
 
 // Extracted/free-text title -> the Contacts Role select vocabulary (ROLE_OPTIONS).
 // Leans on discovery.js's roleCategory so this classification stays consistent with the
-// reachability/seniority logic used everywhere else.
+// reachability/seniority logic used everywhere else. Strict mode, since this runs on every
+// Quick Add — including a friend/family member's free-text "what they do" with no job title
+// at all — where the lenient manager/lead catch-all would misfire (e.g. "leads a book club").
 export function roleToOption(title) {
-  switch (roleCategory(title)) {
+  switch (roleCategory(title, { strict: true })) {
     case 'recruiter': return 'Recruiter'
     case 'pm':        return 'PM'
     case 'engineer':
@@ -119,7 +121,7 @@ export async function enrichContact({
     programs: e.programs || [],
     location: e.location || null,
   }
-  const { tags, isUMichAlum } = affinityTagsFor(person, profile)
+  const { tags, isUMichAlum, schoolTagLabel } = affinityTagsFor(person, profile)
 
   // 4. How they fit into YOUR network (deterministic — no extra tokens, always reliable).
   const targetMatch = trimmedCompany
@@ -145,6 +147,7 @@ export async function enrichContact({
     pastCompanies: e.pastCompanies || [],
     affinity: tags,
     isUMichAlum,
+    schoolTagLabel,
     // network-fit signals for the review card
     targetMatch,
     alsoAt,
@@ -159,9 +162,10 @@ export async function enrichContact({
 // Kept out of enrichContact so the modal can render chips individually too.
 export function fitSummary(draft) {
   const parts = []
+  const schoolLabel = draft.schoolTagLabel || 'UMich alum'
   if (draft.targetMatch) parts.push('🎯 At a target company')
-  if (draft.isUMichAlum) parts.push('🎓 UMich alum')
-  const otherAffinity = (draft.affinity || []).filter(a => a !== 'UMich')
+  if (draft.isUMichAlum) parts.push(`🎓 ${schoolLabel}`)
+  const otherAffinity = (draft.affinity || []).filter(a => a !== draft.schoolTagLabel && a !== 'UMich')
   if (otherAffinity.length) parts.push(otherAffinity.join(' · '))
   if (draft.alsoAt?.length) {
     parts.push(`you already know ${draft.alsoAt.length} ${draft.alsoAt.length === 1 ? 'person' : 'people'} here`)

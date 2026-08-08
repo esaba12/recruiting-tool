@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { draftMessage, escalationTier } from '../lib/drafting.js'
 import { updateContact } from '../db.js'
+import { useAuth } from '../lib/AuthContext.jsx'
 
 const KIND_LABEL = { cold_open: 'Cold Open', follow_up: 'Follow-Up' }
 
@@ -10,6 +11,7 @@ const KIND_LABEL = { cold_open: 'Cold Open', follow_up: 'Follow-Up' }
 // (Follow-Up Draft / Tier / Kind) so it survives a tab close, and only regenerates
 // when the kind or tier no longer match what's persisted.
 export default function DraftPanel({ contact, kind, daysOverdue, onSaved }) {
+  const { profile } = useAuth()
   const tier = kind === 'follow_up' ? escalationTier(daysOverdue) : 0
   const hasFreshPersistedDraft = contact.followUpDraft
     && contact.followUpDraftKind === KIND_LABEL[kind]
@@ -28,7 +30,7 @@ export default function DraftPanel({ contact, kind, daysOverdue, onSaved }) {
     if (needsPersonalization) return
     setGenerating(true); setError(null); setSaved(false)
     try {
-      const result = await draftMessage({ contact, kind, tier, personalizationContext: personalization })
+      const result = await draftMessage({ contact, kind, tier, personalizationContext: personalization, profile })
       setDraft(result.draft)
     } catch (e) {
       setError(e.message)

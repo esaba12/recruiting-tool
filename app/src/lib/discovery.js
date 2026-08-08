@@ -30,7 +30,10 @@ const norm = s => (s || '').trim().toLowerCase()
 
 // Coarse seniority/role bucket from a job title (or a Contacts Role select). Drives both
 // reachability scoring and the "does this person add a NEW angle at the company" logic.
-export function roleCategory(title) {
+// `strict` drops the bare manager/lead catch-all below — real cold-prospecting titles
+// (Discover) are always job titles, but the same classifier also runs on free-text
+// "what they do" during Quick Add, where "leads a book club" shouldn't resolve to 'manager'.
+export function roleCategory(title, { strict = false } = {}) {
   const t = norm(title)
   if (!t) return 'other'
   if (/(recruit|talent|sourc)/.test(t)) return 'recruiter'
@@ -38,7 +41,7 @@ export function roleCategory(title) {
   if (/(product manager|program manager)/.test(t) || /^pm$/.test(t)) return 'pm'
   if (/(manager|lead|principal|staff)/.test(t) && /(eng|develop|softw|tech|infra|platform|data|ml)/.test(t)) return 'manager'
   if (/(engineer|developer|swe|programmer|sde)/.test(t)) return 'engineer'
-  if (/manager|lead/.test(t)) return 'manager'
+  if (!strict && /manager|lead/.test(t)) return 'manager'
   return 'other'
 }
 
@@ -125,14 +128,24 @@ export function rankCandidates(people, profile = DEFAULT_PROFILE, existingContac
     .sort((a, b) => b.score - a.score)
 }
 
+// Label for the "shared school" tag/chip — whatever university the user actually
+// typed into their profile, not a hardcoded one. Falls back to 'UMich' only when no
+// university is set at all, matching this app's historical default so existing data
+// (and not-yet-configured accounts) don't visibly change.
+export function schoolTag(profile) {
+  return profile?.university ? `${profile.university} alum` : 'UMich'
+}
+
 // Map a scored candidate's matched signals onto the Contacts affinity vocabulary
 // (Notable Affinity multi-select) so an added contact is immediately legible to the
-// existing affinity/coverage systems. Mirrors ContactDetailModal's UMich<->affinity sync.
+// existing affinity/coverage systems. Generalized to whatever school the signed-in
+// user set in their Discover profile — previously hardcoded to a `/michigan|umich/`
+// regex, which meant a non-Michigan user's own university never matched anything.
 export function affinityTagsFor(person, profile = DEFAULT_PROFILE) {
   const tags = []
-  const uni = norm(profile.university)
-  const isUMich = /michigan|umich/.test(uni) && person.school && norm(person.school).includes(uni)
-  if (isUMich) tags.push('UMich')
+  const isSchoolMatch = !!(profile.university && person.school && norm(person.school).includes(norm(profile.university)))
+  const schoolTagLabel = schoolTag(profile)
+  if (isSchoolMatch) tags.push(schoolTagLabel)
 
   const myEmployers = (profile.pastEmployers || []).map(norm).filter(Boolean)
   if ((person.pastCompanies || []).some(pc => myEmployers.includes(norm(pc)))) tags.push('Shared Employer')
@@ -143,5 +156,5 @@ export function affinityTagsFor(person, profile = DEFAULT_PROFILE) {
   const hay = norm([person.school, person.location, ...(person.programs || []), ...(person.pastCompanies || [])].filter(Boolean).join(' '))
   if (profile.hometown && hay.includes(norm(profile.hometown))) tags.push('Same Hometown')
 
-  return { tags, isUMichAlum: isUMich }
+  return { tags, isUMichAlum: isSchoolMatch, schoolTagLabel }
 }

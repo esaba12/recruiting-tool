@@ -4,7 +4,7 @@ import { useAuth } from './lib/AuthContext.jsx'
 import { finishGoogleCalendarConnect } from './lib/googleAuth.js'
 import LoginPage from './components/LoginPage.jsx'
 import SettingsTab from './components/SettingsTab.jsx'
-import { STATUS_COLOR, URGENCY_COLOR, REFERRAL_STATUS_COLOR, daysSince, daysUntil, fmt, Badge, EmptyState, isOverdue } from './shared.jsx'
+import { STATUS_COLOR, URGENCY_COLOR, REFERRAL_STATUS_COLOR, daysSince, daysUntil, fmt, Badge, EmptyState, isOverdue, isStaleApplication } from './shared.jsx'
 import { statusIconFor, URGENCY_ICON } from './lib/icons.js'
 import AppShell from './components/layout/AppShell.jsx'
 import ContactDetailModal from './components/ContactDetailModal.jsx'
@@ -271,10 +271,7 @@ function AppInner() {
 
   const activeApps = apps.filter(a => !['Rejected','Accepted'].includes(a.stage))
   const overdueCount = contacts.filter(isOverdue).length
-  const staleCount = activeApps.filter(a => {
-    const d = a.daysInStage ?? (a.lastActivity ? Math.floor((Date.now() - new Date(a.lastActivity)) / 86400000) : null)
-    return d !== null && d > 14
-  }).length
+  const staleCount = activeApps.filter(isStaleApplication).length
   const scheduleCount = contacts.filter(c => c.wantsToSchedule).length
   const actionCount = overdueCount + staleCount + scheduleCount
 
