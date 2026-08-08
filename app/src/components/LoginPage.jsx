@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { signInWithGoogle } from '../lib/googleAuth.js'
+import { signInWithApiKey } from '../lib/apiKeyAuth.js'
 import Button from './ui/Button.jsx'
 import Input from './ui/Input.jsx'
 
@@ -13,6 +14,10 @@ export default function LoginPage() {
   const [error, setError] = useState(null)
   const [info, setInfo] = useState(null)
   const [busy, setBusy] = useState(false)
+
+  const [apiKeyMode, setApiKeyMode] = useState(false)
+  const [apiKey, setApiKey] = useState('')
+  const [apiKeyBusy, setApiKeyBusy] = useState(false)
 
   async function submit(e) {
     e.preventDefault()
@@ -36,6 +41,18 @@ export default function LoginPage() {
     setError(null)
     try { await signInWithGoogle() }
     catch (e) { setError(e.message) }
+  }
+
+  async function useApiKey(e) {
+    e.preventDefault()
+    setError(null); setInfo(null); setApiKeyBusy(true)
+    try {
+      await signInWithApiKey(apiKey)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setApiKeyBusy(false)
+    }
   }
 
   return (
@@ -82,6 +99,36 @@ export default function LoginPage() {
           <Button type="button" variant="secondary" onClick={google} className="w-full flex items-center justify-center gap-2">
             <GoogleIcon /> Continue with Google
           </Button>
+
+          {apiKeyMode ? (
+            <form onSubmit={useApiKey} className="mt-3 space-y-2">
+              <Input
+                type="password"
+                value={apiKey}
+                onChange={e => setApiKey(e.target.value)}
+                placeholder="sk-ant-..."
+                className="font-mono text-xs"
+                autoFocus
+                required
+              />
+              <div className="flex gap-2">
+                <Button type="submit" disabled={apiKeyBusy} className="flex-1">
+                  {apiKeyBusy ? 'Signing in...' : 'Continue with key'}
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => { setApiKeyMode(false); setApiKey('') }}>
+                  Cancel
+                </Button>
+              </div>
+              <p className="text-[10px] text-ink-400">
+                Pasting the same key always signs you back into the same account — no password needed. We save it as your Anthropic key too, so you're set up immediately.
+              </p>
+            </form>
+          ) : (
+            <button type="button" onClick={() => setApiKeyMode(true)}
+              className="mt-3 w-full text-center text-xs font-medium text-ink-400 hover:text-accent-600 transition-colors py-1">
+              🔑 Or sign in with your Anthropic API key
+            </button>
+          )}
 
           <a href="/demo"
             className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium

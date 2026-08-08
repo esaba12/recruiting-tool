@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { fetchGitHubProfile, fetchRepoJobs, parseGitHubInput } from '../../github.js'
 import { pullAllBoards } from './boardsRegistry.js'
+import { recordPostingSnapshot } from '../../lib/hiringVelocity.js'
 import { EmptyState } from '../../shared.jsx'
 import RepoJobsView from './RepoJobsView.jsx'
 import UserProfileView from './UserProfileView.jsx'
@@ -22,6 +23,7 @@ export default function GitHubTab({ apps, onImported }) {
     setPulling(true); setError(null)
     try {
       const result = await pullAllBoards(boards)
+      recordPostingSnapshot(result.jobs)
       setLastPull(result)
       setData({ mode: 'boards', ...result })
     } catch (e) {

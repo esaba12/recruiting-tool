@@ -7,10 +7,10 @@ import { rankCandidates, DEFAULT_PROFILE, DEFAULT_WEIGHTS, roleCategory, affinit
 import { draftMessage } from '../lib/drafting.js'
 import { addContact, updateContact, searchContactByName } from '../db.js'
 import { useAuth } from '../lib/AuthContext.jsx'
+import { useTargetCompanies } from '../lib/useTargetCompanies.js'
 import { Badge, EmptyState } from '../shared.jsx'
 
 const PROFILE_KEY    = 'rec_affinity_profile'
-const TARGETS_KEY    = 'rec_target_companies' // shared with ReferralCoverageTab
 const DISCOVERED_KEY = 'rec_discovered'        // { [companyKey]: rankedCandidate[] }
 const DISMISSED_KEY  = 'rec_discovered_dismissed' // string[] of candidate keys
 const ADDED_KEY      = 'rec_discovered_added'      // string[] of candidate keys
@@ -32,7 +32,7 @@ const ROLE_FOR_CATEGORY = { engineer: 'SWE', manager: 'SWE', pm: 'PM', recruiter
 // Personalization seed for a cold-open draft — the shared résumé signals, not the
 // scoring meta-reasons ("Reachable engineer", "First contact...").
 function personalizationSeed(person, reasons) {
-  const signal = reasons.filter(r => !/(Reachable|reply odds|First contact|new angle|already know|Already in)/i.test(r))
+  const signal = reasons.filter(r => !/(Reachable|reply odds|First contact|new angle|already know|Already in|also worked at)/i.test(r))
   return signal.join('; ') || `They're ${person.title || 'on the team'} at ${person.company}`
 }
 
@@ -43,7 +43,7 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
   const seed = { ...DEFAULT_PROFILE, university: userProfile?.school || '', gradYear: userProfile?.grad_year || '' }
   const [profile, setProfile]     = useState(() => ({ ...seed, ...(lsGet(PROFILE_KEY) || {}), weights: { ...DEFAULT_WEIGHTS, ...(lsGet(PROFILE_KEY)?.weights || {}) } }))
   const [editingProfile, setEditingProfile] = useState(false)
-  const [targets]                 = useState(() => lsGet(TARGETS_KEY) || [])
+  const { targets, loaded: targetsLoaded } = useTargetCompanies()
   const [discovered, setDiscovered] = useState(() => lsGet(DISCOVERED_KEY) || {})
   const [dismissed, setDismissed] = useState(() => new Set(lsGet(DISMISSED_KEY) || []))
   const [added, setAdded]         = useState(() => new Set(lsGet(ADDED_KEY) || []))
@@ -111,7 +111,7 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
             priorResultHash: item.priorResultHash, knownUrls,
           })
           if (!skippedExtraction && people) {
-            const ranked = rankCandidates(people, profile, contactsAt(item.company))
+            const ranked = rankCandidates(people, profile, contactsAt(item.company), contacts)
             nextDiscovered[item.key] = ranked
             found += ranked.filter(isLive).length
           }
@@ -134,11 +134,11 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
   // highest-priority due companies in the background. The cooldown/budget inside the
   // scheduler keep this cheap even though the *check* happens every day.
   useEffect(() => {
-    if (ranRef.current) return
+    if (ranRef.current || !targetsLoaded) return
     ranRef.current = true
     if (targets.length && meta.lastCheck !== todayStr()) runScheduler({ force: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [targetsLoaded])
 
   // Manual per-company search (By company view) — still respects the resultHash skip.
   async function findPeople(company) {
@@ -148,7 +148,7 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
       const prior = meta.perCompany?.[key]?.resultHash || null
       const { people, resultHash, skippedExtraction } = await discoverPeople({ company, roles: DISCOVER_ROLES, profile, priorResultHash: prior, knownUrls })
       const nextDiscovered = (!skippedExtraction && people)
-        ? { ...discovered, [key]: rankCandidates(people, profile, contactsAt(company)) }
+        ? { ...discovered, [key]: rankCandidates(people, profile, contactsAt(company), contacts) }
         : discovered
       if (nextDiscovered !== discovered) persistDiscovered(nextDiscovered)
       persistMeta({ ...meta, perCompany: { ...(meta.perCompany || {}), [key]: { lastRun: Date.now(), resultHash, count: (nextDiscovered[key] || []).length } } })
@@ -217,7 +217,9 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
         LinkedIn links are references Exa found on the open web. Nothing is written to your CRM until you approve it.
       </p>
 
-      {targets.length === 0 ? (
+      {!targetsLoaded ? (
+        <EmptyState msg="Loading target companies..." />
+      ) : targets.length === 0 ? (
         <EmptyState msg="Add a target-company list in Network → Coverage first — Discover uses the same list." />
       ) : (
         <>

@@ -4,18 +4,20 @@ import { STAGE_COLOR, STAGE_ORDER, TERMINAL_STAGES, Badge, fmt, daysBetween } fr
 import { BUCKET_CONFIG, BUCKET_ACTIVE, BUCKET_TO_TRIAGE, TRIAGE_TO_BUCKET, generateJobAnalysis, lsGet } from './jobBoards/helpers.js'
 import { AI_PROVIDER_LABEL } from '../lib/ai.js'
 
-export default function ApplicationDetailModal({ app, onStatusChange, onClose, onDelete, onSaved }) {
+export default function ApplicationDetailModal({ app, contacts = [], onStatusChange, onClose, onDelete, onSaved }) {
   const isNew = !app
   const [form, setForm] = useState(() => ({
-    company:  app?.company  || '',
-    role:     app?.role     || '',
-    location: app?.location || '',
-    jdLink:   app?.jdLink   || '',
+    company:     app?.company     || '',
+    role:        app?.role        || '',
+    location:    app?.location    || '',
+    jdLink:      app?.jdLink      || '',
+    referredById: app?.referredById || '',
   }))
   const [dates, setDates] = useState(() => ({
-    stage:       app?.stage || 'Wishlist',
-    appliedDate: app?.appliedDate ? app.appliedDate.slice(0, 10) : '',
-    closedDate:  app?.closedDate ? app.closedDate.slice(0, 10) : '',
+    stage:        app?.stage        || 'Wishlist',
+    appliedDate:  app?.appliedDate  ? app.appliedDate.slice(0, 10) : '',
+    closedDate:   app?.closedDate   ? app.closedDate.slice(0, 10) : '',
+    referredById: app?.referredById || '',
   }))
   const [savingDates, setSavingDates] = useState(false)
   const [saving, setSaving]       = useState(false)
@@ -44,6 +46,7 @@ export default function ApplicationDetailModal({ app, onStatusChange, onClose, o
         stage: dates.stage,
         appliedDate: dates.appliedDate || null,
         closedDate: dates.closedDate || null,
+        referredById: dates.referredById || null,
       })
       onSaved()
     } catch (e) {
@@ -73,7 +76,7 @@ export default function ApplicationDetailModal({ app, onStatusChange, onClose, o
     if (!form.company.trim()) { setError('Company is required'); return }
     setSaving(true); setError(null)
     try {
-      await addApplication({ company: form.company, role: form.role, jdLink: form.jdLink, location: form.location })
+      await addApplication({ company: form.company, role: form.role, jdLink: form.jdLink, location: form.location, referredById: form.referredById || null })
       onSaved()
     } catch (e) {
       setError(e.message)
@@ -161,6 +164,14 @@ export default function ApplicationDetailModal({ app, onStatusChange, onClose, o
               <input type="date" value={dates.closedDate} onChange={e => setDates(d => ({ ...d, closedDate: e.target.value }))}
                 className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
             </div>
+            <div className="col-span-3">
+              <label className="block text-xs text-ink-400 mb-0.5">Referred By</label>
+              <select value={dates.referredById} onChange={e => setDates(d => ({ ...d, referredById: e.target.value }))}
+                className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+                <option value="">—</option>
+                {contacts.map(c => <option key={c.id} value={c.id}>{c.name}{c.company ? ` @ ${c.company}` : ''}</option>)}
+              </select>
+            </div>
             <button onClick={saveDates} disabled={savingDates}
               className="col-span-3 py-2 bg-ink-900 text-white text-xs rounded-xl hover:bg-ink-800 disabled:opacity-50 font-medium transition-colors">
               {savingDates ? 'Saving...' : 'Save Stage / Dates'}
@@ -174,6 +185,14 @@ export default function ApplicationDetailModal({ app, onStatusChange, onClose, o
             {field('Role', 'role')}
             {field('Location', 'location')}
             {field('Job Posting URL', 'jdLink')}
+            <div>
+              <label className="block text-xs text-ink-400 mb-0.5">Referred By</label>
+              <select value={form.referredById} onChange={e => set('referredById', e.target.value)}
+                className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+                <option value="">—</option>
+                {contacts.map(c => <option key={c.id} value={c.id}>{c.name}{c.company ? ` @ ${c.company}` : ''}</option>)}
+              </select>
+            </div>
             <button onClick={save} disabled={saving}
               className="w-full py-3 bg-accent-600 text-white text-sm rounded-xl hover:bg-accent-700 disabled:opacity-50 font-medium transition-colors">
               {saving ? 'Adding...' : '+ Add Application'}

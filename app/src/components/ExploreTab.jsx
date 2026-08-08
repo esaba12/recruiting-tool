@@ -4,7 +4,9 @@ import { authHeader } from '../lib/supabaseClient.js'
 import { normalizeCompanyName } from '../lib/networkGraph.js'
 import { todayStr } from '../lib/discoveryScheduler.js'
 import { findCompanies, moreLikeThis, prefsFromRecPrefs } from '../lib/companyFinder.js'
+import { hiringVelocity } from '../lib/hiringVelocity.js'
 import { useAuth } from '../lib/AuthContext.jsx'
+import { useTargetCompanies } from '../lib/useTargetCompanies.js'
 import { Badge, EmptyState } from '../shared.jsx'
 import CompanyOnboarding from './CompanyOnboarding.jsx'
 
@@ -13,7 +15,6 @@ const RESULTS_KEY   = 'rec_company_results'
 const META_KEY      = 'rec_company_meta'
 const ADDED_KEY     = 'rec_company_added'
 const DISMISSED_KEY = 'rec_company_dismissed'
-const TARGETS_KEY   = 'rec_target_companies' // shared with ReferralCoverageTab + DiscoverTab
 
 export default function ExploreTab({ apps = [], onFindPeople }) {
   const { profile: studentProfile } = useAuth()
@@ -28,6 +29,7 @@ export default function ExploreTab({ apps = [], onFindPeople }) {
   const [error, setError]         = useState(null)
   const [expanding, setExpanding] = useState(null)
   const ranRef = useRef(false)
+  const { targets, setTargets: setTargetCompanies, loaded: targetsLoaded } = useTargetCompanies()
 
   function persistCompanies(next) { setCompanies(next); lsSet(RESULTS_KEY, next) }
   function persistMeta(next) { setMeta(next); lsSet(META_KEY, next) }
@@ -36,8 +38,7 @@ export default function ExploreTab({ apps = [], onFindPeople }) {
   const appNames  = useMemo(() => apps.filter(a => a.company?.trim()).map(a => normalizeCompanyName(a.company)), [apps])
 
   function excludeNames() {
-    const targets = (lsGet(TARGETS_KEY) || []).map(normalizeCompanyName)
-    return [...new Set([...targets, ...appNames, ...[...added].map(normalizeCompanyName), ...[...dismissed].map(normalizeCompanyName)])]
+    return [...new Set([...targets.map(normalizeCompanyName), ...appNames, ...[...added].map(normalizeCompanyName), ...[...dismissed].map(normalizeCompanyName)])]
   }
 
   async function runFind({ force = false } = {}) {
@@ -62,12 +63,14 @@ export default function ExploreTab({ apps = [], onFindPeople }) {
   }
 
   // Hands-off daily gate (mirrors Discover): refresh once/day in the background on open.
+  // Waits on targetsLoaded so the very first run doesn't skip excluding companies you've
+  // already targeted just because Supabase hasn't answered yet.
   useEffect(() => {
-    if (ranRef.current) return
+    if (ranRef.current || !targetsLoaded) return
     ranRef.current = true
     if (prefs?.saved && meta.lastCheck !== todayStr()) runFind({ force: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [targetsLoaded])
 
   function saveOnboarding(next) {
     setPrefs(next); lsSet(PREFS_KEY, next); setEditing(false)
@@ -84,9 +87,8 @@ export default function ExploreTab({ apps = [], onFindPeople }) {
   }
 
   function addToTargets(name) {
-    const targets = lsGet(TARGETS_KEY) || []
     if (!targets.some(t => normalizeCompanyName(t) === normalizeCompanyName(name))) {
-      lsSet(TARGETS_KEY, [...targets, name])
+      setTargetCompanies([...targets, name])
     }
     const next = new Set(added); next.add(name); setAdded(next); lsSet(ADDED_KEY, [...next])
   }
@@ -183,6 +185,7 @@ function CompanyCard({ company: c, index, isAdded, onAdd, onDismiss, onExpand, e
             {c.domain && <Badge label={c.domain} color="bg-indigo-50 text-indigo-600" />}
             {c.stage && <Badge label={c.stage} color="bg-ink-100 text-ink-600" />}
             {(c.badges || []).slice(0, 3).map((b, k) => <Badge key={k} label={b} color="bg-accent-50 text-accent-700" />)}
+            <VelocityBadge company={c.name} />
             {index < 6 && <span onClick={stop()}><GhBadge website={c.website} name={c.name} /></span>}
             {c.website && <a href={withProtocol(c.website)} target="_blank" rel="noreferrer" onClick={stop()} className="text-[11px] text-accent-500 hover:underline">Site ↗</a>}
           </div>
@@ -205,6 +208,22 @@ function CompanyCard({ company: c, index, isAdded, onAdd, onDismiss, onExpand, e
   )
 }
 
+// ── Hiring-velocity badge ────────────────────────────────────────────────────────
+// Only renders once at least two days of "Pull all tracked boards" history exist AND
+// this company actually showed up in one of your tracked boards — silent otherwise
+// (no data beats a fabricated trend). Cooling isn't shown as a badge here since a
+// company thinning out isn't actionable the way a surge or a fresh posting run is.
+const VELOCITY_LABEL = {
+  surge: { label: '📈 hiring surge', color: 'bg-success-100 text-success-800' },
+  new: { label: '🆕 new postings', color: 'bg-success-100 text-success-800' },
+}
+function VelocityBadge({ company }) {
+  const v = hiringVelocity(company)
+  if (!v || !VELOCITY_LABEL[v.tier]) return null
+  const { label, color } = VELOCITY_LABEL[v.tier]
+  return <Badge label={label} color={color} />
+}
+
 // ── Lazy, best-effort GitHub eng-signal badge ──────────────────────────────────────
 // Resolves a plausible GitHub org from the company's domain and shows a public-repo count
 // ONLY when it can confirm the org actually belongs to the company (blog/name match) — a
@@ -213,6 +232,24 @@ const ghCache = new Map()
 
 function hostOf(url) {
   try { return new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, '') } catch { return '' }
+}
+
+// Activity freshness, not just repo count: commit/contributor velocity is a better growth
+// signal than a static count (a 3x spike in push activity over 14 days predicts growth
+// better than raw repo volume). Cheap approximation from data the /gh-api proxy already
+// serves: of the org's most-recently-pushed repos, how many were pushed to in the last
+// 14 days. One extra request, only fired for orgs that already passed the identity check.
+const RECENT_ACTIVITY_MS = 14 * 86400000
+async function fetchRecentActivity(slug) {
+  try {
+    const res = await fetch(`/gh-api/orgs/${slug}/repos?sort=pushed&direction=desc&per_page=10`, { headers: await authHeader() })
+    if (!res.ok) return null
+    const repos = await res.json()
+    if (!Array.isArray(repos) || repos.length === 0) return null
+    const now = Date.now()
+    const activeCount = repos.filter(r => r.pushed_at && (now - new Date(r.pushed_at).getTime()) < RECENT_ACTIVITY_MS).length
+    return { activeCount, sampledCount: repos.length }
+  } catch { return null }
 }
 
 function GhBadge({ website, name }) {
@@ -234,7 +271,9 @@ function GhBadge({ website, name }) {
           const plausible =
             (blogHost && host && blogHost.split('.')[0] === host.split('.')[0]) ||
             (org.name && nameTokens.some(t => org.name.toLowerCase().includes(t)))
-          if (plausible && org.public_repos > 0) result = { login: org.login, repos: org.public_repos }
+          if (plausible && org.public_repos > 0) {
+            result = { login: org.login, repos: org.public_repos, activity: await fetchRecentActivity(slug) }
+          }
         }
       } catch { /* best-effort */ }
       ghCache.set(slug, result)
@@ -244,8 +283,13 @@ function GhBadge({ website, name }) {
   }, [website, name])
 
   if (!info) return null
+  // Only claim "recently active" when at least half the sampled repos moved in the last
+  // 14 days — a single active repo among ten stale ones isn't a meaningful eng signal.
+  const isActive = info.activity && info.activity.sampledCount > 0 && info.activity.activeCount / info.activity.sampledCount >= 0.5
   return (
     <a href={`https://github.com/${info.login}`} target="_blank" rel="noreferrer"
-      className="text-[11px] px-1.5 py-0.5 rounded-full bg-ink-100 text-ink-600 hover:bg-ink-200">🛠 {info.repos} repos</a>
+      className={`text-[11px] px-1.5 py-0.5 rounded-full hover:opacity-80 ${isActive ? 'bg-success-100 text-success-800' : 'bg-ink-100 text-ink-600'}`}>
+      {isActive ? '🔥' : '🛠'} {info.repos} repos{isActive ? ' · active' : ''}
+    </a>
   )
 }

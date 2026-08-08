@@ -4,19 +4,28 @@
 // SETUP (one time):
 //   1. script.google.com → New project → paste this entire file
 //   2. Project Settings (gear icon) → Script Properties → Add:
-//        ANTHROPIC_KEY  =  sk-ant-api03-...
-//        NOTION_KEY     =  ntn_[redacted]
+//        ANTHROPIC_API_KEY       =  sk-ant-api03-...
+//        SUPABASE_URL            =  https://<project-ref>.supabase.co
+//        SUPABASE_SERVICE_ROLE_KEY = <service role key, from Supabase dashboard → Settings → API>
+//        RECRUITING_USER_ID      =  <uuid of the signed-up Supabase account this pipeline writes to>
 //   3. Run setup() once manually — approve all permission prompts
 //   4. Triggers (clock icon) → Add Trigger:
 //        Function: processRecruitingEmails
 //        Event: Time-driven → Every 10 minutes
 //
+// This writes directly to this app's Supabase Postgres tables (contacts, applications,
+// interactions) via the raw PostgREST API — Apps Script has no npm, so there's no
+// @supabase/supabase-js here, just UrlFetchApp calls with the service-role key (same
+// server-side trust model api/_lib/supabaseAdmin.js uses for the Vercel proxies). The
+// service-role key bypasses Row Level Security entirely, so unlike every other server-side
+// call site in this repo (which derives user_id from a verified session via requireUser()),
+// this script has no session to derive from — RECRUITING_USER_ID is a single hardcoded user
+// id, since this pipeline serves exactly one recruiting-os account, not a multi-tenant signup
+// flow. It's included explicitly on every query/insert below.
+//
 // COST: ~$0.001/email with Haiku. 300 emails/month = $0.30 from your Anthropic credits.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CONTACTS_DB     = '6f941973-1fce-40c3-943c-4c908940e2a8'
-const APPS_DB         = '49011c2e-8165-4373-a41b-f913b02d1052'
-const INTERACTIONS_DB = '39753135-a476-819e-96b4-dc41ecab6364'
 const DONE_LABEL      = 'recruiting-done' // visual marker in Gmail only — no longer used to gate processing, since threads can grow replies after being marked done
 const RECRUITING_LABEL = 'recruiting'
 // Recent Sent-folder threads not yet labeled — catches brand-new cold outreach the user
@@ -26,8 +35,10 @@ const SENT_SCAN_QUERY = `in:sent -label:${RECRUITING_LABEL} newer_than:30d`
 function getKeys() {
   const p = PropertiesService.getScriptProperties()
   return {
-    anthropic: p.getProperty('ANTHROPIC_API_KEY'),
-    notion:    p.getProperty('NOTION_API_KEY'),
+    anthropic:   p.getProperty('ANTHROPIC_API_KEY'),
+    supabaseUrl: p.getProperty('SUPABASE_URL'),
+    supabaseKey: p.getProperty('SUPABASE_SERVICE_ROLE_KEY'),
+    userId:      p.getProperty('RECRUITING_USER_ID'),
   }
 }
 
@@ -113,10 +124,10 @@ function processRecruitingEmails() {
 
       console.log(`  Type: ${data.type} | ${data.contact_name} @ ${data.company}${data.meeting_link ? ` | ${data.meeting_link}` : ''}`)
 
-      const contactId = upsertContact(keys.notion, data)
+      const contactId = upsertContact(keys, data)
 
       if (['INTERVIEW_INVITE', 'OFFER', 'REJECTION'].includes(data.type)) {
-        upsertApplication(keys.notion, data)
+        upsertApplication(keys, data)
       }
 
       if (data.interview_date) {
@@ -129,7 +140,7 @@ function processRecruitingEmails() {
       // even if a second person is CC'd on some messages.
       for (let i = seen; i < messages.length; i++) {
         const isNewest = i === messages.length - 1
-        logMessageInteraction(keys.notion, messages[i], contactId, threadId, myEmail, isNewest ? data.meeting_link : null)
+        logMessageInteraction(keys, messages[i], contactId, threadId, myEmail, isNewest ? data.meeting_link : null)
       }
 
       // A thread discovered via the Sent-folder search (not already labeled) gets the
@@ -140,7 +151,7 @@ function processRecruitingEmails() {
 
       thread.addLabel(doneLabel)
       props.setProperty(seenKey, String(messages.length))
-      console.log('  ✓ Written to Notion')
+      console.log('  ✓ Written to Supabase')
 
     } catch (e) {
       console.error(`  ✗ ${e.message}`)
@@ -248,94 +259,94 @@ function findCounterpartAddress(messages, myEmail) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NOTION helpers
+// SUPABASE (PostgREST) helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function notionReq(notionKey, method, path, body) {
+// Raw HTTP against Supabase's PostgREST API — Apps Script has no npm, so this stands in for
+// what api/_lib/supabaseAdmin.js does with @supabase/supabase-js elsewhere in this repo. The
+// service-role key bypasses RLS entirely, same trust level as that file's supabaseAdmin().
+function supabaseReq(keys, method, path, body) {
   const opts = {
     method,
     muteHttpExceptions: true,
     headers: {
-      'Authorization':  `Bearer ${notionKey}`,
-      'Notion-Version': '2022-06-28',
-      'Content-Type':   'application/json',
+      'apikey':        keys.supabaseKey,
+      'Authorization': `Bearer ${keys.supabaseKey}`,
+      'Content-Type':  'application/json',
+      'Prefer':        'return=representation',
     },
   }
   if (body) opts.payload = JSON.stringify(body)
 
-  const resp = UrlFetchApp.fetch(`https://api.notion.com/v1${path}`, opts)
+  const resp = UrlFetchApp.fetch(`${keys.supabaseUrl}/rest/v1${path}`, opts)
   const code = resp.getResponseCode()
-  if (code >= 400) throw new Error(`Notion ${code}: ${resp.getContentText().slice(0, 200)}`)
-  return JSON.parse(resp.getContentText())
+  if (code >= 400) throw new Error(`Supabase ${code}: ${resp.getContentText().slice(0, 200)}`)
+  const text = resp.getContentText()
+  return text ? JSON.parse(text) : null
 }
 
-function upsertContact(notionKey, data) {
+function upsertContact(keys, data) {
   const today    = Utilities.formatDate(new Date(), 'UTC', 'yyyy-MM-dd')
   const followUp = Utilities.formatDate(new Date(Date.now() + 3 * 86400000), 'UTC', 'yyyy-MM-dd')
 
   // Try to find existing contact by email
   let existingId = null
   if (data.contact_email) {
-    const res = notionReq(notionKey, 'post', `/databases/${CONTACTS_DB}/query`, {
-      filter:    { property: 'Email', email: { equals: data.contact_email } },
-      page_size: 1,
-    })
-    existingId = res.results?.[0]?.id
+    const res = supabaseReq(keys, 'get',
+      `/contacts?user_id=eq.${keys.userId}&email=eq.${encodeURIComponent(data.contact_email)}&select=id&limit=1`)
+    existingId = res?.[0]?.id
   }
 
-  const sharedProps = {
-    'Company':          { rich_text: [{ text: { content: data.company || '' } }] },
-    'Status':           { select: { name: '🟡 Cooling' } },
-    'Last Interaction': { date: { start: today } },
-    'Follow-Up Date':   { date: { start: followUp } },
-    'Urgency':          { select: { name: data.urgency || 'LOW' } },
-    'Notes':            { rich_text: [{ text: { content: data.summary || '' } }] },
-    ...(data.contact_email ? { 'Email': { email: data.contact_email } } : {}),
+  // Status is only set on create, not on every update — otherwise re-processing a thread
+  // would silently overwrite a status you'd manually changed in the UI (e.g. to Hot) back to
+  // the default 'Cooling'. Everything else refreshes on every run.
+  const updateProps = {
+    company:          data.company || '',
+    last_interaction: today,
+    follow_up_date:   followUp,
+    urgency:          data.urgency || 'LOW',
+    notes:            data.summary || '',
+    ...(data.contact_email ? { email: data.contact_email } : {}),
   }
 
   if (existingId) {
-    notionReq(notionKey, 'patch', `/pages/${existingId}`, { properties: sharedProps })
+    supabaseReq(keys, 'patch', `/contacts?id=eq.${existingId}`, updateProps)
     console.log(`  Contact updated: ${existingId}`)
     return existingId
   } else {
-    const created = notionReq(notionKey, 'post', '/pages', {
-      parent:     { database_id: CONTACTS_DB },
-      properties: {
-        'Name': { title: [{ text: { content: data.contact_name || 'Unknown' } }] },
-        ...sharedProps,
-      },
+    const created = supabaseReq(keys, 'post', '/contacts', {
+      user_id: keys.userId,
+      name:    data.contact_name || 'Unknown',
+      status:  '🟡 Cooling',
+      ...updateProps,
     })
     console.log(`  Contact created: ${data.contact_name}`)
-    return created.id
+    return created?.[0]?.id
   }
 }
 
-function logMessageInteraction(notionKey, message, contactId, threadId, myEmail, meetingLink) {
+function logMessageInteraction(keys, message, contactId, threadId, myEmail, meetingLink) {
   const from      = parseAddress(message.getFrom())
   const direction = (from && from.email === myEmail) ? 'Outbound' : 'Inbound'
   const date      = Utilities.formatDate(message.getDate(), 'UTC', 'yyyy-MM-dd')
-  const title     = `Email — ${direction} — ${date}`
   const plainBody = message.getPlainBody()
   // Surface the meeting link at the top of the summary (only passed for the newest message,
   // the one that was actually classified) so it's visible at a glance in the Interactions row.
   const summary   = meetingLink ? `📅 Meeting link: ${meetingLink}\n\n${plainBody}` : plainBody
 
-  notionReq(notionKey, 'post', '/pages', {
-    parent:     { database_id: INTERACTIONS_DB },
-    properties: {
-      'Title':       { title: [{ text: { content: title } }] },
-      'Date':        { date: { start: date } },
-      ...(contactId ? { 'Contact': { relation: [{ id: contactId }] } } : {}),
-      'Type':        { select: { name: 'Email' } },
-      'Direction':   { select: { name: direction } },
-      'Channel Ref': { rich_text: [{ text: { content: threadId } }] },
-      'Summary':     { rich_text: [{ text: { content: summary.slice(0, 300) } }] },
-      'Body':        { rich_text: [{ text: { content: plainBody.slice(0, 2000) } }] },
-    },
+  supabaseReq(keys, 'post', '/interactions', {
+    user_id:     keys.userId,
+    contact_id:  contactId || null,
+    type:        'Email',
+    direction,
+    date,
+    channel_ref: threadId,
+    summary:     summary.slice(0, 300),
+    body:        plainBody.slice(0, 2000),
   })
 }
 
-function upsertApplication(notionKey, data) {
+function upsertApplication(keys, data) {
   const today = Utilities.formatDate(new Date(), 'UTC', 'yyyy-MM-dd')
   const stageMap = {
     INTERVIEW_INVITE: 'Phone Screen',
@@ -344,31 +355,28 @@ function upsertApplication(notionKey, data) {
   }
   const stage = stageMap[data.type] || 'Applied'
 
-  // Check if application already exists
-  const res = notionReq(notionKey, 'post', `/databases/${APPS_DB}/query`, {
-    filter:    { property: 'Company', title: { contains: (data.company || '').slice(0, 20) } },
-    page_size: 1,
-  })
-  const existing = res.results?.[0]
+  // Fuzzy match on company name (same fragile-but-workable approach as the old Notion
+  // title-contains filter) — applications has no unique constraint on (user_id, company).
+  const res = supabaseReq(keys, 'get',
+    `/applications?user_id=eq.${keys.userId}&company=ilike.*${encodeURIComponent(data.company || '')}*&archived=eq.false&order=created_at.desc&limit=1&select=id`)
+  const existing = res?.[0]
 
   const props = {
-    'Stage':         { select: { name: stage } },
-    'Last Activity': { date: { start: today } },
-    ...(stage === 'Rejected' ? { 'Closed Date': { date: { start: today } } } : {}),
-    ...(data.role ? { 'Role': { rich_text: [{ text: { content: data.role } }] } } : {}),
+    stage,
+    last_activity: today,
+    ...(stage === 'Rejected' ? { closed_date: today } : {}),
+    ...(data.role ? { role: data.role } : {}),
   }
 
   if (existing) {
-    notionReq(notionKey, 'patch', `/pages/${existing.id}`, { properties: props })
+    supabaseReq(keys, 'patch', `/applications?id=eq.${existing.id}`, props)
     console.log(`  Application updated → ${stage}`)
   } else {
-    notionReq(notionKey, 'post', '/pages', {
-      parent:     { database_id: APPS_DB },
-      properties: {
-        'Company': { title: [{ text: { content: data.company || 'Unknown' } }] },
-        ...props,
-        'Applied Date': { date: { start: today } },
-      },
+    supabaseReq(keys, 'post', '/applications', {
+      user_id:      keys.userId,
+      company:      data.company || 'Unknown',
+      applied_date: today,
+      ...props,
     })
     console.log(`  Application created → ${stage}`)
   }
@@ -496,15 +504,19 @@ function setup() {
     console.log('MISSING: Add ANTHROPIC_API_KEY to Script Properties (gear icon → Script Properties)')
     return
   }
-  if (!keys.notion) {
-    console.log('MISSING: Add NOTION_API_KEY to Script Properties (gear icon → Script Properties)')
+  if (!keys.supabaseUrl || !keys.supabaseKey) {
+    console.log('MISSING: Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to Script Properties')
+    return
+  }
+  if (!keys.userId) {
+    console.log('MISSING: Add RECRUITING_USER_ID to Script Properties (the Supabase auth.users id this pipeline writes to)')
     return
   }
 
   getOrCreateLabel(DONE_LABEL)
   getOrCreateLabel(RECRUITING_LABEL)
   console.log('✓ Labels created')
-  console.log('✓ API keys found')
+  console.log('✓ Keys found')
   console.log('✓ Setup complete')
   console.log('')
   console.log('Next: Triggers (clock icon) → Add Trigger → processRecruitingEmails → Time-driven → Every 10 minutes')

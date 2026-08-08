@@ -319,7 +319,7 @@ function AppInner() {
           setNetworkFocusCompany({ company, ts: Date.now() }); setNetworkInitialView('discover'); setTab('network')
         }} />
       )}
-      {!loading && tab === 'pipeline' && <PipelineTab apps={apps} onRefresh={load} />}
+      {!loading && tab === 'pipeline' && <PipelineTab apps={apps} contacts={contacts} onRefresh={load} />}
       {!loading && tab === 'actions'  && <ActionsTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} />}
       {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} />}
       {tab === 'github'   && <GitHubTab apps={apps} onImported={load} />}
@@ -395,7 +395,7 @@ function DemoApp() {
         <NetworkTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={load}
           onRefreshRelationships={refreshContactRelationships} views={DEMO_NETWORK_VIEWS} />
       )}
-      {!loading && tab === 'pipeline' && <PipelineTab apps={apps} onRefresh={load} />}
+      {!loading && tab === 'pipeline' && <PipelineTab apps={apps} contacts={contacts} onRefresh={load} />}
       {!loading && tab === 'actions' && <ActionsTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} />}
     </AppShell>
   )

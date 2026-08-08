@@ -232,13 +232,14 @@ export async function fetchCalls() {
 
 // ── Applications ─────────────────────────────────────────────────────────────
 
-export async function addApplication({ company, role, jdLink, location, sourceRepo, datePosted }) {
+export async function addApplication({ company, role, jdLink, location, sourceRepo, datePosted, referredById }) {
   if (isDemoMode()) {
     const id = nextDemoId()
     demoStore().applications.push({
       id, company, role: role || '', stage: 'Wishlist', triage: 'Needs Review', location: location || '',
       sourceRepo: sourceRepo || '', appliedDate: null, closedDate: null, lastActivity: todayStr(), daysInStage: null,
       jdLink: jdLink || '', notes: datePosted ? `Posted ${datePosted}` : '', createdTime: todayStr(),
+      referredById: referredById || null,
     })
     return { id }
   }
@@ -251,6 +252,7 @@ export async function addApplication({ company, role, jdLink, location, sourceRe
     notes: datePosted ? `Posted ${datePosted}` : null,
     stage: 'Wishlist',
     triage: 'Needs Review',
+    referred_by_id: referredById || null,
   }).select('id').single()
   throwIfError(error, 'addApplication')
   return data
@@ -280,7 +282,7 @@ export async function updateApplication(id, fields) {
   if (isDemoMode()) {
     const a = demoStore().applications.find(a => a.id === id)
     if (!a) return
-    for (const k of ['company', 'role', 'location', 'jdLink', 'notes', 'stage', 'appliedDate', 'closedDate']) {
+    for (const k of ['company', 'role', 'location', 'jdLink', 'notes', 'stage', 'appliedDate', 'closedDate', 'referredById']) {
       if (k in fields) a[k] = fields[k]
     }
     return
@@ -294,6 +296,7 @@ export async function updateApplication(id, fields) {
   if ('stage' in fields) patch.stage = fields.stage || null
   if ('appliedDate' in fields) patch.applied_date = fields.appliedDate || null
   if ('closedDate' in fields) patch.closed_date = fields.closedDate || null
+  if ('referredById' in fields) patch.referred_by_id = fields.referredById || null
   const { error } = await supabase.from('applications').update(patch).eq('id', id)
   throwIfError(error, 'updateApplication')
 }
@@ -318,6 +321,7 @@ export async function fetchApplications() {
     jdLink: r.jd_link,
     notes: r.notes || '',
     createdTime: r.created_at,
+    referredById: r.referred_by_id || null,
   }))
 }
 
@@ -419,4 +423,27 @@ export async function deleteContactRelationship(id) {
   }
   const { error } = await supabase.from('contact_relationships').delete().eq('id', id)
   throwIfError(error, 'deleteContactRelationship')
+}
+
+// ── Target companies (Explore/Discover/Coverage's shared target-company list) ──
+// Was rec_target_companies in localStorage — the single piece of state all three
+// features depend on, and therefore the highest-leverage one to get off a single-browser
+// cache. Stored in user_settings (generic per-user KV, already RLS'd, see
+// supabase/migrations/20260723000000_init.sql) under key='target_companies', so the list
+// now syncs across devices instead of resetting every time the user opens a new browser.
+// Demo mode never calls this (Explore/Discover/Coverage aren't in the demo nav), but the
+// branch is here for consistency with every other export in this file.
+
+export async function fetchTargetCompanies() {
+  if (isDemoMode()) return []
+  const { data, error } = await supabase.from('user_settings').select('value').eq('key', 'target_companies').maybeSingle()
+  throwIfError(error, 'fetchTargetCompanies')
+  return data?.value || []
+}
+
+export async function saveTargetCompanies(companies) {
+  if (isDemoMode()) return
+  const { error } = await supabase.from('user_settings')
+    .upsert({ key: 'target_companies', value: companies }, { onConflict: 'user_id,key' })
+  throwIfError(error, 'saveTargetCompanies')
 }

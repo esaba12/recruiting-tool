@@ -9,6 +9,19 @@ export async function signInWithGoogle() {
   if (error) throw error
 }
 
+// "Link Google account" — attaches a Google identity to the CURRENTLY signed-in
+// user (unlike signInWithGoogle, which authenticates a session from scratch).
+// Used by SettingsTab.jsx to give an accounts created via "sign in with API key"
+// (apiKeyAuth.js) a recovery path that doesn't depend on that key: if the key is
+// ever rotated, "Continue with Google" still gets back into the same account.
+export async function linkGoogleIdentity() {
+  const { error } = await supabase.auth.linkIdentity({
+    provider: 'google',
+    options: { redirectTo: window.location.origin },
+  })
+  if (error) throw error
+}
+
 // "Connect Calendar" — re-runs the Google OAuth flow requesting the
 // calendar.events scope + `access_type=offline&prompt=consent` so Google
 // issues a fresh refresh token every time (Google only returns a refresh
