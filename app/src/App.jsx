@@ -122,7 +122,7 @@ function NetworkTab({ contacts, apps, interactions, contactRelationships = [], o
         ? <KeepInTouchTab contacts={contacts} interactions={interactions}
             onEdit={c => setEditing(c)} onLog={c => setLogContact(c)} onMet={handleMet} />
         : view === 'coverage'
-        ? <ReferralCoverageTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={onRefresh}
+        ? <ReferralCoverageTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={onRefresh}
             onFindPeople={company => { setFocusCompany({ company, ts: Date.now() }); setView('discover') }} />
         : view === 'graph'
         ? <NetworkGraphTab contacts={contacts} contactRelationships={contactRelationships} />
