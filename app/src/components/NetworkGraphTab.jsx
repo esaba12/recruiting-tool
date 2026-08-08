@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { STATUS_COLOR, Badge, URGENCY_COLOR } from '../shared.jsx'
 import NetworkGraphView from './NetworkGraphView.jsx'
 
-export default function NetworkGraphTab({ contacts }) {
+export default function NetworkGraphTab({ contacts, contactRelationships = [] }) {
   const [selected, setSelected] = useState(null)
 
   if (contacts.length === 0) {
@@ -12,14 +12,14 @@ export default function NetworkGraphTab({ contacts }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div className="md:col-span-2 bg-ink-900 rounded-xl border border-ink-800 shadow-sm overflow-hidden" style={{ height: 520 }}>
-        <NetworkGraphView contacts={contacts} height={520} onNodeSelect={setSelected} />
+        <NetworkGraphView contacts={contacts} contactRelationships={contactRelationships} height={520} onNodeSelect={setSelected} />
       </div>
 
       <div className="bg-white rounded-xl border border-ink-100 shadow-sm p-4">
         {!selected ? (
           <div className="text-sm text-ink-400 space-y-2">
             <p>Hover a node to see its name · click a contact for details.</p>
-            <p className="text-xs">Light dots = companies · colored dots = contacts (by status, bigger = more connections) · orange arrows = "referred by".</p>
+            <p className="text-xs">Light dots = companies · colored dots = contacts (by status, bigger = more connections) · orange arrows = "referred by" · purple arrows = a tagged relationship — hover any arrow to see its type.</p>
           </div>
         ) : (
           <div className="space-y-2">

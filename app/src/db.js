@@ -8,7 +8,7 @@
 // imported it (ContactDetailModal, LogInteractionModal, PipelineTab, etc.)
 // needed zero changes beyond the import path.
 import { supabase } from './lib/supabaseClient.js'
-import { DEMO_CONTACTS, DEMO_APPLICATIONS, DEMO_INTERACTIONS, DEMO_CALLS, nextDemoId } from './demoData.js'
+import { DEMO_CONTACTS, DEMO_APPLICATIONS, DEMO_INTERACTIONS, DEMO_CALLS, DEMO_CONTACT_RELATIONSHIPS, nextDemoId } from './demoData.js'
 import { ROLE_OPTIONS } from './shared.jsx'
 
 function todayStr() { return new Date().toISOString().split('T')[0] }
@@ -39,6 +39,7 @@ function demoStore() {
       applications: DEMO_APPLICATIONS.map(a => ({ ...a })),
       interactions: DEMO_INTERACTIONS.map(i => ({ ...i })),
       calls: DEMO_CALLS.map(c => ({ ...c })),
+      contactRelationships: DEMO_CONTACT_RELATIONSHIPS.map(r => ({ ...r })),
     }
   }
   return demo
@@ -372,4 +373,50 @@ export async function fetchInteractions() {
       body: r.body || '',
     }))
     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+}
+
+// ── Contact Relationships ───────────────────────────────────────────────────
+// Typed, directed edges between two contacts (Mentor Of, College Friend Of, etc.) —
+// additive alongside contacts.referred_by_id, not a replacement for it. Mirrors
+// interactions' insert/list shape, plus a delete since a relationship is a mutable
+// fact the user can mis-tag and remove, not an append-only log entry.
+
+export async function fetchContactRelationships() {
+  if (isDemoMode()) return demoStore().contactRelationships.map(r => ({ ...r }))
+  const { data, error } = await supabase.from('contact_relationships').select('*')
+  throwIfError(error, 'fetchContactRelationships')
+  return (data || []).map(r => ({
+    id: r.id,
+    fromContactId: r.from_contact_id,
+    toContactId: r.to_contact_id,
+    relationshipType: r.relationship_type,
+    note: r.note || '',
+  }))
+}
+
+export async function addContactRelationship({ fromContactId, toContactId, relationshipType, note }) {
+  if (isDemoMode()) {
+    const id = nextDemoId()
+    demoStore().contactRelationships.push({ id, fromContactId, toContactId, relationshipType, note: note || '' })
+    return { id }
+  }
+  const { data, error } = await supabase.from('contact_relationships').insert({
+    from_contact_id: fromContactId,
+    to_contact_id: toContactId,
+    relationship_type: relationshipType,
+    note: note || null,
+  }).select('id').single()
+  throwIfError(error, 'addContactRelationship')
+  return data
+}
+
+export async function deleteContactRelationship(id) {
+  if (isDemoMode()) {
+    const { contactRelationships } = demoStore()
+    const idx = contactRelationships.findIndex(r => r.id === id)
+    if (idx !== -1) contactRelationships.splice(idx, 1)
+    return
+  }
+  const { error } = await supabase.from('contact_relationships').delete().eq('id', id)
+  throwIfError(error, 'deleteContactRelationship')
 }

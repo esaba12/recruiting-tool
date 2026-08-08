@@ -99,6 +99,12 @@ export const DEMO_INTERACTIONS = [
   { id: 'demo-i7', contactId: 'demo-c7', type: 'Meeting', direction: 'Outbound', date: daysFromNow(-60), channelRef: '', summary: 'Intro call through the alumni network.', body: '' },
 ]
 
+export const DEMO_CONTACT_RELATIONSHIPS = [
+  { id: 'demo-r1', fromContactId: 'demo-c2', toContactId: 'demo-c5', relationshipType: 'Introduced To', note: '' },
+  { id: 'demo-r2', fromContactId: 'demo-c6', toContactId: 'demo-c2', relationshipType: 'College Friend Of', note: '' },
+  { id: 'demo-r3', fromContactId: 'demo-c7', toContactId: 'demo-c3', relationshipType: 'Mentor Of', note: '' },
+]
+
 export const DEMO_CALLS = [
   {
     id: 'demo-cl1', title: 'Sofia Ramirez @ Anthropic', contactId: 'demo-c4', date: daysFromNow(-1),

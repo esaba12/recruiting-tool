@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { Handshake } from 'lucide-react'
-import { addContact, updateContact, archiveContact } from '../db.js'
+import { addContact, updateContact, archiveContact, addContactRelationship, deleteContactRelationship } from '../db.js'
 import { logMetWithContact } from '../lib/quickLog.js'
-import { ROLE_OPTIONS, SOURCE_OPTIONS, STATUS_OPTIONS, URGENCY_OPTIONS, affinityOptionsFor, LIFE_DOMAIN_OPTIONS, REFERRAL_STATUS_OPTIONS, TYPE_COLOR, Badge, fmt } from '../shared.jsx'
+import { ROLE_OPTIONS, SOURCE_OPTIONS, STATUS_OPTIONS, URGENCY_OPTIONS, affinityOptionsFor, LIFE_DOMAIN_OPTIONS, RELATIONSHIP_TYPES, REFERRAL_STATUS_OPTIONS, TYPE_COLOR, Badge, fmt } from '../shared.jsx'
 import { useAuth } from '../lib/AuthContext.jsx'
 import ChipToggleGroup from './ui/ChipToggleGroup.jsx'
 import LogInteractionModal from './LogInteractionModal.jsx'
 import DraftPanel from './DraftPanel.jsx'
 
-export default function ContactDetailModal({ contact, contacts, interactions, onClose, onSaved, initial = {} }) {
+export default function ContactDetailModal({ contact, contacts, interactions, contactRelationships = [], onClose, onSaved, onRefreshRelationships, initial = {} }) {
   const { profile } = useAuth()
   const schoolLabel = profile?.school ? `${profile.school} alum` : 'UMich'
   const isNew = !contact
@@ -39,6 +39,9 @@ export default function ContactDetailModal({ contact, contacts, interactions, on
   const [logOpen, setLogOpen] = useState(false)
   const [draftOpen, setDraftOpen] = useState(false)
   const [metLogging, setMetLogging] = useState(false)
+  const [relType, setRelType] = useState(RELATIONSHIP_TYPES[0])
+  const [relTarget, setRelTarget] = useState('')
+  const [addingRel, setAddingRel] = useState(false)
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
@@ -70,6 +73,37 @@ export default function ContactDetailModal({ contact, contacts, interactions, on
     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 
   const referralOptions = (contacts || []).filter(c => c.id !== contact?.id)
+
+  const nameOf = (id) => contacts?.find(c => c.id === id)?.name || 'Unknown'
+  const myRelationships = (contactRelationships || []).filter(r => r.fromContactId === contact?.id || r.toContactId === contact?.id)
+
+  // Uses onRefreshRelationships (re-fetch just this data, without touching the parent's
+  // `loading` flag), not onSaved (which closes the modal AND would unmount it via
+  // `loading` — see App.jsx's refreshContactRelationships comment). Adding/removing a
+  // relationship is a small in-place edit, not a "done with this contact" action, and the
+  // modal should stay open to add several in a row if needed.
+  async function addRelationship() {
+    if (!relTarget) return
+    setAddingRel(true); setError(null)
+    try {
+      await addContactRelationship({ fromContactId: contact.id, toContactId: relTarget, relationshipType: relType })
+      setRelTarget('')
+      await onRefreshRelationships?.()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setAddingRel(false)
+    }
+  }
+
+  async function removeRelationship(id) {
+    try {
+      await deleteContactRelationship(id)
+      await onRefreshRelationships?.()
+    } catch (e) {
+      setError(e.message)
+    }
+  }
 
   async function save() {
     if (!form.name.trim()) { setError('Name is required'); return }
@@ -181,6 +215,41 @@ export default function ContactDetailModal({ contact, contacts, interactions, on
                 <label className="block text-xs text-ink-400 mb-0.5">Follow-Up Date</label>
                 <input type="date" value={form.followUpDate} onChange={e => set('followUpDate', e.target.value)}
                   className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
+              </div>
+            </div>
+          )}
+
+          {!isNew && (
+            <div className="pt-3 border-t border-ink-100 space-y-2">
+              <label className="block text-xs text-ink-400">Relationships</label>
+              {myRelationships.length === 0 && <p className="text-xs text-ink-400">No tagged relationships yet.</p>}
+              {myRelationships.map(r => {
+                const outgoing = r.fromContactId === contact.id
+                return (
+                  <div key={r.id} className="flex items-center justify-between text-sm bg-ink-50 rounded-lg px-2.5 py-1.5">
+                    <span className="text-ink-700">
+                      {outgoing
+                        ? <><strong>{r.relationshipType}</strong> {nameOf(r.toContactId)}</>
+                        : <>{nameOf(r.fromContactId)} <strong>{r.relationshipType}</strong> this contact</>}
+                    </span>
+                    <button onClick={() => removeRelationship(r.id)} className="text-ink-400 hover:text-danger-600 text-xs">✕</button>
+                  </div>
+                )
+              })}
+              <div className="flex items-center gap-1.5 pt-1">
+                <select value={relType} onChange={e => setRelType(e.target.value)}
+                  className="px-2 py-1.5 border border-ink-200 rounded-lg text-xs focus:outline-none focus:border-accent-400 bg-white">
+                  {RELATIONSHIP_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <select value={relTarget} onChange={e => setRelTarget(e.target.value)}
+                  className="flex-1 px-2 py-1.5 border border-ink-200 rounded-lg text-xs focus:outline-none focus:border-accent-400 bg-white">
+                  <option value="">— choose contact —</option>
+                  {referralOptions.map(c => <option key={c.id} value={c.id}>{c.name}{c.company ? ` @ ${c.company}` : ''}</option>)}
+                </select>
+                <button onClick={addRelationship} disabled={!relTarget || addingRel}
+                  className="px-2.5 py-1.5 bg-white border border-ink-200 rounded-lg text-xs font-medium text-ink-600 hover:border-accent-300 disabled:opacity-40 shrink-0">
+                  {addingRel ? 'Adding…' : '+ Add'}
+                </button>
               </div>
             </div>
           )}

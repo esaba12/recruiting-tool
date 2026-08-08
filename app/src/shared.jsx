@@ -67,6 +67,11 @@ export function affinityOptionsFor(profile) {
 }
 export const REFERRAL_STATUS_OPTIONS = Object.keys(REFERRAL_STATUS_COLOR)
 export const LIFE_DOMAIN_OPTIONS = ['Professional', 'Recruiting', 'Friend', 'Family', 'Mentor', 'Community']
+// Directed contact-to-contact relationship types (contact_relationships table) — read
+// literally as "<from> is <type> <to>", e.g. "Mentor Of" from A to B means A mentors B.
+// Distinct from contacts.referred_by_id, which stays a separate, narrower "who introduced
+// me to this contact" field.
+export const RELATIONSHIP_TYPES = ['Mentor Of', 'Introduced To', 'Referred To', 'College Friend Of', 'Coworker Of', 'Family Of', 'Other']
 
 export function daysSince(d) {
   if (!d) return null
