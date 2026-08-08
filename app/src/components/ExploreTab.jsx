@@ -6,6 +6,7 @@ import { todayStr } from '../lib/discoveryScheduler.js'
 import { findCompanies, moreLikeThis, prefsFromRecPrefs } from '../lib/companyFinder.js'
 import { hiringVelocity } from '../lib/hiringVelocity.js'
 import { useAuth } from '../lib/AuthContext.jsx'
+import { useTargetCompanies } from '../lib/useTargetCompanies.js'
 import { Badge, EmptyState } from '../shared.jsx'
 import CompanyOnboarding from './CompanyOnboarding.jsx'
 
@@ -14,7 +15,6 @@ const RESULTS_KEY   = 'rec_company_results'
 const META_KEY      = 'rec_company_meta'
 const ADDED_KEY     = 'rec_company_added'
 const DISMISSED_KEY = 'rec_company_dismissed'
-const TARGETS_KEY   = 'rec_target_companies' // shared with ReferralCoverageTab + DiscoverTab
 
 export default function ExploreTab({ apps = [], onFindPeople }) {
   const { profile: studentProfile } = useAuth()
@@ -29,6 +29,7 @@ export default function ExploreTab({ apps = [], onFindPeople }) {
   const [error, setError]         = useState(null)
   const [expanding, setExpanding] = useState(null)
   const ranRef = useRef(false)
+  const { targets, setTargets: setTargetCompanies, loaded: targetsLoaded } = useTargetCompanies()
 
   function persistCompanies(next) { setCompanies(next); lsSet(RESULTS_KEY, next) }
   function persistMeta(next) { setMeta(next); lsSet(META_KEY, next) }
@@ -37,8 +38,7 @@ export default function ExploreTab({ apps = [], onFindPeople }) {
   const appNames  = useMemo(() => apps.filter(a => a.company?.trim()).map(a => normalizeCompanyName(a.company)), [apps])
 
   function excludeNames() {
-    const targets = (lsGet(TARGETS_KEY) || []).map(normalizeCompanyName)
-    return [...new Set([...targets, ...appNames, ...[...added].map(normalizeCompanyName), ...[...dismissed].map(normalizeCompanyName)])]
+    return [...new Set([...targets.map(normalizeCompanyName), ...appNames, ...[...added].map(normalizeCompanyName), ...[...dismissed].map(normalizeCompanyName)])]
   }
 
   async function runFind({ force = false } = {}) {
@@ -63,12 +63,14 @@ export default function ExploreTab({ apps = [], onFindPeople }) {
   }
 
   // Hands-off daily gate (mirrors Discover): refresh once/day in the background on open.
+  // Waits on targetsLoaded so the very first run doesn't skip excluding companies you've
+  // already targeted just because Supabase hasn't answered yet.
   useEffect(() => {
-    if (ranRef.current) return
+    if (ranRef.current || !targetsLoaded) return
     ranRef.current = true
     if (prefs?.saved && meta.lastCheck !== todayStr()) runFind({ force: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [targetsLoaded])
 
   function saveOnboarding(next) {
     setPrefs(next); lsSet(PREFS_KEY, next); setEditing(false)
@@ -85,9 +87,8 @@ export default function ExploreTab({ apps = [], onFindPeople }) {
   }
 
   function addToTargets(name) {
-    const targets = lsGet(TARGETS_KEY) || []
     if (!targets.some(t => normalizeCompanyName(t) === normalizeCompanyName(name))) {
-      lsSet(TARGETS_KEY, [...targets, name])
+      setTargetCompanies([...targets, name])
     }
     const next = new Set(added); next.add(name); setAdded(next); lsSet(ADDED_KEY, [...next])
   }

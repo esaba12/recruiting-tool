@@ -375,3 +375,26 @@ export async function fetchInteractions() {
     }))
     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 }
+
+// ── Target companies (Explore/Discover/Coverage's shared target-company list) ──
+// Was rec_target_companies in localStorage — the single piece of state all three
+// features depend on, and therefore the highest-leverage one to get off a single-browser
+// cache. Stored in user_settings (generic per-user KV, already RLS'd, see
+// supabase/migrations/20260723000000_init.sql) under key='target_companies', so the list
+// now syncs across devices instead of resetting every time the user opens a new browser.
+// Demo mode never calls this (Explore/Discover/Coverage aren't in the demo nav), but the
+// branch is here for consistency with every other export in this file.
+
+export async function fetchTargetCompanies() {
+  if (isDemoMode()) return []
+  const { data, error } = await supabase.from('user_settings').select('value').eq('key', 'target_companies').maybeSingle()
+  throwIfError(error, 'fetchTargetCompanies')
+  return data?.value || []
+}
+
+export async function saveTargetCompanies(companies) {
+  if (isDemoMode()) return
+  const { error } = await supabase.from('user_settings')
+    .upsert({ key: 'target_companies', value: companies }, { onConflict: 'user_id,key' })
+  throwIfError(error, 'saveTargetCompanies')
+}

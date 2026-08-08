@@ -1,13 +1,11 @@
-import { useState } from 'react'
-import { lsGet, lsSet } from './jobBoards/helpers.js'
+import { useState, useEffect } from 'react'
 import { normalizeCompanyName } from '../lib/networkGraph.js'
 import { affinityScore } from '../lib/affinity.js'
 import { warmPathsToCompany, pathLabel } from '../lib/warmIntro.js'
+import { useTargetCompanies } from '../lib/useTargetCompanies.js'
 import { STAGE_COLOR, Badge, EmptyState } from '../shared.jsx'
 import ContactDetailModal from './ContactDetailModal.jsx'
 import DraftPanel from './DraftPanel.jsx'
-
-const TARGETS_KEY = 'rec_target_companies'
 
 // Referral coverage: cross-references a user-maintained target-company list against
 // Contacts (do I know anyone there?) and Applications (have I already applied?).
@@ -19,18 +17,29 @@ const TARGETS_KEY = 'rec_target_companies'
 // added but never talked to isn't meaningfully covered.
 const STRONG_COVERAGE_THRESHOLD = 3
 export default function ReferralCoverageTab({ contacts, apps, interactions, onRefresh, onFindPeople }) {
-  const [targets, setTargets] = useState(() => lsGet(TARGETS_KEY) || [])
-  const [editingList, setEditingList] = useState(() => (lsGet(TARGETS_KEY) || []).length === 0)
-  const [draft, setDraft] = useState(() => (lsGet(TARGETS_KEY) || []).join('\n'))
+  const { targets, setTargets, loaded } = useTargetCompanies()
+  const [editingList, setEditingList] = useState(false)
+  const [draft, setDraft] = useState('')
   const [addingFor, setAddingFor] = useState(null) // target company name string | null
   const [draftingCompany, setDraftingCompany] = useState(null) // company key currently showing a DraftPanel | null
+
+  // One-time init once the real list has loaded from Supabase — mirrors the old
+  // lazy-useState behavior (start in "edit" mode iff the list starts empty) without
+  // assuming synchronous localStorage availability.
+  useEffect(() => {
+    if (!loaded) return
+    setDraft(targets.join('\n'))
+    setEditingList(targets.length === 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded])
 
   function saveTargets() {
     const list = [...new Set(draft.split('\n').map(s => s.trim()).filter(Boolean))]
     setTargets(list)
-    lsSet(TARGETS_KEY, list)
     setEditingList(false)
   }
+
+  if (!loaded) return <EmptyState msg="Loading target companies..." />
 
   const rows = targets
     .map(company => {
