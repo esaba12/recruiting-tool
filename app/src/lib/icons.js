@@ -3,7 +3,7 @@ import {
   AlertTriangle, AlertCircle, Circle,
   Inbox, Send, HelpCircle, X,
   LayoutDashboard, Users, Kanban, ListChecks, GitFork, Compass,
-  RefreshCw, ExternalLink, Search, MapPin, Calendar, CalendarDays, UserPlus, Settings,
+  RefreshCw, ExternalLink, Search, MapPin, Calendar, CalendarDays, UserPlus, Settings, MessageSquareText,
 } from 'lucide-react'
 
 // Contact Status — STATUS_COLOR keys in shared.jsx embed the emoji in the literal string
@@ -51,6 +51,7 @@ export const SEARCH_ICON = Search
 export const LOCATION_ICON = MapPin
 export const CALENDAR_ICON = Calendar
 export const SCHEDULE_ICON = UserPlus
+export const QUICK_CAPTURE_ICON = MessageSquareText
 
 export function statusIconFor(label) {
   const key = (label || '').replace(/[^\p{L}]/gu, '').trim()

@@ -22,6 +22,7 @@ import CalendarTab from './components/CalendarTab.jsx'
 import GitHubTab from './components/jobBoards/GitHubTab.jsx'
 import AddToCalendarModal from './components/AddToCalendarModal.jsx'
 import QuickScheduleModal from './components/QuickScheduleModal.jsx'
+import QuickCaptureModal from './components/QuickCaptureModal.jsx'
 import ReferralCoverageTab from './components/ReferralCoverageTab.jsx'
 import OutboxTab from './components/OutboxTab.jsx'
 import DiscoverTab from './components/DiscoverTab.jsx'
@@ -255,6 +256,7 @@ function AppInner() {
   const [lastLoaded, setLastLoaded] = useState(null)
   const [addEventOpen, setAddEventOpen] = useState(false)
   const [addScheduleOpen, setAddScheduleOpen] = useState(false)
+  const [quickCaptureOpen, setQuickCaptureOpen] = useState(false)
 
   useEffect(() => { load() }, [])
   // Catches a fresh Google Calendar refresh token right after the "Connect
@@ -301,6 +303,7 @@ function AppInner() {
       onRefresh={load}
       onAddEvent={() => setAddEventOpen(true)}
       onAddSchedule={() => setAddScheduleOpen(true)}
+      onQuickCapture={() => setQuickCaptureOpen(true)}
       error={error}
     >
       {loading && <EmptyState msg="Loading your data..." />}
@@ -331,6 +334,13 @@ function AppInner() {
           contacts={contacts}
           onClose={() => setAddScheduleOpen(false)}
           onSaved={() => { setAddScheduleOpen(false); load() }}
+        />
+      )}
+      {quickCaptureOpen && (
+        <QuickCaptureModal
+          contacts={contacts}
+          onClose={() => setQuickCaptureOpen(false)}
+          onSaved={load}
         />
       )}
     </AppShell>
