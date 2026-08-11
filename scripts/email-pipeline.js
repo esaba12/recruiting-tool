@@ -64,7 +64,11 @@ const GENERIC_EMAIL_DOMAINS = new Set([
   'aol.com', 'protonmail.com', 'mail.com', 'live.com', 'msn.com',
 ])
 
-const REFERRAL_MENTION_RE = /\b(referred by|referral from|recommended by|thanks to (?:the |your )?(?:introduction|referral)|your referrer|employee referral)\b/i
+// Broadened after checking against a real referral thread in this account (Omegar
+// Chavolla-Zacarias @ Google — "I sent along your resume and you should receive a link today
+// inviting you to apply through a referral portal") — the original narrower pattern missed
+// that exact phrasing, so "referral portal|link|program" and "referred you" were added.
+const REFERRAL_MENTION_RE = /\b(referred by|referred you|referral from|recommended by|thanks to (?:the |your )?(?:introduction|referral)|your referrer|employee referral|referral (?:portal|link|program)|apply(?:ing)? through a referral)\b/i
 const APPLICATION_CONFIRMATION_RE = /\b(thank(?:s| you) for (?:your interest|applying)|we(?:'| ha)ve received your application|your application (?:has been received|was submitted|is being reviewed)|application (?:received|submitted|confirmation)|successfully applied)\b/i
 
 function getKeys() {
@@ -600,8 +604,17 @@ function extractCalendarInvite(message) {
 // SETUP & TESTING
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Gmail enforces label names as case-insensitive-unique, so GmailApp.createLabel(name) throws
+// if a differently-cased label already exists — which it does here: this account's label is
+// "Recruiting" (capitalized, likely renamed by hand at some point in Gmail's UI), not the
+// lowercase 'recruiting' this script has always hardcoded. getUserLabelByName() is exact-match
+// only, so without this fallback every run would fail before touching a single thread. Reuse
+// whatever casing already exists instead of trying to create a colliding duplicate.
 function getOrCreateLabel(name) {
-  return GmailApp.getUserLabelByName(name) || GmailApp.createLabel(name)
+  const exact = GmailApp.getUserLabelByName(name)
+  if (exact) return exact
+  const existing = GmailApp.getUserLabels().find(l => l.getName().toLowerCase() === name.toLowerCase())
+  return existing || GmailApp.createLabel(name)
 }
 
 // Run this once manually to verify everything is wired up
