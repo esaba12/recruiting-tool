@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CalendarDays, ListTodo } from 'lucide-react'
-import { listEvents } from '../googleCalendar.js'
+import { listEvents, CALENDAR_SLOTS } from '../googleCalendar.js'
 import { updateApplicationTriage, archiveApplication } from '../db.js'
 import { BUCKET_TO_TRIAGE, MONTH_NAMES } from './jobBoards/helpers.js'
 import { buildTimelineItems, groupTimelineItems } from '../lib/timeline.js'
@@ -235,9 +235,9 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
       {selectedDay && (
         <div className="space-y-2">
           {visible.events && selectedItems.events.map(ev => (
-            <button key={ev.id} onClick={() => setSelectedEvent(ev)}
+            <button key={`${ev.slot}-${ev.id}`} onClick={() => setSelectedEvent(ev)}
               className="w-full text-left bg-white rounded-xl px-4 py-3 shadow-sm border border-ink-100 hover:shadow-md hover:border-accent-200 transition-all flex items-center gap-3">
-              <Badge label="Event" color="bg-accent-100 text-accent-700" />
+              <Badge label={CALENDAR_SLOTS[ev.slot] || 'Event'} color={ev.slot === 'school' ? 'bg-purple-100 text-purple-700' : 'bg-accent-100 text-accent-700'} />
               <span className="text-sm font-medium text-ink-900 truncate">{ev.title}</span>
               {!ev.allDay && <span className="text-xs text-ink-400 ml-auto shrink-0">{new Date(ev.start).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>}
             </button>

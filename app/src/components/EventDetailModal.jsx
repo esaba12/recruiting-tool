@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { deleteEvent } from '../googleCalendar.js'
+import { deleteEvent, CALENDAR_SLOTS } from '../googleCalendar.js'
+import { Badge } from '../shared.jsx'
 
 function formatWhen(event) {
   if (event.allDay) {
@@ -20,7 +21,7 @@ export default function EventDetailModal({ event, onClose, onDeleted }) {
     if (!confirm(`Delete "${event.title}" from your Google Calendar? This cannot be undone.`)) return
     setDeleting(true); setError(null)
     try {
-      await deleteEvent(event.id)
+      await deleteEvent(event.id, event.slot)
       onDeleted()
     } catch (e) {
       setError(e.message)
@@ -37,7 +38,10 @@ export default function EventDetailModal({ event, onClose, onDeleted }) {
             <h2 className="text-base font-bold text-ink-900 truncate">{event.title}</h2>
             <button onClick={onClose} className="shrink-0 w-7 h-7 rounded-full bg-ink-100 hover:bg-ink-200 flex items-center justify-center text-ink-500 text-sm">✕</button>
           </div>
-          <p className="text-sm text-ink-500 mt-1">{formatWhen(event)}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-sm text-ink-500">{formatWhen(event)}</p>
+            {event.slot && <Badge label={CALENDAR_SLOTS[event.slot] || event.slot} color={event.slot === 'school' ? 'bg-purple-100 text-purple-700' : 'bg-accent-100 text-accent-700'} />}
+          </div>
         </div>
 
         <div className="px-5 py-4 space-y-3">

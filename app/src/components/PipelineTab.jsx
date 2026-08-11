@@ -2,7 +2,14 @@ import { useState, useMemo } from 'react'
 import { archiveApplication, updateApplicationTriage } from '../db.js'
 import { STAGE_ORDER, STAGE_COLOR, TERMINAL_STAGES, daysSince, daysBetween, fmt, Badge, EmptyState, isUntriaged, findDuplicateGroups } from '../shared.jsx'
 import { BUCKET_TO_TRIAGE } from './jobBoards/helpers.js'
+import { companyCoverage } from '../lib/networkCoverage.js'
 import ApplicationDetailModal from './ApplicationDetailModal.jsx'
+
+const COVERAGE_BADGE = {
+  gap:    { color: 'bg-danger-100 text-danger-700',   label: () => 'Need network' },
+  weak:   { color: 'bg-warning-100 text-warning-800', label: n => `${n} contact${n !== 1 ? 's' : ''} · weak` },
+  strong: { color: 'bg-success-100 text-success-800', label: n => `${n} contact${n !== 1 ? 's' : ''} here` },
+}
 
 function DuplicatesPanel({ apps, onRefresh }) {
   const [expanded, setExpanded] = useState(false)
@@ -76,7 +83,7 @@ function DuplicatesPanel({ apps, onRefresh }) {
 
 // ── Pipeline Tab ──────────────────────────────────────────────────────────────
 
-export default function PipelineTab({ apps, contacts = [], onRefresh }) {
+export default function PipelineTab({ apps, contacts = [], interactions = [], onRefresh }) {
   const [filter, setFilter] = useState('active')
   const [search, setSearch] = useState('')
   const [selectedAppId, setSelectedAppId] = useState(null)
@@ -87,6 +94,19 @@ export default function PipelineTab({ apps, contacts = [], onRefresh }) {
     await updateApplicationTriage(app.id, BUCKET_TO_TRIAGE[bucketKey === null ? 'review' : bucketKey], app.stage)
     onRefresh()
   }
+
+  // Planning-vs-applied at a glance — Wishlist (triaged) is "planning to apply", every
+  // non-terminal stage past that is active/applied, Offer+Accepted are wins.
+  const stats = useMemo(() => {
+    let planning = 0, activePipeline = 0, offers = 0
+    for (const a of apps) {
+      if (isUntriaged(a)) continue
+      if (a.stage === 'Wishlist') planning++
+      else if (a.stage === 'Offer' || a.stage === 'Accepted') offers++
+      else if (!TERMINAL_STAGES.includes(a.stage)) activePipeline++
+    }
+    return { planning, activePipeline, offers }
+  }, [apps])
 
   const filtered = apps
     .filter(a => {
@@ -103,6 +123,14 @@ export default function PipelineTab({ apps, contacts = [], onRefresh }) {
   return (
     <div>
       <DuplicatesPanel apps={apps} onRefresh={onRefresh} />
+
+      {apps.length > 0 && (
+        <p className="text-xs text-ink-400 mb-3">
+          📝 <strong className="text-ink-600">{stats.planning}</strong> planning to apply ·
+          {' '}🚀 <strong className="text-ink-600">{stats.activePipeline}</strong> applied / in process
+          {stats.offers > 0 && <> · 🎉 <strong className="text-ink-600">{stats.offers}</strong> offer{stats.offers !== 1 ? 's' : ''}</>}
+        </p>
+      )}
 
       <div className="flex gap-2 mb-4 items-center">
         {[['active','Active'],['review','Needs Review'],['all','All incl. rejected']].map(([val, label]) => (
@@ -129,6 +157,7 @@ export default function PipelineTab({ apps, contacts = [], onRefresh }) {
             {filtered.map(a => {
               const days = a.daysInStage ?? daysSince(a.lastActivity)
               const stale = days !== null && days > 14 && !TERMINAL_STAGES.includes(a.stage) && a.stage !== 'Offer'
+              const coverage = a.company?.trim() ? companyCoverage(a.company, contacts, interactions) : null
               return (
                 <div key={a.id} onClick={() => setSelectedAppId(a.id)}
                   className={`bg-white rounded-xl px-4 py-3 shadow-sm border transition-all cursor-pointer hover:shadow-md hover:border-accent-200 ${stale ? 'border-orange-200' : 'border-ink-100'}`}>
@@ -139,6 +168,10 @@ export default function PipelineTab({ apps, contacts = [], onRefresh }) {
                         {a.role && <span className="text-sm text-ink-500">· {a.role}</span>}
                         <Badge label={a.stage} color={STAGE_COLOR[a.stage]} />
                         {isUntriaged(a) && <Badge label={a.triage} color={a.triage === 'Pass' ? 'bg-danger-100 text-danger-500' : 'bg-ink-100 text-ink-500'} />}
+                        {coverage && coverage.status !== 'none' && (
+                          <Badge label={COVERAGE_BADGE[coverage.status].label(coverage.matchedContacts.length)}
+                            color={COVERAGE_BADGE[coverage.status].color} />
+                        )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 flex-wrap">
                         {a.appliedDate && <span className="text-xs text-ink-400">Applied {fmt(a.appliedDate)}</span>}
@@ -175,6 +208,8 @@ export default function PipelineTab({ apps, contacts = [], onRefresh }) {
         <ApplicationDetailModal
           app={selectedApp}
           contacts={contacts}
+          apps={apps}
+          interactions={interactions}
           onStatusChange={s => changeTriage(selectedApp, s)}
           onClose={() => { setSelectedAppId(null); setAddingNew(false) }}
           onDelete={async () => { await archiveApplication(selectedApp.id); setSelectedAppId(null); onRefresh() }}

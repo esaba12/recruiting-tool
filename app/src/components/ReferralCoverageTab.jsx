@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { normalizeCompanyName } from '../lib/networkGraph.js'
-import { affinityScore } from '../lib/affinity.js'
+import { companyCoverage } from '../lib/networkCoverage.js'
 import { warmPathsToCompany, pathLabel } from '../lib/warmIntro.js'
 import { useTargetCompanies } from '../lib/useTargetCompanies.js'
 import { STAGE_COLOR, Badge, EmptyState } from '../shared.jsx'
@@ -12,10 +12,10 @@ import DraftPanel from './DraftPanel.jsx'
 // Referred candidates convert at roughly 4x the rate of cold applicants and make up
 // ~2% of applicants but ~11% of hires — so a company with zero contacts is the single
 // highest-leverage gap to close before applying cold. Coverage strength uses
-// lib/affinity.js's affinityScore (tie-strength bucket + affinity tags) rather than
-// just "any contact at all" — a company where your only contact is a total stranger you
-// added but never talked to isn't meaningfully covered.
-const STRONG_COVERAGE_THRESHOLD = 3
+// lib/networkCoverage.js's companyCoverage (tie-strength bucket + affinity tags) rather
+// than just "any contact at all" — a company where your only contact is a total stranger
+// you added but never talked to isn't meaningfully covered. Shared with Pipeline, which
+// tags applications the same way.
 export default function ReferralCoverageTab({ contacts, apps, interactions, contactRelationships = [], onRefresh, onFindPeople }) {
   const { targets, setTargets, loaded } = useTargetCompanies()
   const [editingList, setEditingList] = useState(false)
@@ -44,10 +44,8 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
   const rows = targets
     .map(company => {
       const key = normalizeCompanyName(company)
-      const matchedContacts = contacts.filter(c => c.company?.trim() && normalizeCompanyName(c.company) === key)
       const matchedApps = apps.filter(a => a.company?.trim() && normalizeCompanyName(a.company) === key)
-      const bestScore = matchedContacts.length > 0 ? Math.max(...matchedContacts.map(c => affinityScore(c, interactions))) : -1
-      const status = matchedContacts.length === 0 ? 'gap' : bestScore >= STRONG_COVERAGE_THRESHOLD ? 'strong' : 'weak'
+      const { matchedContacts, status } = companyCoverage(company, contacts, interactions)
       // Shortest path into this company — referral chains plus tagged relationships —
       // if any of the matched contacts were introduced to you or are connected to someone
       // you know rather than added cold. Surfaces a path you might've forgotten.

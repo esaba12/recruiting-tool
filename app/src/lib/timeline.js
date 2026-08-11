@@ -6,6 +6,9 @@
 import { jobId, lsGet } from '../components/jobBoards/helpers.js'
 import { keepInTouchQueue } from './keepInTouch.js'
 import { TERMINAL_STAGES, isUntriaged } from '../shared.jsx'
+import { CALENDAR_SLOTS } from '../googleCalendar.js'
+
+const EVENT_BADGE_COLOR = { personal: 'bg-accent-100 text-accent-700', school: 'bg-purple-100 text-purple-700' }
 
 // Same cache useJobDeadlines.js writes to — read-only here, never re-extracted, since
 // Job Boards already owns fetching/caching real deadlines.
@@ -38,10 +41,11 @@ export function buildTimelineItems({ contacts = [], apps = [], interactions = []
     const d = ev.allDay ? new Date(`${ev.start}T00:00:00`) : new Date(ev.start)
     const days = daysUntil(d)
     items.push({
-      id: `event-${ev.id}`, type: 'event', date: d, days, tier: tierFor(days),
+      id: `event-${ev.slot || 'personal'}-${ev.id}`, type: 'event', date: d, days, tier: tierFor(days),
       title: ev.title || 'Event',
       subtitle: ev.allDay ? 'All day' : d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
-      badgeLabel: 'Event', badgeColor: 'bg-accent-100 text-accent-700', refType: 'event', ref: ev,
+      badgeLabel: CALENDAR_SLOTS[ev.slot] || 'Event', badgeColor: EVENT_BADGE_COLOR[ev.slot] || 'bg-accent-100 text-accent-700',
+      refType: 'event', ref: ev,
     })
   }
 
