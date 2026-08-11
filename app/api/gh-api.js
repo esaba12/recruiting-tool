@@ -3,6 +3,7 @@
 // BYOK key set, just at the lower unauthenticated rate limit.
 import { requireUser } from './_lib/supabaseAdmin.js'
 import { getUserKey } from './_lib/keys.js'
+import { checkRateLimit, sendRateLimited } from './_lib/rateLimit.js'
 
 function extraQuery(query) {
   const { path, ...rest } = query
@@ -14,7 +15,15 @@ export default async function handler(req, res) {
   const user = await requireUser(req)
   if (!user) return res.status(401).json({ error: { message: 'Not authenticated' } })
 
-  const target = `https://api.github.com/${req.query.path || ''}${extraQuery(req.query)}`
+  const rl = await checkRateLimit(user.id, 'GITHUB')
+  if (rl.limited) return sendRateLimited(res, rl.retryAfter)
+
+  const path = req.query.path || ''
+  if (!/^(repos|users|orgs)\//.test(path)) {
+    return res.status(403).json({ error: { message: 'Path not allowed' } })
+  }
+
+  const target = `https://api.github.com/${path}${extraQuery(req.query)}`
 
   const headers = {
     'Accept': 'application/vnd.github.v3+json',

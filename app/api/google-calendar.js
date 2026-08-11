@@ -7,6 +7,7 @@
 // that's normal; only the per-user consent (refresh token) is per-user.
 import { requireUser, supabaseAdmin } from './_lib/supabaseAdmin.js'
 import { decrypt } from './_lib/crypto.js'
+import { checkRateLimit, sendRateLimited } from './_lib/rateLimit.js'
 
 function extraQuery(query) {
   const { path, ...rest } = query
@@ -44,6 +45,14 @@ export default async function handler(req, res) {
   const user = await requireUser(req)
   if (!user) return res.status(401).json({ error: { message: 'Not authenticated' } })
 
+  const rl = await checkRateLimit(user.id, 'CALENDAR')
+  if (rl.limited) return sendRateLimited(res, rl.retryAfter)
+
+  const path = req.query.path || ''
+  if (!/^calendar\/v3\/calendars\/primary\/events(\/|$)/.test(path)) {
+    return res.status(403).json({ error: { message: 'Path not allowed' } })
+  }
+
   const refreshToken = await getRefreshToken(user.id)
   if (!refreshToken) {
     return res.status(400).json({ error: { message: 'Connect your Google Calendar in Settings first.' } })
@@ -57,7 +66,7 @@ export default async function handler(req, res) {
     return
   }
 
-  const target = `https://www.googleapis.com/${req.query.path || ''}${extraQuery(req.query)}`
+  const target = `https://www.googleapis.com/${path}${extraQuery(req.query)}`
 
   const upstream = await fetch(target, {
     method: req.method,
