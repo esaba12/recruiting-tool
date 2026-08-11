@@ -9,17 +9,23 @@ import { requireUser, supabaseAdmin } from './_lib/supabaseAdmin.js'
 import { decrypt } from './_lib/crypto.js'
 import { checkRateLimit, sendRateLimited } from './_lib/rateLimit.js'
 
+// `slot` picks WHICH connected Google account's token to use ('personal' | 'school',
+// see _lib/googleOAuth.js's CALENDAR_SLOTS) — everything else about the request
+// (the `path`, e.g. calendars/primary/events) is identical either way, since each slot
+// is a fully separate Google account and "primary" means that account's own main
+// calendar. Stripped from the querystring forwarded upstream, same as `path` already was.
 function extraQuery(query) {
-  const { path, ...rest } = query
+  const { path, slot, ...rest } = query
   const qs = new URLSearchParams(rest).toString()
   return qs ? `?${qs}` : ''
 }
 
-async function getRefreshToken(userId) {
+async function getRefreshToken(userId, slot) {
   const { data, error } = await supabaseAdmin()
     .from('google_calendar_tokens')
     .select('refresh_token_ciphertext')
     .eq('user_id', userId)
+    .eq('slot', slot)
     .maybeSingle()
   if (error || !data) return null
   try { return decrypt(data.refresh_token_ciphertext) } catch { return null }
@@ -53,9 +59,11 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: { message: 'Path not allowed' } })
   }
 
-  const refreshToken = await getRefreshToken(user.id)
+  const slot = req.query.slot || 'personal'
+  const refreshToken = await getRefreshToken(user.id, slot)
   if (!refreshToken) {
-    return res.status(400).json({ error: { message: 'Connect your Google Calendar in Settings first.' } })
+    const label = slot === 'school' ? 'your School calendar' : 'Google Calendar'
+    return res.status(400).json({ error: { message: `Connect ${label} in Settings first.` } })
   }
 
   let accessToken

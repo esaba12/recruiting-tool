@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createEvent, addOneHour } from '../googleCalendar.js'
+import { createEvent, addOneHour, CALENDAR_SLOTS } from '../googleCalendar.js'
 
 export default function AddEventModal({ defaultDate, onClose, onCreated }) {
   const [title, setTitle]           = useState('')
@@ -8,6 +8,7 @@ export default function AddEventModal({ defaultDate, onClose, onCreated }) {
   const [endTime, setEndTime]       = useState('')
   const [location, setLocation]     = useState('')
   const [description, setDescription] = useState('')
+  const [slot, setSlot]             = useState('personal')
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState(null)
 
@@ -18,7 +19,7 @@ export default function AddEventModal({ defaultDate, onClose, onCreated }) {
       await createEvent({
         title, date, startTime,
         endTime: endTime || (startTime ? addOneHour(startTime) : ''),
-        location, description,
+        location, description, slot,
       })
       onCreated()
     } catch (e) {
@@ -43,6 +44,17 @@ export default function AddEventModal({ defaultDate, onClose, onCreated }) {
             <label className="block text-xs text-ink-400 mb-0.5">Title</label>
             <input value={title} onChange={e => setTitle(e.target.value)} autoFocus
               className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
+          </div>
+          <div>
+            <label className="block text-xs text-ink-400 mb-0.5">Calendar</label>
+            <div className="flex border border-ink-200 rounded-lg overflow-hidden text-xs font-medium w-fit">
+              {Object.entries(CALENDAR_SLOTS).map(([key, label]) => (
+                <button key={key} type="button" onClick={() => setSlot(key)}
+                  className={`px-3 py-1.5 transition-colors ${slot === key ? 'bg-ink-900 text-white' : 'bg-white text-ink-500 hover:bg-ink-50'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships } from './db.js'
 import { useAuth } from './lib/AuthContext.jsx'
-import { finishGoogleCalendarConnect } from './lib/googleAuth.js'
 import LoginPage from './components/LoginPage.jsx'
 import SettingsTab from './components/SettingsTab.jsx'
 import { STATUS_COLOR, URGENCY_COLOR, REFERRAL_STATUS_COLOR, daysSince, daysUntil, fmt, Badge, EmptyState, isOverdue, isStaleApplication } from './shared.jsx'
@@ -27,6 +26,7 @@ import ReferralCoverageTab from './components/ReferralCoverageTab.jsx'
 import OutboxTab from './components/OutboxTab.jsx'
 import DiscoverTab from './components/DiscoverTab.jsx'
 import ExploreTab from './components/ExploreTab.jsx'
+import NotFoundPage from './components/NotFoundPage.jsx'
 import { NAV_ITEMS } from './components/layout/Sidebar.jsx'
 import { Table2, LayoutGrid, Share2, Target, Send, UserSearch, HeartHandshake } from 'lucide-react'
 
@@ -259,10 +259,6 @@ function AppInner() {
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false)
 
   useEffect(() => { load() }, [])
-  // Catches a fresh Google Calendar refresh token right after the "Connect
-  // Calendar" OAuth redirect back into the app (see lib/googleAuth.js) — a
-  // no-op on every other load.
-  useEffect(() => { finishGoogleCalendarConnect() }, [])
 
   async function load() {
     setLoading(true); setError(null)
@@ -322,7 +318,7 @@ function AppInner() {
           setNetworkFocusCompany({ company, ts: Date.now() }); setNetworkInitialView('discover'); setTab('network')
         }} />
       )}
-      {!loading && tab === 'pipeline' && <PipelineTab apps={apps} contacts={contacts} onRefresh={load} />}
+      {!loading && tab === 'pipeline' && <PipelineTab apps={apps} contacts={contacts} interactions={interactions} onRefresh={load} />}
       {!loading && tab === 'actions'  && <ActionsTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} />}
       {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} />}
       {tab === 'github'   && <GitHubTab apps={apps} onImported={load} />}
@@ -405,15 +401,20 @@ function DemoApp() {
         <NetworkTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={load}
           onRefreshRelationships={refreshContactRelationships} views={DEMO_NETWORK_VIEWS} />
       )}
-      {!loading && tab === 'pipeline' && <PipelineTab apps={apps} contacts={contacts} onRefresh={load} />}
+      {!loading && tab === 'pipeline' && <PipelineTab apps={apps} contacts={contacts} interactions={interactions} onRefresh={load} />}
       {!loading && tab === 'actions' && <ActionsTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} />}
     </AppShell>
   )
 }
 
 export default function App() {
-  const isDemo = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo')
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '/'
+  const isDemo = pathname.startsWith('/demo')
   if (isDemo) return <DemoApp />
+
+  // No client-side router — every real feature lives at "/" as tab state, so any other
+  // path (typo, dead link, stale bookmark) is genuinely unknown.
+  if (pathname !== '/') return <NotFoundPage path={pathname} />
 
   return (
     <AuthGate>

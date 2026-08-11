@@ -32,6 +32,45 @@ const RECRUITING_LABEL = 'recruiting'
 // sends that never went through an already-labeled thread. 30d bounds the first-run backfill.
 const SENT_SCAN_QUERY = `in:sent -label:${RECRUITING_LABEL} newer_than:30d`
 
+// ATS platforms and recruiting-shaped subject phrasing, used to find *inbound* recruiting
+// email without requiring it to be manually labeled first (see INBOX_SCAN_QUERY below). This
+// used to be the actual gap: an inbound "thanks for applying" confirmation that was never
+// manually labeled 'recruiting' was completely invisible to this script — it only ever looked
+// at threads already labeled, or things the user had sent. This is a recall net, not a
+// filter — Claude's UNRELATED classification is the real filter, so it's fine (and
+// intentional) for the keyword list to be broad and catch some noise; a false positive here
+// costs one cheap Haiku call, a false negative here is a missed application.
+const ATS_DOMAINS = [
+  'greenhouse.io', 'lever.co', 'myworkday.com', 'icims.com', 'smartrecruiters.com',
+  'ashbyhq.com', 'jobvite.com', 'taleo.net', 'workable.com', 'breezy.hr', 'jazz.co',
+  'bamboohr.com', 'successfactors.com', 'ultipro.com', 'wellfound.com', 'ripplematch.com',
+  'paradox.ai', 'gem.com', 'hire.withgoogle.com',
+]
+const RECRUITING_SUBJECT_KEYWORDS = [
+  'application', 'applying', 'applied', 'interview', 'recruiter', 'recruiting',
+  'internship', 'offer', '"next steps"', 'assessment', '"phone screen"', 'onsite',
+  'candidacy', '"thank you for your interest"', '"hiring team"', 'oa', '"coding challenge"',
+]
+// Recent Inbox threads not yet labeled, from a known ATS domain or with a recruiting-shaped
+// subject — this is what lets a fresh application-confirmation email get picked up without
+// the user ever touching Gmail labels. 45d bounds the first-run backfill.
+const INBOX_SCAN_QUERY = `in:inbox -label:${RECRUITING_LABEL} newer_than:45d `
+  + `(from:(${ATS_DOMAINS.join(' OR ')}) OR subject:(${RECRUITING_SUBJECT_KEYWORDS.join(' OR ')}))`
+
+// Common personal/webmail domains — never treated as a company-name hint even when they don't
+// match a known ATS, since "Gmail" or "Outlook" is never the company (see guessCompanyHint).
+const GENERIC_EMAIL_DOMAINS = new Set([
+  'gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com',
+  'aol.com', 'protonmail.com', 'mail.com', 'live.com', 'msn.com',
+])
+
+// Broadened after checking against a real referral thread in this account (Omegar
+// Chavolla-Zacarias @ Google — "I sent along your resume and you should receive a link today
+// inviting you to apply through a referral portal") — the original narrower pattern missed
+// that exact phrasing, so "referral portal|link|program" and "referred you" were added.
+const REFERRAL_MENTION_RE = /\b(referred by|referred you|referral from|recommended by|thanks to (?:the |your )?(?:introduction|referral)|your referrer|employee referral|referral (?:portal|link|program)|apply(?:ing)? through a referral)\b/i
+const APPLICATION_CONFIRMATION_RE = /\b(thank(?:s| you) for (?:your interest|applying)|we(?:'| ha)ve received your application|your application (?:has been received|was submitted|is being reviewed)|application (?:received|submitted|confirmation)|successfully applied)\b/i
+
 function getKeys() {
   const p = PropertiesService.getScriptProperties()
   return {
@@ -51,14 +90,18 @@ function processRecruitingEmails() {
   const props   = PropertiesService.getScriptProperties()
   const myEmail = Session.getActiveUser().getEmail().toLowerCase()
 
-  // Two discovery sources, deduped by thread ID since a thread can appear in both:
+  // Three discovery sources, deduped by thread ID since a thread can appear in more than one:
   // (1) threads already labeled 'recruiting' (inbound emails, or previously-discovered
-  // sent threads — see the label-application step below), and (2) recent Sent-folder
-  // threads not yet labeled, which catches brand-new cold outreach the user sends.
+  // sent/inbox threads — see the label-application step below), (2) recent Sent-folder
+  // threads not yet labeled, which catches brand-new cold outreach the user sends, and
+  // (3) recent Inbox threads not yet labeled that look recruiting-shaped by sender/subject —
+  // this is what catches a fresh ATS "application received" email the user never manually
+  // labeled (see INBOX_SCAN_QUERY above for why this exists).
   const labeledThreads = GmailApp.search(`label:${RECRUITING_LABEL}`, 0, 25)
   const sentThreads     = GmailApp.search(SENT_SCAN_QUERY, 0, 25)
+  const inboxThreads    = GmailApp.search(INBOX_SCAN_QUERY, 0, 25)
   const threadsById     = new Map()
-  ;[...labeledThreads, ...sentThreads].forEach(t => threadsById.set(t.getId(), t))
+  ;[...labeledThreads, ...sentThreads, ...inboxThreads].forEach(t => threadsById.set(t.getId(), t))
   const threads = [...threadsById.values()]
 
   if (!threads.length) {
@@ -91,9 +134,24 @@ function processRecruitingEmails() {
       const invite      = extractCalendarInvite(msg)
       const meetingLink = (invite && invite.meetingLink) || extractMeetingLink(body)
 
+      // More deterministic hints, same philosophy as the invite/link ones above: cheap regex
+      // signals fed into the prompt rather than left for Claude to infer unaided, since a
+      // single-shot Haiku call can miss a referral mention or an ATS confirmation buried in
+      // boilerplate. Claude still makes the final call — these only raise recall.
+      const applicationHint = APPLICATION_CONFIRMATION_RE.test(subject + ' ' + body)
+        ? '\n\nThis email\'s subject/body matches typical automated application-confirmation phrasing ("thank you for applying", "application received", etc.) — likely type APPLICATION_CONFIRMATION unless the content actually indicates a later stage (interview/offer/rejection).'
+        : ''
+      const referralHint = REFERRAL_MENTION_RE.test(body)
+        ? '\n\nThis email appears to mention a referral or recommendation. If a specific person is named as having referred/recommended the candidate, extract their name into "referrer_name".'
+        : ''
+      const companyHint = guessCompanyHint(from)
+
       console.log(`→ "${subject}" from ${from} (${messages.length - seen} new message(s))`)
 
-      const data = extractWithClaude(keys.anthropic, subject, from, body, date, invite, meetingLink)
+      const data = extractWithClaude(
+        keys.anthropic, subject, from, body, date, invite, meetingLink,
+        applicationHint + referralHint + companyHint,
+      )
 
       if (!data || data.type === 'UNRELATED') {
         console.log('  Skipped — UNRELATED')
@@ -126,7 +184,7 @@ function processRecruitingEmails() {
 
       const contactId = upsertContact(keys, data)
 
-      if (['INTERVIEW_INVITE', 'OFFER', 'REJECTION'].includes(data.type)) {
+      if (['APPLICATION_CONFIRMATION', 'INTERVIEW_INVITE', 'OFFER', 'REJECTION'].includes(data.type)) {
         upsertApplication(keys, data)
       }
 
@@ -143,9 +201,9 @@ function processRecruitingEmails() {
         logMessageInteraction(keys, messages[i], contactId, threadId, myEmail, isNewest ? data.meeting_link : null)
       }
 
-      // A thread discovered via the Sent-folder search (not already labeled) gets the
-      // 'recruiting' label applied now that it's confirmed relevant — keeps Gmail's own
-      // label view consistent and means future runs find it via the primary labeled search.
+      // A thread discovered via the Sent-folder or Inbox keyword search (not already labeled)
+      // gets the 'recruiting' label applied now that it's confirmed relevant — keeps Gmail's
+      // own label view consistent and means future runs find it via the primary labeled search.
       const labelNames = thread.getLabels().map(l => l.getName())
       if (!labelNames.includes(RECRUITING_LABEL)) thread.addLabel(recruitingLabel)
 
@@ -164,8 +222,9 @@ function processRecruitingEmails() {
 // CLAUDE — classify + extract in one Haiku call
 // ─────────────────────────────────────────────────────────────────────────────
 
-function extractWithClaude(apiKey, subject, from, body, date, invite, meetingLink) {
-  // Deterministic signals (calendar invite attachment, Zoom/Meet/Teams link) are handed to
+function extractWithClaude(apiKey, subject, from, body, date, invite, meetingLink, extraHints) {
+  // Deterministic signals (calendar invite attachment, Zoom/Meet/Teams link, application-
+  // confirmation phrasing, referral mentions, sender-domain company guess) are handed to
   // Claude as hints rather than left for it to re-derive from free text — see
   // extractCalendarInvite()/extractMeetingLink() and their callers in processRecruitingEmails().
   const inviteHint = invite
@@ -181,7 +240,7 @@ If not recruiting-related: {"type":"UNRELATED"}
 
 Otherwise return:
 {
-  "type": "REPLY|INTERVIEW_INVITE|OFFER|REJECTION|NEW_CONTACT|FOLLOW_UP_NEEDED",
+  "type": "APPLICATION_CONFIRMATION|REPLY|INTERVIEW_INVITE|OFFER|REJECTION|NEW_CONTACT|FOLLOW_UP_NEEDED",
   "contact_name": "the recruiter/contact's full name if mentioned in the body or signature, else null — their email address is resolved separately from message headers, not from this field",
   "company": "company name",
   "role": "role title or null",
@@ -191,8 +250,15 @@ Otherwise return:
   "follow_up_draft": "3-sentence reply the candidate could send, or null",
   "interview_date": "YYYY-MM-DD if an interview is scheduled, or null",
   "interview_format": "phone|video|onsite|null",
-  "meeting_link": "the Zoom/Google Meet/Teams/etc. video call URL if one is mentioned in the body, else null"
-}${inviteHint}${linkHint}
+  "meeting_link": "the Zoom/Google Meet/Teams/etc. video call URL if one is mentioned in the body, else null",
+  "referrer_name": "the full name of the person who referred/recommended the candidate for this specific role, ONLY if the email explicitly says so (e.g. 'referred by Jane Doe', 'submitted your referral', 'thanks to an employee referral from...'). Otherwise null — never guess."
+}
+
+APPLICATION_CONFIRMATION means an automated "we received your application" acknowledgment
+(typically from an ATS like Greenhouse/Lever/Workday, or the company's own no-reply address)
+where no human has replied yet — this is distinct from REPLY (a human responding) and should
+still be returned even though nothing else has happened yet, so the application gets tracked
+from the moment it's submitted rather than only once someone replies.${inviteHint}${linkHint}${extraHints || ''}
 
 Subject: ${subject}
 From: ${from}
@@ -256,6 +322,23 @@ function findCounterpartAddress(messages, myEmail) {
 
   const candidates = [...parseAddressList(msg.getTo()), ...parseAddressList(msg.getCc())]
   return candidates.find(a => a.email !== myEmail) || { displayName: '', email: null }
+}
+
+// A weak company-name guess from the sender's email domain, handed to Claude as a hint (not a
+// fact) to cross-check against the actual body text — some automated ATS acknowledgment
+// templates never restate the company name in plain prose, so the domain is sometimes the only
+// signal available. Skips known ATS platform domains (the company they're hosting for is never
+// the ATS vendor's own name) and generic webmail domains (never the company).
+function guessCompanyHint(fromHeader) {
+  const addr = parseAddress(fromHeader)
+  const domain = addr && addr.email ? addr.email.split('@')[1] : null
+  if (!domain || GENERIC_EMAIL_DOMAINS.has(domain)) return ''
+  if (ATS_DOMAINS.some(d => domain === d || domain.endsWith('.' + d))) return ''
+
+  const labels = domain.split('.')
+  const root   = labels.length > 2 ? labels[labels.length - 2] : labels[0] // strip subdomains like mail./careers./no-reply.
+  const guess  = root.charAt(0).toUpperCase() + root.slice(1)
+  return `\n\nThe sender's email domain is ${domain}, which may indicate the company is "${guess}" — verify against the actual email content and use the real name/casing if stated there instead.`
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -346,36 +429,65 @@ function logMessageInteraction(keys, message, contactId, threadId, myEmail, meet
   })
 }
 
+// Ordinal ranking used to stop a later, unrelated signal from *regressing* an application's
+// stage — e.g. a second, separate application-confirmation email at the same company (fuzzy
+// company match can land on the wrong row) should never knock a 'Phone Screen' back down to
+// 'Applied'. REJECTION is exempt from this guard below since a rejection is terminal and can
+// legitimately land at any stage.
+const STAGE_RANK = { Wishlist: 0, Applied: 1, 'Phone Screen': 2, Onsite: 3, Offer: 4, Rejected: 5 }
+
+// Best-effort name match against existing Contacts, used to resolve a Claude-extracted
+// referrer_name into a real referred_by_id — see the "referrer_name" field in
+// extractWithClaude()'s prompt. Same ilike-contains approach as the company fuzzy match below;
+// a false match just leaves the field pointing at a plausible contact rather than failing loud,
+// which is acceptable for a field the app already lets the user correct manually in the UI.
+function findContactByName(keys, name) {
+  if (!name) return null
+  const res = supabaseReq(keys, 'get',
+    `/contacts?user_id=eq.${keys.userId}&name=ilike.*${encodeURIComponent(name)}*&select=id&limit=1`)
+  return res?.[0]?.id || null
+}
+
 function upsertApplication(keys, data) {
   const today = Utilities.formatDate(new Date(), 'UTC', 'yyyy-MM-dd')
   const stageMap = {
-    INTERVIEW_INVITE: 'Phone Screen',
-    OFFER:            'Offer',
-    REJECTION:        'Rejected',
+    APPLICATION_CONFIRMATION: 'Applied',
+    INTERVIEW_INVITE:         'Phone Screen',
+    OFFER:                    'Offer',
+    REJECTION:                'Rejected',
   }
   const stage = stageMap[data.type] || 'Applied'
+  const referrerId = data.referrer_name ? findContactByName(keys, data.referrer_name) : null
 
   // Fuzzy match on company name (same fragile-but-workable approach as the old Notion
   // title-contains filter) — applications has no unique constraint on (user_id, company).
   const res = supabaseReq(keys, 'get',
-    `/applications?user_id=eq.${keys.userId}&company=ilike.*${encodeURIComponent(data.company || '')}*&archived=eq.false&order=created_at.desc&limit=1&select=id`)
+    `/applications?user_id=eq.${keys.userId}&company=ilike.*${encodeURIComponent(data.company || '')}*&archived=eq.false&order=created_at.desc&limit=1&select=id,stage,referred_by_id`)
   const existing = res?.[0]
 
   const props = {
-    stage,
     last_activity: today,
     ...(stage === 'Rejected' ? { closed_date: today } : {}),
     ...(data.role ? { role: data.role } : {}),
+    // Referred-by is set once and never overwritten automatically, same rationale as contact
+    // status below — don't let a later email silently clobber a manually-corrected value.
+    ...(referrerId && !existing?.referred_by_id ? { referred_by_id: referrerId } : {}),
   }
 
   if (existing) {
+    const currentRank = STAGE_RANK[existing.stage] ?? 0
+    const newRank     = STAGE_RANK[stage] ?? 0
+    // REJECTION always applies (terminal, can happen from any stage) — every other signal only
+    // moves the stage forward, never backward.
+    if (stage === 'Rejected' || newRank >= currentRank) props.stage = stage
     supabaseReq(keys, 'patch', `/applications?id=eq.${existing.id}`, props)
-    console.log(`  Application updated → ${stage}`)
+    console.log(`  Application updated → ${props.stage || existing.stage}`)
   } else {
     supabaseReq(keys, 'post', '/applications', {
       user_id:      keys.userId,
       company:      data.company || 'Unknown',
       applied_date: today,
+      stage,
       ...props,
     })
     console.log(`  Application created → ${stage}`)
@@ -492,8 +604,17 @@ function extractCalendarInvite(message) {
 // SETUP & TESTING
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Gmail enforces label names as case-insensitive-unique, so GmailApp.createLabel(name) throws
+// if a differently-cased label already exists — which it does here: this account's label is
+// "Recruiting" (capitalized, likely renamed by hand at some point in Gmail's UI), not the
+// lowercase 'recruiting' this script has always hardcoded. getUserLabelByName() is exact-match
+// only, so without this fallback every run would fail before touching a single thread. Reuse
+// whatever casing already exists instead of trying to create a colliding duplicate.
 function getOrCreateLabel(name) {
-  return GmailApp.getUserLabelByName(name) || GmailApp.createLabel(name)
+  const exact = GmailApp.getUserLabelByName(name)
+  if (exact) return exact
+  const existing = GmailApp.getUserLabels().find(l => l.getName().toLowerCase() === name.toLowerCase())
+  return existing || GmailApp.createLabel(name)
 }
 
 // Run this once manually to verify everything is wired up

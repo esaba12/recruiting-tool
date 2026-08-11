@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { authHeader, supabase } from '../lib/supabaseClient.js'
 import { connectGoogleCalendar, disconnectGoogleCalendar, getGoogleCalendarStatus, linkGoogleIdentity } from '../lib/googleAuth.js'
+import { CALENDAR_SLOTS } from '../googleCalendar.js'
 import Button from './ui/Button.jsx'
 import Input from './ui/Input.jsx'
 import { Badge } from '../shared.jsx'
@@ -21,7 +22,8 @@ export default function SettingsTab() {
   const [keysLoading, setKeysLoading] = useState(true)
   const [drafts, setDrafts] = useState({})
   const [savingProvider, setSavingProvider] = useState(null)
-  const [calStatus, setCalStatus] = useState({ connected: false, email: null })
+  const [calStatus, setCalStatus] = useState(() => Object.fromEntries(Object.keys(CALENDAR_SLOTS).map(k => [k, { connected: false, email: null }])))
+  const [connectingSlot, setConnectingSlot] = useState(null)
   const [profileForm, setProfileForm] = useState(null)
   const [savingProfile, setSavingProfile] = useState(false)
   const [error, setError] = useState(null)
@@ -44,7 +46,11 @@ export default function SettingsTab() {
   }, [])
 
   useEffect(() => { loadKeys() }, [loadKeys])
-  useEffect(() => { getGoogleCalendarStatus().then(setCalStatus) }, [])
+  useEffect(() => {
+    Object.keys(CALENDAR_SLOTS).forEach(slot => {
+      getGoogleCalendarStatus(slot).then(status => setCalStatus(cs => ({ ...cs, [slot]: status })))
+    })
+  }, [])
   useEffect(() => {
     if (profile) setProfileForm({
       full_name: profile.full_name || '',
@@ -124,12 +130,18 @@ export default function SettingsTab() {
     } catch (e) { setError(e.message); setLinkingGoogle(false) }
   }
 
-  async function toggleCalendar() {
-    if (calStatus.connected) {
-      await disconnectGoogleCalendar()
-      setCalStatus({ connected: false, email: null })
+  async function toggleCalendar(slot) {
+    if (calStatus[slot]?.connected) {
+      await disconnectGoogleCalendar(slot)
+      setCalStatus(cs => ({ ...cs, [slot]: { connected: false, email: null } }))
     } else {
-      await connectGoogleCalendar() // redirects away — status refreshes on return
+      setConnectingSlot(slot); setError(null)
+      try {
+        await connectGoogleCalendar(slot) // redirects away on success — status refreshes on return
+      } catch (e) {
+        setError(e.message)
+        setConnectingSlot(null)
+      }
     }
   }
 
@@ -250,18 +262,27 @@ export default function SettingsTab() {
         })}
       </section>
 
-      {/* Google Calendar */}
-      <section className="bg-white rounded-2xl border border-ink-100 p-5 space-y-2">
-        <h3 className="text-sm font-semibold text-ink-900">Google Calendar</h3>
-        <p className="text-xs text-ink-400">Powers the "+ Event" screenshot/text → calendar event feature.</p>
-        <div className="flex items-center gap-2">
-          {calStatus.connected
-            ? <Badge label={`Connected${calStatus.email ? ` (${calStatus.email})` : ''}`} color="bg-success-50 text-success-700" />
-            : <Badge label="Not connected" color="bg-ink-100 text-ink-500" />}
-          <Button size="sm" variant={calStatus.connected ? 'ghost' : 'secondary'} onClick={toggleCalendar}>
-            {calStatus.connected ? 'Disconnect' : 'Connect Google Calendar'}
-          </Button>
+      {/* Google Calendar — up to two independent connections (e.g. a personal Gmail
+          account and a separate school Google account), each its own OAuth grant. */}
+      <section className="bg-white rounded-2xl border border-ink-100 p-5 space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-ink-900">Google Calendar</h3>
+          <p className="text-xs text-ink-400">Powers the "+ Event" screenshot/text → calendar event feature and the Calendar tab. Connect a second account for a school calendar separate from your personal one.</p>
         </div>
+        {Object.entries(CALENDAR_SLOTS).map(([slot, label]) => {
+          const status = calStatus[slot] || { connected: false, email: null }
+          return (
+            <div key={slot} className="flex items-center gap-2">
+              <span className="text-xs font-medium text-ink-600 w-14 shrink-0">{label}</span>
+              {status.connected
+                ? <Badge label={`Connected${status.email ? ` (${status.email})` : ''}`} color="bg-success-50 text-success-700" />
+                : <Badge label="Not connected" color="bg-ink-100 text-ink-500" />}
+              <Button size="sm" variant={status.connected ? 'ghost' : 'secondary'} onClick={() => toggleCalendar(slot)} disabled={connectingSlot === slot}>
+                {connectingSlot === slot ? 'Redirecting...' : status.connected ? 'Disconnect' : `Connect ${label}`}
+              </Button>
+            </div>
+          )
+        })}
       </section>
 
       <Button variant="ghost" onClick={signOut}>Sign out</Button>

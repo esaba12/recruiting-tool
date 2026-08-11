@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { Image as ImageIcon, X } from 'lucide-react'
 import Modal from './ui/Modal.jsx'
 import Button from './ui/Button.jsx'
-import { createEvent as createCalendarEvent, addOneHour } from '../googleCalendar.js'
+import { createEvent as createCalendarEvent, addOneHour, CALENDAR_SLOTS } from '../googleCalendar.js'
 import { claudeJSON, CLAUDE_MODELS } from '../lib/claude.js'
 
 const MAX_DIM = 1568 // Anthropic's documented vision token-efficiency sweet spot
@@ -62,6 +62,7 @@ export default function AddToCalendarModal({ onClose }) {
   const [editField, setEdit] = useState({})
   const [saving, setSaving] = useState(null) // null | 'saving' | 'done' | 'error'
   const [error, setError] = useState(null)
+  const [slot, setSlot] = useState('personal')
   const fileInputRef = useRef(null)
 
   const field = (key) => editField[key] ?? extracted?.[key] ?? ''
@@ -120,6 +121,7 @@ export default function AddToCalendarModal({ onClose }) {
         endTime,
         location: field('location'),
         description: field('description'),
+        slot,
       })
       setSaving('done')
     } catch (e) {
@@ -176,6 +178,17 @@ export default function AddToCalendarModal({ onClose }) {
               <label className="block text-xs text-ink-400 mb-0.5">Title</label>
               <input value={field('title')} onChange={e => setField('title', e.target.value)}
                 className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
+            </div>
+            <div>
+              <label className="block text-xs text-ink-400 mb-0.5">Calendar</label>
+              <div className="flex border border-ink-200 rounded-lg overflow-hidden text-xs font-medium w-fit">
+                {Object.entries(CALENDAR_SLOTS).map(([key, label]) => (
+                  <button key={key} type="button" onClick={() => setSlot(key)}
+                    className={`px-3 py-1.5 transition-colors ${slot === key ? 'bg-ink-900 text-white' : 'bg-white text-ink-500 hover:bg-ink-50'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div>
