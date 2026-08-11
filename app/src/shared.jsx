@@ -116,6 +116,13 @@ export function isStaleApplication(a) {
   return d !== null && d > 14
 }
 
+// Normalized Company+Role key (trim + lowercase) — the single source of truth for
+// "are these two applications the same listing", shared by findDuplicateGroups below
+// and the paste-link import's pre-save duplicate check.
+export function appDuplicateKey(a) {
+  return `${(a.company || '').trim().toLowerCase()}::${(a.role || '').trim().toLowerCase()}`
+}
+
 // Groups applications that normalize to the same Company+Role (trim + lowercase) —
 // catches exact re-imports (e.g. the same board pulled twice) but not fuzzily-worded
 // duplicates across sources (different phrasing of the same role won't match).
@@ -123,7 +130,7 @@ export function isStaleApplication(a) {
 export function findDuplicateGroups(apps) {
   const groups = {}
   for (const a of apps) {
-    const key = `${(a.company || '').trim().toLowerCase()}::${(a.role || '').trim().toLowerCase()}`
+    const key = appDuplicateKey(a)
     if (!key.replace(/:/g, '')) continue
     ;(groups[key] ||= []).push(a)
   }

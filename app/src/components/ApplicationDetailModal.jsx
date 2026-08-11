@@ -1,10 +1,18 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { addApplication, updateApplication } from '../db.js'
-import { STAGE_COLOR, STAGE_ORDER, TERMINAL_STAGES, Badge, fmt, daysBetween } from '../shared.jsx'
+import { STAGE_COLOR, STAGE_ORDER, TERMINAL_STAGES, Badge, fmt, daysBetween, appDuplicateKey } from '../shared.jsx'
 import { BUCKET_CONFIG, BUCKET_ACTIVE, BUCKET_TO_TRIAGE, TRIAGE_TO_BUCKET, generateJobAnalysis, lsGet } from './jobBoards/helpers.js'
 import { AI_PROVIDER_LABEL } from '../lib/ai.js'
+import { importApplicationFromUrl } from '../lib/applicationImport.js'
+import { companyCoverage } from '../lib/networkCoverage.js'
 
-export default function ApplicationDetailModal({ app, contacts = [], onStatusChange, onClose, onDelete, onSaved }) {
+const COVERAGE_BADGE = {
+  gap:    { color: 'bg-danger-100 text-danger-700',   label: () => 'No network here yet' },
+  weak:   { color: 'bg-warning-100 text-warning-800', label: n => `${n} contact${n !== 1 ? 's' : ''} · weak tie` },
+  strong: { color: 'bg-success-100 text-success-800', label: n => `${n} contact${n !== 1 ? 's' : ''} here` },
+}
+
+export default function ApplicationDetailModal({ app, contacts = [], apps = [], interactions = [], onStatusChange, onClose, onDelete, onSaved }) {
   const isNew = !app
   const [form, setForm] = useState(() => ({
     company:     app?.company     || '',
@@ -26,6 +34,9 @@ export default function ApplicationDetailModal({ app, contacts = [], onStatusCha
   const [analysis, setAnalysis]   = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError]     = useState(null)
+  const [pasteUrl, setPasteUrl]   = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState(null)
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
@@ -71,6 +82,34 @@ export default function ApplicationDetailModal({ app, contacts = [], onStatusCha
     try { await onStatusChange(key) }
     finally { setSaving(false) }
   }
+
+  async function doImport() {
+    if (!pasteUrl.trim()) return
+    setImporting(true); setImportError(null)
+    try {
+      const result = await importApplicationFromUrl(pasteUrl.trim())
+      setForm(f => ({
+        ...f,
+        company: result.company || f.company,
+        role: result.role || f.role,
+        location: result.location || f.location,
+        jdLink: pasteUrl.trim(),
+      }))
+      if (!result.company) setImportError("Couldn't identify the company — check the fields below and fill in what's missing.")
+    } catch (e) {
+      setImportError(e.message)
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const coverage = isNew && form.company.trim() ? companyCoverage(form.company, contacts, interactions) : null
+
+  const dupWarning = useMemo(() => {
+    if (!isNew || !form.company.trim()) return null
+    const key = appDuplicateKey(form)
+    return apps.find(a => appDuplicateKey(a) === key) || null
+  }, [apps, isNew, form.company, form.role])
 
   async function save() {
     if (!form.company.trim()) { setError('Company is required'); return }
@@ -181,10 +220,37 @@ export default function ApplicationDetailModal({ app, contacts = [], onStatusCha
 
         {isNew && (
           <div className="px-5 py-4 space-y-3">
+            <div className="p-3 bg-accent-50 border border-accent-100 rounded-xl space-y-2">
+              <label className="block text-xs font-semibold text-accent-700">Paste an application link to auto-fill</label>
+              <div className="flex gap-2">
+                <input value={pasteUrl} onChange={e => setPasteUrl(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), doImport())}
+                  placeholder="https://jobs.company.com/..."
+                  className="flex-1 px-2.5 py-1.5 border border-accent-200 rounded-lg text-sm bg-white focus:outline-none focus:border-accent-400" />
+                <button onClick={doImport} disabled={!pasteUrl.trim() || importing}
+                  className="px-3 py-1.5 bg-accent-600 text-white text-xs rounded-lg hover:bg-accent-700 disabled:opacity-50 font-medium whitespace-nowrap">
+                  {importing ? 'Reading...' : '✨ Extract'}
+                </button>
+              </div>
+              {importError && <p className="text-xs text-danger-600">{importError}</p>}
+            </div>
+
             {field('Company', 'company')}
             {field('Role', 'role')}
             {field('Location', 'location')}
             {field('Job Posting URL', 'jdLink')}
+
+            {coverage && coverage.status !== 'none' && (
+              <Badge label={COVERAGE_BADGE[coverage.status].label(coverage.matchedContacts.length)}
+                color={COVERAGE_BADGE[coverage.status].color} />
+            )}
+
+            {dupWarning && (
+              <p className="text-xs text-warning-800 bg-warning-50 border border-warning-200 rounded-lg px-3 py-2">
+                ⚠ You already have "{dupWarning.company}{dupWarning.role ? ` · ${dupWarning.role}` : ''}" — stage {dupWarning.stage}.
+              </p>
+            )}
+
             <div>
               <label className="block text-xs text-ink-400 mb-0.5">Referred By</label>
               <select value={form.referredById} onChange={e => set('referredById', e.target.value)}
