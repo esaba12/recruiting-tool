@@ -26,6 +26,7 @@ import ReferralCoverageTab from './components/ReferralCoverageTab.jsx'
 import OutboxTab from './components/OutboxTab.jsx'
 import DiscoverTab from './components/DiscoverTab.jsx'
 import ExploreTab from './components/ExploreTab.jsx'
+import NotFoundPage from './components/NotFoundPage.jsx'
 import { NAV_ITEMS } from './components/layout/Sidebar.jsx'
 import { Table2, LayoutGrid, Share2, Target, Send, UserSearch, HeartHandshake } from 'lucide-react'
 
@@ -407,8 +408,13 @@ function DemoApp() {
 }
 
 export default function App() {
-  const isDemo = typeof window !== 'undefined' && window.location.pathname.startsWith('/demo')
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '/'
+  const isDemo = pathname.startsWith('/demo')
   if (isDemo) return <DemoApp />
+
+  // No client-side router — every real feature lives at "/" as tab state, so any other
+  // path (typo, dead link, stale bookmark) is genuinely unknown.
+  if (pathname !== '/') return <NotFoundPage path={pathname} />
 
   return (
     <AuthGate>
