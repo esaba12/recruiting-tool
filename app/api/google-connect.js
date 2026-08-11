@@ -7,10 +7,14 @@
 // DELETE /api/google-connect?slot=personal|school -> disconnect that slot
 import { requireUser, supabaseAdmin } from './_lib/supabaseAdmin.js'
 import { CALENDAR_SLOTS } from './_lib/googleOAuth.js'
+import { checkRateLimit, sendRateLimited } from './_lib/rateLimit.js'
 
 export default async function handler(req, res) {
   const user = await requireUser(req)
   if (!user) return res.status(401).json({ error: { message: 'Not authenticated' } })
+
+  const rl = await checkRateLimit(user.id, 'CRUD')
+  if (rl.limited) return sendRateLimited(res, rl.retryAfter)
 
   const slot = req.query.slot || 'personal'
   if (!CALENDAR_SLOTS[slot]) {

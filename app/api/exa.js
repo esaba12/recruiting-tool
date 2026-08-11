@@ -3,6 +3,7 @@
 // deadline extraction. All fail-soft in the UI when a key isn't set.
 import { requireUser } from './_lib/supabaseAdmin.js'
 import { getUserKey } from './_lib/keys.js'
+import { checkRateLimit, sendRateLimited } from './_lib/rateLimit.js'
 
 function extraQuery(query) {
   const { path, ...rest } = query
@@ -14,12 +15,20 @@ export default async function handler(req, res) {
   const user = await requireUser(req)
   if (!user) return res.status(401).json({ error: { message: 'Not authenticated' } })
 
+  const rl = await checkRateLimit(user.id, 'SEARCH')
+  if (rl.limited) return sendRateLimited(res, rl.retryAfter)
+
+  const path = req.query.path || ''
+  if (!['search', 'findSimilar', 'contents'].includes(path)) {
+    return res.status(403).json({ error: { message: 'Path not allowed' } })
+  }
+
   const apiKey = await getUserKey(user.id, 'exa')
   if (!apiKey) {
     return res.status(400).json({ error: { message: 'Add your Exa API key in Settings to enable people/company discovery.' } })
   }
 
-  const target = `https://api.exa.ai/${req.query.path || ''}${extraQuery(req.query)}`
+  const target = `https://api.exa.ai/${path}${extraQuery(req.query)}`
 
   const upstream = await fetch(target, {
     method: req.method,

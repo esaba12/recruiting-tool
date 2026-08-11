@@ -3,6 +3,7 @@
 // ai_provider is 'openai' (see lib/ai.js).
 import { requireUser } from './_lib/supabaseAdmin.js'
 import { getUserKey } from './_lib/keys.js'
+import { checkRateLimit, sendRateLimited } from './_lib/rateLimit.js'
 
 function extraQuery(query) {
   const { path, ...rest } = query
@@ -14,12 +15,18 @@ export default async function handler(req, res) {
   const user = await requireUser(req)
   if (!user) return res.status(401).json({ error: { message: 'Not authenticated' } })
 
+  const rl = await checkRateLimit(user.id, 'AI')
+  if (rl.limited) return sendRateLimited(res, rl.retryAfter)
+
+  const path = req.query.path || ''
+  if (path !== 'v1/chat/completions') return res.status(403).json({ error: { message: 'Path not allowed' } })
+
   const apiKey = await getUserKey(user.id, 'openai')
   if (!apiKey) {
     return res.status(400).json({ error: { message: 'Add your OpenAI API key in Settings to enable GPT-powered features.' } })
   }
 
-  const target = `https://api.openai.com/${req.query.path || ''}${extraQuery(req.query)}`
+  const target = `https://api.openai.com/${path}${extraQuery(req.query)}`
 
   const upstream = await fetch(target, {
     method: req.method,

@@ -6,6 +6,7 @@ import { createEvent as createCalendarEvent, addOneHour, CALENDAR_SLOTS } from '
 import { claudeJSON, CLAUDE_MODELS } from '../lib/claude.js'
 
 const MAX_DIM = 1568 // Anthropic's documented vision token-efficiency sweet spot
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024 // 20MB — generous ceiling for a screenshot, rejects accidental huge/wrong-type files before they hit canvas decode
 
 function downscaleImage(fileOrBlob) {
   return new Promise((resolve, reject) => {
@@ -68,9 +69,21 @@ export default function AddToCalendarModal({ onClose }) {
   const setField = (key, val) => setEdit(e => ({ ...e, [key]: val }))
 
   async function handleImage(fileOrBlob) {
-    const dataUrl = await downscaleImage(fileOrBlob)
-    setImagePreview(dataUrl)
-    setImageBase64(dataUrl.split(',')[1])
+    if (!fileOrBlob.type?.startsWith('image/')) {
+      setError('That file doesn\'t look like an image.')
+      return
+    }
+    if (fileOrBlob.size > MAX_UPLOAD_BYTES) {
+      setError('Image is too large (max 20MB).')
+      return
+    }
+    try {
+      const dataUrl = await downscaleImage(fileOrBlob)
+      setImagePreview(dataUrl)
+      setImageBase64(dataUrl.split(',')[1])
+    } catch {
+      setError('Could not read that image — try a different file.')
+    }
   }
 
   function onPaste(e) {
