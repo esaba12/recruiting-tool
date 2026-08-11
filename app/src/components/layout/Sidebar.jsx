@@ -1,4 +1,4 @@
-import { NAV_ICON, REFRESH_ICON, CALENDAR_ICON, SCHEDULE_ICON } from '../../lib/icons.js'
+import { NAV_ICON, REFRESH_ICON, CALENDAR_ICON, SCHEDULE_ICON, QUICK_CAPTURE_ICON } from '../../lib/icons.js'
 
 const NAV_ITEMS = [
   { id: 'overview', label: 'Overview' },
@@ -13,7 +13,7 @@ const NAV_ITEMS = [
 
 export { NAV_ITEMS }
 
-export default function Sidebar({ activeTab, onTabChange, counts = {}, loading, lastLoaded, onRefresh, onAddEvent, onAddSchedule, navItems = NAV_ITEMS, hideQuickActions = false, demoMode = false }) {
+export default function Sidebar({ activeTab, onTabChange, counts = {}, loading, lastLoaded, onRefresh, onAddEvent, onAddSchedule, onQuickCapture, navItems = NAV_ITEMS, hideQuickActions = false, demoMode = false }) {
   return (
     <>
       {/* Desktop sidebar */}
@@ -50,8 +50,13 @@ export default function Sidebar({ activeTab, onTabChange, counts = {}, loading, 
         <div className="px-3 py-4 border-t border-ink-800 space-y-2">
           {!hideQuickActions && (
             <>
-              <button onClick={onAddSchedule}
+              <button onClick={onQuickCapture}
                 className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-accent-500 text-white hover:bg-accent-600 transition-colors">
+                <QUICK_CAPTURE_ICON size={13} />
+                Quick Capture
+              </button>
+              <button onClick={onAddSchedule}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-ink-800 text-ink-100 hover:bg-ink-700 transition-colors">
                 <SCHEDULE_ICON size={13} />
                 + Schedule
               </button>
@@ -97,8 +102,12 @@ export default function Sidebar({ activeTab, onTabChange, counts = {}, loading, 
       {/* Mobile floating quick-actions (anchored above the bottom bar) */}
       {!hideQuickActions && (
         <>
+          <button onClick={onQuickCapture}
+            className="md:hidden fixed right-4 bottom-52 z-30 w-12 h-12 rounded-full bg-accent-500 text-white shadow-lg flex items-center justify-center hover:bg-accent-600">
+            <QUICK_CAPTURE_ICON size={20} />
+          </button>
           <button onClick={onAddSchedule}
-            className="md:hidden fixed right-4 bottom-36 z-30 w-12 h-12 rounded-full bg-accent-500 text-white shadow-lg flex items-center justify-center hover:bg-accent-600">
+            className="md:hidden fixed right-4 bottom-36 z-30 w-12 h-12 rounded-full bg-ink-800 text-white shadow-lg flex items-center justify-center hover:bg-ink-700">
             <SCHEDULE_ICON size={20} />
           </button>
           <button onClick={onAddEvent}
