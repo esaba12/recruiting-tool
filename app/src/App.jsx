@@ -335,6 +335,7 @@ function AppInner() {
       {quickCaptureOpen && (
         <QuickCaptureModal
           contacts={contacts}
+          apps={apps}
           onClose={() => setQuickCaptureOpen(false)}
           onSaved={load}
         />

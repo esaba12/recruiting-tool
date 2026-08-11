@@ -1,31 +1,36 @@
 import { useState, useRef, useEffect } from 'react'
 import { Sparkles, Loader2, Send } from 'lucide-react'
-import { addContact, updateContact, addInteraction, addCallEntry } from '../db.js'
-import { parseQuickCapture, bestContactMatches, TYPE_OPTIONS } from '../lib/quickCapture.js'
-import { ROLE_OPTIONS, STATUS_OPTIONS, REFERRAL_STATUS_OPTIONS } from '../shared.jsx'
+import { addContact, updateContact, addInteraction, addCallEntry, addApplication, updateApplication, updateApplicationTriage } from '../db.js'
+import { parseQuickCapture, bestContactMatches, bestApplicationMatches, TYPE_OPTIONS, TRIAGE_OPTIONS } from '../lib/quickCapture.js'
+import { ROLE_OPTIONS, STATUS_OPTIONS, REFERRAL_STATUS_OPTIONS, STAGE_ORDER } from '../shared.jsx'
+import { normalizeCompanyName } from '../lib/networkGraph.js'
+import { useTargetCompanies } from '../lib/useTargetCompanies.js'
 import Modal from './ui/Modal.jsx'
 import Button from './ui/Button.jsx'
 
 const EXAMPLES = [
   '"justin aronwald just said he\'d recommend me"',
-  '"met sarah chen at the stripe coffee chat, she\'s a PM there"',
+  '"need to apply to this https://boards.greenhouse.io/..."',
+  '"mark the stripe application as phone screen"',
+  '"add anthropic to my target companies"',
   '"mark the recruiter from datadog as closed, went cold"',
 ]
 
 let nextId = 1
 const uid = () => nextId++
 
-// The chatbot-style entry point: type a plain-English note about someone in your
-// network, and quickCapture.js's parseQuickCapture() turns it into a structured draft
-// action (log an interaction / update a contact / create a new one). Nothing is written
-// until the user reviews the draft card and hits Confirm — same "AI drafts, human
-// confirms" shape as QuickAddContactModal's enrichment review step, just chat-shaped
-// and able to take more than one kind of action.
-export default function QuickCaptureModal({ contacts = [], onClose, onSaved }) {
+// The chatbot-style entry point: say what you want in plain English, and
+// quickCapture.js's parseQuickCapture() routes it to whichever CRM action it implies —
+// log an interaction, update or create a contact, add or update a Pipeline application,
+// or add a target company. Nothing is written until the user reviews the draft card and
+// hits Confirm — same "AI drafts, human confirms" shape as QuickAddContactModal's
+// enrichment review step, just chat-shaped and able to take more than one kind of action.
+export default function QuickCaptureModal({ contacts = [], apps = [], onClose, onSaved }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(false)
   const scrollRef = useRef(null)
+  const { targets, setTargets } = useTargetCompanies()
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -47,10 +52,10 @@ export default function QuickCaptureModal({ contacts = [], onClose, onSaved }) {
     setMessages(msgs => [...msgs, { id: thinkingId, role: 'assistant', kind: 'thinking' }])
     setThinking(true)
     try {
-      const draft = await parseQuickCapture(text, contacts)
+      const draft = await parseQuickCapture(text, contacts, apps)
       if (draft.action === 'unclear') {
         setMessages(msgs => msgs.map(m => m.id === thinkingId
-          ? { ...m, kind: 'text', text: draft.clarifyingQuestion || "I couldn't tell who that's about — try including a name." }
+          ? { ...m, kind: 'text', text: draft.clarifyingQuestion || "I couldn't tell what to do with that — try adding more detail." }
           : m))
       } else {
         setMessages(msgs => msgs.map(m => m.id === thinkingId ? { ...m, kind: 'draft', draft, status: 'pending' } : m))
@@ -65,6 +70,34 @@ export default function QuickCaptureModal({ contacts = [], onClose, onSaved }) {
   async function confirm(msgId, draft) {
     patch(msgId, { status: 'saving' })
     try {
+      if (draft.action === 'add_application') {
+        await addApplication({ company: draft.company, role: draft.role, jdLink: draft.jdLink, location: draft.location })
+        patch(msgId, { status: 'saved', savedInfo: { name: draft.company, company: draft.role, isApplication: true } })
+        onSaved?.()
+        return
+      }
+
+      if (draft.action === 'update_application') {
+        const app = apps.find(a => a.id === draft.resolvedApplicationId)
+        if (!app) throw new Error('Pick which application this is about')
+        if (draft.stage) await updateApplication(app.id, { stage: draft.stage })
+        if (draft.triage) await updateApplicationTriage(app.id, draft.triage, draft.stage || app.stage)
+        if (draft.notesAppend) {
+          const merged = app.notes ? `${app.notes}\n${draft.notesAppend}` : draft.notesAppend
+          await updateApplication(app.id, { notes: merged })
+        }
+        patch(msgId, { status: 'saved', savedInfo: { name: app.company, company: draft.stage || draft.triage || 'updated', isApplicationUpdate: true } })
+        onSaved?.()
+        return
+      }
+
+      if (draft.action === 'add_target_company') {
+        const already = targets.some(t => normalizeCompanyName(t) === normalizeCompanyName(draft.company))
+        if (!already) setTargets([...targets, draft.company])
+        patch(msgId, { status: 'saved', savedInfo: { name: draft.company, alreadyTargeted: already, isTargetCompany: true } })
+        return
+      }
+
       let contactId = draft.resolvedContactId
       let created = false
       if (!contactId) {
@@ -116,7 +149,7 @@ export default function QuickCaptureModal({ contacts = [], onClose, onSaved }) {
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
           {messages.length === 0 && (
             <div className="text-center py-8">
-              <p className="text-sm text-ink-500 mb-3">Say what happened, in plain English — I'll figure out who it's about and what to log.</p>
+              <p className="text-sm text-ink-500 mb-3">Say what you want, in plain English — log a touchpoint, add or update an application, target a company. I'll figure out what to do.</p>
               <div className="space-y-1.5">
                 {EXAMPLES.map(ex => (
                   <p key={ex} className="text-xs text-ink-400 italic">{ex}</p>
@@ -126,7 +159,7 @@ export default function QuickCaptureModal({ contacts = [], onClose, onSaved }) {
           )}
 
           {messages.map(m => (
-            <MessageBubble key={m.id} m={m} contacts={contacts}
+            <MessageBubble key={m.id} m={m} contacts={contacts} apps={apps}
               onPatchDraft={fields => patchDraft(m.id, fields)}
               onConfirm={() => confirm(m.id, m.draft)} />
           ))}
@@ -151,7 +184,7 @@ export default function QuickCaptureModal({ contacts = [], onClose, onSaved }) {
   )
 }
 
-function MessageBubble({ m, contacts, onPatchDraft, onConfirm }) {
+function MessageBubble({ m, contacts, apps, onPatchDraft, onConfirm }) {
   if (m.role === 'user') {
     return <div className="ml-auto max-w-[80%] bg-accent-500 text-white rounded-2xl rounded-tr-sm px-3.5 py-2 text-sm">{m.text}</div>
   }
@@ -170,15 +203,165 @@ function MessageBubble({ m, contacts, onPatchDraft, onConfirm }) {
   }
   if (m.kind === 'draft') {
     if (m.status === 'saved') {
+      if (m.savedInfo.isApplication) {
+        return (
+          <div className="max-w-[90%] bg-success-50 border border-success-200 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-sm text-success-700">
+            ✓ Added to Pipeline — <strong>{m.savedInfo.name}</strong>{m.savedInfo.company ? ` — ${m.savedInfo.company}` : ''}.
+          </div>
+        )
+      }
+      if (m.savedInfo.isApplicationUpdate) {
+        return (
+          <div className="max-w-[90%] bg-success-50 border border-success-200 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-sm text-success-700">
+            ✓ Updated <strong>{m.savedInfo.name}</strong> — {m.savedInfo.company}.
+          </div>
+        )
+      }
+      if (m.savedInfo.isTargetCompany) {
+        return (
+          <div className="max-w-[90%] bg-success-50 border border-success-200 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-sm text-success-700">
+            {m.savedInfo.alreadyTargeted
+              ? <>Already targeting <strong>{m.savedInfo.name}</strong>.</>
+              : <>✓ Added <strong>{m.savedInfo.name}</strong> to target companies.</>}
+          </div>
+        )
+      }
       return (
         <div className="max-w-[90%] bg-success-50 border border-success-200 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-sm text-success-700">
           ✓ Logged — {m.savedInfo.created ? 'created new contact' : 'updated'} <strong>{m.savedInfo.name}</strong>{m.savedInfo.company ? ` @ ${m.savedInfo.company}` : ''}.
         </div>
       )
     }
+    if (m.draft.action === 'add_application') {
+      return <ApplicationDraftCard draft={m.draft} status={m.status} error={m.error} onPatch={onPatchDraft} onConfirm={onConfirm} />
+    }
+    if (m.draft.action === 'update_application') {
+      return <ApplicationUpdateDraftCard draft={m.draft} status={m.status} error={m.error} apps={apps} onPatch={onPatchDraft} onConfirm={onConfirm} />
+    }
+    if (m.draft.action === 'add_target_company') {
+      return <TargetCompanyDraftCard draft={m.draft} status={m.status} error={m.error} onPatch={onPatchDraft} onConfirm={onConfirm} />
+    }
     return <DraftCard draft={m.draft} status={m.status} error={m.error} contacts={contacts} onPatch={onPatchDraft} onConfirm={onConfirm} />
   }
   return null
+}
+
+function ApplicationDraftCard({ draft, status, error, onPatch, onConfirm }) {
+  const saving = status === 'saving'
+  return (
+    <div className="max-w-[90%] bg-white border border-ink-200 rounded-2xl rounded-tl-sm shadow-sm p-3.5 space-y-3">
+      {error && <div className="p-2 bg-danger-50 border border-danger-200 rounded-lg text-xs text-danger-700">{error}</div>}
+      {draft.importNote && <div className="p-2 bg-warning-50 border border-warning-200 rounded-lg text-xs text-warning-800">{draft.importNote}</div>}
+
+      <p className="text-[11px] font-semibold text-ink-400 uppercase tracking-wide">Add to Pipeline</p>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-[11px] text-ink-400 mb-0.5">Company</label>
+          <input value={draft.company} onChange={e => onPatch({ company: e.target.value })}
+            className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
+        </div>
+        <div>
+          <label className="block text-[11px] text-ink-400 mb-0.5">Role</label>
+          <input value={draft.role} onChange={e => onPatch({ role: e.target.value })}
+            className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
+        </div>
+      </div>
+      <div>
+        <label className="block text-[11px] text-ink-400 mb-0.5">Location</label>
+        <input value={draft.location} onChange={e => onPatch({ location: e.target.value })}
+          className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
+      </div>
+      <div>
+        <label className="block text-[11px] text-ink-400 mb-0.5">Link</label>
+        <input value={draft.jdLink} onChange={e => onPatch({ jdLink: e.target.value })}
+          className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
+      </div>
+
+      <Button onClick={onConfirm} disabled={saving || !draft.company.trim()} className="w-full">
+        {saving ? 'Saving...' : '✓ Add to Pipeline'}
+      </Button>
+    </div>
+  )
+}
+
+function ApplicationUpdateDraftCard({ draft, status, error, apps, onPatch, onConfirm }) {
+  const scored = bestApplicationMatches(draft.applicationQuery, apps, 8)
+  // Fall back to every open application if the text match came up empty — better to make
+  // the user pick manually than to show an empty, unusable dropdown.
+  const openApps = apps.filter(a => !['Rejected', 'Accepted'].includes(a.stage))
+  const options = scored.length > 0 ? scored.map(s => s.app) : openApps
+  const saving = status === 'saving'
+
+  return (
+    <div className="max-w-[90%] bg-white border border-ink-200 rounded-2xl rounded-tl-sm shadow-sm p-3.5 space-y-3">
+      {error && <div className="p-2 bg-danger-50 border border-danger-200 rounded-lg text-xs text-danger-700">{error}</div>}
+
+      <p className="text-[11px] font-semibold text-ink-400 uppercase tracking-wide">Update application</p>
+
+      <div>
+        <label className="block text-[11px] text-ink-400 mb-0.5">Which application</label>
+        <select value={draft.resolvedApplicationId} onChange={e => onPatch({ resolvedApplicationId: e.target.value })}
+          className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+          <option value="">— select —</option>
+          {options.map(app => (
+            <option key={app.id} value={app.id}>{app.company}{app.role ? ` — ${app.role}` : ''}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-[11px] text-ink-400 mb-0.5">Stage</label>
+          <select value={draft.stage} onChange={e => onPatch({ stage: e.target.value })}
+            className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+            <option value="">— no change —</option>
+            {STAGE_ORDER.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[11px] text-ink-400 mb-0.5">Triage</label>
+          <select value={draft.triage} onChange={e => onPatch({ triage: e.target.value })}
+            className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+            <option value="">— no change —</option>
+            {TRIAGE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-[11px] text-ink-400 mb-0.5">Note</label>
+        <textarea value={draft.notesAppend} onChange={e => onPatch({ notesAppend: e.target.value })} rows={2}
+          placeholder="Anything else worth remembering"
+          className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 resize-none" />
+      </div>
+
+      <Button onClick={onConfirm} disabled={saving || !draft.resolvedApplicationId} className="w-full">
+        {saving ? 'Saving...' : '✓ Update'}
+      </Button>
+    </div>
+  )
+}
+
+function TargetCompanyDraftCard({ draft, status, error, onPatch, onConfirm }) {
+  const saving = status === 'saving'
+  return (
+    <div className="max-w-[90%] bg-white border border-ink-200 rounded-2xl rounded-tl-sm shadow-sm p-3.5 space-y-3">
+      {error && <div className="p-2 bg-danger-50 border border-danger-200 rounded-lg text-xs text-danger-700">{error}</div>}
+
+      <p className="text-[11px] font-semibold text-ink-400 uppercase tracking-wide">Add target company</p>
+
+      <div>
+        <label className="block text-[11px] text-ink-400 mb-0.5">Company</label>
+        <input value={draft.company} onChange={e => onPatch({ company: e.target.value })}
+          className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
+      </div>
+
+      <Button onClick={onConfirm} disabled={saving || !draft.company.trim()} className="w-full">
+        {saving ? 'Saving...' : '✓ Add to targets'}
+      </Button>
+    </div>
+  )
 }
 
 function DraftCard({ draft, status, error, contacts, onPatch, onConfirm }) {
