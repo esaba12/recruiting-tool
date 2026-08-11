@@ -22,61 +22,34 @@ export async function linkGoogleIdentity() {
   if (error) throw error
 }
 
-// "Connect Calendar" — re-runs the Google OAuth flow requesting the
-// calendar.events scope + `access_type=offline&prompt=consent` so Google
-// issues a fresh refresh token every time (Google only returns a refresh
-// token on the FIRST consent per scope-set otherwise). Supabase surfaces the
-// resulting `provider_refresh_token` on the Session object exactly once,
-// right after this exact redirect completes — see finishGoogleCalendarConnect()
-// below, which SettingsTab.jsx calls on mount to catch it and persist it
-// server-side (api/google-connect.js) before it's lost.
-const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events'
-const CONNECT_FLAG = 'rec_google_connect_pending'
-
-export async function connectGoogleCalendar() {
-  sessionStorage.setItem(CONNECT_FLAG, '1')
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      scopes: CALENDAR_SCOPE,
-      queryParams: { access_type: 'offline', prompt: 'consent' },
-      redirectTo: window.location.origin,
-    },
-  })
-  if (error) { sessionStorage.removeItem(CONNECT_FLAG); throw error }
+// "Connect Calendar" (personal or school slot — see api/_lib/googleOAuth.js's
+// CALENDAR_SLOTS) — a direct Google OAuth flow (api/google-oauth-start.js +
+// api/google-oauth-callback.js), NOT supabase.auth.signInWithOAuth()/linkIdentity().
+// Deliberately: signInWithOAuth risks switching the active login session to a different
+// account if the Google identity picked isn't already this account's, and linkIdentity
+// only supports one linked identity per provider — neither lets someone connect a SECOND,
+// unrelated Google account (the whole point of a school+personal split) while staying
+// signed into the same app account. This flow is fully independent of login identity: it
+// just asks Google for calendar.events access and stores the resulting refresh token
+// against whichever slot was requested.
+export async function connectGoogleCalendar(slot = 'personal') {
+  const res = await fetch(`/api/google-oauth-start?slot=${slot}`, { headers: await authHeader() })
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}))
+    throw new Error(e.error?.message || 'Failed to start Google Calendar connection')
+  }
+  const { authUrl } = await res.json()
+  window.location.href = authUrl // full-page redirect to Google; api/google-oauth-callback.js sends the browser back here on success
 }
 
-// Call once on app mount (after the auth session is known). If we just came
-// back from connectGoogleCalendar()'s redirect, the session carries a fresh
-// provider_refresh_token — grab it and hand it to the server before it's
-// gone. No-ops harmlessly on every other page load.
-export async function finishGoogleCalendarConnect() {
-  if (!sessionStorage.getItem(CONNECT_FLAG)) return null
-  sessionStorage.removeItem(CONNECT_FLAG)
-
-  const { data } = await supabase.auth.getSession()
-  const session = data?.session
-  const refreshToken = session?.provider_refresh_token
-  if (!refreshToken) return null // user only re-approved login, not the calendar scope re-consent
-
-  const email = session?.user?.user_metadata?.email || session?.user?.email || null
-  const res = await fetch('/api/google-connect', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
-    body: JSON.stringify({ refreshToken, email }),
-  })
-  if (!res.ok) return null
-  return res.json()
-}
-
-export async function getGoogleCalendarStatus() {
-  const res = await fetch('/api/google-connect', { headers: await authHeader() })
+export async function getGoogleCalendarStatus(slot = 'personal') {
+  const res = await fetch(`/api/google-connect?slot=${slot}`, { headers: await authHeader() })
   if (!res.ok) return { connected: false, email: null }
   return res.json()
 }
 
-export async function disconnectGoogleCalendar() {
-  const res = await fetch('/api/google-connect', { method: 'DELETE', headers: await authHeader() })
+export async function disconnectGoogleCalendar(slot = 'personal') {
+  const res = await fetch(`/api/google-connect?slot=${slot}`, { method: 'DELETE', headers: await authHeader() })
   if (!res.ok) throw new Error('Failed to disconnect')
   return res.json()
 }

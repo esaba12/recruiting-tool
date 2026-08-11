@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships } from './db.js'
 import { useAuth } from './lib/AuthContext.jsx'
-import { finishGoogleCalendarConnect } from './lib/googleAuth.js'
 import LoginPage from './components/LoginPage.jsx'
 import SettingsTab from './components/SettingsTab.jsx'
 import { STATUS_COLOR, URGENCY_COLOR, REFERRAL_STATUS_COLOR, daysSince, daysUntil, fmt, Badge, EmptyState, isOverdue, isStaleApplication } from './shared.jsx'
@@ -259,10 +258,6 @@ function AppInner() {
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false)
 
   useEffect(() => { load() }, [])
-  // Catches a fresh Google Calendar refresh token right after the "Connect
-  // Calendar" OAuth redirect back into the app (see lib/googleAuth.js) — a
-  // no-op on every other load.
-  useEffect(() => { finishGoogleCalendarConnect() }, [])
 
   async function load() {
     setLoading(true); setError(null)
