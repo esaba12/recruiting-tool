@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships } from './db.js'
+import { researchOaDeadlines } from './lib/oaResearch.js'
 import { useAuth } from './lib/AuthContext.jsx'
 import LoginPage from './components/LoginPage.jsx'
 import SettingsTab from './components/SettingsTab.jsx'
@@ -274,6 +275,24 @@ function AppInner() {
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
   }
+
+  // Cloud-agent research fallback for OA due dates the email pipeline couldn't extract — see
+  // lib/oaResearch.js. Runs whenever `apps` changes; researchOaDeadlines() itself filters down to
+  // applications actually needing a (re)check, so most runs after the first are a fast no-op.
+  // oaResearchRunningRef guards against overlapping runs when `apps` changes again (e.g. from
+  // load() below) before a prior pass has finished; the effect naturally converges because a
+  // completed pass stamps oaDueDate/oaResearchCheckedAt on every app it touched, so the next
+  // pass's filter no longer matches them.
+  const oaResearchRunningRef = useRef(false)
+  useEffect(() => {
+    if (loading || oaResearchRunningRef.current) return
+    oaResearchRunningRef.current = true
+    researchOaDeadlines(apps)
+      .then(count => { if (count > 0) load() })
+      .catch(() => { /* fail-soft — OA due dates just stay unresolved until next load */ })
+      .finally(() => { oaResearchRunningRef.current = false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apps])
 
   // Narrower than load() on purpose: doesn't touch `loading`, which gates whether
   // NetworkTab (and any modal it has open, like ContactDetailModal) is even mounted —

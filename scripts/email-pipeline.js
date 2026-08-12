@@ -70,6 +70,12 @@ const GENERIC_EMAIL_DOMAINS = new Set([
 // that exact phrasing, so "referral portal|link|program" and "referred you" were added.
 const REFERRAL_MENTION_RE = /\b(referred by|referred you|referral from|recommended by|thanks to (?:the |your )?(?:introduction|referral)|your referrer|employee referral|referral (?:portal|link|program)|apply(?:ing)? through a referral)\b/i
 const APPLICATION_CONFIRMATION_RE = /\b(thank(?:s| you) for (?:your interest|applying)|we(?:'| ha)ve received your application|your application (?:has been received|was submitted|is being reviewed)|application (?:received|submitted|confirmation)|successfully applied)\b/i
+// Online Assessment (OA) invites — the coding/skills test companies send after applying
+// (HackerRank, CodeSignal, Codility, HackerEarth, or a generic "complete your assessment"
+// ATS template), which almost always comes with a completion deadline. Recall net like the
+// other *_RE hints above — Claude still makes the final call on type + whether a due date is
+// actually stated.
+const OA_INVITE_RE = /\b(online assessment|coding assessment|coding challenge|skills assessment|hackerrank|codesignal|codility|hackerearth|complete (?:your|the) assessment|assessment invit)/i
 
 function getKeys() {
   const p = PropertiesService.getScriptProperties()
@@ -144,13 +150,16 @@ function processRecruitingEmails() {
       const referralHint = REFERRAL_MENTION_RE.test(body)
         ? '\n\nThis email appears to mention a referral or recommendation. If a specific person is named as having referred/recommended the candidate, extract their name into "referrer_name".'
         : ''
+      const oaHint = OA_INVITE_RE.test(subject + ' ' + body)
+        ? '\n\nThis email\'s subject/body matches typical Online Assessment (OA) invite phrasing (HackerRank/CodeSignal/Codility/etc., or a generic "complete your assessment" template) — likely type OA_INVITE. Extract oa_due_date only if the email actually states a completion deadline, and oa_link as the URL the candidate clicks to start/complete the assessment.'
+        : ''
       const companyHint = guessCompanyHint(from)
 
       console.log(`→ "${subject}" from ${from} (${messages.length - seen} new message(s))`)
 
       const data = extractWithClaude(
         keys.anthropic, subject, from, body, date, invite, meetingLink,
-        applicationHint + referralHint + companyHint,
+        applicationHint + referralHint + oaHint + companyHint,
       )
 
       if (!data || data.type === 'UNRELATED') {
@@ -184,7 +193,7 @@ function processRecruitingEmails() {
 
       const contactId = upsertContact(keys, data)
 
-      if (['APPLICATION_CONFIRMATION', 'INTERVIEW_INVITE', 'OFFER', 'REJECTION'].includes(data.type)) {
+      if (['APPLICATION_CONFIRMATION', 'OA_INVITE', 'INTERVIEW_INVITE', 'OFFER', 'REJECTION'].includes(data.type)) {
         upsertApplication(keys, data)
       }
 
@@ -240,7 +249,7 @@ If not recruiting-related: {"type":"UNRELATED"}
 
 Otherwise return:
 {
-  "type": "APPLICATION_CONFIRMATION|REPLY|INTERVIEW_INVITE|OFFER|REJECTION|NEW_CONTACT|FOLLOW_UP_NEEDED",
+  "type": "APPLICATION_CONFIRMATION|OA_INVITE|REPLY|INTERVIEW_INVITE|OFFER|REJECTION|NEW_CONTACT|FOLLOW_UP_NEEDED",
   "contact_name": "the recruiter/contact's full name if mentioned in the body or signature, else null — their email address is resolved separately from message headers, not from this field",
   "company": "company name",
   "role": "role title or null",
@@ -251,14 +260,22 @@ Otherwise return:
   "interview_date": "YYYY-MM-DD if an interview is scheduled, or null",
   "interview_format": "phone|video|onsite|null",
   "meeting_link": "the Zoom/Google Meet/Teams/etc. video call URL if one is mentioned in the body, else null",
-  "referrer_name": "the full name of the person who referred/recommended the candidate for this specific role, ONLY if the email explicitly says so (e.g. 'referred by Jane Doe', 'submitted your referral', 'thanks to an employee referral from...'). Otherwise null — never guess."
+  "referrer_name": "the full name of the person who referred/recommended the candidate for this specific role, ONLY if the email explicitly says so (e.g. 'referred by Jane Doe', 'submitted your referral', 'thanks to an employee referral from...'). Otherwise null — never guess.",
+  "oa_due_date": "YYYY-MM-DD if this is an Online Assessment invite AND the email states a completion deadline, else null — never guess or estimate a date that isn't actually stated",
+  "oa_link": "the URL the candidate clicks to start/complete the Online Assessment, if this is an OA_INVITE, else null"
 }
 
 APPLICATION_CONFIRMATION means an automated "we received your application" acknowledgment
 (typically from an ATS like Greenhouse/Lever/Workday, or the company's own no-reply address)
 where no human has replied yet — this is distinct from REPLY (a human responding) and should
 still be returned even though nothing else has happened yet, so the application gets tracked
-from the moment it's submitted rather than only once someone replies.${inviteHint}${linkHint}${extraHints || ''}
+from the moment it's submitted rather than only once someone replies.
+
+OA_INVITE means the email invites the candidate to complete an Online Assessment — a coding/
+skills test, typically via HackerRank/CodeSignal/Codility/HackerEarth or a similar platform.
+Extract oa_due_date only when the email explicitly states a completion deadline ("complete by
+August 20", "you have 7 days to complete this assessment", etc.) — many OA invites don't state
+one at all, in which case leave it null rather than estimating from the email's send date.${inviteHint}${linkHint}${extraHints || ''}
 
 Subject: ${subject}
 From: ${from}
@@ -469,6 +486,7 @@ function upsertApplication(keys, data) {
   const today = Utilities.formatDate(new Date(), 'UTC', 'yyyy-MM-dd')
   const stageMap = {
     APPLICATION_CONFIRMATION: 'Applied',
+    OA_INVITE:                'Applied', // OA is a sub-state of Applied, not its own pipeline stage
     INTERVIEW_INVITE:         'Phone Screen',
     OFFER:                    'Offer',
     REJECTION:                'Rejected',
@@ -479,7 +497,7 @@ function upsertApplication(keys, data) {
   // Fuzzy match on company name (same fragile-but-workable approach as the old Notion
   // title-contains filter) — applications has no unique constraint on (user_id, company).
   const res = supabaseReq(keys, 'get',
-    `/applications?user_id=eq.${keys.userId}&company=ilike.*${encodeURIComponent(data.company || '')}*&archived=eq.false&order=created_at.desc&limit=1&select=id,stage,referred_by_id`)
+    `/applications?user_id=eq.${keys.userId}&company=ilike.*${encodeURIComponent(data.company || '')}*&archived=eq.false&order=created_at.desc&limit=1&select=id,stage,referred_by_id,oa_completed`)
   const existing = res?.[0]
 
   const props = {
@@ -489,6 +507,14 @@ function upsertApplication(keys, data) {
     // Referred-by is set once and never overwritten automatically, same rationale as contact
     // status below — don't let a later email silently clobber a manually-corrected value.
     ...(referrerId && !existing?.referred_by_id ? { referred_by_id: referrerId } : {}),
+    // OA fields only refresh from a fresh OA_INVITE email, and never once the candidate has
+    // already marked the assessment completed — otherwise a stray later email (re-fuzzy-matched
+    // onto the same application) could resurrect oa_due_date/oa_link for an assessment that's
+    // done. Unlike referred_by_id, these DO refresh on every OA_INVITE while still open, since a
+    // company sometimes re-sends the same invite with a corrected/extended deadline.
+    ...(data.type === 'OA_INVITE' && !existing?.oa_completed
+      ? { oa_due_date: data.oa_due_date || null, oa_link: data.oa_link || null, oa_research_checked_at: null }
+      : {}),
   }
 
   if (existing) {

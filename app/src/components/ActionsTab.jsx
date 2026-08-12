@@ -1,10 +1,20 @@
 import { useState } from 'react'
 import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TERMINAL_STAGES, daysSince, daysUntil, fmt, Badge, EmptyState, isUntriaged, isOverdue, isStaleApplication } from '../shared.jsx'
-import { updateContact, addInteraction } from '../db.js'
+import { updateContact, addInteraction, updateApplication } from '../db.js'
 import DraftPanel from './DraftPanel.jsx'
 
 export default function ActionsTab({ contacts, apps, interactions = [], onRefresh }) {
   const activeApps = apps.filter(a => !TERMINAL_STAGES.includes(a.stage) && !isUntriaged(a))
+
+  // OAs with a known due date (from the email itself, or the lib/oaResearch.js cloud-agent
+  // fallback) sort soonest-first; OAs where research already ran and found no stated deadline
+  // sort after, since there's no date to rank them by — same "known dates first, undated last"
+  // convention as scheduleContacts below.
+  const oaDueApps = apps
+    .filter(a => a.oaDueDate && !a.oaCompleted)
+    .sort((a, b) => daysUntil(a.oaDueDate) - daysUntil(b.oaDueDate))
+  const oaNeedsCheckApps = apps
+    .filter(a => a.oaLink && !a.oaDueDate && !a.oaCompleted && a.oaResearchCheckedAt)
 
   // People explicitly queued via "+ Schedule" — soonest Schedule By first, no-date last
   // (added quickly and not yet given an urgency, not "not urgent").
@@ -33,12 +43,23 @@ export default function ActionsTab({ contacts, apps, interactions = [], onRefres
     c.urgency === 'HIGH' && c.status !== '✅ Closed' && (!c.followUpDate || daysUntil(c.followUpDate) > 0)
   )
 
-  if (scheduleContacts.length + overdueContacts.length + staleApps.length + highUrgencyContacts.length === 0) {
+  if (scheduleContacts.length + overdueContacts.length + staleApps.length + highUrgencyContacts.length + oaDueApps.length + oaNeedsCheckApps.length === 0) {
     return <EmptyState msg="✓ Nothing overdue. You're on top of it." />
   }
 
   return (
     <div className="space-y-4">
+      {(oaDueApps.length > 0 || oaNeedsCheckApps.length > 0) && (
+        <Section title={`Online Assessments (${oaDueApps.length + oaNeedsCheckApps.length})`} accent="indigo">
+          {oaDueApps.map(a => (
+            <OaRow key={a.id} app={a} onRefresh={onRefresh} />
+          ))}
+          {oaNeedsCheckApps.map(a => (
+            <OaRow key={a.id} app={a} needsCheck onRefresh={onRefresh} />
+          ))}
+        </Section>
+      )}
+
       {scheduleContacts.length > 0 && (
         <Section title={`Want to Schedule (${scheduleContacts.length})`} accent="indigo">
           {scheduleContacts.map(c => (
@@ -205,6 +226,52 @@ function ScheduleQueueRow({ contact: c, onRefresh }) {
       </div>
 
       {expanded && <DraftPanel contact={c} kind="cold_open" onSaved={onRefresh} />}
+    </div>
+  )
+}
+
+// A tracked Online Assessment — either has a known due date (from the email or the
+// oaResearch.js cloud-agent fallback) or, when `needsCheck` is set, the fallback already ran and
+// found no stated deadline on the page, so it's surfaced as a plain to-do: go check it yourself.
+function OaRow({ app: a, needsCheck, onRefresh }) {
+  const [marking, setMarking] = useState(false)
+  const overdue = !needsCheck && daysUntil(a.oaDueDate) <= 0
+
+  async function markCompleted() {
+    setMarking(true)
+    try {
+      await updateApplication(a.id, { oaCompleted: true })
+      onRefresh?.()
+    } catch {
+      setMarking(false)
+    }
+  }
+
+  return (
+    <div className="py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-ink-900">{a.company}</p>
+          <p className="text-xs text-ink-500">{a.role || ''}</p>
+          {a.oaLink && (
+            <a href={a.oaLink} target="_blank" rel="noreferrer" className="text-xs text-accent-500 hover:underline">
+              Open assessment ↗
+            </a>
+          )}
+        </div>
+        <div className="text-right shrink-0 space-y-1">
+          {needsCheck
+            ? <p className="text-xs font-medium text-ink-400">No stated deadline found — check manually</p>
+            : (
+              <p className={`text-xs font-medium ${overdue ? 'text-danger-600' : 'text-ink-500'}`}>
+                {overdue ? `Was due ${fmt(a.oaDueDate)} (${Math.abs(daysUntil(a.oaDueDate))}d ago)` : `Due ${fmt(a.oaDueDate)} (${daysUntil(a.oaDueDate)}d)`}
+              </p>
+            )}
+          <button onClick={markCompleted} disabled={marking} className="text-xs text-ink-400 hover:text-ink-600 hover:underline disabled:opacity-40">
+            {marking ? 'Marking...' : '✓ Mark completed'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
