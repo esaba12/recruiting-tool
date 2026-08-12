@@ -368,7 +368,24 @@ function supabaseReq(keys, method, path, body) {
   return text ? JSON.parse(text) : null
 }
 
+// True for a mailbox that's structurally not a person — no-reply/notification/ATS-system
+// addresses. Found by checking this fix against real data: an application-confirmation email
+// from noreply@google.com (or a Greenhouse relay like no-reply@us.greenhouse-mail.io) was
+// resolving as the thread's "counterpart" via findCounterpartAddress() same as any human
+// sender would, and upsertContact() dutifully created a contact named "Unknown" for it — real
+// automated-sender junk that then polluted company-network-coverage features elsewhere in the
+// app (e.g. Pipeline showing "1 contact here" at a company where the only "contact" was a
+// no-reply mailbox, not a person). Skipping contact creation for these doesn't lose anything:
+// the application itself is still created/updated by upsertApplication() independent of any
+// contact_id, and the email is still logged to Interactions with contact_id left null.
+const AUTOMATED_SENDER_RE = /^(no-?reply|do-?not-?reply|notification|mailer|automated|system|recruiting|careers|jobs|ats|talent)@|greenhouse-mail\.io$/i
+
 function upsertContact(keys, data) {
+  if (!data.contact_name && data.contact_email && AUTOMATED_SENDER_RE.test(data.contact_email)) {
+    console.log(`  Skipped contact creation — automated sender (${data.contact_email})`)
+    return null
+  }
+
   const today    = Utilities.formatDate(new Date(), 'UTC', 'yyyy-MM-dd')
   const followUp = Utilities.formatDate(new Date(Date.now() + 3 * 86400000), 'UTC', 'yyyy-MM-dd')
 

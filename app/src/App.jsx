@@ -246,6 +246,11 @@ function AppInner() {
   const [tab, setTab]           = useState('overview')
   const [networkInitialView, setNetworkInitialView] = useState('table')
   const [networkFocusCompany, setNetworkFocusCompany] = useState(null)
+  // Deep-link into Network → Discover, pre-searching one company — shared by Explore's
+  // "Find people →" and Pipeline's "who could I meet here" panel so both land in the same place.
+  const goFindPeople = company => {
+    setNetworkFocusCompany({ company, ts: Date.now() }); setNetworkInitialView('discover'); setTab('network')
+  }
   const [contacts, setContacts] = useState([])
   const [apps, setApps]         = useState([])
   const [interactions, setInteractions] = useState([])
@@ -314,11 +319,12 @@ function AppInner() {
           initialView={networkInitialView} initialFocusCompany={networkFocusCompany} />
       )}
       {!loading && tab === 'explore'  && (
-        <ExploreTab apps={apps} onFindPeople={company => {
-          setNetworkFocusCompany({ company, ts: Date.now() }); setNetworkInitialView('discover'); setTab('network')
-        }} />
+        <ExploreTab apps={apps} onFindPeople={goFindPeople} />
       )}
-      {!loading && tab === 'pipeline' && <PipelineTab apps={apps} contacts={contacts} interactions={interactions} onRefresh={load} />}
+      {!loading && tab === 'pipeline' && (
+        <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
+          onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} />
+      )}
       {!loading && tab === 'actions'  && <ActionsTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} />}
       {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} />}
       {tab === 'github'   && <GitHubTab apps={apps} onImported={load} />}
@@ -402,7 +408,10 @@ function DemoApp() {
         <NetworkTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={load}
           onRefreshRelationships={refreshContactRelationships} views={DEMO_NETWORK_VIEWS} />
       )}
-      {!loading && tab === 'pipeline' && <PipelineTab apps={apps} contacts={contacts} interactions={interactions} onRefresh={load} />}
+      {!loading && tab === 'pipeline' && (
+        <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
+          onRefreshRelationships={refreshContactRelationships} />
+      )}
       {!loading && tab === 'actions' && <ActionsTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} />}
     </AppShell>
   )

@@ -83,7 +83,7 @@ function DuplicatesPanel({ apps, onRefresh }) {
 
 // ── Pipeline Tab ──────────────────────────────────────────────────────────────
 
-export default function PipelineTab({ apps, contacts = [], interactions = [], onRefresh }) {
+export default function PipelineTab({ apps, contacts = [], interactions = [], relationships = [], onRefresh, onFindPeople, onRefreshRelationships }) {
   const [filter, setFilter] = useState('active')
   const [search, setSearch] = useState('')
   const [selectedAppId, setSelectedAppId] = useState(null)
@@ -210,10 +210,14 @@ export default function PipelineTab({ apps, contacts = [], interactions = [], on
           contacts={contacts}
           apps={apps}
           interactions={interactions}
+          relationships={relationships}
           onStatusChange={s => changeTriage(selectedApp, s)}
           onClose={() => { setSelectedAppId(null); setAddingNew(false) }}
           onDelete={async () => { await archiveApplication(selectedApp.id); setSelectedAppId(null); onRefresh() }}
           onSaved={() => { setAddingNew(false); onRefresh() }}
+          onFindPeople={onFindPeople}
+          onRefresh={onRefresh}
+          onRefreshRelationships={onRefreshRelationships}
         />
       )}
     </div>

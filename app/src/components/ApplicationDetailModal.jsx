@@ -5,6 +5,9 @@ import { BUCKET_CONFIG, BUCKET_ACTIVE, BUCKET_TO_TRIAGE, TRIAGE_TO_BUCKET, gener
 import { AI_PROVIDER_LABEL } from '../lib/ai.js'
 import { importApplicationFromUrl } from '../lib/applicationImport.js'
 import { companyCoverage } from '../lib/networkCoverage.js'
+import { warmPathsToCompany, pathLabel } from '../lib/warmIntro.js'
+import { tieStrengthBucket } from '../lib/affinity.js'
+import ContactDetailModal from './ContactDetailModal.jsx'
 
 const COVERAGE_BADGE = {
   gap:    { color: 'bg-danger-100 text-danger-700',   label: () => 'No network here yet' },
@@ -12,7 +15,89 @@ const COVERAGE_BADGE = {
   strong: { color: 'bg-success-100 text-success-800', label: n => `${n} contact${n !== 1 ? 's' : ''} here` },
 }
 
-export default function ApplicationDetailModal({ app, contacts = [], apps = [], interactions = [], onStatusChange, onClose, onDelete, onSaved }) {
+const TIE_PILL = {
+  cold:     { label: 'Cold',         color: 'bg-ink-100 text-ink-400' },
+  weak:     { label: 'Weak tie',     color: 'bg-warning-100 text-warning-800' },
+  moderate: { label: 'Moderate tie', color: 'bg-accent-100 text-accent-700' },
+  strong:   { label: 'Strong tie',   color: 'bg-success-100 text-success-800' },
+}
+
+const NETWORK_ACCENT = {
+  gap:    'border-danger-200 bg-danger-50/40',
+  weak:   'border-warning-200 bg-warning-50/40',
+  strong: 'border-success-200 bg-success-50/40',
+}
+
+// "Who do I know at this company, and who could I meet there" — the dossier-style panel on
+// an existing application. Reuses warmPathsToCompany (already built for Discover/Coverage) so
+// a contact who isn't a *direct* tie still shows its provenance ("Ariela → Kamen") rather than
+// just "you know someone," and companyCoverage's exact-match is the same signal Pipeline's own
+// list-card badge already uses, so the two never disagree.
+function NetworkAtCompany({ company, contacts, interactions, relationships, onFindPeople, onOpenContact }) {
+  const coverage = useMemo(() => companyCoverage(company, contacts, interactions), [company, contacts, interactions])
+  const paths = useMemo(() => warmPathsToCompany(contacts, company, relationships), [contacts, company, relationships])
+  const status = coverage.status // 'gap' | 'weak' | 'strong'
+  const count = paths.length
+
+  return (
+    <div className={`mx-5 mt-4 rounded-2xl border ${NETWORK_ACCENT[status]} px-4 py-4`}>
+      <div className="flex items-baseline justify-between gap-3 flex-wrap">
+        <div className="flex items-baseline gap-2.5">
+          <span className="font-heading text-3xl font-bold text-ink-900 tabular-nums leading-none">{count}</span>
+          <span className="text-sm text-ink-600">
+            {count === 1 ? 'person you know at' : 'people you know at'} <span className="font-semibold">{company}</span>
+          </span>
+        </div>
+        {count > 0 && onFindPeople && (
+          <button onClick={() => onFindPeople(company)}
+            className="text-xs text-accent-600 hover:text-accent-700 font-medium whitespace-nowrap">
+            Find more people →
+          </button>
+        )}
+      </div>
+
+      {count === 0 ? (
+        <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-xs text-ink-500">Nobody in your network is tagged at {company} yet.</p>
+          {onFindPeople && (
+            <button onClick={() => onFindPeople(company)}
+              className="px-3 py-1.5 bg-ink-900 text-white text-xs rounded-xl hover:bg-ink-800 font-medium whitespace-nowrap">
+              🔍 Find people to meet →
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="mt-3 space-y-1.5">
+          {paths.map(({ contact: c, chain }) => {
+            const tie = tieStrengthBucket(c, interactions)
+            return (
+              <button key={c.id} onClick={() => onOpenContact?.(c.id)}
+                className="w-full text-left flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-white/70 hover:bg-white border border-transparent hover:border-ink-100 transition-colors">
+                <span className="w-7 h-7 rounded-full bg-ink-900 text-white text-[11px] font-semibold flex items-center justify-center shrink-0">
+                  {c.name?.trim()?.[0]?.toUpperCase() || '?'}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-sm font-medium text-ink-900 truncate">{c.name}</span>
+                    {c.role && <span className="text-xs text-ink-400 truncate">{c.role}</span>}
+                  </div>
+                  {chain.length > 0 ? (
+                    <p className="text-[11px] font-mono text-ink-400 truncate mt-0.5">{pathLabel({ contact: c, chain })}</p>
+                  ) : (
+                    <p className="text-[11px] text-ink-400 mt-0.5">Direct contact</p>
+                  )}
+                </div>
+                <Badge label={TIE_PILL[tie].label} color={TIE_PILL[tie].color} />
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function ApplicationDetailModal({ app, contacts = [], apps = [], interactions = [], relationships = [], onStatusChange, onClose, onDelete, onSaved, onFindPeople, onRefresh, onRefreshRelationships }) {
   const isNew = !app
   const [form, setForm] = useState(() => ({
     company:     app?.company     || '',
@@ -37,6 +122,8 @@ export default function ApplicationDetailModal({ app, contacts = [], apps = [], 
   const [pasteUrl, setPasteUrl]   = useState('')
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState(null)
+  const [openContactId, setOpenContactId] = useState(null)
+  const openContact = openContactId ? contacts.find(c => c.id === openContactId) : null
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
@@ -181,6 +268,11 @@ export default function ApplicationDetailModal({ app, contacts = [], apps = [], 
             </>
           )}
         </div>
+
+        {!isNew && (
+          <NetworkAtCompany company={app.company} contacts={contacts} interactions={interactions} relationships={relationships}
+            onFindPeople={onFindPeople} onOpenContact={setOpenContactId} />
+        )}
 
         {error && <div className="mx-5 mt-4 p-3 bg-danger-50 border border-danger-200 rounded-xl text-xs text-danger-700">{error}</div>}
 
@@ -390,6 +482,18 @@ export default function ApplicationDetailModal({ app, contacts = [], apps = [], 
           </div>
         )}
       </div>
+
+      {openContact && (
+        <ContactDetailModal
+          contact={openContact}
+          contacts={contacts}
+          interactions={interactions}
+          contactRelationships={relationships}
+          onClose={() => setOpenContactId(null)}
+          onSaved={() => { setOpenContactId(null); onRefresh?.() }}
+          onRefreshRelationships={onRefreshRelationships}
+        />
+      )}
     </div>
   )
 }
