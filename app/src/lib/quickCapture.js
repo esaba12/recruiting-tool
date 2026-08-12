@@ -27,6 +27,17 @@ function extractUrl(text) {
   }
 }
 
+// "bytedance, spacex, and tiktok" -> ["bytedance", "spacex", "tiktok"] — splits a
+// comma/and/&-joined company list back into individual names, so "apply to X, Y, and Z"
+// becomes N separate Pipeline rows instead of one row with a mangled company field.
+function splitCompanies(raw) {
+  if (!raw) return []
+  return raw
+    .split(/,|\/|;|(?:\s+and\s+)|(?:\s+&\s+)/i)
+    .map(s => s.trim())
+    .filter(Boolean)
+}
+
 // A pasted job-posting link is a distinct intent from a note about a person — route it
 // straight to the existing paste-a-link application importer instead of round-tripping
 // through the AI router below (the URL alone is enough signal, and reading the real page
@@ -146,7 +157,7 @@ Return JSON in exactly this shape:
 
 Rules:
 - action is "unclear" ONLY when there's no identifiable person, company, or usable context at all — always try your best guess first rather than defaulting to unclear.
-- action is "add_application" when the note describes a NEW job/internship to track that isn't already in the open applications list above (e.g. "add the spacex swe intern role", "wanna apply to notion's PM internship").
+- action is "add_application" when the note describes a NEW job/internship to track that isn't already in the open applications list above (e.g. "add the spacex swe intern role", "wanna apply to notion's PM internship"). If the note names MULTIPLE companies for the same role (e.g. "need to apply to bytedance, spacex, and tiktok swe"), put every company name in "company" separated by commas — never merge them into one name — and put the shared role in "role".
 - action is "update_application" when the note refers to a job ALREADY in the open applications list above — a stage change, a pass/apply decision, or any other update to that application.
 - action is "add_target_company" when the note is purely about wanting to target/pursue a company for future opportunities, with no specific role mentioned (e.g. "add anthropic to my target list", "I want to work at duolingo").
 - action is "update_contact" when the note is purely a status/field update about a person with no real touchpoint to log (e.g. "mark sarah as closed").
@@ -170,6 +181,17 @@ export async function parseQuickCapture(text, contacts, apps = []) {
   const action = ACTIONS.includes(raw.action) ? raw.action : 'unclear'
 
   if (action === 'add_application') {
+    const companies = splitCompanies(raw.company)
+    if (companies.length > 1) {
+      return {
+        action: 'add_application_multi',
+        drafts: companies.map(company => ({
+          company, role: raw.role || '', location: raw.location || '', jdLink: '',
+          importNote: '', resolving: true, status: 'pending',
+        })),
+        rawText: text,
+      }
+    }
     return {
       action,
       company: raw.company || '',

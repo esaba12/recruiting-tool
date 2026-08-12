@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Sparkles, Loader2, Send } from 'lucide-react'
 import { addContact, updateContact, addInteraction, addCallEntry, addApplication, updateApplication, updateApplicationTriage } from '../db.js'
 import { parseQuickCapture, bestContactMatches, bestApplicationMatches, TYPE_OPTIONS, TRIAGE_OPTIONS } from '../lib/quickCapture.js'
+import { findApplicationForCompany } from '../lib/applicationImport.js'
 import { ROLE_OPTIONS, STATUS_OPTIONS, REFERRAL_STATUS_OPTIONS, STAGE_ORDER } from '../shared.jsx'
 import { normalizeCompanyName } from '../lib/networkGraph.js'
 import { useTargetCompanies } from '../lib/useTargetCompanies.js'
@@ -42,6 +43,13 @@ export default function QuickCaptureModal({ contacts = [], apps = [], onClose, o
   function patchDraft(id, fields) {
     setMessages(msgs => msgs.map(m => m.id === id ? { ...m, draft: { ...m.draft, ...fields } } : m))
   }
+  function patchDraftItem(id, index, fields) {
+    setMessages(msgs => msgs.map(m => {
+      if (m.id !== id) return m
+      const drafts = m.draft.drafts.map((d, i) => i === index ? { ...d, ...fields } : d)
+      return { ...m, draft: { ...m.draft, drafts } }
+    }))
+  }
 
   async function send() {
     const text = input.trim()
@@ -59,12 +67,35 @@ export default function QuickCaptureModal({ contacts = [], apps = [], onClose, o
           : m))
       } else {
         setMessages(msgs => msgs.map(m => m.id === thinkingId ? { ...m, kind: 'draft', draft, status: 'pending' } : m))
+        if (draft.action === 'add_application_multi') resolveMultiDrafts(thinkingId, draft.drafts)
       }
     } catch (e) {
       setMessages(msgs => msgs.map(m => m.id === thinkingId ? { ...m, kind: 'error', text: e.message } : m))
     } finally {
       setThinking(false)
     }
+  }
+
+  // "Find these N companies and add them individually" — kicks off one real-web search +
+  // extraction per company in parallel (findApplicationForCompany), patching each item's
+  // card as its own result comes in rather than blocking the whole batch on the slowest
+  // lookup. Best-effort: a company with no findable posting still resolves to an editable
+  // bare row (see findApplicationForCompany's fail-soft return), never a dead end.
+  function resolveMultiDrafts(msgId, items) {
+    items.forEach((item, i) => {
+      findApplicationForCompany(item.company, item.role)
+        .then(result => {
+          patchDraftItem(msgId, i, {
+            company: result.company || item.company,
+            role: result.role || item.role,
+            location: result.location || item.location,
+            jdLink: result.jdLink || '',
+            importNote: result.found ? '' : (result.error ? result.error : "Couldn't find a posting — check the details below."),
+            resolving: false,
+          })
+        })
+        .catch(e => patchDraftItem(msgId, i, { resolving: false, importNote: e.message }))
+    })
   }
 
   async function confirm(msgId, draft) {
@@ -132,6 +163,26 @@ export default function QuickCaptureModal({ contacts = [], apps = [], onClose, o
     }
   }
 
+  async function confirmMultiItem(msgId, index, item) {
+    patchDraftItem(msgId, index, { status: 'saving' })
+    try {
+      await addApplication({ company: item.company, role: item.role, jdLink: item.jdLink, location: item.location })
+      patchDraftItem(msgId, index, { status: 'saved' })
+      onSaved?.()
+    } catch (e) {
+      patchDraftItem(msgId, index, { status: 'error', error: e.message })
+    }
+  }
+
+  // "Just add all of them" — the one-click path once the user has glanced over the
+  // per-company cards. Skips anything already saved or still missing a company name;
+  // each item still saves independently so one failure doesn't block the rest.
+  async function confirmAllMulti(msgId, items) {
+    await Promise.all(items.map((item, i) =>
+      (item.status !== 'saved' && item.company.trim()) ? confirmMultiItem(msgId, i, item) : null
+    ))
+  }
+
   function onKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
   }
@@ -161,7 +212,10 @@ export default function QuickCaptureModal({ contacts = [], apps = [], onClose, o
           {messages.map(m => (
             <MessageBubble key={m.id} m={m} contacts={contacts} apps={apps}
               onPatchDraft={fields => patchDraft(m.id, fields)}
-              onConfirm={() => confirm(m.id, m.draft)} />
+              onConfirm={() => confirm(m.id, m.draft)}
+              onPatchItem={(index, fields) => patchDraftItem(m.id, index, fields)}
+              onConfirmItem={(index, item) => confirmMultiItem(m.id, index, item)}
+              onConfirmAll={items => confirmAllMulti(m.id, items)} />
           ))}
         </div>
 
@@ -184,7 +238,7 @@ export default function QuickCaptureModal({ contacts = [], apps = [], onClose, o
   )
 }
 
-function MessageBubble({ m, contacts, apps, onPatchDraft, onConfirm }) {
+function MessageBubble({ m, contacts, apps, onPatchDraft, onConfirm, onPatchItem, onConfirmItem, onConfirmAll }) {
   if (m.role === 'user') {
     return <div className="ml-auto max-w-[80%] bg-accent-500 text-white rounded-2xl rounded-tr-sm px-3.5 py-2 text-sm">{m.text}</div>
   }
@@ -200,6 +254,14 @@ function MessageBubble({ m, contacts, apps, onPatchDraft, onConfirm }) {
   }
   if (m.kind === 'error') {
     return <div className="max-w-[85%] bg-danger-50 border border-danger-200 rounded-2xl rounded-tl-sm px-3.5 py-2 text-sm text-danger-700">{m.text}</div>
+  }
+  if (m.kind === 'draft' && m.draft.action === 'add_application_multi') {
+    return (
+      <MultiApplicationDraftCard draft={m.draft}
+        onPatchItem={onPatchItem}
+        onConfirmItem={onConfirmItem}
+        onConfirmAll={() => onConfirmAll(m.draft.drafts)} />
+    )
   }
   if (m.kind === 'draft') {
     if (m.status === 'saved') {
@@ -280,6 +342,87 @@ function ApplicationDraftCard({ draft, status, error, onPatch, onConfirm }) {
 
       <Button onClick={onConfirm} disabled={saving || !draft.company.trim()} className="w-full">
         {saving ? 'Saving...' : '✓ Add to Pipeline'}
+      </Button>
+    </div>
+  )
+}
+
+// "apply to bytedance, spacex, and tiktok" -> N separate, independently-resolved cards
+// instead of one row with a mangled company field. Each card kicks off its own real-web
+// search for the actual posting (see findApplicationForCompany) as soon as it appears, so
+// cards fill in progressively rather than all blocking on the slowest lookup. The "Add
+// all" button is the one-click path once the user's glanced over the results; each item
+// still saves independently underneath it, so one failure never blocks the rest.
+function MultiApplicationDraftCard({ draft, onPatchItem, onConfirmItem, onConfirmAll }) {
+  const items = draft.drafts
+  const pending = items.filter(it => it.status !== 'saved')
+  const allSaving = pending.length > 0 && pending.every(it => it.status === 'saving')
+
+  return (
+    <div className="max-w-[95%] bg-white border border-ink-200 rounded-2xl rounded-tl-sm shadow-sm p-3.5 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold text-ink-400 uppercase tracking-wide">Add {items.length} to Pipeline</p>
+        {pending.length > 1 && (
+          <button onClick={onConfirmAll} disabled={allSaving}
+            className="text-xs font-medium text-accent-600 hover:text-accent-700 disabled:opacity-50">
+            {allSaving ? 'Adding...' : `✓ Add all ${pending.length}`}
+          </button>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        {items.map((item, i) => (
+          <MultiApplicationRow key={i} item={item}
+            onPatch={fields => onPatchItem(i, fields)}
+            onConfirm={() => onConfirmItem(i, item)} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function MultiApplicationRow({ item, onPatch, onConfirm }) {
+  if (item.status === 'saved') {
+    return (
+      <div className="p-2.5 bg-success-50 border border-success-200 rounded-lg text-xs text-success-700">
+        ✓ Added <strong>{item.company}</strong>{item.role ? ` — ${item.role}` : ''}.
+      </div>
+    )
+  }
+
+  const saving = item.status === 'saving'
+
+  return (
+    <div className="p-2.5 border border-ink-200 rounded-lg space-y-2">
+      {item.status === 'error' && <div className="p-1.5 bg-danger-50 border border-danger-200 rounded text-[11px] text-danger-700">{item.error}</div>}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-[11px] text-ink-400 mb-0.5">Company</label>
+          <input value={item.company} onChange={e => onPatch({ company: e.target.value })}
+            className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
+        </div>
+        <div>
+          <label className="block text-[11px] text-ink-400 mb-0.5">Role</label>
+          <input value={item.role} onChange={e => onPatch({ role: e.target.value })}
+            className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
+        </div>
+      </div>
+
+      {item.resolving ? (
+        <div className="flex items-center gap-1.5 text-[11px] text-ink-400">
+          <Loader2 size={11} className="animate-spin" /> Searching for the real posting...
+        </div>
+      ) : (
+        <>
+          {item.importNote && <p className="text-[11px] text-warning-800">{item.importNote}</p>}
+          {item.jdLink && (
+            <a href={item.jdLink} target="_blank" rel="noreferrer" className="block text-[11px] text-accent-600 truncate hover:underline">{item.jdLink}</a>
+          )}
+        </>
+      )}
+
+      <Button onClick={onConfirm} disabled={saving || item.resolving || !item.company.trim()} size="sm" className="w-full">
+        {saving ? 'Saving...' : '✓ Add'}
       </Button>
     </div>
   )

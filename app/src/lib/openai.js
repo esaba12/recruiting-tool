@@ -13,8 +13,12 @@ import { authHeader } from './supabaseClient.js'
 // place this app has no way to verify output quality without a live screenshot.
 
 export const OPENAI_MODELS = {
-  MINI:     'gpt-5.1-mini', // cheap/fast — structured extraction, blurbs, deadline reads
-  STANDARD: 'gpt-5.1',      // heavier judgment calls — fit analysis, company ranking
+  // gpt-5.1 never shipped a -mini variant (confirmed against /v1/models — that
+  // generation only has gpt-5.1 / gpt-5.1-chat-latest / -codex; mini/nano tiers only
+  // exist on gpt-5 and gpt-5.4), so MINI intentionally isn't the same generation as
+  // STANDARD below — gpt-5-mini is the closest stable, cheap sibling.
+  MINI:     'gpt-5-mini', // cheap/fast — structured extraction, blurbs, deadline reads
+  STANDARD: 'gpt-5.1',    // heavier judgment calls — fit analysis, company ranking
 }
 
 // GPT-5.1+ chat completions use `max_completion_tokens` (max_tokens is deprecated /

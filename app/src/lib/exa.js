@@ -21,6 +21,8 @@ function buildQuery({ company, roles, profile }) {
 // Raw Exa /search over the public web. Returns result pages (url/title/text/summary);
 // extraction/ranking is a separate step. `type: auto` lets Exa pick neural vs keyword;
 // `category` biases results ('people' → individual profiles, 'company' → company sites).
+// Pass `category: null` explicitly for an unrestricted web search (e.g. hunting for a
+// specific job posting, which isn't any single Exa category).
 export async function exaSearch({ query, numResults = 15, includeDomains, category = 'people' }) {
   const res = await fetch('/exa/search', {
     method: 'POST',
@@ -28,7 +30,7 @@ export async function exaSearch({ query, numResults = 15, includeDomains, catego
     body: JSON.stringify({
       query,
       type: 'auto',
-      category,
+      ...(category ? { category } : {}),
       numResults,
       ...(includeDomains ? { includeDomains } : {}),
       contents: { text: { maxCharacters: 1200 }, summary: true },
