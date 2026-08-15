@@ -3,3 +3,8 @@
 !.env.example
 node_modules/
 dist/
+
+# Claude Code skill-manager cache (local dev tooling, not project source)
+.agents/
+.claude/skills/
+skills-lock.json
