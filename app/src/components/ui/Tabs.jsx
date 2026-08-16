@@ -3,7 +3,7 @@ import { cn } from '../../lib/cn.js'
 // Small segmented control — { options: [{key,label,icon?}], value, onChange }
 export default function Tabs({ options, value, onChange, className }) {
   return (
-    <div className={cn('inline-flex border border-ink-100 rounded-full overflow-hidden text-xs font-medium bg-white', className)}>
+    <div className={cn('inline-flex border border-ink-100 rounded-full overflow-hidden text-xs font-semibold bg-white', className)}>
       {options.map(o => {
         const Icon = o.icon
         const active = value === o.key
