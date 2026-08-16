@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 2
-current_phase_name: Today
+current_phase: 02
+current_phase_name: unified-attention-feed-today
 status: executing
-stopped_at: Phase 2 UI-SPEC approved
-last_updated: "2026-08-16T20:44:11.624Z"
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-08-16T20:57:07.292Z"
 last_activity: 2026-08-16
-last_activity_desc: Phase 1 complete, transitioned to Phase 2
+last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 9
+  completed_plans: 6
   percent: 14
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-16)
 
 **Core value:** The dashboard must be fast and cohesive to use every day during an active job search — this milestone delivers an information architecture and visual system the user doesn't have to relearn each session.
-**Current focus:** Phase 2 — Unified Attention Feed (Today)
+**Current focus:** Phase 02 — unified-attention-feed-today
 
 ## Current Position
 
-Phase: 2 — Unified Attention Feed (Today)
-Plan: Not started
+Phase: 02 (unified-attention-feed-today) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-08-16 — Phase 1 complete, transitioned to Phase 2
+Last activity: 2026-08-16 — Phase 02 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-visual-foundation-industrial-design-tokens-primitives P03 | 5min | 2 tasks | 2 files |
 | Phase 01-visual-foundation-industrial-design-tokens-primitives P04 | 6min | 2 tasks | 2 files |
 | Phase 01 P05 | 3 | 2 tasks | 0 files |
+| Phase 02 P01 | 3min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ Recent decisions affecting current work:
 - [Phase 01-03]: Followed 01-PATTERNS.md's exact pre-specified diff verbatim for both files; overdue-red className moved onto Mono directly rather than nesting Mono in a redundant outer span
 - [Phase 01-04]: Followed 01-PATTERNS.md's role-match analog (ContactsTable.jsx/PipelineTab.jsx wrap pattern) verbatim for JobCard.jsx/JobDetailModal.jsx deadline-countdown and stale-day-count text
 - [Phase 01]: Phase 1's combined end-of-phase regression sweep (01-05) re-verified all 5 deterministic gates from plans 01-01 through 01-04 green against the fully-merged tree, confirmed the exact 10-file changeset with zero unexpected diffs, and left the dev server running at localhost:3001 for the staged end-of-phase human visual-verification pass. — BSD grep (macOS) rejects a leading "--color-..." literal as an option flag without -e; the sweep's verify command needed a -e portability fix (same checks, same PASS result). The human-check visual-verification procedure (8 tabs + /demo, badge palette, Mono typography, Button contrast/weight) is staged in 01-05-SUMMARY.md rather than run inline, per workflow.human_verify_mode=end-of-phase.
+- [Phase 02-01]: Ported ActionsTab.jsx's filter/sort logic verbatim into attention.js with zero behavior changes, per D-06 — No invented derivation logic; consolidates the 3 duplicate overdue/stale copies STATE.md flagged
+- [Phase 02-01]: TimelineFindsPanel's accordion (open/setOpen) removed entirely rather than defaulted open — Matches the Section convention where attention-feed sections always render their content, no collapse
 
 ### Pending Todos
 
@@ -104,6 +107,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-16T15:44:59.277Z
-Stopped at: Phase 2 UI-SPEC approved
-Resume file: .planning/phases/02-unified-attention-feed-today/02-UI-SPEC.md
+Last session: 2026-08-16T20:57:07.288Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None

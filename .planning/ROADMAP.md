@@ -64,11 +64,11 @@ Plans:
   2. User clicks any attention item and lands directly on its full contact/application/job record in one click.
   3. The standalone Actions tab, Overview's separate nudge section, Keep in Touch's standalone queue view, and TimelineFindsPanel's standalone presentation are gone — not left running in parallel as a 9th destination.
 
-**Plans**: 4 plans
+**Plans**: 1/4 plans executed
 Plans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — attention.js derivation module + Today nav icon prep + TimelineFindsPanel chrome refactor
+- [x] 02-01-PLAN.md — attention.js derivation module + Today nav icon prep + TimelineFindsPanel chrome refactor
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -163,7 +163,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Visual Foundation | 5/5 | Complete    | 2026-08-16 |
-| 2. Unified Attention Feed | 0/4 | Not started | - |
+| 2. Unified Attention Feed | 1/4 | In Progress|  |
 | 3. Grow — Discovery Funnel Merge | 0/TBD | Not started | - |
 | 4. Shared Record Side-Panel | 0/TBD | Not started | - |
 | 5. Pipeline + Job Boards Merge | 0/TBD | Not started | - |
