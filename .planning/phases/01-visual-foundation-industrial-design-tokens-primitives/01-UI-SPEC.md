@@ -15,6 +15,8 @@ created: 2026-08-15
 
 **Hard constraint honored:** token *names* (`ink`, `accent`, `success`, `warning`, `danger`, plus the pre-existing `canvas`) are unchanged. Only hex values change, inside `app/src/index.css`'s existing `@theme` block. No new token family is introduced. Zero call-site edits outside `app/src/index.css`, `app/src/components/ui/*`, and `app/src/shared.jsx` (the last one only for the off-token color fixes below — see Open Questions Resolved).
 
+**No new visual-hierarchy decisions are in scope this phase.** This is a token/typography/palette-value phase, not a screens phase — no new layouts, no new component compositions, no new information-hierarchy calls (what's primary vs. secondary on a screen, what draws the eye first, etc.). Every existing layout, component composition, and hierarchy decision made in earlier work carries forward unchanged; this UI-SPEC only reskins the values those existing structures already reference (colors, weights, the new Mono treatment layered onto existing dense-data spots). Dimension 2 (Visuals) should be read against that scope, not against a full-screen redesign.
+
 ---
 
 ## Design System
@@ -47,18 +49,25 @@ Declared values (must be multiples of 4):
 
 **Exceptions:** the 8 `ui/` primitives currently use several non-4px-multiple Tailwind spacing utilities as internal chrome padding (`px-2.5`=10px, `py-1.5`=6px, `px-3`=12px paired with `py-1.5`=6px, in `Button.jsx`/`Input.jsx`/`Select.jsx`/`Tabs.jsx`). **These stay unchanged this phase** — resizing component chrome density is a layout decision distinct from "token values + typography + palette," and is out of this phase's stated success criteria (a spacing-scale cleanup, if wanted, belongs in Phase 7's full per-screen sweep, alongside the other layout-level decisions that phase already owns). Do not silently round these to the 4px scale as a drive-by change; if the executor notices this, it's a legitimate future-phase note, not a Phase 1 blocker.
 
+**Explicit scope note:** "spacing scale fully aligned to the 8-point grid" is a **Phase 7 deliverable, not a Phase 1 one.** This phase declares and locks the scale (the table above) and applies it everywhere new spacing decisions are made in the token/typography work itself, but it does not retroactively sweep the existing non-4px-multiple chrome padding listed above — that sweep is explicitly deferred, the same way `charts/theme.js`'s hex-mirror sync is deferred (see Open Questions Resolved #2). Do not read this UI-SPEC as certifying full-app spacing-scale compliance; it certifies the scale itself and its application to this phase's in-scope changes only.
+
 ---
 
 ## Typography
+
+**Sizes and weights controlled by this phase** (the set the 3–4-size / 2-weight rules apply to):
 
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body (Input/Select/EmptyState text) | 14px (`text-sm`) | 400 (regular, Public Sans) | 1.5 |
 | Label (Badge, Tabs, Input/Select `<label>`) | 12px (`text-xs`) | 600 (semibold, up from current 500/medium — see below) | 1.4 |
-| Heading (h1/h2/h3, global) | inherits existing per-component `text-*` size | 600 (semibold, Space Grotesk — unchanged, already the global default) | 1.2 |
-| Data / Mono (dense table & panel fields — dates, counts, deadlines, status codes) | 12–13px, `tabular-nums` | 500 (medium, IBM Plex Mono) | 1.4 |
+| Data / Mono (dense table & panel fields — dates, counts, deadlines, status codes) | 12px (`text-xs`, same size step as Label — not a separate size), `tabular-nums` + `tracking-wide` | 400 (regular, IBM Plex Mono) | 1.4 |
 
-**Two weights, declared exactly:** 400 (regular — body copy, EmptyState messages) and 600 (semibold — headings, Badge/Tabs/Button labels, and the new mono data treatment at 500 sits as the one deliberate typographic exception, justified below). Do not introduce a third weight (e.g. no `font-bold`/700 anywhere in the 8 primitives).
+**Two distinct in-scope sizes (14px, 12px) and two weights, declared exactly: 400 / 600.** No third size, no third weight, anywhere in this contract.
+
+**Heading (h1/h2/h3, global) — frozen, out of scope, not counted:** headings keep whatever per-component `text-*` size they already had before this phase (the codebase's existing scale is `text-lg`/`text-xl`/`text-2xl`/`text-3xl` — 18/20/24/30px) at weight 600 (semibold, Space Grotesk) and line-height 1.2 — **none of this changes**, this phase does not touch heading sizing at all (see "No new visual-hierarchy decisions are in scope this phase" above). It's listed here only so the pre-existing scale is documented, not because this phase is declaring or altering it — it is explicitly excluded from the 2-size ceiling above, which governs only the values this phase actually sets.
+
+**Two weights, not three — the resolution:** 400 (regular) covers body copy, EmptyState messages, *and* Mono data values; 600 (semibold) covers headings, Badge/Tabs/Button/Label text. A dedicated Mono weight (500) was considered and rejected in the prior revision of this document — a hard 2-weight ceiling applies regardless of rationale, so IBM Plex Mono's dense-data role uses the same 400 (regular) cut as body text, not a third weight. **Compensating for regular-weight Plex Mono's thinness at small sizes without adding a weight:** `tracking-wide` (increased letter-spacing) alongside the existing `tabular-nums`, keeping Mono at the same 12px step Label already uses (rather than the earlier 12–13px range). Letter-spacing is a non-weight lever that widens the thin regular cut's visual footprint and improves scanability in dense columns (table date fields, deadline countdowns, status codes) without competing with the semibold headings/labels for visual weight — the "precise instrument readout, not a loud label" goal from the prior revision still holds, just achieved through spacing instead of weight. Do not introduce a third weight anywhere in the 8 primitives (no `font-bold`/700, no `font-medium`/500) and do not use 500 for Mono.
 
 **Button label weight bump (500 → 600):** `Button.jsx`'s current `font-medium` (500) becomes `font-semibold` (600) as part of this phase. Two reasons: (1) it's the correct "chunky, stenciled control-panel label" look for the industrial direction — thin CTA labels read as generic-SaaS, not instrument-panel; (2) it gives the primary Button variant's white-on-`accent-600` text a legitimate WCAG large-bold-text safety margin on top of the 4.59:1 ratio already computed for that pair (see Color section) — belt-and-suspenders, not a substitute for the ratio fix.
 
@@ -66,10 +75,10 @@ Declared values (must be multiples of 4):
 ```jsx
 import { cn } from '../../lib/cn.js'
 export default function Mono({ className, children }) {
-  return <span className={cn('font-mono tabular-nums', className)}>{children}</span>
+  return <span className={cn('font-mono text-xs font-normal tabular-nums tracking-wide', className)}>{children}</span>
 }
 ```
-Wrap dense, multi-row/multi-field values in `<Mono>`: table date columns (`ContactsTable.jsx`'s "Last"/"Follow-Up"), Pipeline stage-age/deadline countdowns, Job Boards' posting-date/deadline badges, status codes in dense list rows. **Do not** wrap large single-hero-number displays (e.g. `ApplicationDetailModal.jsx`'s duplicate-count display, which correctly stays on `font-heading` + `tabular-nums` per its existing treatment) — that's a headline-stat role, not a dense-data role, and blurring the two collapses the visual hierarchy VIS-02 is trying to establish (per RESEARCH.md Pitfall 4). `fmt()` in `shared.jsx` stays a plain string function; `<Mono>{fmt(v)}</Mono>` is the call-site pattern, not a change inside `fmt()` itself.
+Deliberately `font-normal` (400), not `font-medium`/`font-semibold` — see Typography's "Two weights, not three" note above; the `tracking-wide` is the legibility compensation for using the regular cut at 12px, not a stylistic flourish. Wrap dense, multi-row/multi-field values in `<Mono>`: table date columns (`ContactsTable.jsx`'s "Last"/"Follow-Up"), Pipeline stage-age/deadline countdowns, Job Boards' posting-date/deadline badges, status codes in dense list rows. **Do not** wrap large single-hero-number displays (e.g. `ApplicationDetailModal.jsx`'s duplicate-count display, which correctly stays on `font-heading` + `tabular-nums` per its existing treatment) — that's a headline-stat role, not a dense-data role, and blurring the two collapses the visual hierarchy VIS-02 is trying to establish (per RESEARCH.md Pitfall 4). `fmt()` in `shared.jsx` stays a plain string function; `<Mono>{fmt(v)}</Mono>` is the call-site pattern, not a change inside `fmt()` itself.
 
 ---
 
