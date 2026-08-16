@@ -2,7 +2,7 @@ import {
   Flame, Snowflake, CloudSnow, Star, CheckCircle2,
   AlertTriangle, AlertCircle, Circle,
   Inbox, Send, HelpCircle, X,
-  LayoutDashboard, Users, Kanban, ListChecks, GitFork, Compass,
+  LayoutDashboard, Users, Kanban, ListChecks, GitFork, Compass, Gauge,
   RefreshCw, ExternalLink, Search, MapPin, Calendar, CalendarDays, UserPlus, Settings, MessageSquareText,
 } from 'lucide-react'
 
@@ -34,6 +34,7 @@ export const BUCKET_ICON = {
 
 // Sidebar nav
 export const NAV_ICON = {
+  today: Gauge,
   overview: LayoutDashboard,
   network: Users,
   explore: Compass,
