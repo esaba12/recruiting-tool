@@ -8,59 +8,59 @@
   --font-body: "Public Sans", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
 
-  /* Warm off-white page canvas — replaces flat bg-gray-50 */
-  --color-canvas: #fbf9f5;
+  /* Cool steel page canvas — replaces the warm-paper off-white */
+  --color-canvas: #f2f3f4;
 
-  /* Charcoal scale — dominant color. Sidebar bg is ink-900, sidebar text is ink-50. */
-  --color-ink-50: #f6f6f7;
-  --color-ink-100: #e9e9eb;
-  --color-ink-200: #d3d3d7;
-  --color-ink-300: #b0b0b7;
-  --color-ink-400: #86868f;
-  --color-ink-500: #64646d;
-  --color-ink-600: #4a4a52;
-  --color-ink-700: #37373d;
-  --color-ink-800: #24242a;
-  --color-ink-900: #16171d;
+  /* Gunmetal/graphite scale — dominant color. Sidebar bg is ink-900, sidebar text is ink-50. */
+  --color-ink-50: #f1f2f3;
+  --color-ink-100: #e1e3e6;
+  --color-ink-200: #c7cbd0;
+  --color-ink-300: #a2a7af;
+  --color-ink-400: #666c74;
+  --color-ink-500: #4f555d;
+  --color-ink-600: #3a3f45;
+  --color-ink-700: #2a2e33;
+  --color-ink-800: #1a1c20;
+  --color-ink-900: #101215;
 
-  /* Warm amber/orange — the one sharp accent. Used for all primary actions/active states/links/focus. */
-  --color-accent-50: #fef3e7;
-  --color-accent-100: #fde3c4;
-  --color-accent-200: #fbc888;
-  --color-accent-300: #f7ad63;
-  --color-accent-400: #f5a13f;
-  --color-accent-500: #f2994a;
-  --color-accent-600: #e17f26;
-  --color-accent-700: #c7761f;
-  --color-accent-800: #9c5b18;
-  --color-accent-900: #7a4712;
+  /* Safety-orange — the one sharp accent. Used for all primary actions/active states/links/focus. */
+  --color-accent-50: #fff4e6;
+  --color-accent-100: #ffe0b8;
+  --color-accent-200: #ffc27a;
+  --color-accent-300: #ff9f40;
+  --color-accent-400: #f97e1c;
+  --color-accent-500: #f2680a;
+  --color-accent-600: #c94e0a;
+  --color-accent-700: #a8420a;
+  --color-accent-800: #7c3009;
+  --color-accent-900: #5c2308;
 
   /* Status tokens — coordinated replacements for stock Tailwind green/yellow/red */
-  --color-success-50: #eef7ee;
-  --color-success-100: #d7eed8;
-  --color-success-200: #b7e0ba;
-  --color-success-500: #3c9a46;
-  --color-success-600: #2f8038;
-  --color-success-700: #256730;
-  --color-success-800: #1c4f24;
-  --color-success-900: #143a1a;
+  --color-success-50: #eaf6ec;
+  --color-success-100: #cfead4;
+  --color-success-200: #a3d7ac;
+  --color-success-500: #2f8f3d;
+  --color-success-600: #23732f;
+  --color-success-700: #1c5c26;
+  --color-success-800: #164a1e;
+  --color-success-900: #0f3516;
 
-  --color-warning-50: #fdf6e3;
-  --color-warning-100: #fae8b8;
-  --color-warning-200: #f5d98a;
-  --color-warning-400: #e3b559;
-  --color-warning-500: #d9a02b;
-  --color-warning-600: #b9841f;
-  --color-warning-700: #8f6518;
+  --color-warning-50: #fdf3dc;
+  --color-warning-100: #f8e2a8;
+  --color-warning-200: #f0cd6e;
+  --color-warning-400: #e0ab28;
+  --color-warning-500: #d99a12;
+  --color-warning-600: #9c690d;
+  --color-warning-700: #8a630c;
   --color-warning-800: #6b4b12;
 
-  --color-danger-50: #fbeaea;
-  --color-danger-100: #f5cccc;
-  --color-danger-200: #ecacac;
-  --color-danger-400: #d97070;
-  --color-danger-500: #c94a4a;
-  --color-danger-600: #ad3838;
-  --color-danger-700: #8a2c2c;
+  --color-danger-50: #fbe9e8;
+  --color-danger-100: #f3c6c4;
+  --color-danger-200: #e59e9b;
+  --color-danger-400: #cc5955;
+  --color-danger-500: #b3312c;
+  --color-danger-600: #942720;
+  --color-danger-700: #741e19;
 }
 
 body {
