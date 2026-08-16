@@ -35,12 +35,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Every shared `ui/` primitive (Button, Badge, Card, Tabs, Input, Select, Modal, EmptyState) visibly reflects the new palette and typography.
   4. All existing tabs continue to render and function correctly after the token-value swap — no regressions from reusing the same token names with new values.
 
-**Plans**: 1/5 plans executed
+**Plans**: 2/5 plans executed
 Plans:
 **Wave 1**
 
 - [x] 01-01-PLAN.md — Token-value swap (index.css @theme) + shared.jsx off-token color fixes + WCAG contrast re-validation
-- [ ] 01-02-PLAN.md — New Mono primitive + Button/Badge/Tabs WCAG-fix and Label-weight edits
+- [x] 01-02-PLAN.md — New Mono primitive + Button/Badge/Tabs WCAG-fix and Label-weight edits
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -145,7 +145,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Visual Foundation | 1/5 | In Progress|  |
+| 1. Visual Foundation | 2/5 | In Progress|  |
 | 2. Unified Attention Feed | 0/TBD | Not started | - |
 | 3. Grow — Discovery Funnel Merge | 0/TBD | Not started | - |
 | 4. Shared Record Side-Panel | 0/TBD | Not started | - |
