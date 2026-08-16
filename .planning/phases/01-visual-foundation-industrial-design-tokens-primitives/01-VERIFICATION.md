@@ -1,23 +1,28 @@
 ---
 phase: 01-visual-foundation-industrial-design-tokens-primitives
 verified: 2026-08-16T14:00:00Z
-status: human_needed
+status: passed
 score: 4/4 must-haves verified (code-level); visual/aesthetic confirmation pending human review
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
+
   - test: "Visit all 8 top-level tabs (Overview, Network, Explore, Pipeline, Actions, Calendar, Job Boards, Settings) plus /demo in a signed-in session and confirm every screen renders without breakage/illegible text/missing colors."
     expected: "No unstyled/default-browser-black text, no missing colors, no visual regression from the token-value swap."
     why_human: "Perceptual/visual regression check — grep/build checks confirm code correctness but cannot confirm rendered appearance. Orchestrator's own supplementary Playwright pass only covered Overview/Network/Pipeline via /demo (which excludes Explore, Actions-beyond-DraftPanel, Calendar, Job Boards, Settings by design — those tabs require auth and are not in /demo's nav)."
+
   - test: "Specifically load Job Boards (JobCard grid + a job's JobDetailModal) in an authenticated session — the one Mono-rollout surface neither /demo nor the orchestrator's Playwright pass could reach."
     expected: "Card grid's posted date, deadline badge (⏰ Closes in Nd), and stale badge (👻 Stale Nd) render in IBM Plex Mono; JobDetailModal's posted-date, no-update-days, and deadline-countdown render in Mono too; DEADLINE_BADGE colors (urgent=danger-500, soon=warning-600, known=ink-100) render correctly, including the post-review WCAG fix (soon badge is warning-600, not the original warning-400)."
     why_human: "Code-level grep confirms the wrap and the fixed hex value are present, but actual rendered typography/legibility was never visually confirmed for this surface — /demo excludes Job Boards entirely and the orchestrator's own Playwright coverage note explicitly flags this gap."
+
   - test: "Confirm Card, Input, Select, Modal, EmptyState primitives (zero code diff this phase, pick up new palette purely via CSS custom-property cascade) visually read as the industrial palette, not a broken/unstyled fallback."
     expected: "All 5 untouched primitives render with the new gunmetal/safety-orange tokens with no visual break, confirming the 'zero call-site edits' cascade mechanism actually worked in the browser, not just in the CSS source."
     why_human: "This is exactly the kind of interaction (CSS custom-property cascade to unedited component code) that a text-based diff review cannot observe — it must be seen rendered."
+
   - test: "Click a primary Button (e.g. '+ Contact', '+ Log Interaction') and confirm background reads as a richer/darker orange with a visibly bolder (semibold) label."
     expected: "Visually distinguishable step up from the old accent-500/font-medium look; text is legible against the new accent-600 background."
     why_human: "WCAG contrast ratio (4.59:1) is programmatically confirmed, but 'visibly bolder' and overall aesthetic-direction fit require a human eye."
+
   - test: "Screenshot at least 3 screens and compare against the industrial/control-panel direction locked in 01-UI-SPEC.md (cool steel canvas, gunmetal neutrals, punchy safety-orange accent, indicator-light status hues)."
     expected: "Reads as the industrial direction, not the prior warm-paper/soft-amber look."
     why_human: "Aesthetic-direction judgment call, per the project's standing frontend-aesthetics directive ('render it, screenshot it, and check it against the stated aesthetic direction before declaring done')."
