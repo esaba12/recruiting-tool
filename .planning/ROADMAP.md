@@ -31,7 +31,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. The new industrial color token values pass the `dataviz` skill's contrast validator before they ship.
   3. Every shared `ui/` primitive (Button, Badge, Card, Tabs, Input, Select, Modal, EmptyState) visibly reflects the new palette and typography.
   4. All existing tabs continue to render and function correctly after the token-value swap — no regressions from reusing the same token names with new values.
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+- [ ] 01-01-PLAN.md — Token-value swap (index.css @theme) + shared.jsx off-token color fixes + WCAG contrast re-validation
+- [ ] 01-02-PLAN.md — New Mono primitive + Button/Badge/Tabs WCAG-fix and Label-weight edits
+- [ ] 01-03-PLAN.md — Mono rollout: ContactsTable.jsx + PipelineTab.jsx
+- [ ] 01-04-PLAN.md — Mono rollout: jobBoards/JobCard.jsx + jobBoards/JobDetailModal.jsx
+- [ ] 01-05-PLAN.md — Combined regression sweep + staged visual verification (end-of-phase UAT)
 **UI hint**: yes
 
 ### Phase 2: Unified Attention Feed (Today)
@@ -108,7 +114,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Visual Foundation | 0/TBD | Not started | - |
+| 1. Visual Foundation | 0/5 | Planned | - |
 | 2. Unified Attention Feed | 0/TBD | Not started | - |
 | 3. Grow — Discovery Funnel Merge | 0/TBD | Not started | - |
 | 4. Shared Record Side-Panel | 0/TBD | Not started | - |
