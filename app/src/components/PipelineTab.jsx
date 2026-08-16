@@ -4,6 +4,7 @@ import { STAGE_ORDER, STAGE_COLOR, TERMINAL_STAGES, daysSince, daysBetween, fmt,
 import { BUCKET_TO_TRIAGE } from './jobBoards/helpers.js'
 import { companyCoverage } from '../lib/networkCoverage.js'
 import ApplicationDetailModal from './ApplicationDetailModal.jsx'
+import Mono from './ui/Mono.jsx'
 
 const COVERAGE_BADGE = {
   gap:    { color: 'bg-danger-100 text-danger-700',   label: () => 'Need network' },
@@ -69,7 +70,7 @@ function DuplicatesPanel({ apps, onRefresh }) {
               <div className="mt-1 space-y-0.5">
                 {g.map((a, j) => (
                   <p key={a.id} className="text-[11px] text-ink-400">
-                    {j === 0 ? '✓ keep' : '✕ archive'} · {a.stage} · {a.triage}{a.sourceRepo ? ` · ${a.sourceRepo}` : ''} · {fmt(a.createdTime)}
+                    {j === 0 ? '✓ keep' : '✕ archive'} · {a.stage} · {a.triage}{a.sourceRepo ? ` · ${a.sourceRepo}` : ''} · <Mono>{fmt(a.createdTime)}</Mono>
                   </p>
                 ))}
               </div>
@@ -174,15 +175,15 @@ export default function PipelineTab({ apps, contacts = [], interactions = [], re
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 flex-wrap">
-                        {a.appliedDate && <span className="text-xs text-ink-400">Applied {fmt(a.appliedDate)}</span>}
+                        {a.appliedDate && <span className="text-xs text-ink-400">Applied <Mono>{fmt(a.appliedDate)}</Mono></span>}
                         {a.closedDate && (
                           <span className="text-xs text-ink-400">
-                            Closed {fmt(a.closedDate)}{a.appliedDate ? ` (${daysBetween(a.appliedDate, a.closedDate)}d)` : ''}
+                            Closed <Mono>{fmt(a.closedDate)}</Mono>{a.appliedDate ? ` (${daysBetween(a.appliedDate, a.closedDate)}d)` : ''}
                           </span>
                         )}
                         {days !== null && (
                           <span className={`text-xs ${stale ? 'text-orange-600 font-medium' : 'text-ink-400'}`}>
-                            {days}d in stage{stale ? ' ⚠' : ''}
+                            <Mono>{days}</Mono>d in stage{stale ? ' ⚠' : ''}
                           </span>
                         )}
                         {a.jdLink && (
