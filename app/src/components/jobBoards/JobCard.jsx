@@ -4,7 +4,7 @@ import Mono from '../ui/Mono.jsx'
 
 const DEADLINE_BADGE = {
   urgent: 'bg-danger-500 text-white',
-  soon:   'bg-warning-400 text-white',
+  soon:   'bg-warning-600 text-white',
   known:  'bg-ink-100 text-ink-600',
 }
 

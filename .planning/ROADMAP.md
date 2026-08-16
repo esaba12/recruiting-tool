@@ -13,7 +13,7 @@ This is the v1.0 "UI/UX Overhaul" milestone — the first-ever GSD milestone for
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Visual Foundation — Industrial Design Tokens & Primitives** - Contrast-validated industrial token values and mono-for-data typography land under the existing token names, restyling every shared `ui/` primitive with zero call-site edits elsewhere.
+- [x] **Phase 1: Visual Foundation — Industrial Design Tokens & Primitives** - Contrast-validated industrial token values and mono-for-data typography land under the existing token names, restyling every shared `ui/` primitive with zero call-site edits elsewhere. (completed 2026-08-16)
 - [ ] **Phase 2: Unified Attention Feed (Today)** - Overdue follow-ups, stale applications, Keep in Touch, Job Boards' Needs-Review, and Timeline Finds merge into one "what needs attention" feed, retiring the 5 surfaces that used to show them separately.
 - [ ] **Phase 3: Grow — Discovery Funnel Merge** - Company targeting, referral-gap analysis, and people discovery become one connected flow on a single Grow destination.
 - [ ] **Phase 4: Shared Record Side-Panel** - Contact, application, and job records open in one consistent side-panel component instead of 3+ divergent modals.
@@ -35,7 +35,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Every shared `ui/` primitive (Button, Badge, Card, Tabs, Input, Select, Modal, EmptyState) visibly reflects the new palette and typography.
   4. All existing tabs continue to render and function correctly after the token-value swap — no regressions from reusing the same token names with new values.
 
-**Plans**: 4/5 plans executed
+**Plans**: 5/5 plans complete
 Plans:
 **Wave 1**
 
@@ -49,7 +49,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-05-PLAN.md — Combined regression sweep + staged visual verification (end-of-phase UAT)
+- [x] 01-05-PLAN.md — Combined regression sweep + staged visual verification (end-of-phase UAT)
 
 **UI hint**: yes
 
@@ -145,7 +145,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Visual Foundation | 4/5 | In Progress|  |
+| 1. Visual Foundation | 5/5 | Complete   | 2026-08-16 |
 | 2. Unified Attention Feed | 0/TBD | Not started | - |
 | 3. Grow — Discovery Funnel Merge | 0/TBD | Not started | - |
 | 4. Shared Record Side-Panel | 0/TBD | Not started | - |
