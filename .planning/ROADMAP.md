@@ -35,7 +35,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Every shared `ui/` primitive (Button, Badge, Card, Tabs, Input, Select, Modal, EmptyState) visibly reflects the new palette and typography.
   4. All existing tabs continue to render and function correctly after the token-value swap — no regressions from reusing the same token names with new values.
 
-**Plans**: 3/5 plans executed
+**Plans**: 4/5 plans executed
 Plans:
 **Wave 1**
 
@@ -45,7 +45,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 01-03-PLAN.md — Mono rollout: ContactsTable.jsx + PipelineTab.jsx
-- [ ] 01-04-PLAN.md — Mono rollout: jobBoards/JobCard.jsx + jobBoards/JobDetailModal.jsx
+- [x] 01-04-PLAN.md — Mono rollout: jobBoards/JobCard.jsx + jobBoards/JobDetailModal.jsx
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -145,7 +145,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Visual Foundation | 3/5 | In Progress|  |
+| 1. Visual Foundation | 4/5 | In Progress|  |
 | 2. Unified Attention Feed | 0/TBD | Not started | - |
 | 3. Grow — Discovery Funnel Merge | 0/TBD | Not started | - |
 | 4. Shared Record Side-Panel | 0/TBD | Not started | - |

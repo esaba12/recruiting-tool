@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { BUCKET_CONFIG, BUCKET_ACTIVE, generateJobAnalysis, jobAgeDays, isGhostJob, urgencyTier, daysUntilDeadline } from './helpers.js'
 import { AI_PROVIDER_LABEL } from '../../lib/ai.js'
+import Mono from '../ui/Mono.jsx'
 
 const DEADLINE_TEXT = {
   urgent: 'text-danger-600 bg-danger-50',
@@ -42,17 +43,17 @@ export default function JobDetailModal({ job, status, blurb, deadline, onRecheck
           </div>
           <div className="flex items-center gap-3 mt-3 flex-wrap text-xs text-ink-500">
             {job.location  && <span>📍 {job.location}</span>}
-            {job.dateAdded && <span>📅 posted {job.dateAdded}</span>}
+            {job.dateAdded && <span>📅 posted <Mono>{job.dateAdded}</Mono></span>}
             {stale && (
               <span className="px-1.5 py-0.5 rounded-full bg-warning-100 text-warning-800 text-[10px] font-medium">
-                👻 No update in {ageDays}d
+                👻 No update in <Mono>{ageDays}</Mono>d
               </span>
             )}
           </div>
           <div className="mt-2 flex items-center gap-2 flex-wrap">
             {tier === 'urgent' || tier === 'soon' || tier === 'known' ? (
               <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${DEADLINE_TEXT[tier]}`}>
-                ⏰ {deadlineDays < 0 ? 'Deadline passed' : deadlineDays === 0 ? 'Closes today' : `Closes in ${deadlineDays}d`} ({deadline.deadline})
+                ⏰ <Mono>{deadlineDays < 0 ? 'Deadline passed' : deadlineDays === 0 ? 'Closes today' : `Closes in ${deadlineDays}d`}</Mono> ({deadline.deadline})
               </span>
             ) : tier === 'rolling' ? (
               <span className="px-2 py-1 rounded-lg text-xs font-medium bg-ink-50 text-ink-500">🔄 Rolling — no stated deadline</span>

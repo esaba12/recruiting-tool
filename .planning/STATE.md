@@ -6,14 +6,14 @@ current_phase: 1
 current_phase_name: Visual Foundation — Industrial Design Tokens & Primitives
 status: executing
 stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-08-16T03:57:13.513Z"
+last_updated: "2026-08-16T04:24:06.876Z"
 last_activity: 2026-08-16
 last_activity_desc: Phase 1 execution started
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 5
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 ## Current Position
 
 Phase: 1 (Visual Foundation — Industrial Design Tokens & Primitives) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-08-16 — Phase 1 execution started
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-visual-foundation-industrial-design-tokens-primitives P01 | 21min | 3 tasks | 2 files |
 | Phase 01-visual-foundation-industrial-design-tokens-primitives P02 | 2min | 3 tasks | 4 files |
 | Phase 01-visual-foundation-industrial-design-tokens-primitives P03 | 5min | 2 tasks | 2 files |
+| Phase 01-visual-foundation-industrial-design-tokens-primitives P04 | 6min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,7 @@ Recent decisions affecting current work:
 - [Phase 01-02]: Mono.jsx uses cn() (not a raw template literal) to match the majority ui/ primitive convention
 - [Phase 01-02]: Button.jsx primary variant WCAG fix scoped strictly to primary (accent-500/600 -> accent-600/700); secondary/ghost/danger/SIZES verified byte-identical
 - [Phase 01-03]: Followed 01-PATTERNS.md's exact pre-specified diff verbatim for both files; overdue-red className moved onto Mono directly rather than nesting Mono in a redundant outer span
+- [Phase 01-04]: Followed 01-PATTERNS.md's role-match analog (ContactsTable.jsx/PipelineTab.jsx wrap pattern) verbatim for JobCard.jsx/JobDetailModal.jsx deadline-countdown and stale-day-count text
 
 ### Pending Todos
 
@@ -97,6 +99,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-16T03:57:13.508Z
+Last session: 2026-08-16T04:20:25.965Z
 Stopped at: Completed 01-03-PLAN.md
 Resume file: None

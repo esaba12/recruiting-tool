@@ -1,5 +1,6 @@
 import { BUCKET_CONFIG, BUCKET_TAG, jobAgeDays, isGhostJob, daysUntilDeadline, urgencyTier } from './helpers.js'
 import { BUCKET_ICON, LOCATION_ICON } from '../../lib/icons.js'
+import Mono from '../ui/Mono.jsx'
 
 const DEADLINE_BADGE = {
   urgent: 'bg-danger-500 text-white',
@@ -13,7 +14,7 @@ function DeadlineBadge({ deadline }) {
   if (tier === 'rolling') return <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-ink-50 text-ink-400">Rolling — no deadline</span>
   const days = daysUntilDeadline(deadline)
   const label = days < 0 ? 'Closed' : days === 0 ? 'Closes today' : `Closes in ${days}d`
-  return <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${DEADLINE_BADGE[tier]}`}>⏰ {label}</span>
+  return <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${DEADLINE_BADGE[tier]}`}>⏰ <Mono>{label}</Mono></span>
 }
 
 export default function JobCard({ job, status, blurb, deadline, onStatusChange, onClick }) {
@@ -61,12 +62,12 @@ export default function JobCard({ job, status, blurb, deadline, onStatusChange, 
                 <LOCATION_ICON size={11} />{job.location}
               </span>
             )}
-            {job.dateAdded && <span className="text-xs text-ink-400">{job.dateAdded}</span>}
+            {job.dateAdded && <span className="text-xs text-ink-400"><Mono>{job.dateAdded}</Mono></span>}
             {!isClosed && <DeadlineBadge deadline={deadline} />}
             {!isClosed && stale && (
               <span title={`No update detected in ${ageDays} days — may be a ghost listing`}
                 className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-warning-100 text-warning-800">
-                👻 Stale {ageDays}d
+                👻 Stale <Mono>{ageDays}</Mono>d
               </span>
             )}
             {!isClosed && ageDays === null && job.dateAdded && !/^[-—\s]+$/.test(job.dateAdded) && (
