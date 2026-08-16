@@ -35,7 +35,7 @@
 
 - [ ] **VIS-01**: The app commits to a distinctive industrial/control-panel visual direction — new color, typography, border, and motion tokens applied consistently across every screen, including low-traffic ones (e.g. Job Boards' `RepoStats`/`UserProfileView`), not just the high-traffic tabs
 - [ ] **VIS-02**: IBM Plex Mono is applied systematically to numeric/data fields (dates, counts, deadlines, status codes) across dense tables and panels, replacing its current "reserved, barely used" state
-- [ ] **VIS-03**: New token values pass a contrast validation check (via the repo's existing `dataviz` skill validator) before being applied app-wide
+- [x] **VIS-03**: New token values pass a contrast validation check (via the repo's existing `dataviz` skill validator) before being applied app-wide
 - [ ] **VIS-04**: New motion (staggered reveals, transitions) is implemented via the `motion` package (successor to `framer-motion`, mechanical import-path migration) and explicitly excludes the force-directed network graph canvas and Recharts internals, to avoid performance regressions
 
 ### Instrument-Panel Stat Tiles (STAT)
@@ -62,7 +62,7 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | VIS-02 | Phase 1 | Pending |
-| VIS-03 | Phase 1 | Pending |
+| VIS-03 | Phase 1 | Complete |
 | ATTN-01 | Phase 2 | Pending |
 | ATTN-02 | Phase 2 | Pending |
 | ATTN-03 | Phase 2 | Pending |
