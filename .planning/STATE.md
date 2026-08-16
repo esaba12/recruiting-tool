@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 1
-current_phase_name: Visual Foundation — Industrial Design Tokens & Primitives
+current_phase: 2
+current_phase_name: Today
 status: verifying
 stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-08-16T13:23:11.402Z"
+last_updated: "2026-08-16T14:15:28.798Z"
 last_activity: 2026-08-16
-last_activity_desc: Phase 1 execution started
+last_activity_desc: Phase 1 complete, transitioned to Phase 2
 progress:
   total_phases: 7
   completed_phases: 1
@@ -21,17 +21,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-15)
+See: .planning/PROJECT.md (updated 2026-08-16)
 
 **Core value:** The dashboard must be fast and cohesive to use every day during an active job search — this milestone delivers an information architecture and visual system the user doesn't have to relearn each session.
-**Current focus:** Phase 1 — Visual Foundation — Industrial Design Tokens & Primitives
+**Current focus:** Phase 2 — Unified Attention Feed (Today)
 
 ## Current Position
 
-Phase: 1 (Visual Foundation — Industrial Design Tokens & Primitives) — EXECUTING
-Plan: 5 of 5
+Phase: 2 — Unified Attention Feed (Today)
+Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-08-16 — Phase 1 execution started
+Last activity: 2026-08-16 — Phase 1 complete, transitioned to Phase 2
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -39,7 +39,7 @@ Progress: [░░░░░░░░░░] 0%
 
 **Velocity:**
 
-- Total plans completed: 0
+- Total plans completed: 5
 - Average duration: - min
 - Total execution time: 0 hours
 
@@ -47,7 +47,7 @@ Progress: [░░░░░░░░░░] 0%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 1 | 5 | - | - |
 
 **Recent Trend:**
 
@@ -90,6 +90,9 @@ None yet.
 - `/demo` route drift risk: `DEMO_NAV_ITEMS` is a hardcoded id-string filter and `db.js` has ~23 separate `isDemoMode()` branches — any phase that renames a tab id or reshapes merged data must update these in the same commit, not after.
 - 18 `rec_*` localStorage keys back merged features with no migration mechanism — any phase merging a feature backed by one of these keys (Keep in Touch, Job Boards triage, Discover/Explore state) must make an explicit migrate-or-deliberately-drop decision, or risk silently losing accumulated state.
 - Solo-maintainer live-use constraint: this is the user's actual daily recruiting CRM during Fall 2026 season — no phase should ship nav chrome ahead of the destination it points to (chrome-and-content together per surface).
+- [Phase 1] `charts/theme.js`'s `STATUS_CHART_COLORS` hex mirror is now stale against the new token palette (deliberately deferred) — Overview's donut chart will visibly disagree with badge colors until Phase 7 syncs it.
+- [Phase 1] Two hardcoded-color cleanups outside this phase's locked scope, both non-blocking: `PipelineTab.jsx`'s `DuplicatesPanel`/stale-application indicator (`orange-*` literals) and `JobDetailModal.jsx`'s "Analyze →" button (`indigo-*`) don't trace back to the `@theme` token system — will silently not move if the palette is retuned again. Candidates for a Phase 7 sweep or a standalone follow-up.
+- [Phase 1] `RepoJobsView.jsx:288`'s "Hide stale" toggle (`bg-warning-500 text-white`) fails WCAG contrast at 2.45:1 — pre-existing, not a regression, outside Phase 1's 10-file scope. Flagged for a human decision: quick standalone fix vs. fold into Phase 7's VIS-01 pass.
 
 ## Deferred Items
 
@@ -101,6 +104,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-16T04:44:45.734Z
-Stopped at: Completed 01-05-PLAN.md
+Last session: 2026-08-16
+Stopped at: Phase 1 complete (planned, executed, code-reviewed, verified, UAT-passed, security-verified), ready to plan Phase 2
 Resume file: None
