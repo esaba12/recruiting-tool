@@ -7,6 +7,7 @@ import { STATUS_COLOR, URGENCY_COLOR, REFERRAL_STATUS_COLOR, Badge, fmt, daysUnt
 import { statusIconFor, URGENCY_ICON } from '../lib/icons.js'
 import { useAuth } from '../lib/AuthContext.jsx'
 import MetButton from './MetButton.jsx'
+import Mono from './ui/Mono.jsx'
 
 const col = createColumnHelper()
 
@@ -85,7 +86,7 @@ export default function ContactsTable({ contacts, onEdit, onMet }) {
     }),
     col.accessor('lastInteraction', {
       header: 'Last',
-      cell: info => fmt(info.getValue()),
+      cell: info => <Mono>{fmt(info.getValue())}</Mono>,
       sortingFn: 'datetime',
     }),
     col.accessor('followUpDate', {
@@ -93,7 +94,7 @@ export default function ContactsTable({ contacts, onEdit, onMet }) {
       cell: info => {
         const v = info.getValue()
         const overdue = v && daysUntil(v) <= 0
-        return <span className={overdue ? 'text-danger-600 font-medium' : ''}>{fmt(v)}</span>
+        return <Mono className={overdue ? 'text-danger-600 font-medium' : ''}>{fmt(v)}</Mono>
       },
       sortingFn: 'datetime',
     }),
