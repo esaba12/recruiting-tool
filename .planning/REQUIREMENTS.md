@@ -59,7 +59,30 @@
 
 ## Traceability
 
-(Filled in by the roadmapper when phases are created.)
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| VIS-02 | Phase 1 | Pending |
+| VIS-03 | Phase 1 | Pending |
+| ATTN-01 | Phase 2 | Pending |
+| ATTN-02 | Phase 2 | Pending |
+| ATTN-03 | Phase 2 | Pending |
+| GROW-01 | Phase 3 | Pending |
+| GROW-02 | Phase 3 | Pending |
+| PANEL-01 | Phase 4 | Pending |
+| PANEL-02 | Phase 4 | Pending |
+| PIPE-01 | Phase 5 | Pending |
+| PIPE-02 | Phase 5 | Pending |
+| PIPE-03 | Phase 5 | Pending |
+| NAV-01 | Phase 6 | Pending |
+| NAV-02 | Phase 6 | Pending |
+| NAV-03 | Phase 6 | Pending |
+| NAV-04 | Phase 6 | Pending |
+| VIS-01 | Phase 7 | Pending |
+| VIS-04 | Phase 7 | Pending |
+| STAT-01 | Phase 7 | Pending |
+
+**Coverage:** 19/19 v1 requirements mapped.
 
 ---
 *Requirements defined: 2026-08-15*
+*Traceability filled in: 2026-08-15 (roadmap creation)*
