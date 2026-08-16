@@ -8,27 +8,27 @@ export const STATUS_COLOR = {
   '🟡 Cooling': 'bg-warning-100 text-warning-800',
   '🔴 Cold':    'bg-danger-100 text-danger-700',
   '✅ Closed':  'bg-ink-100 text-ink-500',
-  '⭐ Champion':'bg-orange-100 text-orange-800',
+  '⭐ Champion':'bg-accent-100 text-accent-800',
 }
 
 export const URGENCY_COLOR = {
   HIGH: 'bg-danger-500 text-white',
-  MED:  'bg-warning-400 text-white',
-  LOW:  'bg-ink-100 text-ink-400',
+  MED:  'bg-warning-600 text-white',
+  LOW:  'bg-ink-100 text-ink-500',
 }
 
 // Interaction channel colors — shared by ContactDetailModal's per-contact History panel
 // and OutboxTab's cross-contact sent-mail list.
 export const TYPE_COLOR = {
-  Email: 'bg-accent-100 text-accent-700', LinkedIn: 'bg-purple-100 text-purple-700',
-  Call: 'bg-success-100 text-success-700', Meeting: 'bg-orange-100 text-orange-700', Other: 'bg-ink-100 text-ink-600',
+  Email: 'bg-accent-100 text-accent-700', LinkedIn: 'bg-warning-800 text-warning-100',
+  Call: 'bg-success-100 text-success-700', Meeting: 'bg-ink-200 text-ink-700', Other: 'bg-ink-100 text-ink-600',
 }
 
 // Whether this contact is going to give (or has given) a referral for a job
 // application — distinct from ROLE_OPTIONS's 'Referral' (their relationship type
 // to you) and 'Referred By' (who introduced *you* to this contact).
 export const REFERRAL_STATUS_COLOR = {
-  'Not Asked': 'bg-ink-100 text-ink-400',
+  'Not Asked': 'bg-ink-100 text-ink-500',
   'Asked':     'bg-warning-100 text-warning-800',
   'Confirmed': 'bg-success-100 text-success-800',
   'Declined':  'bg-danger-100 text-danger-600',
@@ -40,8 +40,8 @@ export const STAGE_COLOR = {
   Wishlist:       'bg-ink-100 text-ink-600',
   Applied:        'bg-accent-100 text-accent-700',
   'Phone Screen': 'bg-warning-100 text-warning-800',
-  Technical:      'bg-orange-100 text-orange-800',
-  Onsite:         'bg-purple-100 text-purple-800',
+  Technical:      'bg-warning-200 text-warning-800',
+  Onsite:         'bg-warning-600 text-white',
   Offer:          'bg-success-100 text-success-800',
   Accepted:       'bg-success-200 text-success-900 font-semibold',
   Rejected:       'bg-danger-100 text-danger-600',
