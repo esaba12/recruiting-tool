@@ -1,8 +1,8 @@
 ---
 phase: 02-unified-attention-feed-today
-reviewed: 2026-08-16T00:00:00Z
+reviewed: 2026-08-17T00:00:00Z
 depth: standard
-files_reviewed: 11
+files_reviewed: 13
 files_reviewed_list:
   - app/src/App.jsx
   - app/src/components/CalendarTab.jsx
@@ -14,174 +14,96 @@ files_reviewed_list:
   - app/src/lib/attention.js
   - app/src/lib/icons.js
   - app/src/lib/oaResearch.js
+  - app/src/lib/timelineFinder.js
+  - app/src/lib/useTimelineFinds.js
   - app/src/shared.jsx
 findings:
-  critical: 2
-  warning: 8
+  critical: 1
+  warning: 9
   info: 5
   total: 15
 status: issues_found
 ---
 
-# Phase 02: Code Review Report (Re-Review)
+# Phase 02: Code Review Report (Re-Review 2)
 
-**Reviewed:** 2026-08-16T00:00:00Z
+**Reviewed:** 2026-08-17T00:00:00Z
 **Depth:** standard
-**Files Reviewed:** 11
+**Files Reviewed:** 13
 **Status:** issues_found
 
 ## Summary
 
-This is a re-review of the same 11 files after `02-05-PLAN.md`'s gap-closure fix for
-**CR-01** from the prior pass (`TodayTab.jsx`'s `timelineFindsCount` initializing from a
-hardcoded `0` instead of `localStorage`).
+This is the third pass over this phase, following Plan 02-06's extraction of
+`app/src/lib/useTimelineFinds.js` to close **CR-01 (new)** from the prior review
+(`TodayTab.jsx`'s `allEmpty` early-return gating whether `TimelineFindsPanel` — the
+app's only call site for the daily `findTimelineEvents()` scan — ever mounted).
 
-**CR-01 (original) is confirmed fixed.** `TodayTab.jsx:355-356` now initializes
-`timelineFindsCount` synchronously from `lsGet(PENDING_KEY)` at mount time
-(`isDemoMode ? 0 : (lsGet(PENDING_KEY) || []).length`), using the same scoped-storage
-key (`rec_timeline_pending`, namespaced per signed-in user via `scopedStorage.js`) that
-`TimelineFindsPanel.jsx` itself reads/writes. The race between an early `allEmpty`
-bail-out and a not-yet-mounted `TimelineFindsPanel` correcting a stale `0` is closed —
-the gate now reflects real stored state on first paint.
+**CR-01 (new) is confirmed fixed, and correctly, without reintroducing the
+previously-rejected "always mount the panel" approach.** `TodayTab.jsx:356-359` now
+calls `useTimelineFinds({ apps, calls, interactions, contacts, enabled: !isDemoMode })`
+unconditionally, several lines above the `allEmpty` gate at `:384-388`. Because React
+hooks execute in declaration order on every render regardless of which JSX branch a
+component's function body ultimately returns, the hook's internal mount effect
+(`useTimelineFinds.js:56-62`, `if (meta.lastCheck !== todayStr()) scan({ force: false })`)
+now fires on every mount of `TodayTab` — including the render where `allEmpty` evaluates
+`true` and the function returns `<EmptyState/>` before `<TimelineFindsPanel/>`'s JSX is
+ever reached. The scan trigger's fate is no longer coupled to whether the *presentational*
+panel (`TimelineFindsPanel.jsx`, now purely props-driven with no owned state or effects)
+gets rendered. `allEmpty` itself still correctly folds all 9 signals — the 8
+`lib/attention.js` arrays plus `(isDemoMode || timelineFinds.length === 0)` — into one
+gate feeding a single `EmptyState`, so the all-9-arrays/single-`EmptyState` contract is
+intact: the panel is still conditionally rendered (`{!isDemoMode && <TimelineFindsPanel .../>}`
+at `:452-457`), it just no longer controls whether the underlying scan can run. This is
+the smaller, correct fix — equivalent in spirit to the prior review's suggested "Option
+B" (decouple the daily scan from the panel's mount lifecycle) rather than "Option A"
+(always render the panel), and it does not resurrect the single-`EmptyState` violation
+Option A would have caused.
 
-However, tracing the same code path further surfaced a **new, closely related Critical
-bug that the gap-closure fix did not address**: `TodayTab`'s `allEmpty` early-return
-still gates whether `TimelineFindsPanel` *mounts at all*, and `TimelineFindsPanel` is the
-only place `findTimelineEvents()` (the daily background scan) is ever invoked. When a
-user reaches the exact "you're all caught up" state the app is designed to converge
-toward — all 8 `lib/attention.js` arrays empty *and* zero pending Timeline Finds — the
-panel never mounts, so the scan that would discover *new* dates from today's call notes/
-application updates/interactions never runs, on that visit or any subsequent one, until
-some unrelated attention item happens to appear. See CR-01 (new) below.
+While verifying the hook extraction line-by-line, a new correctness bug was found in
+`useTimelineFinds.js`'s `scan()` that wasn't present in the previous review's list (see
+**WR-09**, new) — a stale-closure race that can resurrect a just-dismissed Timeline Find
+if the user dismisses it while an AI scan is still in flight.
 
-None of the 7 Warnings or 4 Info items from the prior review were addressed by the
-02-05 gap-closure plan (which was scoped narrowly to the one bug) — all are re-confirmed
-present in the current code at the line numbers below, plus one new Warning and one new
-Info item found in this pass. No secrets, injection vectors, or dangerous-function usage
-were found in these 11 files.
+Of the 2 Critical, 8 Warning, and 5 Info items carried forward from the prior review:
+**CR-02 remains unresolved** (Plan 02-06 was scoped only to CR-01/new). **All 8
+Warnings and all 5 Info items are re-confirmed present**, unchanged in substance, at
+updated line numbers below (some content shifted ~1 line due to the new
+`useTimelineFinds` import in `TodayTab.jsx`; `TimelineFindsPanel.jsx`'s line numbers
+shifted more substantially since it was rewritten to be purely presentational — IN-03's
+underlying bug moved with the code it was attached to, into `useTimelineFinds.js`). No
+secrets, injection vectors, or dangerous-function usage were found in these 13 files.
 
 ## Critical Issues
 
-### CR-01: `TimelineFindsPanel`'s daily background scan can never run once the user is fully caught up
-
-**File:** `app/src/components/TodayTab.jsx:355-356` (count init), `:380-384` (gate), `:448` (panel mount); `app/src/components/TimelineFindsPanel.jsx:58-63` (scan-on-mount effect)
-**Issue:**
-```js
-// TodayTab.jsx
-const [timelineFindsCount, setTimelineFindsCount] = useState(() =>
-  isDemoMode ? 0 : (lsGet(PENDING_KEY) || []).length)
-...
-const allEmpty = overdueContacts.length === 0 && staleApps.length === 0 && highUrgency.length === 0
-  && keepInTouch.length === 0 && needsReview.length === 0 && scheduleContacts.length === 0
-  && oaDueList.length === 0 && oaNeedsCheckList.length === 0 && (isDemoMode || timelineFindsCount === 0)
-
-if (allEmpty) return <EmptyState msg="✓ Nothing needs your attention. You're on top of it." />
-...
-{!isDemoMode && <TimelineFindsPanel apps={apps} calls={calls} interactions={interactions} contacts={contacts} onPendingChange={setTimelineFindsCount} />}
-```
-```js
-// TimelineFindsPanel.jsx
-useEffect(() => {
-  if (ranRef.current) return
-  ranRef.current = true
-  if (meta.lastCheck !== todayStr()) scan({ force: false })
-}, [])
-```
-`findTimelineEvents()` (the AI pass over application notes/calls/interactions that
-discovers new calendar-worthy dates) is called from exactly one place in the app:
-`TimelineFindsPanel`'s mount effect (or its "↻ Rescan" button, which lives inside the
-same component). `TimelineFindsPanel` is only rendered on the branch of `TodayTab` that
-survives the `if (allEmpty) return <EmptyState/>` early exit.
-
-When `timelineFindsCount` is genuinely `0` (no items currently pending) *and* the other
-8 attention arrays are all empty — i.e. exactly the "nothing needs your attention" state
-the empty-state copy describes — `allEmpty` is `true`, `TodayTab` returns `<EmptyState/>`,
-and the JSX branch containing `<TimelineFindsPanel/>` (line 448) is never reached. The
-component that owns the only call site for the daily scan is never instantiated, so:
-- `meta.lastCheck` is never updated (it's `TimelineFindsPanel`'s own state, persisted
-  only from inside its `scan()`), so the "have we scanned today?" gate can never
-  progress.
-- There is no "↻ Rescan" button rendered anywhere in this state either, so there's no
-  manual escape hatch — the user cannot even trigger a scan by hand.
-- Because `timelineFindsCount` is component state initialized once per mount, and
-  `TodayTab` fully unmounts/remounts on every tab switch (`{!loading && tab === 'today' && <TodayTab .../>}`
-  in `App.jsx`), revisiting the Today tab re-runs the same `lsGet` read, which is still
-  `0` — the lockout is stable, not just a one-render glitch.
-
-The only way out of this state is for some *unrelated* signal (an overdue follow-up, a
-stale application, a Keep-in-Touch reconnect, etc.) to become non-empty on its own,
-which incidentally lets `TimelineFindsPanel` mount and finally run its overdue scan.
-Net effect: for a user who reaches (and stays in) a genuinely caught-up state, new
-extractable dates from today's calls/notes/interactions are **silently never surfaced**
-— the exact symptom the original CR-01 described, reintroduced by the same
-mount-gating pattern one level up. The comment at `TodayTab.jsx:373-379` ("TimelineFindsPanel's
-onPendingChange callback then keeps it in sync afterward") is only true once the panel
-has had a chance to mount at least once with something else on screen; it doesn't hold
-in the all-clear state.
-
-The sidebar's own `today` nav badge (`App.jsx:291`,`:392`, `todayCount`) also never
-counts Timeline Finds, so there is no other UI surface that would tip the user off that
-anything is stuck.
-
-**Fix:** Don't gate the *scanning* component's mount on whether it currently has
-something to show. Two options:
-```js
-// Option A — always render TimelineFindsPanel (it already renders its own internal
-// "Nothing pending" empty state), and only fold the *other* 8 sections behind allEmpty:
-const otherSectionsEmpty = overdueContacts.length === 0 && staleApps.length === 0 && highUrgency.length === 0
-  && keepInTouch.length === 0 && needsReview.length === 0 && scheduleContacts.length === 0
-  && oaDueList.length === 0 && oaNeedsCheckList.length === 0
-
-return (
-  <div className="space-y-4">
-    {!otherSectionsEmpty && ( /* existing 8 Section blocks */ )}
-    {otherSectionsEmpty && timelineFindsCount === 0 && !isDemoMode && (
-      <EmptyState msg="✓ Nothing needs your attention. You're on top of it." />
-    )}
-    {!isDemoMode && <TimelineFindsPanel ... />}
-    {/* modals */}
-  </div>
-)
-```
-```js
-// Option B — decouple the daily scan from the panel's own mount lifecycle: move the
-// "has today's scan run?" check + scan() call up into TodayTab (or a hook shared with
-// TimelineFindsPanel) so it fires regardless of whether the panel itself is rendered.
-```
-Option A is the smaller change and matches the pattern the prior CR-01 fix already
-established (trust localStorage as the source of truth, don't hide the thing that keeps
-it fresh).
-
----
-
-### CR-02: `CalendarTab`'s Feed view never refreshes after creating or deleting an event *(carried forward, unresolved)*
+### CR-02: `CalendarTab`'s Feed view never refreshes after creating or deleting an event *(carried forward, unresolved — not in scope of the 02-06 fix)*
 
 **File:** `app/src/components/CalendarTab.jsx:47` (`feedEvents` state), `:102-105` (fetch-once guard), `:291` (delete), `:299` (create)
 **Issue:** The Feed view sources events from its own `feedEvents` state, fetched once
-and cached (`if (viewMode === 'feed' && feedEvents === null) fetchFeedEvents()`). Both
-event-mutation call sites still only refresh the grid's month cache:
+and cached (`if (viewMode === 'feed' && feedEvents === null) fetchFeedEvents()` at
+`:102-105`). Both event-mutation call sites still only refresh the grid's month cache:
 ```js
 {selectedEvent && (
   <EventDetailModal
     event={selectedEvent}
     onClose={() => setSelectedEvent(null)}
-    onDeleted={() => { setSelectedEvent(null); refetchMonth() }}   // line 291 — feedEvents untouched
+    onDeleted={() => { setSelectedEvent(null); refetchMonth() }}   // :291 — feedEvents untouched
   />
 )}
 {addEventOpen && (
   <AddEventModal
     defaultDate={selectedDay || undefined}
     onClose={() => setAddEventOpen(false)}
-    onCreated={() => { setAddEventOpen(false); refetchMonth() }}   // line 299 — feedEvents untouched
+    onCreated={() => { setAddEventOpen(false); refetchMonth() }}   // :299 — feedEvents untouched
   />
 )}
 ```
 `EventDetailModal` is directly reachable from the Feed view itself
-(`openTimelineItem`'s `refType === 'event'` branch sets `selectedEvent` from a Feed row),
-so deleting an event from the Feed leaves it visibly listed in Overdue/Next 7 Days/Later
-until a full page reload. Creating an event while on the Feed view has the mirror
-problem — it never appears until reload, since toggling `viewMode` away and back doesn't
-re-fetch (`feedEvents` is no longer `null`).
+(`openTimelineItem`'s `refType === 'event'` branch at `:146-149` sets `selectedEvent`
+from a Feed row), so deleting an event from the Feed leaves it visibly listed in
+Overdue/Next 7 Days/Later until a full page reload. Creating an event while on the Feed
+view has the mirror problem — it never appears until reload, since toggling `viewMode`
+away and back doesn't re-fetch (`feedEvents` is no longer `null`).
 **Fix:** Invalidate/refetch `feedEvents` alongside the grid cache on both mutation paths:
 ```js
 onDeleted={() => { setSelectedEvent(null); refetchMonth(); if (feedEvents !== null) fetchFeedEvents() }}
@@ -259,11 +181,11 @@ const text = (page?.text || '').trim()
 
 ### WR-05: `QuickScheduleModal`'s name search crashes on a contact with no `name` *(carried forward, unresolved)*
 
-**File:** `app/src/components/QuickScheduleModal.jsx:25`
+**File:** `app/src/components/QuickScheduleModal.jsx:24-26`
 **Issue:**
 ```js
 const nameMatches = !selectedId && name.trim().length > 1
-  ? contacts.filter(c => c.name.toLowerCase().includes(name.toLowerCase()))
+  ? contacts.filter(c => c.name.toLowerCase().includes(name.toLowerCase())).slice(0, 5)
   : []
 ```
 No guard against `c.name` being `null`/`undefined`. `App.jsx`'s equivalent search
@@ -277,7 +199,7 @@ optional chaining specifically to avoid this. Any contact lacking a name throws 
 
 ### WR-06: Silent catch blocks in TodayTab's inline mark-done actions *(carried forward, unresolved)*
 
-**File:** `app/src/components/TodayTab.jsx:81-83` (`OverdueRow.markFollowedUp`), `:136-138` (`ScheduleRow.markScheduled`), `:306-308` (`OaRow.markCompleted`)
+**File:** `app/src/components/TodayTab.jsx:82-84` (`OverdueRow.markFollowedUp`), `:137-139` (`ScheduleRow.markScheduled`), `:307-309` (`OaRow.markCompleted`)
 **Issue:** All three follow:
 ```js
 } catch {
@@ -285,8 +207,8 @@ optional chaining specifically to avoid this. Any contact lacking a name throws 
 }
 ```
 On a write failure the button just resets to clickable with zero feedback — the user
-has no way to know their action didn't persist. Every other write path added in this
-phase (`TimelineFindsPanel.approve`, `CalendarTab`'s event fetches, `QuickScheduleModal.save`)
+has no way to know their action didn't persist. Every other write path in this phase
+(`useTimelineFinds.approve`, `CalendarTab`'s event fetches, `QuickScheduleModal.save`)
 surfaces `e.message` into a visible error state.
 **Fix:**
 ```js
@@ -298,7 +220,7 @@ surfaces `e.message` into a visible error state.
 
 ### WR-07: Triage/mutation handlers have no error handling — unhandled promise rejections *(carried forward, unresolved)*
 
-**File:** `app/src/components/TodayTab.jsx:366-369`, `app/src/components/CalendarTab.jsx:134-137`, `app/src/App.jsx:79-82`
+**File:** `app/src/components/TodayTab.jsx:369-372`, `app/src/components/CalendarTab.jsx:134-137`, `app/src/App.jsx:79-82`
 **Issue:** `changeAppTriage` (duplicated identically in `TodayTab.jsx`/`CalendarTab.jsx`)
 and `handleMet` (`App.jsx`'s `NetworkTab`, mirrored in `TodayTab.jsx`) call mutating
 functions with no `try`/`catch`, invoked directly from `onClick` with no `.catch()` at
@@ -307,7 +229,7 @@ user-visible error and no rollback of optimistic UI.
 **Fix:** Wrap in `try`/`catch` and surface the error consistently with the rest of the
 phase's write paths.
 
-### WR-08 (new): `oaResearch.js`'s batch write is all-or-nothing — one failed update silently drops the UI refresh for every successful write in the same batch
+### WR-08: `oaResearch.js`'s batch write is all-or-nothing — one failed update silently drops the UI refresh for every successful write in the same batch *(carried forward, unresolved)*
 
 **File:** `app/src/lib/oaResearch.js:110-118`
 **Issue:**
@@ -337,6 +259,55 @@ const settled = await Promise.allSettled(allResults.map(r => ...))
 return settled.filter(s => s.status === 'fulfilled').length
 ```
 
+### WR-09 (new): `useTimelineFinds.scan()` can resurrect an item the user just dismissed, via a stale-closure race with the in-flight AI call
+
+**File:** `app/src/lib/useTimelineFinds.js:31-51`
+**Issue:**
+```js
+async function scan({ force = false } = {}) {
+  if (running) return
+  setRunning(true); setError(null)
+  try {
+    const { events, scannedKeys, error: partialError } = await findTimelineEvents({
+      apps, calls, interactions, contactsById,
+      skipHashes: force ? {} : meta.hashes,
+    })
+    if (events.length) {
+      const byKey = new Map(pending.map(p => [p.key, p]))   // `pending` closed over at scan()'s call time
+      for (const e of events) if (!byKey.has(e.key)) byKey.set(e.key, e)
+      persistPending([...byKey.values()])
+    }
+    ...
+```
+`scan()` is `async` and its meaningful work (`findTimelineEvents`, an AI call batched up
+to `CHUNK_SIZE = 30` records per Haiku call) can take several seconds. `pending` here is
+the plain closed-over state variable from the render in which this particular `scan`
+closure was created (the mount effect's initial render, or whichever render was current
+when the "↻ Rescan" button was clicked) — not a functional `setPending(prev => ...)`
+update. If the user dismisses (or edits) an already-pending Timeline Find while a scan
+they triggered is still awaiting its AI response, `dismiss()`/`updateField()` correctly
+update React state via `setPending`, but when `scan()`'s `await` resolves it merges new
+events into the **stale, pre-dismiss** `pending` snapshot and calls
+`persistPending([...byKey.values()])`, overwriting the just-updated state — silently
+reintroducing the item the user just dismissed (or reverting an in-progress edit to a
+pending item's title/date). `running` only guards against two overlapping *scans*; it
+does nothing to protect `pending` mutations that happen via `dismiss`/`updateField`
+while one scan is outstanding.
+**Fix:** Use the functional form to merge against the freshest state rather than a
+closed-over snapshot:
+```js
+if (events.length) {
+  setPending(prevPending => {
+    const byKey = new Map(prevPending.map(p => [p.key, p]))
+    for (const e of events) if (!byKey.has(e.key)) byKey.set(e.key, e)
+    const next = [...byKey.values()]
+    lsSet(PENDING_KEY, next)
+    return next
+  })
+}
+```
+(or equivalently, re-read `lsGet(PENDING_KEY)` immediately before merging).
+
 ## Info
 
 ### IN-01: `todayCount` expression duplicated verbatim between `AppInner` and `DemoApp` *(carried forward, unresolved)*
@@ -349,48 +320,60 @@ duplicated between the real app and the demo app.
 
 ### IN-02: `changeAppTriage` duplicated across three components *(carried forward, unresolved)*
 
-**File:** `app/src/components/CalendarTab.jsx:134-137`, `app/src/components/TodayTab.jsx:366-369` (and, per its own comment, `PipelineTab.jsx`)
+**File:** `app/src/components/CalendarTab.jsx:134-137`, `app/src/components/TodayTab.jsx:369-372` (and, per its own comment, `PipelineTab.jsx`)
 **Issue:** Same triage-mutation function body copy-pasted in at least three places;
 combined with WR-07, a fix needs applying three times.
 **Fix:** Extract to a shared hook/helper, e.g. `changeApplicationTriage(app, bucketKey, onRefresh)`.
 
-### IN-03: `TimelineFindsPanel.approve()` always writes to the "personal" calendar slot *(carried forward, unresolved)*
+### IN-03: Timeline Find approval always writes to the "personal" calendar slot *(carried forward, unresolved — relocated from `TimelineFindsPanel.jsx` to `useTimelineFinds.js` by the 02-06 extraction)*
 
-**File:** `app/src/components/TimelineFindsPanel.jsx:76-82`
-**Issue:** `createEvent({...})` is called without a `slot`, silently defaulting to
-`'personal'`. `AddEventModal.jsx`/`AddToCalendarModal.jsx` both expose a Personal/School
-picker; this is the one event-creation surface in the reviewed set that doesn't, so a
-user who wants a Timeline Find routed to School has no way to do that from this panel.
-**Fix:** Add the same Personal/School selector used elsewhere, or document the default
-in the UI copy.
+**File:** `app/src/lib/useTimelineFinds.js:72-88` (`approve()`)
+**Issue:**
+```js
+await createEvent({
+  title: item.title,
+  date: item.date,
+  startTime: item.startTime || '',
+  endTime: item.startTime ? addOneHour(item.startTime) : '',
+  description: item.description,
+})
+```
+`createEvent()` is called without a `slot`, silently defaulting to `'personal'`.
+`AddEventModal.jsx`/`AddToCalendarModal.jsx` both expose a Personal/School picker; this
+is the one event-creation surface in the reviewed set that doesn't, so a user who wants
+a Timeline Find routed to School has no way to do that. Previously flagged against
+`TimelineFindsPanel.jsx` (which owned `approve()` before this phase's extraction);
+`TimelineFindsPanel.jsx` is now purely presentational and the underlying bug moved with
+the logic into the new hook — same defect, new home.
+**Fix:** Add the same Personal/School selector used elsewhere (threaded from
+`TimelineFindsPanel` up through `onApprove`), or document the default in the UI copy.
 
 ### IN-04: `Section`'s outer `divide-y` wrapper has no effect *(carried forward, unresolved)*
 
-**File:** `app/src/components/TodayTab.jsx:29-41` (specifically line 38)
+**File:** `app/src/components/TodayTab.jsx:30-42` (specifically line 39)
 **Issue:** `Section` wraps its single `children` (always one `RowCap` element) in
 `<div className="divide-y divide-ink-100">{children}</div>`. `divide-y` only applies
 borders between sibling children; with exactly one child, the class is dead. Cosmetic
-only — `RowCap` (line 51) already applies the same class correctly where it has
+only — `RowCap` (line 52) already applies the same class correctly where it has
 multiple row siblings.
 **Fix:** Remove `divide-y divide-ink-100` from `Section`'s wrapper div.
 
-### IN-05 (new): `CalendarTab`'s `calls` prop is destructured but never used
+### IN-05: `CalendarTab`'s `calls` prop is destructured but never used *(carried forward, unresolved)*
 
 **File:** `app/src/components/CalendarTab.jsx:35`
 **Issue:** `export default function CalendarTab({ contacts, apps, interactions, calls, onRefresh })`
 destructures `calls`, but it's never referenced anywhere else in the file. The Feed
 view's `buildTimelineItems({ contacts, apps, interactions, calendarEvents: feedEvents || [] })`
-(`lib/timeline.js:37`) doesn't accept a `calls` parameter at all, so `calls` data (call
-logs) is entirely absent from the unified Feed's date signals — whether that's an
-intentional scope decision (calls don't carry their own future-dated field) or a gap
-isn't documented anywhere in this phase's files, and the unused prop is at minimum dead
-code either way.
+(`lib/timeline.js`) doesn't accept a `calls` parameter at all, so call logs are entirely
+absent from the unified Feed's date signals — whether that's an intentional scope
+decision or a gap isn't documented anywhere in this phase's files, and the unused prop
+is at minimum dead code either way.
 **Fix:** If Calls genuinely has no calendar-relevant date signal, drop the unused
 `calls` prop from `CalendarTab`'s signature and its call site in `App.jsx`. If it was
 meant to feed the Feed view, wire it through `buildTimelineItems`.
 
 ---
 
-_Reviewed: 2026-08-16T00:00:00Z_
+_Reviewed: 2026-08-17T00:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
