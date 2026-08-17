@@ -64,7 +64,7 @@ Plans:
   2. User clicks any attention item and lands directly on its full contact/application/job record in one click.
   3. The standalone Actions tab, Overview's separate nudge section, Keep in Touch's standalone queue view, and TimelineFindsPanel's standalone presentation are gone — not left running in parallel as a 9th destination.
 
-**Plans**: 5/5 plans complete
+**Plans**: 5/6 plans complete
 Plans:
 **Wave 1**
 
@@ -82,9 +82,13 @@ Plans:
 
 - [x] 02-04-PLAN.md — Combined regression sweep + staged end-of-phase visual verification
 
-**Gap closure** *(from 02-VERIFICATION.md — Truth 1 / ATTN-01 confirmed BLOCKER, corroborated by 02-REVIEW.md CR-01)*
+**Gap closure (round 1)** *(from 02-VERIFICATION.md — Truth 1 / ATTN-01 confirmed BLOCKER, corroborated by 02-REVIEW.md CR-01)*
 
 - [x] 02-05-PLAN.md — Fix TodayTab.jsx's "all clear" gate: initialize timelineFindsCount synchronously from localStorage so real pending Timeline Finds items are never hidden behind the page-level EmptyState
+
+**Gap closure (round 2)** *(from 02-VERIFICATION.md re-verification pass — re-scoped Truth 1 / ATTN-01, corroborated by 02-REVIEW.md CR-01 "new": Timeline Finds' daily scan could never run again once a user reached a genuinely all-caught-up state)*
+
+- [ ] 02-06-PLAN.md — Extract useTimelineFinds.js hook so the daily scan trigger runs unconditionally in TodayTab (above the allEmpty gate), decoupled from TimelineFindsPanel's own (still gated) mount
 
 **UI hint**: yes
 
