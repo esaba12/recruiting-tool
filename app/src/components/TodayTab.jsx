@@ -6,13 +6,13 @@ import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedul
 import { lastPointOfContact } from '../lib/keepInTouch.js'
 import { tieStrengthBucket } from '../lib/affinity.js'
 import { statusIconFor } from '../lib/icons.js'
-import { BUCKET_CONFIG, BUCKET_TAG, BUCKET_TO_TRIAGE } from './jobBoards/helpers.js'
+import { BUCKET_CONFIG, BUCKET_TAG, BUCKET_TO_TRIAGE, lsGet } from './jobBoards/helpers.js'
 import DraftPanel from './DraftPanel.jsx'
 import ContactDetailModal from './ContactDetailModal.jsx'
 import ApplicationDetailModal from './ApplicationDetailModal.jsx'
 import LogInteractionModal from './LogInteractionModal.jsx'
 import MetButton from './MetButton.jsx'
-import TimelineFindsPanel from './TimelineFindsPanel.jsx'
+import TimelineFindsPanel, { PENDING_KEY } from './TimelineFindsPanel.jsx'
 import Mono from './ui/Mono.jsx'
 import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus } from 'lucide-react'
 
@@ -352,7 +352,8 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
   const [selectedContactId, setSelectedContactId] = useState(null)
   const [selectedAppId, setSelectedAppId] = useState(null)
   const [logContact, setLogContact] = useState(null)
-  const [timelineFindsCount, setTimelineFindsCount] = useState(0)
+  const [timelineFindsCount, setTimelineFindsCount] = useState(() =>
+    isDemoMode ? 0 : (lsGet(PENDING_KEY) || []).length)
 
   async function handleMet(contact) {
     await logMetWithContact(contact)
@@ -369,11 +370,13 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
 
   const selectedApp = selectedAppId ? apps.find(a => a.id === selectedAppId) : null
 
-  // Timeline Finds' pending count only reaches TodayTab via TimelineFindsPanel's
-  // onPendingChange callback (it's the only source-of-truth for "does that section have
-  // anything to show," since it's not derived from a lib/attention.js array like the other
-  // 8) — so the page-level empty guard folds it in separately, short-circuited to false in
-  // demo mode where the section is never mounted at all.
+  // Timeline Finds' pending count isn't derived from a lib/attention.js array like the
+  // other 8, so it can't be computed inline above — timelineFindsCount reads the same
+  // PENDING_KEY localStorage entry TimelineFindsPanel itself reads, synchronously at mount
+  // time, so this gate is correct on the very first render (before TimelineFindsPanel ever
+  // mounts below). TimelineFindsPanel's onPendingChange callback then keeps it in sync
+  // afterward — e.g. after a rescan, approve, or dismiss changes the pending list. Short-
+  // circuited to 0/ignored in demo mode, where the section is never mounted at all.
   const allEmpty = overdueContacts.length === 0 && staleApps.length === 0 && highUrgency.length === 0
     && keepInTouch.length === 0 && needsReview.length === 0 && scheduleContacts.length === 0
     && oaDueList.length === 0 && oaNeedsCheckList.length === 0 && (isDemoMode || timelineFindsCount === 0)

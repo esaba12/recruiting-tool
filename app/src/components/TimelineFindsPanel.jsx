@@ -8,7 +8,7 @@ import { AI_PROVIDER_LABEL } from '../lib/ai.js'
 import Mono from './ui/Mono.jsx'
 
 const META_KEY    = 'rec_timeline_meta'    // { lastCheck, hashes: { [recordKey]: contentHash } }
-const PENDING_KEY = 'rec_timeline_pending' // found-but-not-yet-actioned events, keyed by event.key
+export const PENDING_KEY = 'rec_timeline_pending' // found-but-not-yet-actioned events, keyed by event.key
 
 const SOURCE_LABEL = { application: 'Application notes', call: 'Call', interaction: 'Interaction' }
 
