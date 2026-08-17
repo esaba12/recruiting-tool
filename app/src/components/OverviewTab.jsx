@@ -1,4 +1,4 @@
-import { STATUS_COLOR, TERMINAL_STAGES, INTERVIEW_STAGES, daysSince, daysUntil, isUntriaged, isOverdue, isStaleApplication } from '../shared.jsx'
+import { STATUS_COLOR, TERMINAL_STAGES, INTERVIEW_STAGES, isUntriaged } from '../shared.jsx'
 import BarChartWrapper from './charts/BarChart.jsx'
 import DonutChart from './charts/DonutChart.jsx'
 import TrendChart from './charts/TrendChart.jsx'
@@ -26,18 +26,13 @@ function weekStart(d) {
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 
-export default function OverviewTab({ contacts, apps, interactions = [], onOpenGraph, onOpenActions }) {
-  const scheduleQueue = contacts.filter(c => c.wantsToSchedule)
+export default function OverviewTab({ contacts, apps, interactions = [], onOpenGraph }) {
   const triagedApps  = apps.filter(a => !isUntriaged(a))
   const activeApps   = triagedApps.filter(a => !TERMINAL_STAGES.includes(a.stage))
   const interviews   = triagedApps.filter(a => INTERVIEW_STAGES.includes(a.stage))
   const offers       = triagedApps.filter(a => a.stage === 'Offer')
   const warmContacts = contacts.filter(c => c.status === '🟢 Warm')
 
-  const overdueContacts = contacts.filter(isOverdue)
-    .sort((a, b) => daysUntil(a.followUpDate) - daysUntil(b.followUpDate))
-
-  const staleApps = activeApps.filter(isStaleApplication)
   const hasRecruitingActivity = apps.length > 0
 
   const stageCounts = {}
@@ -77,16 +72,6 @@ export default function OverviewTab({ contacts, apps, interactions = [], onOpenG
 
   return (
     <div className="space-y-6">
-      {scheduleQueue.length > 0 && (
-        <div onClick={onOpenActions}
-          className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center justify-between gap-3 cursor-pointer hover:border-indigo-300">
-          <p className="text-sm text-indigo-800">
-            <strong>{scheduleQueue.length}</strong> {scheduleQueue.length !== 1 ? 'people' : 'person'} you want to schedule with {scheduleQueue.length !== 1 ? "haven't" : "hasn't"} been set up yet.
-          </p>
-          <span className="text-xs text-indigo-600 shrink-0">Go to Actions →</span>
-        </div>
-      )}
-
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPI label="Contacts" value={contacts.length} sub={`${warmContacts.length} warm`} />
@@ -121,37 +106,6 @@ export default function OverviewTab({ contacts, apps, interactions = [], onOpenG
               {stageCounts.Accepted ? `${stageCounts.Accepted} accepted` : ''}
             </p>
           )}
-        </div>
-      )}
-
-      {/* Attention */}
-      {(overdueContacts.length > 0 || staleApps.length > 0) && (
-        <div className="bg-danger-50 border border-danger-200 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-danger-700 mb-3">
-            Needs Attention ({overdueContacts.length + staleApps.length})
-          </h2>
-          <div className="space-y-2.5">
-            {overdueContacts.slice(0, 4).map(c => (
-              <div key={c.id} className="flex items-center justify-between text-sm">
-                <span className="text-ink-800 font-medium">{c.name}
-                  {c.company && <span className="font-normal text-ink-500"> @ {c.company}</span>}
-                </span>
-                <span className="text-danger-600 text-xs font-medium">
-                  Follow-up {Math.abs(daysUntil(c.followUpDate))}d overdue
-                </span>
-              </div>
-            ))}
-            {staleApps.slice(0, 4).map(a => (
-              <div key={a.id} className="flex items-center justify-between text-sm">
-                <span className="text-ink-800 font-medium">{a.company}
-                  <span className="font-normal text-ink-500"> ({a.stage})</span>
-                </span>
-                <span className="text-orange-600 text-xs font-medium">
-                  {a.daysInStage ?? daysSince(a.lastActivity)}d no movement
-                </span>
-              </div>
-            ))}
-          </div>
         </div>
       )}
 

@@ -9,7 +9,6 @@ import ContactDetailModal from './ContactDetailModal.jsx'
 import ApplicationDetailModal from './ApplicationDetailModal.jsx'
 import EventDetailModal from './EventDetailModal.jsx'
 import AddEventModal from './AddEventModal.jsx'
-import TimelineFindsPanel from './TimelineFindsPanel.jsx'
 
 const OVERLAYS = [
   { key: 'events',       label: 'Events',       dot: 'bg-accent-600',  chipActive: 'bg-accent-600 text-white border-accent-600' },
@@ -151,9 +150,6 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
 
   return (
     <div className="space-y-4">
-      <TimelineFindsPanel apps={apps} calls={calls} interactions={interactions} contacts={contacts}
-        onEventCreated={refetchMonth} />
-
       {/* View toggle + overlay toggles + add event */}
       <div className="flex gap-2 flex-wrap items-center">
         <div className="flex border border-ink-200 rounded-full overflow-hidden text-xs font-medium shrink-0">

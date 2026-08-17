@@ -13,7 +13,7 @@
 
 - [x] **ATTN-01**: User sees one unified "what needs attention" feed on Today, combining overdue follow-ups, stale applications, the Keep in Touch queue, Job Boards' Needs-Review bucket, and Timeline Finds — replacing 5 previously separate surfaces
 - [x] **ATTN-02**: Each attention item deep-links to its full record (contact/application/job) in one click
-- [ ] **ATTN-03**: The standalone Actions tab, Overview's separate nudge section, Keep in Touch's standalone queue view, and TimelineFindsPanel's standalone presentation are removed once merged into Today — not left running in parallel as a 9th destination
+- [x] **ATTN-03**: The standalone Actions tab, Overview's separate nudge section, Keep in Touch's standalone queue view, and TimelineFindsPanel's standalone presentation are removed once merged into Today — not left running in parallel as a 9th destination
 
 ### Grow — Discovery Funnel Merge (GROW)
 
@@ -65,7 +65,7 @@
 | VIS-03 | Phase 1 | Complete |
 | ATTN-01 | Phase 2 | Complete |
 | ATTN-02 | Phase 2 | Complete |
-| ATTN-03 | Phase 2 | Pending |
+| ATTN-03 | Phase 2 | Complete |
 | GROW-01 | Phase 3 | Pending |
 | GROW-02 | Phase 3 | Pending |
 | PANEL-01 | Phase 4 | Pending |

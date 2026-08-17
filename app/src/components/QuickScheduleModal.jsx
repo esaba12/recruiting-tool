@@ -10,7 +10,7 @@ function defaultScheduleBy() {
 // Fast-add entry point for "I know I want to talk to this person and need to get
 // something on the calendar with them" — deliberately much lighter than
 // ContactDetailModal's full form. Sets Wants To Schedule=true on the contact (creating
-// one if they don't exist yet), which ActionsTab surfaces as a reminder until you mark
+// one if they don't exist yet), which the Today tab surfaces as a reminder until you mark
 // it scheduled or check it off in the contact's own record.
 export default function QuickScheduleModal({ contacts = [], onClose, onSaved }) {
   const [name, setName] = useState('')

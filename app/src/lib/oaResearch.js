@@ -11,9 +11,9 @@ import { updateApplication } from '../db.js'
 //
 // Unlike deadlines.js (a pure localStorage cache — job listings aren't a "to-do" the user needs
 // reminded of across devices), a found OA due date is persisted straight to Supabase via
-// updateApplication() so it shows up in Actions on any device. When research comes up empty,
+// updateApplication() so it shows up in Today on any device. When research comes up empty,
 // oa_research_checked_at is stamped so the app doesn't re-fetch the same page every load — see
-// RECHECK_COOLDOWN_DAYS below — and that stamp is what ActionsTab uses to distinguish "haven't
+// RECHECK_COOLDOWN_DAYS below — and that stamp is what the Today tab uses to distinguish "haven't
 // checked yet" (say nothing, resolves itself shortly) from "checked, no stated deadline" (surface
 // as a to-do: go find it yourself).
 

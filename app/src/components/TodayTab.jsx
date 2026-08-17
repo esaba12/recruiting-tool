@@ -24,8 +24,8 @@ const TIE_LABEL = { strong: 'Close tie', moderate: 'Moderate tie', weak: 'Weak t
 // RowCap (its "Show N more" control, styled in the section's own tier color).
 const HEADING_COLOR = { danger: 'text-danger-700', warning: 'text-warning-700', ink: 'text-ink-700', accent: 'text-accent-700' }
 
-// Section wrapper shared by every attention-feed section — re-keyed from ActionsTab.jsx's
-// off-token red/orange/yellow/indigo accents onto Phase 1's 4 locked color families.
+// Section wrapper shared by every attention-feed section — re-keyed from the former Actions
+// tab's off-token red/orange/yellow/indigo accents onto Phase 1's 4 locked color families.
 function Section({ title, subtitle, accent, icon: Icon, children }) {
   const border = { danger: 'border-danger-200', warning: 'border-warning-200', ink: 'border-ink-200', accent: 'border-accent-200' }[accent] || 'border-ink-200'
   const heading = HEADING_COLOR[accent] || 'text-ink-700'
@@ -60,8 +60,8 @@ function RowCap({ items, cap = 5, tier, renderItem }) {
 }
 
 // A contact whose Follow-Up Date already passed, but who has a logged interaction newer
-// than that date — the date's just stale, not actually overdue. Ported verbatim from
-// ActionsTab.jsx:129-131.
+// than that date — the date's just stale, not actually overdue. Ported verbatim from the
+// former Actions tab.
 function hasNewerInteraction(contact, interactions) {
   return interactions.some(i => i.contactId === contact.id && i.date && contact.followUpDate && new Date(i.date) > new Date(contact.followUpDate))
 }
@@ -170,8 +170,8 @@ function ScheduleRow({ contact: c, onRefresh, onOpen }) {
   )
 }
 
-// High-urgency contacts had no click/expand behavior at all in ActionsTab.jsx (rendered via
-// the fully inert generic ActionRow) — this is a new dedicated row, not a port, but per D-05
+// High-urgency contacts had no click/expand behavior at all in the former Actions tab
+// (rendered via the fully inert generic ActionRow) — this is a new dedicated row, not a port, but per D-05
 // no new action *types* are introduced: it only gains the row-click-to-modal wiring every
 // other row type gets in this phase.
 function HighUrgencyRow({ contact: c, onOpen }) {
@@ -252,7 +252,7 @@ function KeepInTouchRow({ contact: c, status, interactions, onOpen, onLog, onMet
 }
 
 // Application-shaped row used by Stale Applications and Job Boards Needs-Review (UI-SPEC
-// Type 3). Visual shape ported from ActionsTab.jsx's inert ActionRow, wired with
+// Type 3). Visual shape ported from the former Actions tab's inert ActionRow, wired with
 // PipelineTab.jsx's row-click-opens-modal mechanic. `changeAppTriage` is the shared
 // mutation defined inside TodayTab (below) — threaded in as a prop since this is a
 // standalone component, not nested inside TodayTab's closure.
@@ -290,7 +290,7 @@ function ApplicationRow({ app: a, showTriageChips, onOpen, changeAppTriage }) {
 
 // A tracked Online Assessment (UI-SPEC Type 4) — either has a known due date, or, when
 // `needsCheck` is set, no stated deadline was found on the page (go check manually). Ported
-// from ActionsTab.jsx:236-277, with the same row-click-to-modal wiring as ApplicationRow and
+// from the former Actions tab, with the same row-click-to-modal wiring as ApplicationRow and
 // stopPropagation added to the two nested interactive elements (open-assessment link,
 // mark-completed button), neither of which stopped propagation before this phase since the
 // row itself wasn't clickable yet.

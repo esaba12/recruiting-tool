@@ -4,20 +4,19 @@ import { researchOaDeadlines } from './lib/oaResearch.js'
 import { useAuth } from './lib/AuthContext.jsx'
 import LoginPage from './components/LoginPage.jsx'
 import SettingsTab from './components/SettingsTab.jsx'
-import { STATUS_COLOR, URGENCY_COLOR, REFERRAL_STATUS_COLOR, daysSince, daysUntil, fmt, Badge, EmptyState, isOverdue, isStaleApplication } from './shared.jsx'
+import { STATUS_COLOR, URGENCY_COLOR, REFERRAL_STATUS_COLOR, daysSince, daysUntil, fmt, Badge, EmptyState, isOverdue } from './shared.jsx'
 import { statusIconFor, URGENCY_ICON } from './lib/icons.js'
 import AppShell from './components/layout/AppShell.jsx'
 import ContactDetailModal from './components/ContactDetailModal.jsx'
 import QuickAddContactModal from './components/QuickAddContactModal.jsx'
 import ContactsTable from './components/ContactsTable.jsx'
 import LogInteractionModal from './components/LogInteractionModal.jsx'
-import KeepInTouchTab from './components/KeepInTouchTab.jsx'
 import MetButton from './components/MetButton.jsx'
 import { logMetWithContact } from './lib/quickLog.js'
 import NetworkGraphTab from './components/NetworkGraphTab.jsx'
 import OverviewTab from './components/OverviewTab.jsx'
 import PipelineTab from './components/PipelineTab.jsx'
-import ActionsTab from './components/ActionsTab.jsx'
+import TodayTab from './components/TodayTab.jsx'
 import CalendarTab from './components/CalendarTab.jsx'
 import GitHubTab from './components/jobBoards/GitHubTab.jsx'
 import AddToCalendarModal from './components/AddToCalendarModal.jsx'
@@ -29,7 +28,8 @@ import DiscoverTab from './components/DiscoverTab.jsx'
 import ExploreTab from './components/ExploreTab.jsx'
 import NotFoundPage from './components/NotFoundPage.jsx'
 import { NAV_ITEMS } from './components/layout/Sidebar.jsx'
-import { Table2, LayoutGrid, Share2, Target, Send, UserSearch, HeartHandshake } from 'lucide-react'
+import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, keepInTouchDue, needsReviewApps } from './lib/attention.js'
+import { Table2, LayoutGrid, Share2, Target, Send, UserSearch } from 'lucide-react'
 
 // ── Network Tab ───────────────────────────────────────────────────────────────
 
@@ -37,7 +37,6 @@ const NETWORK_VIEWS = [
   { key: 'table',    label: 'Table',    icon: Table2 },
   { key: 'cards',    label: 'Cards',    icon: LayoutGrid },
   { key: 'graph',    label: 'Graph',    icon: Share2 },
-  { key: 'keepintouch', label: 'Keep in Touch', icon: HeartHandshake },
   { key: 'coverage', label: 'Coverage', icon: Target },
   { key: 'outbox',   label: 'Outbox',   icon: Send },
   { key: 'discover', label: 'Discover', icon: UserSearch },
@@ -56,7 +55,6 @@ function NetworkTab({ contacts, apps, interactions, contactRelationships = [], o
   const [view, setView]       = useState(initialView) // 'table' | 'cards' | 'graph'
   const [editing, setEditing] = useState(null)   // contact object | 'new' | null
   const [logOpen, setLogOpen] = useState(false)
-  const [logContact, setLogContact] = useState(null) // prefilled log (from Keep in Touch)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [focusCompany, setFocusCompany] = useState(initialFocusCompany) // { company, ts } — deep-link into Discover's ranked search for one company
 
@@ -120,9 +118,6 @@ function NetworkTab({ contacts, apps, interactions, contactRelationships = [], o
 
       {view === 'discover'
         ? <DiscoverTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={onRefresh} focus={focusCompany} />
-        : view === 'keepintouch'
-        ? <KeepInTouchTab contacts={contacts} interactions={interactions}
-            onEdit={c => setEditing(c)} onLog={c => setLogContact(c)} onMet={handleMet} />
         : view === 'coverage'
         ? <ReferralCoverageTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={onRefresh}
             onFindPeople={company => { setFocusCompany({ company, ts: Date.now() }); setView('discover') }} />
@@ -205,15 +200,6 @@ function NetworkTab({ contacts, apps, interactions, contactRelationships = [], o
           contacts={contacts}
           onClose={() => setLogOpen(false)}
           onSaved={() => { setLogOpen(false); onRefresh() }}
-        />
-      )}
-
-      {logContact && (
-        <LogInteractionModal
-          contacts={contacts}
-          contact={logContact}
-          onClose={() => setLogContact(null)}
-          onSaved={() => { setLogContact(null); onRefresh() }}
         />
       )}
 
@@ -302,15 +288,12 @@ function AppInner() {
   }
 
   const activeApps = apps.filter(a => !['Rejected','Accepted'].includes(a.stage))
-  const overdueCount = contacts.filter(isOverdue).length
-  const staleCount = activeApps.filter(isStaleApplication).length
-  const scheduleCount = contacts.filter(c => c.wantsToSchedule).length
-  const actionCount = overdueCount + staleCount + scheduleCount
+  const todayCount = overdueFollowUps(contacts).length + staleApplications(apps).length + highUrgencyContacts(contacts).length + wantToSchedule(contacts).length + oaDue(apps).length + oaNeedsCheck(apps).length + keepInTouchDue(contacts, interactions).length + needsReviewApps(apps).length
 
   const counts = {
     network: contacts.length,
     pipeline: activeApps.length,
-    actions: actionCount > 0 ? actionCount : null,
+    today: todayCount > 0 ? todayCount : null,
   }
 
   return (
@@ -330,7 +313,7 @@ function AppInner() {
       {!loading && tab === 'overview' && (
         <OverviewTab contacts={contacts} apps={apps} interactions={interactions}
           onOpenGraph={() => { setNetworkInitialView('graph'); setTab('network') }}
-          onOpenActions={() => setTab('actions')} />
+          onOpenActions={() => setTab('today')} />
       )}
       {!loading && tab === 'network'  && (
         <NetworkTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={load}
@@ -344,7 +327,7 @@ function AppInner() {
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
           onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} />
       )}
-      {!loading && tab === 'actions'  && <ActionsTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} />}
+      {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} />}
       {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} />}
       {tab === 'github'   && <GitHubTab apps={apps} onImported={load} />}
       {tab === 'settings' && <SettingsTab />}
@@ -375,12 +358,12 @@ function AppInner() {
 // (keyed off this same /demo path) means every fetch*/add*/update* call these components
 // already make transparently reads/writes an in-memory seed dataset instead of Supabase,
 // so nothing here needed forking into a separate "read-only" UI. Scope is deliberately
-// trimmed to the 4 tabs that need zero AI/BYOK keys and zero external OAuth (Overview,
-// Network table/cards/graph, Pipeline, Actions) — Explore/Discover/Outbox/Job
+// trimmed to the 4 tabs that need zero AI/BYOK keys and zero external OAuth (Today,
+// Overview, Network table/cards/graph, Pipeline) — Explore/Discover/Outbox/Job
 // Boards/Calendar/Settings all call Claude/OpenAI/Exa/GitHub/Google proxies that
 // `requireUser()`-gate on a real signed-in session and would just 401 for an anonymous
 // visitor, so they're left out rather than shown half-broken.
-const DEMO_NAV_ITEMS = NAV_ITEMS.filter(item => ['overview', 'network', 'pipeline', 'actions'].includes(item.id))
+const DEMO_NAV_ITEMS = NAV_ITEMS.filter(item => ['today', 'overview', 'network', 'pipeline'].includes(item.id))
 
 function DemoApp() {
   const [tab, setTab] = useState('overview')
@@ -406,8 +389,8 @@ function DemoApp() {
   }
 
   const activeApps = apps.filter(a => !['Rejected', 'Accepted'].includes(a.stage))
-  const overdueCount = contacts.filter(isOverdue).length
-  const counts = { network: contacts.length, pipeline: activeApps.length, actions: overdueCount > 0 ? overdueCount : null }
+  const todayCount = overdueFollowUps(contacts).length + staleApplications(apps).length + highUrgencyContacts(contacts).length + wantToSchedule(contacts).length + oaDue(apps).length + oaNeedsCheck(apps).length + keepInTouchDue(contacts, interactions).length + needsReviewApps(apps).length
+  const counts = { network: contacts.length, pipeline: activeApps.length, today: todayCount > 0 ? todayCount : null }
 
   return (
     <AppShell
@@ -421,7 +404,7 @@ function DemoApp() {
       {loading && <EmptyState msg="Loading the demo..." />}
       {!loading && tab === 'overview' && (
         <OverviewTab contacts={contacts} apps={apps} interactions={interactions}
-          onOpenGraph={() => setTab('network')} onOpenActions={() => setTab('actions')} />
+          onOpenGraph={() => setTab('network')} onOpenActions={() => setTab('today')} />
       )}
       {!loading && tab === 'network' && (
         <NetworkTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={load}
@@ -431,7 +414,10 @@ function DemoApp() {
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
           onRefreshRelationships={refreshContactRelationships} />
       )}
-      {!loading && tab === 'actions' && <ActionsTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} />}
+      {!loading && tab === 'today' && (
+        <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships}
+          onRefresh={load} onRefreshRelationships={refreshContactRelationships} isDemoMode />
+      )}
     </AppShell>
   )
 }

@@ -1,28 +1,28 @@
 // Attention-derivation module — pure filter/sort transforms over already-fetched,
-// already-RLS-scoped arrays. Extracted verbatim from ActionsTab.jsx's inline computations
-// (per D-06) so every attention-feed surface (this phase's TodayTab.jsx, and any future
-// consumer) imports the same logic instead of re-deriving it independently.
+// already-RLS-scoped arrays. Extracted verbatim from the former Actions tab's inline
+// computations (per D-06) so every attention-feed surface (this phase's TodayTab.jsx, and
+// any future consumer) imports the same logic instead of re-deriving it independently.
 import { TERMINAL_STAGES, daysSince, daysUntil, isUntriaged, isOverdue, isStaleApplication } from '../shared.jsx'
 import { keepInTouchQueue } from './keepInTouch.js'
 
-// ActionsTab.jsx:7 (activeApps helper, needed by staleApplications)
+// Former Actions tab's activeApps helper, needed by staleApplications
 export function activeApps(apps) {
   return apps.filter(a => !TERMINAL_STAGES.includes(a.stage) && !isUntriaged(a))
 }
 
-// ActionsTab.jsx:13-15
+// Ported verbatim from the former Actions tab
 export function oaDue(apps) {
   return apps
     .filter(a => a.oaDueDate && !a.oaCompleted)
     .sort((a, b) => daysUntil(a.oaDueDate) - daysUntil(b.oaDueDate))
 }
 
-// ActionsTab.jsx:16-17
+// Ported verbatim from the former Actions tab
 export function oaNeedsCheck(apps) {
   return apps.filter(a => a.oaLink && !a.oaDueDate && !a.oaCompleted && a.oaResearchCheckedAt)
 }
 
-// ActionsTab.jsx:21-28
+// Ported verbatim from the former Actions tab
 export function wantToSchedule(contacts) {
   return contacts
     .filter(c => c.wantsToSchedule)
@@ -34,12 +34,12 @@ export function wantToSchedule(contacts) {
     })
 }
 
-// ActionsTab.jsx:30-32
+// Ported verbatim from the former Actions tab
 export function overdueFollowUps(contacts) {
   return contacts.filter(isOverdue).sort((a, b) => daysUntil(a.followUpDate) - daysUntil(b.followUpDate))
 }
 
-// ActionsTab.jsx:34-40 (depends on activeApps above)
+// Ported verbatim from the former Actions tab (depends on activeApps above)
 export function staleApplications(apps) {
   return activeApps(apps).filter(isStaleApplication).sort((a, b) => {
     const da = a.daysInStage ?? daysSince(a.lastActivity)
@@ -48,7 +48,7 @@ export function staleApplications(apps) {
   })
 }
 
-// ActionsTab.jsx:42-44
+// Ported verbatim from the former Actions tab
 export function highUrgencyContacts(contacts) {
   return contacts.filter(c =>
     c.urgency === 'HIGH' && c.status !== '✅ Closed' && (!c.followUpDate || daysUntil(c.followUpDate) > 0)
