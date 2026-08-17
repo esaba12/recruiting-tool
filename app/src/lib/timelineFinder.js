@@ -3,7 +3,7 @@
 // that aren't captured in any structured Notion field today. Batched — one AI call
 // covers every changed record — and hash-gated so an unchanged record never gets
 // re-scanned on the next daily run. Findings are staged for review, not auto-created;
-// TimelineFindsPanel.jsx is what actually writes to Google Calendar, on approval.
+// useTimelineFinds.js is what actually writes to Google Calendar, on approval.
 
 import { aiJSON, AI_MODELS } from './ai.js'
 
