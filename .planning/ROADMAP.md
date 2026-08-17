@@ -14,7 +14,7 @@ This is the v1.0 "UI/UX Overhaul" milestone — the first-ever GSD milestone for
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Visual Foundation — Industrial Design Tokens & Primitives** - Contrast-validated industrial token values and mono-for-data typography land under the existing token names, restyling every shared `ui/` primitive with zero call-site edits elsewhere. (completed 2026-08-16)
-- [ ] **Phase 2: Unified Attention Feed (Today)** - Overdue follow-ups, stale applications, Keep in Touch, Job Boards' Needs-Review, and Timeline Finds merge into one "what needs attention" feed, retiring the 5 surfaces that used to show them separately.
+- [x] **Phase 2: Unified Attention Feed (Today)** - Overdue follow-ups, stale applications, Keep in Touch, Job Boards' Needs-Review, and Timeline Finds merge into one "what needs attention" feed, retiring the 5 surfaces that used to show them separately. (completed 2026-08-17)
 - [ ] **Phase 3: Grow — Discovery Funnel Merge** - Company targeting, referral-gap analysis, and people discovery become one connected flow on a single Grow destination.
 - [ ] **Phase 4: Shared Record Side-Panel** - Contact, application, and job records open in one consistent side-panel component instead of 3+ divergent modals.
 - [ ] **Phase 5: Pipeline + Job Boards Merge** - Job Boards becomes a view inside Pipeline (alongside Applications), using the shared side-panel from Phase 4 for record editing.
@@ -64,7 +64,7 @@ Plans:
   2. User clicks any attention item and lands directly on its full contact/application/job record in one click.
   3. The standalone Actions tab, Overview's separate nudge section, Keep in Touch's standalone queue view, and TimelineFindsPanel's standalone presentation are gone — not left running in parallel as a 9th destination.
 
-**Plans**: 3/4 plans executed
+**Plans**: 5/5 plans complete (4 original + 1 gap closure)
 Plans:
 **Wave 1**
 
@@ -80,7 +80,11 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 02-04-PLAN.md — Combined regression sweep + staged end-of-phase visual verification
+- [x] 02-04-PLAN.md — Combined regression sweep + staged end-of-phase visual verification
+
+**Gap closure** *(from 02-VERIFICATION.md — Truth 1 / ATTN-01 confirmed BLOCKER, corroborated by 02-REVIEW.md CR-01)*
+
+- [ ] 02-05-PLAN.md — Fix TodayTab.jsx's "all clear" gate: initialize timelineFindsCount synchronously from localStorage so real pending Timeline Finds items are never hidden behind the page-level EmptyState
 
 **UI hint**: yes
 
@@ -163,7 +167,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Visual Foundation | 5/5 | Complete    | 2026-08-16 |
-| 2. Unified Attention Feed | 3/4 | In Progress|  |
+| 2. Unified Attention Feed | 4/4 | Complete   | 2026-08-17 |
 | 3. Grow — Discovery Funnel Merge | 0/TBD | Not started | - |
 | 4. Shared Record Side-Panel | 0/TBD | Not started | - |
 | 5. Pipeline + Job Boards Merge | 0/TBD | Not started | - |
