@@ -6,13 +6,14 @@ import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedul
 import { lastPointOfContact } from '../lib/keepInTouch.js'
 import { tieStrengthBucket } from '../lib/affinity.js'
 import { statusIconFor } from '../lib/icons.js'
-import { BUCKET_CONFIG, BUCKET_TAG, BUCKET_TO_TRIAGE, lsGet } from './jobBoards/helpers.js'
+import useTimelineFinds from '../lib/useTimelineFinds.js'
+import { BUCKET_CONFIG, BUCKET_TAG, BUCKET_TO_TRIAGE } from './jobBoards/helpers.js'
 import DraftPanel from './DraftPanel.jsx'
 import ContactDetailModal from './ContactDetailModal.jsx'
 import ApplicationDetailModal from './ApplicationDetailModal.jsx'
 import LogInteractionModal from './LogInteractionModal.jsx'
 import MetButton from './MetButton.jsx'
-import TimelineFindsPanel, { PENDING_KEY } from './TimelineFindsPanel.jsx'
+import TimelineFindsPanel from './TimelineFindsPanel.jsx'
 import Mono from './ui/Mono.jsx'
 import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus } from 'lucide-react'
 
@@ -352,8 +353,10 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
   const [selectedContactId, setSelectedContactId] = useState(null)
   const [selectedAppId, setSelectedAppId] = useState(null)
   const [logContact, setLogContact] = useState(null)
-  const [timelineFindsCount, setTimelineFindsCount] = useState(() =>
-    isDemoMode ? 0 : (lsGet(PENDING_KEY) || []).length)
+  const {
+    pending: timelineFinds, running: timelineFindsRunning, error: timelineFindsError, meta: timelineFindsMeta,
+    scan: scanTimelineFinds, dismiss: dismissTimelineFind, updateField: updateTimelineFindField, approve: approveTimelineFind,
+  } = useTimelineFinds({ apps, calls, interactions, contacts, enabled: !isDemoMode })
 
   async function handleMet(contact) {
     await logMetWithContact(contact)
@@ -370,16 +373,17 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
 
   const selectedApp = selectedAppId ? apps.find(a => a.id === selectedAppId) : null
 
-  // Timeline Finds' pending count isn't derived from a lib/attention.js array like the
-  // other 8, so it can't be computed inline above — timelineFindsCount reads the same
-  // PENDING_KEY localStorage entry TimelineFindsPanel itself reads, synchronously at mount
-  // time, so this gate is correct on the very first render (before TimelineFindsPanel ever
-  // mounts below). TimelineFindsPanel's onPendingChange callback then keeps it in sync
-  // afterward — e.g. after a rescan, approve, or dismiss changes the pending list. Short-
-  // circuited to 0/ignored in demo mode, where the section is never mounted at all.
+  // useTimelineFinds is called unconditionally near the top of this component (above this
+  // gate), so its internal daily-scan effect always fires on every mount of this component
+  // regardless of which branch this function's return ultimately takes — TimelineFindsPanel
+  // itself may never mount below, but the hook's effect already ran. The gate's Timeline
+  // Finds clause reads the hook's live pending array length directly, with no separate
+  // state-synchronization step needed (unlike Plan 02-05's synced-count-state workaround,
+  // which this replaces). Timeline Finds is still short-circuited/ignored in demo mode,
+  // matching the section's own demo-mode exclusion below.
   const allEmpty = overdueContacts.length === 0 && staleApps.length === 0 && highUrgency.length === 0
     && keepInTouch.length === 0 && needsReview.length === 0 && scheduleContacts.length === 0
-    && oaDueList.length === 0 && oaNeedsCheckList.length === 0 && (isDemoMode || timelineFindsCount === 0)
+    && oaDueList.length === 0 && oaNeedsCheckList.length === 0 && (isDemoMode || timelineFinds.length === 0)
 
   if (allEmpty) return <EmptyState msg="✓ Nothing needs your attention. You're on top of it." />
 
@@ -445,7 +449,12 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
         </Section>
       )}
 
-      {!isDemoMode && <TimelineFindsPanel apps={apps} calls={calls} interactions={interactions} contacts={contacts} onPendingChange={setTimelineFindsCount} />}
+      {!isDemoMode && (
+        <TimelineFindsPanel
+          pending={timelineFinds} running={timelineFindsRunning} error={timelineFindsError} meta={timelineFindsMeta}
+          onScan={scanTimelineFinds} onDismiss={dismissTimelineFind} onUpdateField={updateTimelineFindField} onApprove={approveTimelineFind}
+        />
+      )}
 
       {selectedContactId && (
         <ContactDetailModal
