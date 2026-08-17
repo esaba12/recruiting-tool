@@ -64,7 +64,7 @@ Plans:
   2. User clicks any attention item and lands directly on its full contact/application/job record in one click.
   3. The standalone Actions tab, Overview's separate nudge section, Keep in Touch's standalone queue view, and TimelineFindsPanel's standalone presentation are gone — not left running in parallel as a 9th destination.
 
-**Plans**: 5/5 plans complete (4 original + 1 gap closure)
+**Plans**: 5/5 plans complete
 Plans:
 **Wave 1**
 
@@ -84,7 +84,7 @@ Plans:
 
 **Gap closure** *(from 02-VERIFICATION.md — Truth 1 / ATTN-01 confirmed BLOCKER, corroborated by 02-REVIEW.md CR-01)*
 
-- [ ] 02-05-PLAN.md — Fix TodayTab.jsx's "all clear" gate: initialize timelineFindsCount synchronously from localStorage so real pending Timeline Finds items are never hidden behind the page-level EmptyState
+- [x] 02-05-PLAN.md — Fix TodayTab.jsx's "all clear" gate: initialize timelineFindsCount synchronously from localStorage so real pending Timeline Finds items are never hidden behind the page-level EmptyState
 
 **UI hint**: yes
 
@@ -167,7 +167,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Visual Foundation | 5/5 | Complete    | 2026-08-16 |
-| 2. Unified Attention Feed | 4/4 | Complete   | 2026-08-17 |
+| 2. Unified Attention Feed | 5/5 | Complete   | 2026-08-17 |
 | 3. Grow — Discovery Funnel Merge | 0/TBD | Not started | - |
 | 4. Shared Record Side-Panel | 0/TBD | Not started | - |
 | 5. Pipeline + Job Boards Merge | 0/TBD | Not started | - |
