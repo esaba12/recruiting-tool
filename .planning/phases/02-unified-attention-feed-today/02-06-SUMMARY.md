@@ -125,3 +125,7 @@ Source-level fix for ATTN-01/CR-01(new) is complete and verified deterministical
 ---
 *Phase: 02-unified-attention-feed-today*
 *Completed: 2026-08-17*
+
+## Self-Check: PASSED
+
+All 4 modified/created files confirmed present on disk; commits `92c68be`, `8b6a237`, and `d892a2c` confirmed in git log.
