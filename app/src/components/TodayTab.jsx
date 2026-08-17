@@ -12,6 +12,7 @@ import ContactDetailModal from './ContactDetailModal.jsx'
 import ApplicationDetailModal from './ApplicationDetailModal.jsx'
 import LogInteractionModal from './LogInteractionModal.jsx'
 import MetButton from './MetButton.jsx'
+import TimelineFindsPanel from './TimelineFindsPanel.jsx'
 import Mono from './ui/Mono.jsx'
 import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus } from 'lucide-react'
 
@@ -351,6 +352,7 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
   const [selectedContactId, setSelectedContactId] = useState(null)
   const [selectedAppId, setSelectedAppId] = useState(null)
   const [logContact, setLogContact] = useState(null)
+  const [timelineFindsCount, setTimelineFindsCount] = useState(0)
 
   async function handleMet(contact) {
     await logMetWithContact(contact)
@@ -358,80 +360,89 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
   }
 
   // Shared triage mutation — used both by Job Boards Needs-Review's inline chips (via
-  // ApplicationRow) and, in Task 3, by ApplicationDetailModal's onStatusChange. Matches
+  // ApplicationRow) and by ApplicationDetailModal's onStatusChange below. Matches
   // PipelineTab.jsx's changeTriage exactly.
   async function changeAppTriage(app, bucketKey) {
     await updateApplicationTriage(app.id, BUCKET_TO_TRIAGE[bucketKey === null ? 'review' : bucketKey], app.stage)
     onRefresh?.()
   }
 
+  const selectedApp = selectedAppId ? apps.find(a => a.id === selectedAppId) : null
+
+  // Timeline Finds' pending count only reaches TodayTab via TimelineFindsPanel's
+  // onPendingChange callback (it's the only source-of-truth for "does that section have
+  // anything to show," since it's not derived from a lib/attention.js array like the other
+  // 8) — so the page-level empty guard folds it in separately, short-circuited to false in
+  // demo mode where the section is never mounted at all.
+  const allEmpty = overdueContacts.length === 0 && staleApps.length === 0 && highUrgency.length === 0
+    && keepInTouch.length === 0 && needsReview.length === 0 && scheduleContacts.length === 0
+    && oaDueList.length === 0 && oaNeedsCheckList.length === 0 && (isDemoMode || timelineFindsCount === 0)
+
+  if (allEmpty) return <EmptyState msg="✓ Nothing needs your attention. You're on top of it." />
+
   return (
     <div className="space-y-4">
       {overdueContacts.length > 0 && (
         <Section title={`Overdue Follow-Ups (${overdueContacts.length})`} accent="danger" icon={CalendarClock}>
-          {overdueContacts.map(c => (
-            <OverdueRow key={c.id} contact={c} interactions={interactions} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} />
-          ))}
-        </Section>
-      )}
-
-      {keepInTouch.length > 0 && (
-        <Section title={`Keep in Touch Due (${keepInTouch.length})`} accent="warning" icon={HeartHandshake}>
-          {keepInTouch.map(({ contact: c, status }) => (
-            <KeepInTouchRow key={c.id} contact={c} status={status} interactions={interactions}
-              onOpen={x => setSelectedContactId(x.id)} onLog={x => setLogContact(x)} onMet={handleMet} />
-          ))}
-        </Section>
-      )}
-
-      {highUrgency.length > 0 && (
-        <Section title={`High Urgency Contacts (${highUrgency.length})`} accent="danger" icon={AlertTriangle}>
-          {highUrgency.map(c => (
-            <HighUrgencyRow key={c.id} contact={c} onOpen={x => setSelectedContactId(x.id)} />
-          ))}
-        </Section>
-      )}
-
-      {scheduleContacts.length > 0 && (
-        <Section title={`Want to Schedule (${scheduleContacts.length})`} accent="ink" icon={UserPlus}>
-          {scheduleContacts.map(c => (
-            <ScheduleRow key={c.id} contact={c} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} />
-          ))}
+          <RowCap items={overdueContacts} tier="danger"
+            renderItem={c => <OverdueRow key={c.id} contact={c} interactions={interactions} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} />} />
         </Section>
       )}
 
       {staleApps.length > 0 && (
         <Section title={`Stale Applications (${staleApps.length})`} accent="danger" icon={Hourglass}
           subtitle="No movement in 14+ days — follow up or update the stage.">
-          {staleApps.map(a => (
-            <ApplicationRow key={a.id} app={a} showTriageChips={false} onOpen={x => setSelectedAppId(x.id)} changeAppTriage={changeAppTriage} />
-          ))}
+          <RowCap items={staleApps} tier="danger"
+            renderItem={a => <ApplicationRow key={a.id} app={a} showTriageChips={false} onOpen={x => setSelectedAppId(x.id)} changeAppTriage={changeAppTriage} />} />
+        </Section>
+      )}
+
+      {highUrgency.length > 0 && (
+        <Section title={`High Urgency Contacts (${highUrgency.length})`} accent="danger" icon={AlertTriangle}>
+          <RowCap items={highUrgency} tier="danger"
+            renderItem={c => <HighUrgencyRow key={c.id} contact={c} onOpen={x => setSelectedContactId(x.id)} />} />
+        </Section>
+      )}
+
+      {keepInTouch.length > 0 && (
+        <Section title={`Keep in Touch Due (${keepInTouch.length})`} accent="warning" icon={HeartHandshake}>
+          <RowCap items={keepInTouch} tier="warning"
+            renderItem={({ contact: c, status }) => (
+              <KeepInTouchRow key={c.id} contact={c} status={status} interactions={interactions}
+                onOpen={x => setSelectedContactId(x.id)} onLog={x => setLogContact(x)} onMet={handleMet} />
+            )} />
         </Section>
       )}
 
       {needsReview.length > 0 && (
         <Section title={`Job Boards Needs-Review (${needsReview.length})`} accent="warning" icon={Inbox}>
-          {needsReview.map(a => (
-            <ApplicationRow key={a.id} app={a} showTriageChips onOpen={x => setSelectedAppId(x.id)} changeAppTriage={changeAppTriage} />
-          ))}
+          <RowCap items={needsReview} tier="warning"
+            renderItem={a => <ApplicationRow key={a.id} app={a} showTriageChips onOpen={x => setSelectedAppId(x.id)} changeAppTriage={changeAppTriage} />} />
+        </Section>
+      )}
+
+      {scheduleContacts.length > 0 && (
+        <Section title={`Want to Schedule (${scheduleContacts.length})`} accent="ink" icon={UserPlus}>
+          <RowCap items={scheduleContacts} tier="ink"
+            renderItem={c => <ScheduleRow key={c.id} contact={c} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} />} />
         </Section>
       )}
 
       {oaDueList.length > 0 && (
         <Section title={`OA-Due (${oaDueList.length})`} accent="warning" icon={ClipboardCheck}>
-          {oaDueList.map(a => (
-            <OaRow key={a.id} app={a} onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} />
-          ))}
+          <RowCap items={oaDueList} tier="warning"
+            renderItem={a => <OaRow key={a.id} app={a} onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} />} />
         </Section>
       )}
 
       {oaNeedsCheckList.length > 0 && (
         <Section title={`OA-Needs-Check (${oaNeedsCheckList.length})`} accent="ink" icon={Search}>
-          {oaNeedsCheckList.map(a => (
-            <OaRow key={a.id} app={a} needsCheck onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} />
-          ))}
+          <RowCap items={oaNeedsCheckList} tier="ink"
+            renderItem={a => <OaRow key={a.id} app={a} needsCheck onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} />} />
         </Section>
       )}
+
+      {!isDemoMode && <TimelineFindsPanel apps={apps} calls={calls} interactions={interactions} contacts={contacts} onPendingChange={setTimelineFindsCount} />}
 
       {selectedContactId && (
         <ContactDetailModal
@@ -450,6 +461,22 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
           contact={logContact}
           onClose={() => setLogContact(null)}
           onSaved={() => { setLogContact(null); onRefresh?.() }}
+        />
+      )}
+      {selectedAppId && (
+        <ApplicationDetailModal
+          app={selectedApp}
+          contacts={contacts}
+          apps={apps}
+          interactions={interactions}
+          relationships={relationships}
+          onStatusChange={s => changeAppTriage(selectedApp, s)}
+          onClose={() => setSelectedAppId(null)}
+          onDelete={async () => { await archiveApplication(selectedApp.id); setSelectedAppId(null); onRefresh?.() }}
+          onSaved={() => onRefresh?.()}
+          onFindPeople={onFindPeople}
+          onRefresh={onRefresh}
+          onRefreshRelationships={onRefreshRelationships}
         />
       )}
     </div>

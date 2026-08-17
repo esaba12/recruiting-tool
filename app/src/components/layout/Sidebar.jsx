@@ -1,11 +1,11 @@
 import { NAV_ICON, REFRESH_ICON, CALENDAR_ICON, SCHEDULE_ICON, QUICK_CAPTURE_ICON } from '../../lib/icons.js'
 
 const NAV_ITEMS = [
+  { id: 'today', label: 'Today' },
   { id: 'overview', label: 'Overview' },
   { id: 'network',  label: 'Network' },
   { id: 'explore',  label: 'Explore' },
   { id: 'pipeline', label: 'Pipeline' },
-  { id: 'actions',  label: 'Actions' },
   { id: 'calendar', label: 'Calendar' },
   { id: 'github',   label: 'Job Boards' },
   { id: 'settings', label: 'Settings' },
