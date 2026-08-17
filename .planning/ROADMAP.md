@@ -64,7 +64,7 @@ Plans:
   2. User clicks any attention item and lands directly on its full contact/application/job record in one click.
   3. The standalone Actions tab, Overview's separate nudge section, Keep in Touch's standalone queue view, and TimelineFindsPanel's standalone presentation are gone — not left running in parallel as a 9th destination.
 
-**Plans**: 5/6 plans complete
+**Plans**: 6/6 plans complete
 Plans:
 **Wave 1**
 
@@ -88,7 +88,7 @@ Plans:
 
 **Gap closure (round 2)** *(from 02-VERIFICATION.md re-verification pass — re-scoped Truth 1 / ATTN-01, corroborated by 02-REVIEW.md CR-01 "new": Timeline Finds' daily scan could never run again once a user reached a genuinely all-caught-up state)*
 
-- [ ] 02-06-PLAN.md — Extract useTimelineFinds.js hook so the daily scan trigger runs unconditionally in TodayTab (above the allEmpty gate), decoupled from TimelineFindsPanel's own (still gated) mount
+- [x] 02-06-PLAN.md — Extract useTimelineFinds.js hook so the daily scan trigger runs unconditionally in TodayTab (above the allEmpty gate), decoupled from TimelineFindsPanel's own (still gated) mount
 
 **UI hint**: yes
 
@@ -171,7 +171,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Visual Foundation | 5/5 | Complete    | 2026-08-16 |
-| 2. Unified Attention Feed | 5/5 | Complete   | 2026-08-17 |
+| 2. Unified Attention Feed | 6/6 | Complete   | 2026-08-17 |
 | 3. Grow — Discovery Funnel Merge | 0/TBD | Not started | - |
 | 4. Shared Record Side-Panel | 0/TBD | Not started | - |
 | 5. Pipeline + Job Boards Merge | 0/TBD | Not started | - |
