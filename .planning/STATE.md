@@ -21,10 +21,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-16)
+See: .planning/PROJECT.md (updated 2026-08-18)
 
 **Core value:** The dashboard must be fast and cohesive to use every day during an active job search — this milestone delivers an information architecture and visual system the user doesn't have to relearn each session.
-**Current focus:** Phase 02 — unified-attention-feed-today
+**Current focus:** Phase 3 — Grow — Discovery Funnel Merge
 
 ## Current Position
 
@@ -108,6 +108,8 @@ None yet.
 - [Phase 1] `charts/theme.js`'s `STATUS_CHART_COLORS` hex mirror is now stale against the new token palette (deliberately deferred) — Overview's donut chart will visibly disagree with badge colors until Phase 7 syncs it.
 - [Phase 1] Two hardcoded-color cleanups outside this phase's locked scope, both non-blocking: `PipelineTab.jsx`'s `DuplicatesPanel`/stale-application indicator (`orange-*` literals) and `JobDetailModal.jsx`'s "Analyze →" button (`indigo-*`) don't trace back to the `@theme` token system — will silently not move if the palette is retuned again. Candidates for a Phase 7 sweep or a standalone follow-up.
 - [Phase 1] `RepoJobsView.jsx:288`'s "Hide stale" toggle (`bg-warning-500 text-white`) fails WCAG contrast at 2.45:1 — pre-existing, not a regression, outside Phase 1's 10-file scope. Flagged for a human decision: quick standalone fix vs. fold into Phase 7's VIS-01 pass.
+- [Phase 2] `useTimelineFinds.js`'s `scan()` merges AI-found events via a stale closure over `pending` rather than a functional `setPending(prev => ...)` update (introduced by Plan 02-06's hook extraction, flagged as WR-09 in `02-REVIEW.md`) — a `dismiss()`/`updateField()` call landing while a scan is in flight can be silently overwritten, resurrecting a just-dismissed item. Low severity, doesn't affect Phase 2's success criteria; worth a standalone fix (`setPending(prevPending => ...)`).
+- [Phase 2] `CalendarTab.jsx`'s Feed view doesn't refresh after creating/deleting an event (CR-02 in `02-REVIEW.md`, pre-existing, carried through unresolved across all of Phase 2 since Calendar was explicitly out of scope) — candidate for a Phase 5/6 fix if Calendar gets touched again.
 
 ## Deferred Items
 
@@ -119,6 +121,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-17T16:03:16.569Z
-Stopped at: Completed 02-06-PLAN.md (Phase 02 complete — 6/6 plans)
+Last session: 2026-08-18T01:35:00.000Z
+Stopped at: Phase 02 complete (UAT: 3/3 passed live via Playwright, security verified, transitioned) — ready to discuss/plan Phase 3
 Resume file: None
