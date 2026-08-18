@@ -4,7 +4,7 @@ const NAV_ITEMS = [
   { id: 'today', label: 'Today' },
   { id: 'overview', label: 'Overview' },
   { id: 'network',  label: 'Network' },
-  { id: 'explore',  label: 'Explore' },
+  { id: 'grow',     label: 'Grow' },
   { id: 'pipeline', label: 'Pipeline' },
   { id: 'calendar', label: 'Calendar' },
   { id: 'github',   label: 'Job Boards' },

@@ -9,6 +9,7 @@ import { useAuth } from '../lib/AuthContext.jsx'
 import { useTargetCompanies } from '../lib/useTargetCompanies.js'
 import { Badge, EmptyState } from '../shared.jsx'
 import CompanyOnboarding from './CompanyOnboarding.jsx'
+import { RowCap } from './ui/Section.jsx'
 
 const PREFS_KEY     = 'rec_company_prefs'
 const RESULTS_KEY   = 'rec_company_results'
@@ -16,7 +17,7 @@ const META_KEY      = 'rec_company_meta'
 const ADDED_KEY     = 'rec_company_added'
 const DISMISSED_KEY = 'rec_company_dismissed'
 
-export default function ExploreTab({ apps = [], onFindPeople }) {
+export default function ExploreTab({ apps = [], onFindPeople, onTargetAdded }) {
   const { profile: studentProfile } = useAuth()
   const [prefs, setPrefs]         = useState(() => lsGet(PREFS_KEY))
   const [editing, setEditing]     = useState(() => !lsGet(PREFS_KEY)?.saved)
@@ -91,6 +92,7 @@ export default function ExploreTab({ apps = [], onFindPeople }) {
       setTargetCompanies([...targets, name])
     }
     const next = new Set(added); next.add(name); setAdded(next); lsSet(ADDED_KEY, [...next])
+    onTargetAdded?.(name)
   }
   function dismiss(name) {
     const next = new Set(dismissed); next.add(name); setDismissed(next); lsSet(DISMISSED_KEY, [...next])
@@ -116,12 +118,6 @@ export default function ExploreTab({ apps = [], onFindPeople }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
-        <div>
-          <h2 className="font-heading text-lg font-semibold text-ink-900">Companies for you</h2>
-          <p className="text-[11px] text-ink-400">
-            From YC's directory + Exa's public-web search, ranked for you. Add one and it flows into Coverage & Discover.
-          </p>
-        </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[11px] text-ink-400">
             {running ? 'Searching…' : meta.lastRun ? `Updated ${timeAgo(new Date(meta.lastRun).toISOString())}` : 'Not run yet'}
@@ -144,7 +140,7 @@ export default function ExploreTab({ apps = [], onFindPeople }) {
         ? <EmptyState msg={running ? 'Finding companies you’ll like…' : 'No companies yet — hit ↻ Refresh, or edit your interests.'} />
         : (
           <div className="space-y-2">
-            {shown.map((c, i) => (
+            <RowCap items={shown} cap={5} tier="ink" renderItem={(c, i) => (
               <CompanyCard key={c.name} company={c} index={i}
                 isAdded={added.has(c.name)}
                 onAdd={() => addToTargets(c.name)}
@@ -152,7 +148,7 @@ export default function ExploreTab({ apps = [], onFindPeople }) {
                 onExpand={() => expand(c)}
                 expanding={expanding === c.name}
                 onFindPeople={onFindPeople} />
-            ))}
+            )} />
           </div>
         )}
     </div>

@@ -103,12 +103,12 @@ Plans:
   2. Every existing capability — company ranking, referral gap detection, people discovery, cold-outreach drafting — still works, just re-housed under Grow.
   3. The standalone Explore top-level tab and the Coverage/Discover sub-views previously buried inside Network no longer exist as separate destinations.
 
-**Plans**: 1/8 plans executed
+**Plans**: 2/8 plans executed
 Plans:
 **Wave 1**
 
 - [x] 03-01-PLAN.md — Extract ui/Section.jsx (Section/RowCap/HEADING_COLOR) out of TodayTab.jsx, add Mono step-index prop
-- [ ] 03-02-PLAN.md — Sidebar/icons: rename NAV_ITEMS 'explore'→'grow', add NAV_ICON.grow (Sprout)
+- [x] 03-02-PLAN.md — Sidebar/icons: rename NAV_ITEMS 'explore'→'grow', add NAV_ICON.grow (Sprout)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -196,7 +196,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Visual Foundation | 5/5 | Complete    | 2026-08-16 |
 | 2. Unified Attention Feed | 6/6 | Complete    | 2026-08-17 |
-| 3. Grow — Discovery Funnel Merge | 1/8 | In Progress|  |
+| 3. Grow — Discovery Funnel Merge | 2/8 | In Progress|  |
 | 4. Shared Record Side-Panel | 0/TBD | Not started | - |
 | 5. Pipeline + Job Boards Merge | 0/TBD | Not started | - |
 | 6. Navigation Consolidation Complete | 0/TBD | Not started | - |
