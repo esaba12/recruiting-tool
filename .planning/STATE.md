@@ -6,14 +6,14 @@ current_phase: 3
 current_phase_name: Grow — Discovery Funnel Merge
 status: executing
 stopped_at: Phase 3 UI-SPEC approved
-last_updated: "2026-08-18T23:34:15.213Z"
+last_updated: "2026-08-18T23:41:32.064Z"
 last_activity: 2026-08-18
 last_activity_desc: Phase 3 execution started
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 19
-  completed_plans: 13
+  completed_plans: 15
   percent: 29
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-18)
 ## Current Position
 
 Phase: 3 (Grow — Discovery Funnel Merge) — EXECUTING
-Plan: 3 of 8
+Plan: 5 of 8
 Status: Ready to execute
 Last activity: 2026-08-18 — Phase 3 execution started
 
@@ -69,6 +69,8 @@ Progress: [██░░░░░░░░] 29%
 | Phase 02 P06 | 5min | 3 tasks | 4 files |
 | Phase 03 P01 | 2min | 2 tasks | 2 files |
 | Phase 03 P02 | 1min | 2 tasks | 2 files |
+| Phase 03-grow-discovery-funnel-merge P03 | 3min | 2 tasks | 1 files |
+| Phase 03-grow-discovery-funnel-merge P04 | 3min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -98,6 +100,9 @@ Recent decisions affecting current work:
 - [Phase 02-06]: Implemented Option B (extract useTimelineFinds hook, called unconditionally by TodayTab above the allEmpty gate) rather than always-mounting TimelineFindsPanel — closes the re-scoped ATTN-01/Truth-1 gap and CR-01 (new): the daily scan trigger now lives in a component that always mounts, so it can never get permanently stuck behind a genuinely-all-caught-up render, while 02-UI-SPEC.md's all-9-arrays/single-EmptyState contract stays untouched (TimelineFindsPanel's mount condition and JSX are unchanged)
 - [Phase ?]: [Phase 03-01]: Extracted Section/RowCap/HEADING_COLOR verbatim into ui/Section.jsx with a new additive optional step prop -- zero visual regression on Today's 8 existing call sites, unblocks Grow's later sections
 - [Phase ?]: [Phase 03-02]: Used lucide-react's Sprout icon for the Grow nav item (human-confirmed for this run over 03-RESEARCH.md's tentative TrendingUp suggestion)
+- [Phase ?]: [Phase 03-03]: Stripped ExploreTab's own header row and added onTargetAdded callback + RowCap(cap=5), keeping CompanyCard's Find-people shortcut unrouted per resolved Open Question 1 -- prepares ExploreTab for GrowTab's Section wrapper alongside sibling Plans 03-04/03-05
+- [Phase 03-04]: Ported DiscoverTab.jsx's focus/rowRefs/ring-highlight mechanic byte-for-byte onto ReferralCoverageTab.jsx (rowRefs Map, useEffect keyed on focus?.ts, ring-2 ring-accent-300) rather than reinventing it — Byte-level port of an already-shipped pattern per the plan's explicit port-not-invent framing, guaranteeing consistent deep-link UX between Coverage and People sections
+- [Phase 03-04]: Removed textarea auto-expand-on-empty by deleting exactly one line (setEditingList(targets.length === 0)) from the [loaded]-gated useEffect — Stops the freeform editor from colliding with the new D-03 EmptyState while leaving the manual toggle button fully intact
 
 ### Pending Todos
 
@@ -125,6 +130,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-18T23:33:56.061Z
+Last session: 2026-08-18T23:41:32.059Z
 Stopped at: Phase 3 UI-SPEC approved
 Resume file: .planning/phases/03-grow-discovery-funnel-merge/03-UI-SPEC.md

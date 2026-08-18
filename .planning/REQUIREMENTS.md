@@ -18,7 +18,7 @@
 ### Grow — Discovery Funnel Merge (GROW)
 
 - [x] **GROW-01**: User moves through company targeting → referral-gap analysis → people discovery as one connected flow on a single Grow destination, not 3 separate places (today: a top-level Explore tab plus 2 sub-views buried inside Network)
-- [ ] **GROW-02**: Existing Explore/Coverage/Discover functionality (company ranking, referral gap detection, people discovery, cold-outreach drafting) is fully preserved, just re-housed under Grow
+- [x] **GROW-02**: Existing Explore/Coverage/Discover functionality (company ranking, referral gap detection, people discovery, cold-outreach drafting) is fully preserved, just re-housed under Grow
 
 ### Pipeline + Job Boards Merge (PIPE)
 
@@ -67,7 +67,7 @@
 | ATTN-02 | Phase 2 | Complete |
 | ATTN-03 | Phase 2 | Complete |
 | GROW-01 | Phase 3 | Complete |
-| GROW-02 | Phase 3 | Pending |
+| GROW-02 | Phase 3 | Complete |
 | PANEL-01 | Phase 4 | Pending |
 | PANEL-02 | Phase 4 | Pending |
 | PIPE-01 | Phase 5 | Pending |

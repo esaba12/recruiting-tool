@@ -220,7 +220,7 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
       {!targetsLoaded ? (
         <EmptyState msg="Loading target companies..." />
       ) : targets.length === 0 ? (
-        <EmptyState msg="Add a target-company list in Network → Coverage first — Discover uses the same list." />
+        <EmptyState msg="Add target companies above to see people to reach out to — People uses the same list." />
       ) : (
         <>
           {/* Header: view switch + status + manual refresh */}

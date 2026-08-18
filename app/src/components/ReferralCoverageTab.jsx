@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { normalizeCompanyName } from '../lib/networkGraph.js'
 import { companyCoverage } from '../lib/networkCoverage.js'
 import { warmPathsToCompany, pathLabel } from '../lib/warmIntro.js'
@@ -6,6 +6,7 @@ import { useTargetCompanies } from '../lib/useTargetCompanies.js'
 import { STAGE_COLOR, Badge, EmptyState } from '../shared.jsx'
 import ContactDetailModal from './ContactDetailModal.jsx'
 import DraftPanel from './DraftPanel.jsx'
+import { RowCap } from './ui/Section.jsx'
 
 // Referral coverage: cross-references a user-maintained target-company list against
 // Contacts (do I know anyone there?) and Applications (have I already applied?).
@@ -16,12 +17,13 @@ import DraftPanel from './DraftPanel.jsx'
 // than just "any contact at all" — a company where your only contact is a total stranger
 // you added but never talked to isn't meaningfully covered. Shared with Pipeline, which
 // tags applications the same way.
-export default function ReferralCoverageTab({ contacts, apps, interactions, contactRelationships = [], onRefresh, onFindPeople }) {
+export default function ReferralCoverageTab({ contacts, apps, interactions, contactRelationships = [], onRefresh, onFindPeople, focus }) {
   const { targets, setTargets, loaded } = useTargetCompanies()
   const [editingList, setEditingList] = useState(false)
   const [draft, setDraft] = useState('')
   const [addingFor, setAddingFor] = useState(null) // target company name string | null
   const [draftingCompany, setDraftingCompany] = useState(null) // company key currently showing a DraftPanel | null
+  const rowRefs = useRef(new Map()) // company key → row DOM node, for the Grow deep-link scroll
 
   // One-time init once the real list has loaded from Supabase — mirrors the old
   // lazy-useState behavior (start in "edit" mode iff the list starts empty) without
@@ -29,9 +31,19 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
   useEffect(() => {
     if (!loaded) return
     setDraft(targets.join('\n'))
-    setEditingList(targets.length === 0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded])
+
+  // Deep-link scroll/highlight — mirrors DiscoverTab.jsx's donor pattern exactly. `ts` (not
+  // just company) is in the dep array so re-clicking the same company re-triggers the scroll
+  // even though the string itself didn't change.
+  useEffect(() => {
+    if (!focus) return
+    const key = normalizeCompanyName(focus.company)
+    const el = rowRefs.current.get(key)
+    if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus?.ts])
 
   function saveTargets() {
     const list = [...new Set(draft.split('\n').map(s => s.trim()).filter(Boolean))]
@@ -82,7 +94,7 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
       </div>
 
       {targets.length === 0 ? (
-        <EmptyState msg="Add a target-company list above to see where you have — and don't have — a way in." />
+        <EmptyState msg="Add target companies above to see referral gaps." />
       ) : (
         <>
           {(gapCount > 0 || weakCount > 0) && (
@@ -93,9 +105,9 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
             </p>
           )}
           <div className="space-y-2">
-            {rows.map(r => (
-              <div key={r.company}
-                className={`bg-white rounded-xl p-4 shadow-sm border flex items-start justify-between gap-3 ${r.status === 'gap' ? 'border-danger-200' : r.status === 'weak' ? 'border-warning-200' : 'border-ink-100'}`}>
+            <RowCap items={rows} cap={5} tier="ink" renderItem={r => (
+              <div key={r.company} ref={el => { if (el) rowRefs.current.set(normalizeCompanyName(r.company), el) }}
+                className={`bg-white rounded-xl p-4 shadow-sm border flex items-start justify-between gap-3 ${focus && normalizeCompanyName(focus.company) === normalizeCompanyName(r.company) ? 'ring-2 ring-accent-300' : ''} ${r.status === 'gap' ? 'border-danger-200' : r.status === 'weak' ? 'border-warning-200' : 'border-ink-100'}`}>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-ink-900">{r.company}</span>
@@ -138,7 +150,7 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
                   )}
                 </div>
               </div>
-            ))}
+            )} />
           </div>
         </>
       )}
