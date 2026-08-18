@@ -103,7 +103,7 @@ Plans:
   2. Every existing capability — company ranking, referral gap detection, people discovery, cold-outreach drafting — still works, just re-housed under Grow.
   3. The standalone Explore top-level tab and the Coverage/Discover sub-views previously buried inside Network no longer exist as separate destinations.
 
-**Plans**: 4/8 plans executed
+**Plans**: 6/8 plans executed
 Plans:
 **Wave 1**
 
@@ -114,11 +114,11 @@ Plans:
 
 - [x] 03-03-PLAN.md — ExploreTab.jsx: strip header, add onTargetAdded prop, apply RowCap
 - [x] 03-04-PLAN.md — ReferralCoverageTab.jsx: fix auto-expand textarea, new EmptyState copy, port focus/highlight mechanic, apply RowCap
-- [ ] 03-05-PLAN.md — DiscoverTab.jsx: fix stale EmptyState copy, apply RowCap to Recommended list
+- [x] 03-05-PLAN.md — DiscoverTab.jsx: fix stale EmptyState copy, apply RowCap to Recommended list
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 03-06-PLAN.md — GrowTab.jsx (new): 3-section always-rendered page, coverageFocus/peopleFocus state, cross-section scroll+highlight wiring
+- [x] 03-06-PLAN.md — GrowTab.jsx (new): 3-section always-rendered page, coverageFocus/peopleFocus state, cross-section scroll+highlight wiring
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -196,7 +196,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Visual Foundation | 5/5 | Complete    | 2026-08-16 |
 | 2. Unified Attention Feed | 6/6 | Complete    | 2026-08-17 |
-| 3. Grow — Discovery Funnel Merge | 4/8 | In Progress|  |
+| 3. Grow — Discovery Funnel Merge | 6/8 | In Progress|  |
 | 4. Shared Record Side-Panel | 0/TBD | Not started | - |
 | 5. Pipeline + Job Boards Merge | 0/TBD | Not started | - |
 | 6. Navigation Consolidation Complete | 0/TBD | Not started | - |

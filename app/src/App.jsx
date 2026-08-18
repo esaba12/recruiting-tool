@@ -25,7 +25,7 @@ import QuickCaptureModal from './components/QuickCaptureModal.jsx'
 import ReferralCoverageTab from './components/ReferralCoverageTab.jsx'
 import OutboxTab from './components/OutboxTab.jsx'
 import DiscoverTab from './components/DiscoverTab.jsx'
-import ExploreTab from './components/ExploreTab.jsx'
+import GrowTab from './components/GrowTab.jsx'
 import NotFoundPage from './components/NotFoundPage.jsx'
 import { NAV_ITEMS } from './components/layout/Sidebar.jsx'
 import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, keepInTouchDue, needsReviewApps } from './lib/attention.js'
@@ -232,11 +232,11 @@ function AuthGate({ children }) {
 function AppInner() {
   const [tab, setTab]           = useState('overview')
   const [networkInitialView, setNetworkInitialView] = useState('table')
-  const [networkFocusCompany, setNetworkFocusCompany] = useState(null)
-  // Deep-link into Network → Discover, pre-searching one company — shared by Explore's
-  // "Find people →" and Pipeline's "who could I meet here" panel so both land in the same place.
+  const [growFocusCompany, setGrowFocusCompany] = useState(null)
+  // Deep-link into Grow's People section, pre-searching one company — shared by Pipeline's
+  // and Today's "who could I meet here" panels so both land in the same place.
   const goFindPeople = company => {
-    setNetworkFocusCompany({ company, ts: Date.now() }); setNetworkInitialView('discover'); setTab('network')
+    setGrowFocusCompany({ company, ts: Date.now() }); setTab('grow')
   }
   const [contacts, setContacts] = useState([])
   const [apps, setApps]         = useState([])
@@ -318,10 +318,11 @@ function AppInner() {
       {!loading && tab === 'network'  && (
         <NetworkTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={load}
           onRefreshRelationships={refreshContactRelationships}
-          initialView={networkInitialView} initialFocusCompany={networkFocusCompany} />
+          initialView={networkInitialView} />
       )}
-      {!loading && tab === 'explore'  && (
-        <ExploreTab apps={apps} onFindPeople={goFindPeople} />
+      {!loading && tab === 'grow'     && (
+        <GrowTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={load}
+          onRefreshRelationships={refreshContactRelationships} initialPeopleFocus={growFocusCompany} />
       )}
       {!loading && tab === 'pipeline' && (
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
@@ -359,7 +360,7 @@ function AppInner() {
 // already make transparently reads/writes an in-memory seed dataset instead of Supabase,
 // so nothing here needed forking into a separate "read-only" UI. Scope is deliberately
 // trimmed to the 4 tabs that need zero AI/BYOK keys and zero external OAuth (Today,
-// Overview, Network table/cards/graph, Pipeline) — Explore/Discover/Outbox/Job
+// Overview, Network table/cards/graph, Pipeline) — Grow/Outbox/Job
 // Boards/Calendar/Settings all call Claude/OpenAI/Exa/GitHub/Google proxies that
 // `requireUser()`-gate on a real signed-in session and would just 401 for an anonymous
 // visitor, so they're left out rather than shown half-broken.

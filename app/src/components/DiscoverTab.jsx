@@ -9,6 +9,7 @@ import { addContact, updateContact, searchContactByName } from '../db.js'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { useTargetCompanies } from '../lib/useTargetCompanies.js'
 import { Badge, EmptyState } from '../shared.jsx'
+import { RowCap } from './ui/Section.jsx'
 
 const PROFILE_KEY    = 'rec_affinity_profile'
 const DISCOVERED_KEY = 'rec_discovered'        // { [companyKey]: rankedCandidate[] }
@@ -272,7 +273,7 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
             <div className="space-y-2">
               {recommended.length === 0
                 ? <EmptyState msg={running ? 'Looking for people…' : 'No recommendations yet — hit “Refresh now” to search your gap companies.'} />
-                : recommended.map(c => <CandidateCard key={candKey(c.person.company, c.person.name)} showCompany {...cardProps(c)} />)}
+                : <RowCap items={recommended} cap={5} tier="ink" renderItem={c => <CandidateCard key={candKey(c.person.company, c.person.name)} showCompany {...cardProps(c)} />} />}
             </div>
           ) : (
             <div className="space-y-3">

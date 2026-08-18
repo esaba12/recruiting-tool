@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 3
 current_phase_name: Grow — Discovery Funnel Merge
 status: executing
-stopped_at: Phase 3 UI-SPEC approved
-last_updated: "2026-08-18T23:41:32.064Z"
+stopped_at: Completed 03-06-PLAN.md
+last_updated: "2026-08-18T23:48:48.220Z"
 last_activity: 2026-08-18
 last_activity_desc: Phase 3 execution started
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 19
-  completed_plans: 15
+  completed_plans: 17
   percent: 29
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-18)
 ## Current Position
 
 Phase: 3 (Grow — Discovery Funnel Merge) — EXECUTING
-Plan: 5 of 8
+Plan: 7 of 8
 Status: Ready to execute
 Last activity: 2026-08-18 — Phase 3 execution started
 
@@ -71,6 +71,8 @@ Progress: [██░░░░░░░░] 29%
 | Phase 03 P02 | 1min | 2 tasks | 2 files |
 | Phase 03-grow-discovery-funnel-merge P03 | 3min | 2 tasks | 1 files |
 | Phase 03-grow-discovery-funnel-merge P04 | 3min | 2 tasks | 1 files |
+| Phase 03-grow-discovery-funnel-merge PP05 | 5min | 2 tasks | 1 files |
+| Phase 03 P06 | 5min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -103,6 +105,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 03-03]: Stripped ExploreTab's own header row and added onTargetAdded callback + RowCap(cap=5), keeping CompanyCard's Find-people shortcut unrouted per resolved Open Question 1 -- prepares ExploreTab for GrowTab's Section wrapper alongside sibling Plans 03-04/03-05
 - [Phase 03-04]: Ported DiscoverTab.jsx's focus/rowRefs/ring-highlight mechanic byte-for-byte onto ReferralCoverageTab.jsx (rowRefs Map, useEffect keyed on focus?.ts, ring-2 ring-accent-300) rather than reinventing it — Byte-level port of an already-shipped pattern per the plan's explicit port-not-invent framing, guaranteeing consistent deep-link UX between Coverage and People sections
 - [Phase 03-04]: Removed textarea auto-expand-on-empty by deleting exactly one line (setEditingList(targets.length === 0)) from the [loaded]-gated useEffect — Stops the freeform editor from colliding with the new D-03 EmptyState while leaving the manual toggle button fully intact
+- [Phase ?]: [Phase 03-05]: Left the By-company branch's nested candidate list unwrapped (no RowCap) per 03-UI-SPEC.md's explicit out-of-cap-scope note -- only DiscoverTab's top-level Recommended list and the stale EmptyState copy were touched, existing focus/rowRefs/ring-highlight mechanic untouched
+- [Phase ?]: GrowTab.jsx wires ExploreTab's onFindPeople directly to goToPeople (not goToCoverage), preserving the existing direct-to-People shortcut per resolved Open Question 1
 
 ### Pending Todos
 
@@ -130,6 +134,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-18T23:41:32.059Z
-Stopped at: Phase 3 UI-SPEC approved
+Last session: 2026-08-18T23:48:48.216Z
+Stopped at: Completed 03-06-PLAN.md
 Resume file: .planning/phases/03-grow-discovery-funnel-merge/03-UI-SPEC.md
