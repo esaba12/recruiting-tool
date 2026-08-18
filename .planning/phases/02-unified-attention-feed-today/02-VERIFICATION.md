@@ -1,7 +1,7 @@
 ---
 phase: 02-unified-attention-feed-today
 verified: 2026-08-17T05:00:00Z
-status: human_needed
+status: passed
 score: 2/3 must-haves verified
 behavior_unverified: 1
 overrides_applied: 0
@@ -9,6 +9,7 @@ re_verification:
   previous_status: gaps_found
   previous_score: 2/3
   gaps_closed:
+
     - "Truth 1's re-scoped gap (02-REVIEW.md's CR-01 new / ATTN-01 scan-lockout durability defect — TodayTab.jsx's allEmpty early-return gated whether TimelineFindsPanel, the app's sole call site of findTimelineEvents(), ever mounted, so a genuinely all-caught-up user could permanently lose the daily scan with no escape hatch) is closed at the source level by Plan 02-06: TodayTab.jsx:356-359 now calls useTimelineFinds({ apps, calls, interactions, contacts, enabled: !isDemoMode }) unconditionally, several lines above the allEmpty computation at :384-386 and the early-return at :388. Confirmed directly against current source (not just SUMMARY.md/REVIEW.md narrative): the hook's own useEffect (useTimelineFinds.js:56-62) is gated only on `enabled`/`ranRef.current`/`meta.lastCheck !== todayStr()` — never on TodayTab's JSX return value — and TimelineFindsPanel.jsx is now a pure presentational component (zero useState/useEffect/useMemo/useRef, confirmed by grep) that no longer owns any part of the scan trigger. This mechanism is sound because React hooks execute in declaration order on every render regardless of which JSX branch a component's function body ultimately returns — the hook call (and therefore its effect) already ran before the `if (allEmpty) return <EmptyState/>` line is even reached. Independently corroborated by 02-REVIEW.md's fresh re-review pass ('CR-01 (new) is confirmed fixed, and correctly, without reintroducing the previously-rejected always-mount-the-panel approach')."
   gaps_remaining: []
   regressions: []
