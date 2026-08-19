@@ -140,12 +140,12 @@ Plans:
   1. User opens a contact, an application, and a job listing and sees the same side-panel component/pattern each time.
   2. Every view/edit capability the replaced modals supported (contact status/urgency/referred-by, application stage/triage, job triage bucket, etc.) still works from the shared panel — no feature regression.
 
-**Plans**: 5 plans
+**Plans**: 2/5 plans executed
 Plans:
 **Wave 1**
 
-- [ ] 04-01-PLAN.md — ui/SidePanel.jsx shell + lib/useMediaQuery.js + panels/JobPanelBody.jsx port
-- [ ] 04-02-PLAN.md — panels/ContactPanelBody.jsx port (19 form keys, relationships, history) + optional onBack
+- [x] 04-01-PLAN.md — ui/SidePanel.jsx shell + lib/useMediaQuery.js + panels/JobPanelBody.jsx port
+- [x] 04-02-PLAN.md — panels/ContactPanelBody.jsx port (19 form keys, relationships, history) + optional onBack
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -215,7 +215,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. Visual Foundation | 5/5 | Complete    | 2026-08-16 |
 | 2. Unified Attention Feed | 6/6 | Complete    | 2026-08-17 |
 | 3. Grow — Discovery Funnel Merge | 8/8 | Complete   | 2026-08-18 |
-| 4. Shared Record Side-Panel | 0/TBD | Not started | - |
+| 4. Shared Record Side-Panel | 2/5 | In Progress|  |
 | 5. Pipeline + Job Boards Merge | 0/TBD | Not started | - |
 | 6. Navigation Consolidation Complete | 0/TBD | Not started | - |
 | 7. Full Visual Reskin + Motion + Stat Tiles | 0/TBD | Not started | - |
