@@ -10,6 +10,7 @@ import { useAuth } from '../../lib/AuthContext.jsx'
 import ChipToggleGroup from '../ui/ChipToggleGroup.jsx'
 import LogInteractionModal from '../LogInteractionModal.jsx'
 import DraftPanel from '../DraftPanel.jsx'
+import { useSuppressSidePanelEscape } from '../ui/SidePanel.jsx'
 
 export default function ContactPanelBody({ contact, contacts, interactions, contactRelationships = [], onClose, onSaved, onRefreshRelationships, initial = {}, onBack }) {
   const { profile } = useAuth()
@@ -40,6 +41,10 @@ export default function ContactPanelBody({ contact, contacts, interactions, cont
   const [deleting, setDeleting] = useState(false)
   const [error, setError]   = useState(null)
   const [logOpen, setLogOpen] = useState(false)
+  // While the portaled Log dialog is open, tell the enclosing SidePanel to
+  // ignore Escape — otherwise both dialogs' Escape listeners fire on the same
+  // keydown and closing the Log dialog also discards unsaved contact edits (WR-02).
+  useSuppressSidePanelEscape(logOpen)
   const [draftOpen, setDraftOpen] = useState(false)
   const [metLogging, setMetLogging] = useState(false)
   const [relType, setRelType] = useState(RELATIONSHIP_TYPES[0])

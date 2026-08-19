@@ -206,8 +206,8 @@ export default function PipelineTab({ apps, contacts = [], interactions = [], re
           </div>
         )}
 
-      {(selectedApp || addingNew) && (
-        <SidePanel open onClose={() => { setSelectedAppId(null); setAddingNew(false) }}>
+      <SidePanel open={!!(selectedApp || addingNew)} onClose={() => { setSelectedAppId(null); setAddingNew(false) }}>
+        {(selectedApp || addingNew) && (
           <ApplicationPanelBody
             app={selectedApp}
             contacts={contacts}
@@ -222,8 +222,8 @@ export default function PipelineTab({ apps, contacts = [], interactions = [], re
             onRefresh={onRefresh}
             onRefreshRelationships={onRefreshRelationships}
           />
-        </SidePanel>
-      )}
+        )}
+      </SidePanel>
     </div>
   )
 }

@@ -174,8 +174,8 @@ function NetworkTab({ contacts, apps, interactions, contactRelationships = [], o
           </div>
         )}
 
-      {editing && (
-        <SidePanel open onClose={() => setEditing(null)}>
+      <SidePanel open={!!editing} onClose={() => setEditing(null)}>
+        {editing && (
           <ContactPanelBody
             contact={editing === 'new' ? null : editing}
             contacts={contacts}
@@ -185,8 +185,8 @@ function NetworkTab({ contacts, apps, interactions, contactRelationships = [], o
             onSaved={() => { setEditing(null); onRefresh() }}
             onRefreshRelationships={onRefreshRelationships}
           />
-        </SidePanel>
-      )}
+        )}
+      </SidePanel>
 
       {logOpen && (
         <LogInteractionModal

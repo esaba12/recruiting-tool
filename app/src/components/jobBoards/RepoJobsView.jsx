@@ -325,8 +325,8 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
         </button>
       )}
 
-      {selectedJob && (
-        <SidePanel open onClose={() => setSelectedJob(null)}>
+      <SidePanel open={!!selectedJob} onClose={() => setSelectedJob(null)}>
+        {selectedJob && (
           <JobPanelBody
             job={selectedJob}
             status={statusFor(selectedJob)}
@@ -337,8 +337,8 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
             onClose={() => setSelectedJob(null)}
             prefs={prefs}
           />
-        </SidePanel>
-      )}
+        )}
+      </SidePanel>
     </div>
   )
 }

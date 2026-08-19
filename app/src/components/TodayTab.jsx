@@ -419,8 +419,8 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
         />
       )}
 
-      {selectedContactId && (
-        <SidePanel open onClose={() => setSelectedContactId(null)}>
+      <SidePanel open={!!selectedContactId} onClose={() => setSelectedContactId(null)}>
+        {selectedContactId && (
           <ContactPanelBody
             contact={contacts.find(c => c.id === selectedContactId)}
             contacts={contacts}
@@ -430,8 +430,8 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
             onSaved={() => { setSelectedContactId(null); onRefresh?.() }}
             onRefreshRelationships={onRefreshRelationships}
           />
-        </SidePanel>
-      )}
+        )}
+      </SidePanel>
       {logContact && (
         <LogInteractionModal
           contacts={contacts}
@@ -440,8 +440,8 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
           onSaved={() => { setLogContact(null); onRefresh?.() }}
         />
       )}
-      {selectedAppId && (
-        <SidePanel open onClose={() => setSelectedAppId(null)}>
+      <SidePanel open={!!selectedAppId} onClose={() => setSelectedAppId(null)}>
+        {selectedAppId && (
           <ApplicationPanelBody
             app={selectedApp}
             contacts={contacts}
@@ -456,8 +456,8 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
             onRefresh={onRefresh}
             onRefreshRelationships={onRefreshRelationships}
           />
-        </SidePanel>
-      )}
+        )}
+      </SidePanel>
     </div>
   )
 }

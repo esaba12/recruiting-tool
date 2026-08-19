@@ -175,8 +175,8 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
         </>
       )}
 
-      {addingFor && (
-        <SidePanel open onClose={() => setAddingFor(null)}>
+      <SidePanel open={!!addingFor} onClose={() => setAddingFor(null)}>
+        {addingFor && (
           <ContactPanelBody
             contact={null}
             initial={{ company: addingFor }}
@@ -186,8 +186,8 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
             onClose={() => setAddingFor(null)}
             onSaved={() => { setAddingFor(null); onRefresh() }}
           />
-        </SidePanel>
-      )}
+        )}
+      </SidePanel>
     </div>
   )
 }

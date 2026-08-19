@@ -28,8 +28,8 @@
 
 ### Shared Record Side-Panel (PANEL)
 
-- [ ] **PANEL-01**: User opens a contact, application, or job record in one consistent side-panel component instead of 3+ divergent modal implementations
-- [ ] **PANEL-02**: The shared panel supports every view/edit capability the modals it replaces already had — no feature regression on contact/application/job editing
+- [x] **PANEL-01**: User opens a contact, application, or job record in one consistent side-panel component instead of 3+ divergent modal implementations
+- [x] **PANEL-02**: The shared panel supports every view/edit capability the modals it replaces already had — no feature regression on contact/application/job editing
 
 ### Visual Reskin — Industrial / Control-Panel (VIS)
 
@@ -68,8 +68,8 @@
 | ATTN-03 | Phase 2 | Complete |
 | GROW-01 | Phase 3 | Complete |
 | GROW-02 | Phase 3 | Complete |
-| PANEL-01 | Phase 4 | Pending |
-| PANEL-02 | Phase 4 | Pending |
+| PANEL-01 | Phase 4 | Complete |
+| PANEL-02 | Phase 4 | Complete |
 | PIPE-01 | Phase 5 | Pending |
 | PIPE-02 | Phase 5 | Pending |
 | PIPE-03 | Phase 5 | Pending |

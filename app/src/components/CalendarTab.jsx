@@ -267,27 +267,27 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
         <TimelineFeed groups={timelineGroups} loading={feedLoading} error={feedError} onOpen={openTimelineItem} />
       )}
 
-      {selectedContact && (
-        <SidePanel open onClose={() => setSelectedContact(null)}>
+      <SidePanel open={!!selectedContact} onClose={() => setSelectedContact(null)}>
+        {selectedContact && (
           <ContactPanelBody
             contact={selectedContact}
             contacts={contacts}
             onClose={() => setSelectedContact(null)}
             onSaved={() => { setSelectedContact(null); onRefresh() }}
           />
-        </SidePanel>
-      )}
+        )}
+      </SidePanel>
 
-      {selectedApp && (
-        <SidePanel open onClose={() => setSelectedApp(null)}>
+      <SidePanel open={!!selectedApp} onClose={() => setSelectedApp(null)}>
+        {selectedApp && (
           <ApplicationPanelBody
             app={selectedApp}
             onStatusChange={s => changeAppTriage(selectedApp, s)}
             onClose={() => setSelectedApp(null)}
             onDelete={async () => { await archiveApplication(selectedApp.id); setSelectedApp(null); onRefresh() }}
           />
-        </SidePanel>
-      )}
+        )}
+      </SidePanel>
 
       {selectedEvent && (
         <EventDetailModal
