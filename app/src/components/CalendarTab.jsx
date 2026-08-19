@@ -5,8 +5,9 @@ import { updateApplicationTriage, archiveApplication } from '../db.js'
 import { BUCKET_TO_TRIAGE, MONTH_NAMES } from './jobBoards/helpers.js'
 import { buildTimelineItems, groupTimelineItems } from '../lib/timeline.js'
 import { Badge } from '../shared.jsx'
-import ContactDetailModal from './ContactDetailModal.jsx'
-import ApplicationDetailModal from './ApplicationDetailModal.jsx'
+import SidePanel from './ui/SidePanel.jsx'
+import ContactPanelBody from './panels/ContactPanelBody.jsx'
+import ApplicationPanelBody from './panels/ApplicationPanelBody.jsx'
 import EventDetailModal from './EventDetailModal.jsx'
 import AddEventModal from './AddEventModal.jsx'
 
@@ -267,21 +268,25 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
       )}
 
       {selectedContact && (
-        <ContactDetailModal
-          contact={selectedContact}
-          contacts={contacts}
-          onClose={() => setSelectedContact(null)}
-          onSaved={() => { setSelectedContact(null); onRefresh() }}
-        />
+        <SidePanel open onClose={() => setSelectedContact(null)}>
+          <ContactPanelBody
+            contact={selectedContact}
+            contacts={contacts}
+            onClose={() => setSelectedContact(null)}
+            onSaved={() => { setSelectedContact(null); onRefresh() }}
+          />
+        </SidePanel>
       )}
 
       {selectedApp && (
-        <ApplicationDetailModal
-          app={selectedApp}
-          onStatusChange={s => changeAppTriage(selectedApp, s)}
-          onClose={() => setSelectedApp(null)}
-          onDelete={async () => { await archiveApplication(selectedApp.id); setSelectedApp(null); onRefresh() }}
-        />
+        <SidePanel open onClose={() => setSelectedApp(null)}>
+          <ApplicationPanelBody
+            app={selectedApp}
+            onStatusChange={s => changeAppTriage(selectedApp, s)}
+            onClose={() => setSelectedApp(null)}
+            onDelete={async () => { await archiveApplication(selectedApp.id); setSelectedApp(null); onRefresh() }}
+          />
+        </SidePanel>
       )}
 
       {selectedEvent && (

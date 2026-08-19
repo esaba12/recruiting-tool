@@ -3,7 +3,8 @@ import { normalizeCompanyName } from '../lib/networkGraph.js'
 import { companyCoverage } from '../lib/networkCoverage.js'
 import { warmPathsToCompany, pathLabel } from '../lib/warmIntro.js'
 import { STAGE_COLOR, Badge, EmptyState } from '../shared.jsx'
-import ContactDetailModal from './ContactDetailModal.jsx'
+import SidePanel from './ui/SidePanel.jsx'
+import ContactPanelBody from './panels/ContactPanelBody.jsx'
 import DraftPanel from './DraftPanel.jsx'
 import { RowCap } from './ui/Section.jsx'
 
@@ -175,15 +176,17 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
       )}
 
       {addingFor && (
-        <ContactDetailModal
-          contact={null}
-          initial={{ company: addingFor }}
-          contacts={contacts}
-          interactions={interactions}
-          contactRelationships={contactRelationships}
-          onClose={() => setAddingFor(null)}
-          onSaved={() => { setAddingFor(null); onRefresh() }}
-        />
+        <SidePanel open onClose={() => setAddingFor(null)}>
+          <ContactPanelBody
+            contact={null}
+            initial={{ company: addingFor }}
+            contacts={contacts}
+            interactions={interactions}
+            contactRelationships={contactRelationships}
+            onClose={() => setAddingFor(null)}
+            onSaved={() => { setAddingFor(null); onRefresh() }}
+          />
+        </SidePanel>
       )}
     </div>
   )

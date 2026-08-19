@@ -3,7 +3,8 @@ import { archiveApplication, updateApplicationTriage } from '../db.js'
 import { STAGE_ORDER, STAGE_COLOR, TERMINAL_STAGES, daysSince, daysBetween, fmt, Badge, EmptyState, isUntriaged, findDuplicateGroups } from '../shared.jsx'
 import { BUCKET_TO_TRIAGE } from './jobBoards/helpers.js'
 import { companyCoverage } from '../lib/networkCoverage.js'
-import ApplicationDetailModal from './ApplicationDetailModal.jsx'
+import SidePanel from './ui/SidePanel.jsx'
+import ApplicationPanelBody from './panels/ApplicationPanelBody.jsx'
 import Mono from './ui/Mono.jsx'
 
 const COVERAGE_BADGE = {
@@ -206,20 +207,22 @@ export default function PipelineTab({ apps, contacts = [], interactions = [], re
         )}
 
       {(selectedApp || addingNew) && (
-        <ApplicationDetailModal
-          app={selectedApp}
-          contacts={contacts}
-          apps={apps}
-          interactions={interactions}
-          relationships={relationships}
-          onStatusChange={s => changeTriage(selectedApp, s)}
-          onClose={() => { setSelectedAppId(null); setAddingNew(false) }}
-          onDelete={async () => { await archiveApplication(selectedApp.id); setSelectedAppId(null); onRefresh() }}
-          onSaved={() => { setAddingNew(false); onRefresh() }}
-          onFindPeople={onFindPeople}
-          onRefresh={onRefresh}
-          onRefreshRelationships={onRefreshRelationships}
-        />
+        <SidePanel open onClose={() => { setSelectedAppId(null); setAddingNew(false) }}>
+          <ApplicationPanelBody
+            app={selectedApp}
+            contacts={contacts}
+            apps={apps}
+            interactions={interactions}
+            relationships={relationships}
+            onStatusChange={s => changeTriage(selectedApp, s)}
+            onClose={() => { setSelectedAppId(null); setAddingNew(false) }}
+            onDelete={async () => { await archiveApplication(selectedApp.id); setSelectedAppId(null); onRefresh() }}
+            onSaved={() => { setAddingNew(false); onRefresh() }}
+            onFindPeople={onFindPeople}
+            onRefresh={onRefresh}
+            onRefreshRelationships={onRefreshRelationships}
+          />
+        </SidePanel>
       )}
     </div>
   )

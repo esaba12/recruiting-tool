@@ -8,7 +8,8 @@ import {
 import PreferencesPanel from './PreferencesPanel.jsx'
 import JobCard from './JobCard.jsx'
 import CalendarView from './CalendarView.jsx'
-import JobDetailModal from './JobDetailModal.jsx'
+import SidePanel from '../ui/SidePanel.jsx'
+import JobPanelBody from '../panels/JobPanelBody.jsx'
 import RepoStats from './RepoStats.jsx'
 import useJobBlurbs from './useJobBlurbs.js'
 import useJobDeadlines from './useJobDeadlines.js'
@@ -325,16 +326,18 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
       )}
 
       {selectedJob && (
-        <JobDetailModal
-          job={selectedJob}
-          status={statusFor(selectedJob)}
-          blurb={blurbs[jobId(selectedJob)]}
-          deadline={deadlines[jobId(selectedJob)]}
-          onRecheckDeadline={() => recheckDeadline(selectedJob)}
-          onStatusChange={s => { updateStatus(selectedJob, s) }}
-          onClose={() => setSelectedJob(null)}
-          prefs={prefs}
-        />
+        <SidePanel open onClose={() => setSelectedJob(null)}>
+          <JobPanelBody
+            job={selectedJob}
+            status={statusFor(selectedJob)}
+            blurb={blurbs[jobId(selectedJob)]}
+            deadline={deadlines[jobId(selectedJob)]}
+            onRecheckDeadline={() => recheckDeadline(selectedJob)}
+            onStatusChange={s => { updateStatus(selectedJob, s) }}
+            onClose={() => setSelectedJob(null)}
+            prefs={prefs}
+          />
+        </SidePanel>
       )}
     </div>
   )

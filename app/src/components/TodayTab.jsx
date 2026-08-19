@@ -9,8 +9,9 @@ import { statusIconFor } from '../lib/icons.js'
 import useTimelineFinds from '../lib/useTimelineFinds.js'
 import { BUCKET_CONFIG, BUCKET_TAG, BUCKET_TO_TRIAGE } from './jobBoards/helpers.js'
 import DraftPanel from './DraftPanel.jsx'
-import ContactDetailModal from './ContactDetailModal.jsx'
-import ApplicationDetailModal from './ApplicationDetailModal.jsx'
+import SidePanel from './ui/SidePanel.jsx'
+import ContactPanelBody from './panels/ContactPanelBody.jsx'
+import ApplicationPanelBody from './panels/ApplicationPanelBody.jsx'
 import LogInteractionModal from './LogInteractionModal.jsx'
 import MetButton from './MetButton.jsx'
 import TimelineFindsPanel from './TimelineFindsPanel.jsx'
@@ -326,7 +327,7 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
   }
 
   // Shared triage mutation — used both by Job Boards Needs-Review's inline chips (via
-  // ApplicationRow) and by ApplicationDetailModal's onStatusChange below. Matches
+  // ApplicationRow) and by the application panel's onStatusChange below. Matches
   // PipelineTab.jsx's changeTriage exactly.
   async function changeAppTriage(app, bucketKey) {
     await updateApplicationTriage(app.id, BUCKET_TO_TRIAGE[bucketKey === null ? 'review' : bucketKey], app.stage)
@@ -419,15 +420,17 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
       )}
 
       {selectedContactId && (
-        <ContactDetailModal
-          contact={contacts.find(c => c.id === selectedContactId)}
-          contacts={contacts}
-          interactions={interactions}
-          contactRelationships={relationships}
-          onClose={() => setSelectedContactId(null)}
-          onSaved={() => { setSelectedContactId(null); onRefresh?.() }}
-          onRefreshRelationships={onRefreshRelationships}
-        />
+        <SidePanel open onClose={() => setSelectedContactId(null)}>
+          <ContactPanelBody
+            contact={contacts.find(c => c.id === selectedContactId)}
+            contacts={contacts}
+            interactions={interactions}
+            contactRelationships={relationships}
+            onClose={() => setSelectedContactId(null)}
+            onSaved={() => { setSelectedContactId(null); onRefresh?.() }}
+            onRefreshRelationships={onRefreshRelationships}
+          />
+        </SidePanel>
       )}
       {logContact && (
         <LogInteractionModal
@@ -438,20 +441,22 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
         />
       )}
       {selectedAppId && (
-        <ApplicationDetailModal
-          app={selectedApp}
-          contacts={contacts}
-          apps={apps}
-          interactions={interactions}
-          relationships={relationships}
-          onStatusChange={s => changeAppTriage(selectedApp, s)}
-          onClose={() => setSelectedAppId(null)}
-          onDelete={async () => { await archiveApplication(selectedApp.id); setSelectedAppId(null); onRefresh?.() }}
-          onSaved={() => onRefresh?.()}
-          onFindPeople={onFindPeople}
-          onRefresh={onRefresh}
-          onRefreshRelationships={onRefreshRelationships}
-        />
+        <SidePanel open onClose={() => setSelectedAppId(null)}>
+          <ApplicationPanelBody
+            app={selectedApp}
+            contacts={contacts}
+            apps={apps}
+            interactions={interactions}
+            relationships={relationships}
+            onStatusChange={s => changeAppTriage(selectedApp, s)}
+            onClose={() => setSelectedAppId(null)}
+            onDelete={async () => { await archiveApplication(selectedApp.id); setSelectedAppId(null); onRefresh?.() }}
+            onSaved={() => onRefresh?.()}
+            onFindPeople={onFindPeople}
+            onRefresh={onRefresh}
+            onRefreshRelationships={onRefreshRelationships}
+          />
+        </SidePanel>
       )}
     </div>
   )

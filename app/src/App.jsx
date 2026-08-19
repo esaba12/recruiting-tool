@@ -7,7 +7,8 @@ import SettingsTab from './components/SettingsTab.jsx'
 import { STATUS_COLOR, URGENCY_COLOR, REFERRAL_STATUS_COLOR, daysSince, daysUntil, fmt, Badge, EmptyState, isOverdue } from './shared.jsx'
 import { statusIconFor, URGENCY_ICON } from './lib/icons.js'
 import AppShell from './components/layout/AppShell.jsx'
-import ContactDetailModal from './components/ContactDetailModal.jsx'
+import SidePanel from './components/ui/SidePanel.jsx'
+import ContactPanelBody from './components/panels/ContactPanelBody.jsx'
 import QuickAddContactModal from './components/QuickAddContactModal.jsx'
 import ContactsTable from './components/ContactsTable.jsx'
 import LogInteractionModal from './components/LogInteractionModal.jsx'
@@ -174,15 +175,17 @@ function NetworkTab({ contacts, apps, interactions, contactRelationships = [], o
         )}
 
       {editing && (
-        <ContactDetailModal
-          contact={editing === 'new' ? null : editing}
-          contacts={contacts}
-          interactions={interactions}
-          contactRelationships={contactRelationships}
-          onClose={() => setEditing(null)}
-          onSaved={() => { setEditing(null); onRefresh() }}
-          onRefreshRelationships={onRefreshRelationships}
-        />
+        <SidePanel open onClose={() => setEditing(null)}>
+          <ContactPanelBody
+            contact={editing === 'new' ? null : editing}
+            contacts={contacts}
+            interactions={interactions}
+            contactRelationships={contactRelationships}
+            onClose={() => setEditing(null)}
+            onSaved={() => { setEditing(null); onRefresh() }}
+            onRefreshRelationships={onRefreshRelationships}
+          />
+        </SidePanel>
       )}
 
       {logOpen && (
@@ -271,8 +274,8 @@ function AppInner() {
   }, [apps])
 
   // Narrower than load() on purpose: doesn't touch `loading`, which gates whether
-  // NetworkTab (and any modal it has open, like ContactDetailModal) is even mounted —
-  // toggling it while a modal is mid-edit would unmount and silently close it.
+  // NetworkTab (and the open record panel it may have open) is even mounted —
+  // toggling it while a record is mid-edit would unmount and silently close it.
   async function refreshContactRelationships() {
     setContactRelationships(await fetchContactRelationships())
   }
@@ -374,7 +377,7 @@ function DemoApp() {
   }
 
   // See AppInner's identical helper: avoids toggling `loading` (which would unmount
-  // NetworkTab and close any open ContactDetailModal mid-edit).
+  // NetworkTab and close the open record panel mid-edit).
   async function refreshContactRelationships() {
     setContactRelationships(await fetchContactRelationships())
   }
