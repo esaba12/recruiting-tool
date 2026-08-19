@@ -9,7 +9,7 @@ import { importApplicationFromUrl } from '../../lib/applicationImport.js'
 import { companyCoverage } from '../../lib/networkCoverage.js'
 import { warmPathsToCompany, pathLabel } from '../../lib/warmIntro.js'
 import { tieStrengthBucket } from '../../lib/affinity.js'
-import ContactDetailModal from './ContactDetailModal.jsx'
+import ContactPanelBody from './ContactPanelBody.jsx'
 
 const COVERAGE_BADGE = {
   gap:    { color: 'bg-danger-100 text-danger-700',   label: () => 'No network here yet' },
@@ -226,6 +226,25 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
         className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" {...props} />
     </div>
   )
+
+  // D-05 in-place record swap: when a dossier contact is opened, render the contact body
+  // instead of this component's own content. The application body itself stays mounted (this
+  // is an early return, not an unmount), so form/dates/analysis/pasteUrl state survives the
+  // round trip when the back affordance returns here.
+  if (openContact) {
+    return (
+      <ContactPanelBody
+        contact={openContact}
+        contacts={contacts}
+        interactions={interactions}
+        contactRelationships={relationships}
+        onBack={() => setOpenContactId(null)}
+        onClose={onClose}
+        onSaved={() => { setOpenContactId(null); onRefresh?.() }}
+        onRefreshRelationships={onRefreshRelationships}
+      />
+    )
+  }
 
   return (
     <>
@@ -482,17 +501,6 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
           </div>
         )}
 
-      {openContact && (
-        <ContactDetailModal
-          contact={openContact}
-          contacts={contacts}
-          interactions={interactions}
-          contactRelationships={relationships}
-          onClose={() => setOpenContactId(null)}
-          onSaved={() => { setOpenContactId(null); onRefresh?.() }}
-          onRefreshRelationships={onRefreshRelationships}
-        />
-      )}
     </>
   )
 }
