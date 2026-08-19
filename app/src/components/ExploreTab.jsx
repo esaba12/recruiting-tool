@@ -6,7 +6,6 @@ import { todayStr } from '../lib/discoveryScheduler.js'
 import { findCompanies, moreLikeThis, prefsFromRecPrefs } from '../lib/companyFinder.js'
 import { hiringVelocity } from '../lib/hiringVelocity.js'
 import { useAuth } from '../lib/AuthContext.jsx'
-import { useTargetCompanies } from '../lib/useTargetCompanies.js'
 import { Badge, EmptyState } from '../shared.jsx'
 import CompanyOnboarding from './CompanyOnboarding.jsx'
 import { RowCap } from './ui/Section.jsx'
@@ -17,7 +16,7 @@ const META_KEY      = 'rec_company_meta'
 const ADDED_KEY     = 'rec_company_added'
 const DISMISSED_KEY = 'rec_company_dismissed'
 
-export default function ExploreTab({ apps = [], onFindPeople, onTargetAdded }) {
+export default function ExploreTab({ apps = [], onFindPeople, onTargetAdded, targets, setTargets: setTargetCompanies, loaded: targetsLoaded }) {
   const { profile: studentProfile } = useAuth()
   const [prefs, setPrefs]         = useState(() => lsGet(PREFS_KEY))
   const [editing, setEditing]     = useState(() => !lsGet(PREFS_KEY)?.saved)
@@ -30,7 +29,6 @@ export default function ExploreTab({ apps = [], onFindPeople, onTargetAdded }) {
   const [error, setError]         = useState(null)
   const [expanding, setExpanding] = useState(null)
   const ranRef = useRef(false)
-  const { targets, setTargets: setTargetCompanies, loaded: targetsLoaded } = useTargetCompanies()
 
   function persistCompanies(next) { setCompanies(next); lsSet(RESULTS_KEY, next) }
   function persistMeta(next) { setMeta(next); lsSet(META_KEY, next) }

@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 3
 current_phase_name: Grow — Discovery Funnel Merge
-status: executing
+status: verifying
 stopped_at: Completed 03-06-PLAN.md
-last_updated: "2026-08-18T23:48:48.220Z"
+last_updated: "2026-08-18T23:57:50.598Z"
 last_activity: 2026-08-18
 last_activity_desc: Phase 3 execution started
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 19
-  completed_plans: 17
-  percent: 29
+  completed_plans: 19
+  percent: 43
 ---
 
 # Project State
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-08-18)
 ## Current Position
 
 Phase: 3 (Grow — Discovery Funnel Merge) — EXECUTING
-Plan: 7 of 8
-Status: Ready to execute
+Plan: 8 of 8
+Status: Phase complete — ready for verification
 Last activity: 2026-08-18 — Phase 3 execution started
 
 Progress: [██░░░░░░░░] 29%
@@ -73,6 +73,8 @@ Progress: [██░░░░░░░░] 29%
 | Phase 03-grow-discovery-funnel-merge P04 | 3min | 2 tasks | 1 files |
 | Phase 03-grow-discovery-funnel-merge PP05 | 5min | 2 tasks | 1 files |
 | Phase 03 P06 | 5min | 2 tasks | 1 files |
+| Phase 03-grow-discovery-funnel-merge P07 | 8min | 2 tasks | 1 files |
+| Phase 03-grow-discovery-funnel-merge P08 | 4min | 2 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -107,6 +109,8 @@ Recent decisions affecting current work:
 - [Phase 03-04]: Removed textarea auto-expand-on-empty by deleting exactly one line (setEditingList(targets.length === 0)) from the [loaded]-gated useEffect — Stops the freeform editor from colliding with the new D-03 EmptyState while leaving the manual toggle button fully intact
 - [Phase ?]: [Phase 03-05]: Left the By-company branch's nested candidate list unwrapped (no RowCap) per 03-UI-SPEC.md's explicit out-of-cap-scope note -- only DiscoverTab's top-level Recommended list and the stale EmptyState copy were touched, existing focus/rowRefs/ring-highlight mechanic untouched
 - [Phase ?]: GrowTab.jsx wires ExploreTab's onFindPeople directly to goToPeople (not goToCoverage), preserving the existing direct-to-People shortcut per resolved Open Question 1
+- [Phase 03-07]: Re-pointed goFindPeople (shared by PipelineTab/TodayTab) to set growFocusCompany + setTab('grow') instead of Network -> Discover; removed NetworkTab's dead Coverage/Discover sub-views, focusCompany state, and their imports -- GROW-01 criterion 3 ('old destinations gone') now structurally satisfied
+- [Phase ?]: [Phase 03-08]: Combined end-of-phase regression sweep re-verified all 6 structural gates + build + 3 RowCap checks green against the fully-merged 9-file Phase 3 tree; git diff --stat against pre-phase base aa4cfc7 confirms exactly the expected 9-file changeset with zero unexpected diffs; 4-row GROW-01/GROW-02 manual checklist staged in 03-08-SUMMARY.md with dev server live at localhost:3001 for human end-of-phase review.
 
 ### Pending Todos
 
@@ -134,6 +138,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-18T23:48:48.216Z
+Last session: 2026-08-18T23:57:20.182Z
 Stopped at: Completed 03-06-PLAN.md
 Resume file: .planning/phases/03-grow-discovery-funnel-merge/03-UI-SPEC.md

@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { normalizeCompanyName } from '../lib/networkGraph.js'
 import { companyCoverage } from '../lib/networkCoverage.js'
 import { warmPathsToCompany, pathLabel } from '../lib/warmIntro.js'
-import { useTargetCompanies } from '../lib/useTargetCompanies.js'
 import { STAGE_COLOR, Badge, EmptyState } from '../shared.jsx'
 import ContactDetailModal from './ContactDetailModal.jsx'
 import DraftPanel from './DraftPanel.jsx'
@@ -17,8 +16,12 @@ import { RowCap } from './ui/Section.jsx'
 // than just "any contact at all" — a company where your only contact is a total stranger
 // you added but never talked to isn't meaningfully covered. Shared with Pipeline, which
 // tags applications the same way.
-export default function ReferralCoverageTab({ contacts, apps, interactions, contactRelationships = [], onRefresh, onFindPeople, focus }) {
-  const { targets, setTargets, loaded } = useTargetCompanies()
+// ROW_CAP mirrors the RowCap cap={} value below — kept as a shared constant so the
+// deep-link focus/reorder logic (see the `rows` computation) can guarantee a focused
+// company always lands within the visibly-rendered slice, without hardcoding "5" twice.
+const ROW_CAP = 5
+
+export default function ReferralCoverageTab({ contacts, apps, interactions, contactRelationships = [], onRefresh, onFindPeople, focus, targets, setTargets, loaded }) {
   const [editingList, setEditingList] = useState(false)
   const [draft, setDraft] = useState('')
   const [addingFor, setAddingFor] = useState(null) // target company name string | null
@@ -67,6 +70,22 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
     })
     .sort((a, b) => ({ gap: 0, weak: 1, strong: 2 }[a.status]) - ({ gap: 0, weak: 1, strong: 2 }[b.status]))
 
+  // Deep-link guard (03-REVIEW.md WR-01): `rows` is rendered through <RowCap cap={ROW_CAP}>,
+  // which only shows the first ROW_CAP entries until the user manually expands it. Without
+  // this, a focused company ranked 6th+ never gets a `ref` set (rowRefs only fires for
+  // rendered rows), so the deep-link scroll/highlight effect above silently no-ops. Pin the
+  // focused row to the front only when it would otherwise fall outside the visible slice —
+  // this is a targeted splice, not a permanent re-sort, so status ordering is left untouched
+  // whenever the focused company is already within the cap (or there's no pending focus).
+  if (focus) {
+    const focusKey = normalizeCompanyName(focus.company)
+    const idx = rows.findIndex(r => normalizeCompanyName(r.company) === focusKey)
+    if (idx >= ROW_CAP) {
+      const [row] = rows.splice(idx, 1)
+      rows.unshift(row)
+    }
+  }
+
   const gapCount = rows.filter(r => r.status === 'gap').length
   const weakCount = rows.filter(r => r.status === 'weak').length
 
@@ -105,7 +124,7 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
             </p>
           )}
           <div className="space-y-2">
-            <RowCap items={rows} cap={5} tier="ink" renderItem={r => (
+            <RowCap items={rows} cap={ROW_CAP} tier="ink" renderItem={r => (
               <div key={r.company} ref={el => { if (el) rowRefs.current.set(normalizeCompanyName(r.company), el) }}
                 className={`bg-white rounded-xl p-4 shadow-sm border flex items-start justify-between gap-3 ${focus && normalizeCompanyName(focus.company) === normalizeCompanyName(r.company) ? 'ring-2 ring-accent-300' : ''} ${r.status === 'gap' ? 'border-danger-200' : r.status === 'weak' ? 'border-warning-200' : 'border-ink-100'}`}>
                 <div className="min-w-0">

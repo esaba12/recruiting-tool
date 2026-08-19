@@ -7,7 +7,6 @@ import { rankCandidates, DEFAULT_PROFILE, DEFAULT_WEIGHTS, roleCategory, affinit
 import { draftMessage } from '../lib/drafting.js'
 import { addContact, updateContact, searchContactByName } from '../db.js'
 import { useAuth } from '../lib/AuthContext.jsx'
-import { useTargetCompanies } from '../lib/useTargetCompanies.js'
 import { Badge, EmptyState } from '../shared.jsx'
 import { RowCap } from './ui/Section.jsx'
 
@@ -37,14 +36,13 @@ function personalizationSeed(person, reasons) {
   return signal.join('; ') || `They're ${person.title || 'on the team'} at ${person.company}`
 }
 
-export default function DiscoverTab({ contacts, apps, interactions, onRefresh, focus }) {
+export default function DiscoverTab({ contacts, apps, interactions, onRefresh, focus, targets, loaded: targetsLoaded }) {
   const { profile: userProfile } = useAuth()
   // First-run seed: use the account's Settings profile (school/grad year) rather
   // than a hardcoded default, so a fresh signup's affinity scoring reflects THEM.
   const seed = { ...DEFAULT_PROFILE, university: userProfile?.school || '', gradYear: userProfile?.grad_year || '' }
   const [profile, setProfile]     = useState(() => ({ ...seed, ...(lsGet(PROFILE_KEY) || {}), weights: { ...DEFAULT_WEIGHTS, ...(lsGet(PROFILE_KEY)?.weights || {}) } }))
   const [editingProfile, setEditingProfile] = useState(false)
-  const { targets, loaded: targetsLoaded } = useTargetCompanies()
   const [discovered, setDiscovered] = useState(() => lsGet(DISCOVERED_KEY) || {})
   const [dismissed, setDismissed] = useState(() => new Set(lsGet(DISMISSED_KEY) || []))
   const [added, setAdded]         = useState(() => new Set(lsGet(ADDED_KEY) || []))

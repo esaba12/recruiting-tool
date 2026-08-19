@@ -22,14 +22,12 @@ import GitHubTab from './components/jobBoards/GitHubTab.jsx'
 import AddToCalendarModal from './components/AddToCalendarModal.jsx'
 import QuickScheduleModal from './components/QuickScheduleModal.jsx'
 import QuickCaptureModal from './components/QuickCaptureModal.jsx'
-import ReferralCoverageTab from './components/ReferralCoverageTab.jsx'
 import OutboxTab from './components/OutboxTab.jsx'
-import DiscoverTab from './components/DiscoverTab.jsx'
 import GrowTab from './components/GrowTab.jsx'
 import NotFoundPage from './components/NotFoundPage.jsx'
 import { NAV_ITEMS } from './components/layout/Sidebar.jsx'
 import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, keepInTouchDue, needsReviewApps } from './lib/attention.js'
-import { Table2, LayoutGrid, Share2, Target, Send, UserSearch } from 'lucide-react'
+import { Table2, LayoutGrid, Share2, Send } from 'lucide-react'
 
 // ── Network Tab ───────────────────────────────────────────────────────────────
 
@@ -37,26 +35,23 @@ const NETWORK_VIEWS = [
   { key: 'table',    label: 'Table',    icon: Table2 },
   { key: 'cards',    label: 'Cards',    icon: LayoutGrid },
   { key: 'graph',    label: 'Graph',    icon: Share2 },
-  { key: 'coverage', label: 'Coverage', icon: Target },
   { key: 'outbox',   label: 'Outbox',   icon: Send },
-  { key: 'discover', label: 'Discover', icon: UserSearch },
 ]
 
 // The public /demo route (see DemoApp below) only shows views that need zero AI/BYOK
-// keys and no deep-links into ones that do — Discover/Outbox call Exa+Claude/GPT (401s
-// with no signed-in user), Keep in Touch's "Log" leans on the same AI extraction, and
-// Coverage's "Find people" deep-links into Discover. Table/Cards/Graph are pure local
-// rendering over the seeded demo data, so they work perfectly with no backend at all.
+// keys and no deep-links into ones that do — Outbox calls Exa+Claude/GPT (401s
+// with no signed-in user), Keep in Touch's "Log" leans on the same AI extraction.
+// Table/Cards/Graph are pure local rendering over the seeded demo data, so they
+// work perfectly with no backend at all.
 const DEMO_NETWORK_VIEWS = NETWORK_VIEWS.filter(v => ['table', 'cards', 'graph'].includes(v.key))
 
-function NetworkTab({ contacts, apps, interactions, contactRelationships = [], onRefresh, onRefreshRelationships, initialView = 'table', initialFocusCompany = null, views = NETWORK_VIEWS }) {
+function NetworkTab({ contacts, apps, interactions, contactRelationships = [], onRefresh, onRefreshRelationships, initialView = 'table', views = NETWORK_VIEWS }) {
   const [filter, setFilter]   = useState('ALL')
   const [search, setSearch]   = useState('')
   const [view, setView]       = useState(initialView) // 'table' | 'cards' | 'graph'
   const [editing, setEditing] = useState(null)   // contact object | 'new' | null
   const [logOpen, setLogOpen] = useState(false)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
-  const [focusCompany, setFocusCompany] = useState(initialFocusCompany) // { company, ts } — deep-link into Discover's ranked search for one company
 
   const filtered = contacts
     .filter(c => {
@@ -116,12 +111,7 @@ function NetworkTab({ contacts, apps, interactions, contactRelationships = [], o
         </div>
       </div>
 
-      {view === 'discover'
-        ? <DiscoverTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={onRefresh} focus={focusCompany} />
-        : view === 'coverage'
-        ? <ReferralCoverageTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={onRefresh}
-            onFindPeople={company => { setFocusCompany({ company, ts: Date.now() }); setView('discover') }} />
-        : view === 'graph'
+      {view === 'graph'
         ? <NetworkGraphTab contacts={contacts} contactRelationships={contactRelationships} />
         : view === 'outbox'
         ? <OutboxTab contacts={contacts} interactions={interactions} />
