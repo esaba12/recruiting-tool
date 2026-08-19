@@ -140,7 +140,25 @@ Plans:
   1. User opens a contact, an application, and a job listing and sees the same side-panel component/pattern each time.
   2. Every view/edit capability the replaced modals supported (contact status/urgency/referred-by, application stage/triage, job triage bucket, etc.) still works from the shared panel — no feature regression.
 
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+**Wave 1**
+
+- [ ] 04-01-PLAN.md — ui/SidePanel.jsx shell + lib/useMediaQuery.js + panels/JobPanelBody.jsx port
+- [ ] 04-02-PLAN.md — panels/ContactPanelBody.jsx port (19 form keys, relationships, history) + optional onBack
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 04-03-PLAN.md — panels/ApplicationPanelBody.jsx port + NetworkAtCompany + D-05 in-place record swap
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 04-04-PLAN.md — Re-point all 9 render sites across 6 files, delete the 3 legacy record modals
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 04-05-PLAN.md — Combined regression sweep + staged end-of-phase manual verification
+
 **UI hint**: yes
 
 ### Phase 5: Pipeline + Job Boards Merge
