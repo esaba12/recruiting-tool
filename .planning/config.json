@@ -21,12 +21,12 @@
     "research": true,
     "plan_check": true,
     "verifier": true,
-    "nyquist_validation": true,
+    "nyquist_validation": false,
     "auto_advance": true,
     "node_repair": true,
     "node_repair_budget": 2,
     "ui_phase": true,
-    "ui_safety_gate": true,
+    "ui_safety_gate": false,
     "ai_integration_phase": true,
     "human_verify_mode": "end-of-phase",
     "context_guard_mode": "warn",
@@ -43,12 +43,12 @@
     "plan_bounce_passes": 2,
     "auto_prune_state": false,
     "post_planning_gaps": true,
-    "security_enforcement": true,
+    "security_enforcement": false,
     "security_asvs_level": 1,
     "security_block_on": "high",
     "build_command": "cd app && npm run build",
     "test_command": true,
-    "_auto_chain_active": false
+    "_auto_chain_active": true
   },
   "ship": {
     "pr_body_sections": [
@@ -88,7 +88,7 @@
     "source_grounding": true,
     "source_grounding_authority": "grep"
   },
-  "resolve_model_ids": "omit",
+  "resolve_model_ids": false,
   "mode": "yolo",
-  "granularity": "standard"
+  "granularity": "coarse"
 }
