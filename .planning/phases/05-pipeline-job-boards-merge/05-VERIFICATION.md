@@ -1,29 +1,36 @@
 ---
 phase: 05-pipeline-job-boards-merge
 verified: 2026-08-20T00:00:00Z
-status: human_needed
+status: passed
 score: 7/7 must-haves verified (structural/code level)
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
+
   - test: "ROADMAP.md/STATE.md tracking discrepancy — resolve before treating Phase 5 as closed"
     expected: "Phase 5 should either stay unchecked with an 'awaiting human UAT — see 05-UAT.md' note (matching Phases 3 and 4's pattern), or the staged checklist below should actually be run and a 05-UAT.md filed before the checkmark stands."
     why_human: "This is a project-tracking decision, not a code fact. ROADMAP.md marks Phase 5 `[x]` complete (commit 301533b), but 05-02-SUMMARY.md's own 'Next Phase Readiness' section says 'Ready to close Phase 5 once the staged checklist above is run by a human' — i.e. the plan's own executor did not consider the phase done. This is the exact same premature-completion pattern that commit f6a304c corrected for Phase 4 one day earlier, and no `05-UAT.md` file exists (unlike `01-UAT.md`, `02-UAT.md`, `03-UAT.md`, `04-UAT.md`, all of which do)."
+
   - test: "Live render + screenshot of the merged Pipeline destination (both segments) against the industrial UI-SPEC — switcher-row spacing, segment label/icon legibility, active-segment fill"
     expected: "Segmented control renders correctly above each body's own first element (DuplicatesPanel / TrackedBoardsPanel) with no doubled chrome or spacing collision; industrial aesthetic direction holds."
     why_human: "Visual appearance can never be verified from source alone (project's own frontend_aesthetics directive requires an actual render+screenshot before declaring UI work done). Both 05-01 and 05-02 attempted this and were blocked by environment limits (no browser tool in 05-01; missing .env/Supabase credentials crashing every route pre-React-mount in 05-02's worktree) — this has literally never been visually confirmed by anyone."
+
   - test: "Click the segmented control back and forth between Applications and Job Boards in a real signed-in session"
     expected: "View toggles correctly; the previously active body unmounts (not just hides) so Job Boards' auto-import/deadline-fetch effects stop running while on Applications."
     why_human: "Runtime interaction; never executed in either plan's environment."
+
   - test: "Auto-import round trip: pull a board with a new listing, switch to Applications without reloading, confirm the row appears with Triage=Needs Review, then check Today's attention feed"
     expected: "New row appears immediately (no stale-props snapshot in the shell) and surfaces in Today's needsReviewApps-derived feed."
     why_human: "Requires a live signed-in session with real board data; static analysis confirms the code path exists (RepoJobsView -> addApplication(Triage='Needs Review') -> attention.js's needsReviewApps()) but not that it round-trips correctly at runtime."
+
   - test: "Open an application row and a job card from each respective view and confirm the shared SidePanel opens and edits save"
     expected: "SidePanel + ApplicationPanelBody opens/saves from Applications; SidePanel + JobPanelBody opens/saves from Job Boards (via RepoJobsView, untouched by this phase)."
     why_human: "Wiring is confirmed present (imports, render calls); actual save-to-Supabase round trip needs a live click-through."
+
   - test: "Public /demo route: Pipeline reachable, renders Applications only, zero switcher chrome"
     expected: "No segmented control visible at all (not disabled, not single-pill)."
     why_human: "views.length > 1 gate is confirmed in source (DEMO_PIPELINE_VIEWS is a 1-entry array); actual /demo render was never captured (05-02's screenshot attempt crashed pre-mount on every route, including /demo, due to missing Supabase env vars in that worktree)."
+
   - test: "Mobile-width responsive check of the switcher row and 7-item bottom bar"
     expected: "Both render sanely at mobile width."
     why_human: "Visual/responsive check, never performed."

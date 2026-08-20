@@ -2,44 +2,44 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 5
-current_phase_name: Pipeline + Job Boards Merge
-status: verifying
-stopped_at: Phase 5 executed, human UAT pending (0/7 items — see 05-UAT.md)
-last_updated: "2026-08-20T18:47:24.000Z"
+current_phase: 6
+current_phase_name: Navigation Consolidation Complete
+status: executing
+stopped_at: Phase 5 complete (7/7 UAT items passed), ready to plan Phase 6
+last_updated: "2026-08-20T19:10:00.000Z"
 last_activity: 2026-08-20
-last_activity_desc: Phase 5 executed (05-01, 05-02), code review clean of blockers, awaiting human UAT
+last_activity_desc: Phase 5 complete (UAT 7/7 passed via live Playwright verification), transitioned to Phase 6
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 26
   completed_plans: 26
-  percent: 57
+  percent: 71
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-18)
+See: .planning/PROJECT.md (updated 2026-08-20)
 
 **Core value:** The dashboard must be fast and cohesive to use every day during an active job search — this milestone delivers an information architecture and visual system the user doesn't have to relearn each session.
-**Current focus:** Phase 5 — Pipeline + Job Boards Merge
+**Current focus:** Phase 6 — Navigation Consolidation Complete
 
 ## Current Position
 
-Phase: 5 (Pipeline + Job Boards Merge) — EXECUTING
-Plan: 1 of 2
-Status: Executing Phase 5
-Last activity: 2026-08-20 — Phase 5 execution started
+Phase: 6 — Navigation Consolidation Complete
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-08-20 — Phase 5 complete, transitioned to Phase 6
 
-Progress: [██░░░░░░░░] 29%
+Progress: [███████░░░] 71%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 11
+- Total plans completed: 13
 - Average duration: - min
 - Total execution time: 0 hours
 
@@ -49,6 +49,7 @@ Progress: [██░░░░░░░░] 29%
 |-------|-------|-------|----------|
 | 1 | 5 | - | - |
 | 02 | 6 | - | - |
+| 5 | 2 | - | - |
 
 **Recent Trend:**
 
@@ -134,7 +135,7 @@ None yet.
 - [Phase 1] `RepoJobsView.jsx:288`'s "Hide stale" toggle (`bg-warning-500 text-white`) fails WCAG contrast at 2.45:1 — pre-existing, not a regression, outside Phase 1's 10-file scope. Flagged for a human decision: quick standalone fix vs. fold into Phase 7's VIS-01 pass.
 - [Phase 2] `useTimelineFinds.js`'s `scan()` merges AI-found events via a stale closure over `pending` rather than a functional `setPending(prev => ...)` update (introduced by Plan 02-06's hook extraction, flagged as WR-09 in `02-REVIEW.md`) — a `dismiss()`/`updateField()` call landing while a scan is in flight can be silently overwritten, resurrecting a just-dismissed item. Low severity, doesn't affect Phase 2's success criteria; worth a standalone fix (`setPending(prevPending => ...)`).
 - [Phase 2] `CalendarTab.jsx`'s Feed view doesn't refresh after creating/deleting an event (CR-02 in `02-REVIEW.md`, pre-existing, carried through unresolved across all of Phase 2 since Calendar was explicitly out of scope) — candidate for a Phase 5/6 fix if Calendar gets touched again.
-- [Phase 5] `05-REVIEW.md` (code review, standard depth): 0 critical, 6 warnings, 3 info, none blocking the phase goal. Most notable: WR-02 — toggling the new Applications/Job Boards segmented control unmounts the inactive body, discarding `JobBoardsView`'s local state (pulled board results, search history) on every switch, a real usability regression now that switching is one click instead of a full tab nav. WR-01 — the switcher's visible `views` array and the rendered body are two independently-maintained sources that could silently desync if a third view is ever added (currently safe, only two hardcoded views exist). Neither fixed this phase; candidates for a standalone follow-up or Phase 6/7.
+- [Phase 5] `05-REVIEW.md` (code review, standard depth): 0 critical, 6 warnings, 3 info, none blocking the phase goal. Most notable: WR-02 — toggling the new Applications/Job Boards segmented control unmounts the inactive body, discarding `JobBoardsView`'s local state (pulled board results, search history) on every switch, a real usability regression now that switching is one click instead of a full tab nav — **live-reproduced during `05-UAT.md` Test 3** (re-pull was safe, no duplicate applications, dedup checks the live `apps` prop not just local state). WR-01 — the switcher's visible `views` array and the rendered body are two independently-maintained sources that could silently desync if a third view is ever added (currently safe, only two hardcoded views exist). Neither fixed this phase; candidates for a standalone follow-up or Phase 6/7.
 - [Phase 5] Tooling gap: `roadmap.update-plan-progress` auto-checked Phase 5 `[x]` complete in ROADMAP.md the moment the last plan's summary_count matched plan_count, before verification or human UAT ran — identical to the bug fixed for Phase 4 in commit `f6a304c` one day earlier. Corrected manually again this phase; the underlying tool behavior is unfixed and will very likely recur for Phase 6/7 unless `roadmap.update-plan-progress` (or the execute-phase workflow's call to it) is changed to never flip the `[x]` checkbox itself, leaving that exclusively to `phase.complete` after verification passes.
 
 ## Deferred Items
@@ -147,6 +148,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-20T18:47:24.000Z
-Stopped at: Phase 5 executed, human UAT pending (0/7 items)
-Resume file: .planning/phases/05-pipeline-job-boards-merge/05-UAT.md
+Last session: 2026-08-20T19:10:00.000Z
+Stopped at: Phase 5 complete, ready to plan Phase 6
+Resume file: None
