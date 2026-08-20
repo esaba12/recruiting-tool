@@ -161,3 +161,14 @@ None — no external service configuration required.
 ---
 *Phase: 05-pipeline-job-boards-merge*
 *Completed: 2026-08-19*
+
+## Self-Check: PASSED
+
+- FOUND: app/src/components/ApplicationsView.jsx
+- FOUND: app/src/components/jobBoards/JobBoardsView.jsx
+- FOUND: app/src/components/PipelineTab.jsx
+- FOUND: .planning/phases/05-pipeline-job-boards-merge/05-01-SUMMARY.md
+- FOUND: commit 5624e7b (Task 1)
+- FOUND: commit be8cb71 (Task 2)
+- FOUND: commit e2cdc01 (Task 3)
+- FOUND: commit 99028a8 (docs: summary)
