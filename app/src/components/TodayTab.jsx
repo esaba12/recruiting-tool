@@ -1,6 +1,10 @@
 import { useState } from 'react'
-import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TYPE_COLOR, fmt, daysUntil, daysSince, Badge, EmptyState } from '../shared.jsx'
+import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TYPE_COLOR, fmt, daysUntil, daysSince, Badge, EmptyState, isUntriaged } from '../shared.jsx'
 import { updateContact, addInteraction, updateApplicationTriage, archiveApplication, updateApplication } from '../db.js'
+import BarChartWrapper from './charts/BarChart.jsx'
+import DonutChart from './charts/DonutChart.jsx'
+import TrendChart from './charts/TrendChart.jsx'
+import { STATUS_CHART_COLORS } from './charts/theme.js'
 import { logMetWithContact } from '../lib/quickLog.js'
 import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue } from '../lib/attention.js'
 import { lastPointOfContact } from '../lib/keepInTouch.js'
@@ -17,7 +21,7 @@ import MetButton from './MetButton.jsx'
 import TimelineFindsPanel from './TimelineFindsPanel.jsx'
 import Mono from './ui/Mono.jsx'
 import { Section, RowCap, HEADING_COLOR } from './ui/Section.jsx'
-import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus } from 'lucide-react'
+import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity } from 'lucide-react'
 
 // Matches KeepInTouchTab.jsx:8 exactly — private to that component there, ported verbatim
 // here since it isn't exported.
@@ -303,6 +307,91 @@ function OaRow({ app: a, needsCheck, onOpen, onRefresh }) {
   )
 }
 
+// Monday-anchored ISO week start, used to bucket interactions for the trend chart.
+function weekStart(d) {
+  const date = new Date(d)
+  const day = (date.getDay() + 6) % 7 // 0=Monday
+  date.setDate(date.getDate() - day)
+  date.setHours(0, 0, 0, 0)
+  return date
+}
+
+function ActivitySection({ contacts, apps, interactions }) {
+  const triagedApps  = apps.filter(a => !isUntriaged(a))
+  const hasRecruitingActivity = apps.length > 0
+
+  const stageCounts = {}
+  triagedApps.forEach(a => { stageCounts[a.stage] = (stageCounts[a.stage] || 0) + 1 })
+  const funnelStages = ['Wishlist','Applied','Phone Screen','Technical','Onsite','Offer']
+  const funnelData = funnelStages.map(stage => ({ label: stage, value: stageCounts[stage] || 0 }))
+
+  // Stage-to-stage conversion — new signal, cheap given stageCounts already exists.
+  const conversions = []
+  for (let i = 0; i < funnelStages.length - 1; i++) {
+    const from = stageCounts[funnelStages[i]] || 0
+    const to = stageCounts[funnelStages[i + 1]] || 0
+    if (from > 0) conversions.push({ from: funnelStages[i], to: funnelStages[i + 1], pct: Math.round((to / from) * 100) })
+  }
+
+  const donutData = Object.keys(STATUS_COLOR)
+    .map(status => ({ label: status, value: contacts.filter(c => c.status === status).length, color: STATUS_CHART_COLORS[status] }))
+    .filter(d => d.value > 0)
+
+  // Interactions over the trailing 10 weeks — a signal not visualized anywhere else today.
+  const trendWeeks = []
+  const now = weekStart(new Date())
+  for (let i = 9; i >= 0; i--) {
+    const start = new Date(now)
+    start.setDate(start.getDate() - i * 7)
+    trendWeeks.push(start)
+  }
+  const trendData = trendWeeks.map(start => {
+    const label = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const count = interactions.filter(x => x.date && weekStart(x.date).getTime() === start.getTime()).length
+    return { label, count }
+  })
+  const hasInteractions = interactions.length > 0
+
+  return (
+    <Section title="Activity" accent="ink" icon={Activity}>
+      {hasRecruitingActivity && (
+        <div className="py-3">
+          <h3 className="text-xs font-semibold text-ink-500 mb-3">Application Funnel</h3>
+          <BarChartWrapper data={funnelData} height={180} />
+          {conversions.length > 0 && (
+            <p className="text-xs text-ink-400 mt-2 flex flex-wrap gap-x-3 gap-y-1">
+              {conversions.map(c => (
+                <span key={c.to}>{c.from} → {c.to}: <span className="font-medium text-ink-600">{c.pct}%</span></span>
+              ))}
+            </p>
+          )}
+          {(stageCounts.Rejected || stageCounts.Accepted) && (
+            <p className="text-xs text-ink-400 mt-2">
+              {stageCounts.Rejected ? `${stageCounts.Rejected} rejected` : ''}
+              {stageCounts.Rejected && stageCounts.Accepted ? ' · ' : ''}
+              {stageCounts.Accepted ? `${stageCounts.Accepted} accepted` : ''}
+            </p>
+          )}
+        </div>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-3">
+        <div>
+          <h3 className="text-xs font-semibold text-ink-500 mb-3">Network by Status</h3>
+          {contacts.length === 0
+            ? <p className="text-sm text-ink-400">No contacts yet.</p>
+            : <DonutChart data={donutData} centerLabel="contacts" />}
+        </div>
+        <div>
+          <h3 className="text-xs font-semibold text-ink-500 mb-3">Networking Activity</h3>
+          {!hasInteractions
+            ? <p className="text-sm text-ink-400">No logged interactions yet — use "+ Log Interaction" in Network.</p>
+            : <TrendChart data={trendData} />}
+        </div>
+      </div>
+    </Section>
+  )
+}
+
 export default function TodayTab({ contacts, apps, interactions = [], calls = [], relationships = [], onFindPeople, onRefresh, onRefreshRelationships, isDemoMode = false }) {
   const overdueContacts = overdueFollowUps(contacts)
   const staleApps = staleApplications(apps)
@@ -348,10 +437,10 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
     && keepInTouch.length === 0 && needsReview.length === 0 && scheduleContacts.length === 0
     && oaDueList.length === 0 && oaNeedsCheckList.length === 0 && (isDemoMode || timelineFinds.length === 0)
 
-  if (allEmpty) return <EmptyState msg="✓ Nothing needs your attention. You're on top of it." />
-
   return (
     <div className="space-y-4">
+      {allEmpty && <EmptyState msg="✓ Nothing needs your attention. You're on top of it." />}
+
       {overdueContacts.length > 0 && (
         <Section title={`Overdue Follow-Ups (${overdueContacts.length})`} accent="danger" icon={CalendarClock}>
           <RowCap items={overdueContacts} tier="danger"
@@ -412,12 +501,14 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
         </Section>
       )}
 
-      {!isDemoMode && (
+      {!isDemoMode && !allEmpty && (
         <TimelineFindsPanel
           pending={timelineFinds} running={timelineFindsRunning} error={timelineFindsError} meta={timelineFindsMeta}
           onScan={scanTimelineFinds} onDismiss={dismissTimelineFind} onUpdateField={updateTimelineFindField} onApprove={approveTimelineFind}
         />
       )}
+
+      <ActivitySection contacts={contacts} apps={apps} interactions={interactions} />
 
       <SidePanel open={!!selectedContactId} onClose={() => setSelectedContactId(null)}>
         {selectedContactId && (
