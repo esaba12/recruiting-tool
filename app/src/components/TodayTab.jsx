@@ -217,7 +217,7 @@ function KeepInTouchRow({ contact: c, status, interactions, onOpen, onLog, onMet
 
 // Application-shaped row used by Stale Applications and Job Boards Needs-Review (UI-SPEC
 // Type 3). Visual shape ported from the former Actions tab's inert ActionRow, wired with
-// PipelineTab.jsx's row-click-opens-modal mechanic. `changeAppTriage` is the shared
+// ApplicationsView.jsx's row-click-opens-modal mechanic. `changeAppTriage` is the shared
 // mutation defined inside TodayTab (below) — threaded in as a prop since this is a
 // standalone component, not nested inside TodayTab's closure.
 function ApplicationRow({ app: a, showTriageChips, onOpen, changeAppTriage }) {
@@ -328,7 +328,7 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
 
   // Shared triage mutation — used both by Job Boards Needs-Review's inline chips (via
   // ApplicationRow) and by the application panel's onStatusChange below. Matches
-  // PipelineTab.jsx's changeTriage exactly.
+  // ApplicationsView.jsx's changeTriage exactly.
   async function changeAppTriage(app, bucketKey) {
     await updateApplicationTriage(app.id, BUCKET_TO_TRIAGE[bucketKey === null ? 'review' : bucketKey], app.stage)
     onRefresh?.()

@@ -16,10 +16,9 @@ import MetButton from './components/MetButton.jsx'
 import { logMetWithContact } from './lib/quickLog.js'
 import NetworkGraphTab from './components/NetworkGraphTab.jsx'
 import OverviewTab from './components/OverviewTab.jsx'
-import PipelineTab from './components/PipelineTab.jsx'
+import PipelineTab, { DEMO_PIPELINE_VIEWS } from './components/PipelineTab.jsx'
 import TodayTab from './components/TodayTab.jsx'
 import CalendarTab from './components/CalendarTab.jsx'
-import JobBoardsView from './components/jobBoards/JobBoardsView.jsx'
 import AddToCalendarModal from './components/AddToCalendarModal.jsx'
 import QuickScheduleModal from './components/QuickScheduleModal.jsx'
 import QuickCaptureModal from './components/QuickCaptureModal.jsx'
@@ -323,7 +322,6 @@ function AppInner() {
       )}
       {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} />}
       {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} />}
-      {tab === 'github'   && <JobBoardsView apps={apps} onImported={load} />}
       {tab === 'settings' && <SettingsTab />}
 
       {addEventOpen && <AddToCalendarModal onClose={() => setAddEventOpen(false)} />}
@@ -406,7 +404,7 @@ function DemoApp() {
       )}
       {!loading && tab === 'pipeline' && (
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
-          onRefreshRelationships={refreshContactRelationships} />
+          onRefreshRelationships={refreshContactRelationships} views={DEMO_PIPELINE_VIEWS} />
       )}
       {!loading && tab === 'today' && (
         <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships}

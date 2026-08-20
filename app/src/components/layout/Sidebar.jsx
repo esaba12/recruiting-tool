@@ -7,7 +7,6 @@ const NAV_ITEMS = [
   { id: 'grow',     label: 'Grow' },
   { id: 'pipeline', label: 'Pipeline' },
   { id: 'calendar', label: 'Calendar' },
-  { id: 'github',   label: 'Job Boards' },
   { id: 'settings', label: 'Settings' },
 ]
 
