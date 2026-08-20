@@ -4,16 +4,16 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 5
 current_phase_name: Pipeline + Job Boards Merge
-status: executing
-stopped_at: Phase 5 UI-SPEC approved
-last_updated: "2026-08-20T00:37:29.181Z"
+status: verifying
+stopped_at: Phase 5 executed, human UAT pending (0/7 items — see 05-UAT.md)
+last_updated: "2026-08-20T18:47:24.000Z"
 last_activity: 2026-08-20
-last_activity_desc: Phase 5 execution started
+last_activity_desc: Phase 5 executed (05-01, 05-02), code review clean of blockers, awaiting human UAT
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 26
-  completed_plans: 24
+  completed_plans: 26
   percent: 57
 ---
 
@@ -76,6 +76,8 @@ Progress: [██░░░░░░░░] 29%
 | Phase 03-grow-discovery-funnel-merge P07 | 8min | 2 tasks | 1 files |
 | Phase 03-grow-discovery-funnel-merge P08 | 4min | 2 tasks | 0 files |
 | Phase 04-shared-record-side-panel P05 | 12min | 2 tasks | 1 files |
+| Phase 05-pipeline-job-boards-merge P01 | 15min | 3 tasks | 6 files |
+| Phase 05-pipeline-job-boards-merge P02 | 25min | 2 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -113,6 +115,9 @@ Recent decisions affecting current work:
 - [Phase 03-07]: Re-pointed goFindPeople (shared by PipelineTab/TodayTab) to set growFocusCompany + setTab('grow') instead of Network -> Discover; removed NetworkTab's dead Coverage/Discover sub-views, focusCompany state, and their imports -- GROW-01 criterion 3 ('old destinations gone') now structurally satisfied
 - [Phase ?]: [Phase 03-08]: Combined end-of-phase regression sweep re-verified all 6 structural gates + build + 3 RowCap checks green against the fully-merged 9-file Phase 3 tree; git diff --stat against pre-phase base aa4cfc7 confirms exactly the expected 9-file changeset with zero unexpected diffs; 4-row GROW-01/GROW-02 manual checklist staged in 03-08-SUMMARY.md with dev server live at localhost:3001 for human end-of-phase review.
 - [Phase 04-05]: End-of-phase sweep re-verified all 17 deterministic gates from plans 04-01 through 04-04 green against the fully merged tree; changeset audit against base b690ab9 confirmed exactly the expected 14-path diff (5 added, 6 modified, 3 deleted) using --no-renames to defeat git's similarity-based rename collapsing; production build clean; 12-step manual UAT checklist staged with dev server live at localhost:3001.
+- [Phase 05-01]: Renamed both existing tab bodies verbatim (`GitHubTab.jsx`→`JobBoardsView.jsx`, `PipelineTab.jsx`→`ApplicationsView.jsx`) and introduced a new thin `PipelineTab.jsx` shell (45 lines, single `useState('applications')`, verbatim `NETWORK_VIEWS`-style segmented control gated on `views.length > 1`) — zero logic changes to either wrapped body, matching Phase 3's `GrowTab` shell precedent. `Sidebar.jsx` down to 7 nav entries, `'github'` removed.
+- [Phase 05-02]: End-of-phase sweep re-verified all 22 deterministic gates from 05-01 green against the fully merged tree; all 4 preservation diffs (Job Boards subtree, `attention.js`/`db.js`, `ui/`/`panels/`, `icons.js`/`SettingsTab.jsx`) empty; production build clean. Live-render/screenshot check could not be completed in the isolated worktree (no `.env` — Supabase client throws before React mounts) — staged as a 7-item checklist for the human UAT pass instead, per `05-UAT.md`.
+- [Phase 05]: `gsd-verifier` caught the same premature-ROADMAP-completion pattern already fixed once for Phase 4 (commit `f6a304c`) — `roadmap.update-plan-progress` marked Phase 5 `[x]` complete in ROADMAP.md immediately after Wave 2's tracking commit, before verification or human UAT ran. Corrected back to the unchecked "awaiting human UAT — see 05-UAT.md" form; `05-UAT.md` filed with the 7 items from `05-VERIFICATION.md`'s `human_verification` list. Worth a standalone fix to `roadmap.update-plan-progress` so it stops auto-checking phases on last-plan completion — flagged, not yet actioned.
 
 ### Pending Todos
 
@@ -129,6 +134,8 @@ None yet.
 - [Phase 1] `RepoJobsView.jsx:288`'s "Hide stale" toggle (`bg-warning-500 text-white`) fails WCAG contrast at 2.45:1 — pre-existing, not a regression, outside Phase 1's 10-file scope. Flagged for a human decision: quick standalone fix vs. fold into Phase 7's VIS-01 pass.
 - [Phase 2] `useTimelineFinds.js`'s `scan()` merges AI-found events via a stale closure over `pending` rather than a functional `setPending(prev => ...)` update (introduced by Plan 02-06's hook extraction, flagged as WR-09 in `02-REVIEW.md`) — a `dismiss()`/`updateField()` call landing while a scan is in flight can be silently overwritten, resurrecting a just-dismissed item. Low severity, doesn't affect Phase 2's success criteria; worth a standalone fix (`setPending(prevPending => ...)`).
 - [Phase 2] `CalendarTab.jsx`'s Feed view doesn't refresh after creating/deleting an event (CR-02 in `02-REVIEW.md`, pre-existing, carried through unresolved across all of Phase 2 since Calendar was explicitly out of scope) — candidate for a Phase 5/6 fix if Calendar gets touched again.
+- [Phase 5] `05-REVIEW.md` (code review, standard depth): 0 critical, 6 warnings, 3 info, none blocking the phase goal. Most notable: WR-02 — toggling the new Applications/Job Boards segmented control unmounts the inactive body, discarding `JobBoardsView`'s local state (pulled board results, search history) on every switch, a real usability regression now that switching is one click instead of a full tab nav. WR-01 — the switcher's visible `views` array and the rendered body are two independently-maintained sources that could silently desync if a third view is ever added (currently safe, only two hardcoded views exist). Neither fixed this phase; candidates for a standalone follow-up or Phase 6/7.
+- [Phase 5] Tooling gap: `roadmap.update-plan-progress` auto-checked Phase 5 `[x]` complete in ROADMAP.md the moment the last plan's summary_count matched plan_count, before verification or human UAT ran — identical to the bug fixed for Phase 4 in commit `f6a304c` one day earlier. Corrected manually again this phase; the underlying tool behavior is unfixed and will very likely recur for Phase 6/7 unless `roadmap.update-plan-progress` (or the execute-phase workflow's call to it) is changed to never flip the `[x]` checkbox itself, leaving that exclusively to `phase.complete` after verification passes.
 
 ## Deferred Items
 
@@ -140,6 +147,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-20T00:21:13.881Z
-Stopped at: Phase 5 UI-SPEC approved
-Resume file: .planning/phases/05-pipeline-job-boards-merge/05-UI-SPEC.md
+Last session: 2026-08-20T18:47:24.000Z
+Stopped at: Phase 5 executed, human UAT pending (0/7 items)
+Resume file: .planning/phases/05-pipeline-job-boards-merge/05-UAT.md
