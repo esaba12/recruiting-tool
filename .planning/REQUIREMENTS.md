@@ -22,9 +22,9 @@
 
 ### Pipeline + Job Boards Merge (PIPE)
 
-- [ ] **PIPE-01**: User switches between an Applications view (Kanban/Table) and a Job Boards view within one Pipeline destination, instead of two separate top-level tabs
-- [ ] **PIPE-02**: Existing Job Boards functionality (multi-board tracking, auto-import, real-deadline extraction, triage buckets, calendar/stats views) is fully preserved inside the merged Pipeline destination
-- [ ] **PIPE-03**: Job listings auto-imported from Job Boards continue to land in the Applications table with Triage='Needs Review' and continue feeding the unified Attention feed (ATTN-01)
+- [x] **PIPE-01**: User switches between an Applications view (Kanban/Table) and a Job Boards view within one Pipeline destination, instead of two separate top-level tabs
+- [x] **PIPE-02**: Existing Job Boards functionality (multi-board tracking, auto-import, real-deadline extraction, triage buckets, calendar/stats views) is fully preserved inside the merged Pipeline destination
+- [x] **PIPE-03**: Job listings auto-imported from Job Boards continue to land in the Applications table with Triage='Needs Review' and continue feeding the unified Attention feed (ATTN-01)
 
 ### Shared Record Side-Panel (PANEL)
 
@@ -70,9 +70,9 @@
 | GROW-02 | Phase 3 | Complete |
 | PANEL-01 | Phase 4 | Complete |
 | PANEL-02 | Phase 4 | Complete |
-| PIPE-01 | Phase 5 | Pending |
-| PIPE-02 | Phase 5 | Pending |
-| PIPE-03 | Phase 5 | Pending |
+| PIPE-01 | Phase 5 | Complete |
+| PIPE-02 | Phase 5 | Complete |
+| PIPE-03 | Phase 5 | Complete |
 | NAV-01 | Phase 6 | Pending |
 | NAV-02 | Phase 6 | Pending |
 | NAV-03 | Phase 6 | Pending |
