@@ -15,7 +15,6 @@ import LogInteractionModal from './components/LogInteractionModal.jsx'
 import MetButton from './components/MetButton.jsx'
 import { logMetWithContact } from './lib/quickLog.js'
 import NetworkGraphTab from './components/NetworkGraphTab.jsx'
-import OverviewTab from './components/OverviewTab.jsx'
 import PipelineTab, { DEMO_PIPELINE_VIEWS } from './components/PipelineTab.jsx'
 import TodayTab from './components/TodayTab.jsx'
 import CalendarTab from './components/CalendarTab.jsx'
@@ -222,7 +221,7 @@ function AuthGate({ children }) {
 }
 
 function AppInner() {
-  const [tab, setTab]           = useState('overview')
+  const [tab, setTab]           = useState('today')
   const [networkInitialView, setNetworkInitialView] = useState('table')
   const [growFocusCompany, setGrowFocusCompany] = useState(null)
   // Deep-link into Grow's People section, pre-searching one company — shared by Pipeline's
@@ -302,11 +301,6 @@ function AppInner() {
       error={error}
     >
       {loading && <EmptyState msg="Loading your data..." />}
-      {!loading && tab === 'overview' && (
-        <OverviewTab contacts={contacts} apps={apps} interactions={interactions}
-          onOpenGraph={() => { setNetworkInitialView('graph'); setTab('network') }}
-          onOpenActions={() => setTab('today')} />
-      )}
       {!loading && tab === 'network'  && (
         <NetworkTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={load}
           onRefreshRelationships={refreshContactRelationships}
@@ -350,15 +344,15 @@ function AppInner() {
 // (keyed off this same /demo path) means every fetch*/add*/update* call these components
 // already make transparently reads/writes an in-memory seed dataset instead of Supabase,
 // so nothing here needed forking into a separate "read-only" UI. Scope is deliberately
-// trimmed to the 4 tabs that need zero AI/BYOK keys and zero external OAuth (Today,
-// Overview, Network table/cards/graph, Pipeline) — Grow/Outbox/Job
+// trimmed to the 3 tabs that need zero AI/BYOK keys and zero external OAuth (Today,
+// Network table/cards/graph, Pipeline) — Grow/Outbox/Job
 // Boards/Calendar/Settings all call Claude/OpenAI/Exa/GitHub/Google proxies that
 // `requireUser()`-gate on a real signed-in session and would just 401 for an anonymous
 // visitor, so they're left out rather than shown half-broken.
-const DEMO_NAV_ITEMS = NAV_ITEMS.filter(item => ['today', 'overview', 'network', 'pipeline'].includes(item.id))
+const DEMO_NAV_ITEMS = NAV_ITEMS.filter(item => ['today', 'network', 'pipeline'].includes(item.id))
 
 function DemoApp() {
-  const [tab, setTab] = useState('overview')
+  const [tab, setTab] = useState('today')
   const [contacts, setContacts] = useState([])
   const [apps, setApps] = useState([])
   const [interactions, setInteractions] = useState([])
@@ -394,10 +388,6 @@ function DemoApp() {
       demoMode
     >
       {loading && <EmptyState msg="Loading the demo..." />}
-      {!loading && tab === 'overview' && (
-        <OverviewTab contacts={contacts} apps={apps} interactions={interactions}
-          onOpenGraph={() => setTab('network')} onOpenActions={() => setTab('today')} />
-      )}
       {!loading && tab === 'network' && (
         <NetworkTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={load}
           onRefreshRelationships={refreshContactRelationships} views={DEMO_NETWORK_VIEWS} />

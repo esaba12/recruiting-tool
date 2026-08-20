@@ -2,12 +2,10 @@ import { NAV_ICON, REFRESH_ICON, CALENDAR_ICON, SCHEDULE_ICON, QUICK_CAPTURE_ICO
 
 const NAV_ITEMS = [
   { id: 'today', label: 'Today' },
-  { id: 'overview', label: 'Overview' },
   { id: 'network',  label: 'Network' },
   { id: 'grow',     label: 'Grow' },
   { id: 'pipeline', label: 'Pipeline' },
   { id: 'calendar', label: 'Calendar' },
-  { id: 'settings', label: 'Settings' },
 ]
 
 export { NAV_ITEMS }
@@ -64,6 +62,12 @@ export default function Sidebar({ activeTab, onTabChange, counts = {}, loading, 
                 <CALENDAR_ICON size={13} />
                 + Event
               </button>
+              <button onClick={() => onTabChange('settings')}
+                className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors
+                  ${activeTab === 'settings' ? 'bg-accent-500 text-white' : 'bg-ink-800 text-ink-100 hover:bg-ink-700'}`}>
+                <NAV_ICON.settings size={13} />
+                Settings
+              </button>
             </>
           )}
           {demoMode ? (
@@ -101,6 +105,10 @@ export default function Sidebar({ activeTab, onTabChange, counts = {}, loading, 
       {/* Mobile floating quick-actions (anchored above the bottom bar) */}
       {!hideQuickActions && (
         <>
+          <button onClick={() => onTabChange('settings')} aria-label="Settings"
+            className="md:hidden fixed right-4 bottom-56 z-30 w-12 h-12 rounded-full bg-ink-800 text-white shadow-lg flex items-center justify-center hover:bg-ink-700">
+            <NAV_ICON.settings size={20} />
+          </button>
           <button onClick={onQuickCapture}
             className="md:hidden fixed right-4 bottom-52 z-30 w-12 h-12 rounded-full bg-accent-500 text-white shadow-lg flex items-center justify-center hover:bg-accent-600">
             <QUICK_CAPTURE_ICON size={20} />
