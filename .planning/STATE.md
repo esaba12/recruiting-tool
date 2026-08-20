@@ -5,8 +5,8 @@ milestone_name: milestone
 current_phase: 3
 current_phase_name: Grow — Discovery Funnel Merge
 status: verifying
-stopped_at: Phase 5 context gathered
-last_updated: "2026-08-20T00:10:20.187Z"
+stopped_at: Phase 5 UI-SPEC approved
+last_updated: "2026-08-20T00:21:13.887Z"
 last_activity: 2026-08-18
 last_activity_desc: Phase 3 execution started
 progress:
@@ -140,6 +140,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-20T00:10:20.181Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-pipeline-job-boards-merge/05-CONTEXT.md
+Last session: 2026-08-20T00:21:13.881Z
+Stopped at: Phase 5 UI-SPEC approved
+Resume file: .planning/phases/05-pipeline-job-boards-merge/05-UI-SPEC.md
