@@ -7,7 +7,7 @@ import RepoJobsView from './RepoJobsView.jsx'
 import UserProfileView from './UserProfileView.jsx'
 import TrackedBoardsPanel from './TrackedBoardsPanel.jsx'
 
-export default function GitHubTab({ apps, onImported }) {
+export default function JobBoardsView({ apps, onImported }) {
   const [input, setInput]     = useState('')
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(false)

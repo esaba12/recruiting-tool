@@ -19,7 +19,7 @@ import OverviewTab from './components/OverviewTab.jsx'
 import PipelineTab from './components/PipelineTab.jsx'
 import TodayTab from './components/TodayTab.jsx'
 import CalendarTab from './components/CalendarTab.jsx'
-import GitHubTab from './components/jobBoards/GitHubTab.jsx'
+import JobBoardsView from './components/jobBoards/JobBoardsView.jsx'
 import AddToCalendarModal from './components/AddToCalendarModal.jsx'
 import QuickScheduleModal from './components/QuickScheduleModal.jsx'
 import QuickCaptureModal from './components/QuickCaptureModal.jsx'
@@ -323,7 +323,7 @@ function AppInner() {
       )}
       {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} />}
       {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} />}
-      {tab === 'github'   && <GitHubTab apps={apps} onImported={load} />}
+      {tab === 'github'   && <JobBoardsView apps={apps} onImported={load} />}
       {tab === 'settings' && <SettingsTab />}
 
       {addEventOpen && <AddToCalendarModal onClose={() => setAddEventOpen(false)} />}
