@@ -173,11 +173,11 @@ Plans:
   3. A job auto-imported from Job Boards lands in the Applications table with Triage='Needs Review' and shows up in Today's unified attention feed.
   4. Editing an application or job record inside the merged Pipeline destination opens the shared side-panel from Phase 4.
 
-**Plans**: 0/2 plans complete
+**Plans**: 1/2 plans executed
 Plans:
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — Rename both tab bodies verbatim, add the PipelineTab view-switch shell, collapse the render branches and nav entry
+- [x] 05-01-PLAN.md — Rename both tab bodies verbatim, add the PipelineTab view-switch shell, collapse the render branches and nav entry
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -225,6 +225,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Unified Attention Feed | 6/6 | Complete    | 2026-08-17 |
 | 3. Grow — Discovery Funnel Merge | 8/8 | Complete   | 2026-08-18 |
 | 4. Shared Record Side-Panel | 5/5 | Complete   | 2026-08-19 |
-| 5. Pipeline + Job Boards Merge | 0/2 | Planned | - |
+| 5. Pipeline + Job Boards Merge | 1/2 | In Progress|  |
 | 6. Navigation Consolidation Complete | 0/TBD | Not started | - |
 | 7. Full Visual Reskin + Motion + Stat Tiles | 0/TBD | Not started | - |
