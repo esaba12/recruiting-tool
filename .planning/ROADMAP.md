@@ -197,11 +197,11 @@ Plans:
   3. Every existing cross-tab deep link (e.g. "Find people →" from Pipeline/Grow into Discover) still works, including repeat clicks re-triggering on the same target company.
   4. The public `/demo` route still shows its trimmed nav and functions with zero backend/BYOK dependency.
 
-**Plans**: 3 plans
+**Plans**: 1/3 plans executed
 Plans:
 **Wave 1**
 
-- [ ] 06-01-PLAN.md — Port Overview's 3 charts into TodayTab as an Activity Section, rendered outside the caught-up gate
+- [x] 06-01-PLAN.md — Port Overview's 3 charts into TodayTab as an Activity Section, rendered outside the caught-up gate
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -239,5 +239,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Grow — Discovery Funnel Merge | 8/8 | Complete   | 2026-08-18 |
 | 4. Shared Record Side-Panel | 5/5 | Complete   | 2026-08-19 |
 | 5. Pipeline + Job Boards Merge | 2/2 | Complete    | 2026-08-20 |
-| 6. Navigation Consolidation Complete | 0/3 | Planned | - |
+| 6. Navigation Consolidation Complete | 1/3 | In Progress|  |
 | 7. Full Visual Reskin + Motion + Stat Tiles | 0/TBD | Not started | - |
