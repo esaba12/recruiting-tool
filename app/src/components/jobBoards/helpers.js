@@ -38,19 +38,19 @@ export const BUCKET_CONFIG = [
 ]
 
 export const BUCKET_ACTIVE = {
-  review:   'bg-ink-600 text-white border-ink-600',
-  applying: 'bg-accent-600 text-white border-accent-600',
-  maybe:    'bg-warning-600 text-white border-warning-600',
-  applied:  'bg-success-600 text-white border-success-600',
-  pass:     'bg-danger-600 text-white border-danger-600',
+  review:   'bg-gray-600 text-white border-gray-600',
+  applying: 'bg-blue-600 text-white border-blue-600',
+  maybe:    'bg-amber-500 text-white border-amber-500',
+  applied:  'bg-green-600 text-white border-green-600',
+  pass:     'bg-red-500 text-white border-red-500',
 }
 
 export const BUCKET_TAG = {
-  review:   'bg-ink-100 text-ink-600',
-  applying: 'bg-accent-100 text-accent-700',
-  maybe:    'bg-warning-100 text-warning-800',
-  applied:  'bg-success-100 text-success-800',
-  pass:     'bg-danger-100 text-danger-600',
+  review:   'bg-gray-100 text-gray-600',
+  applying: 'bg-blue-100 text-blue-700',
+  maybe:    'bg-amber-100 text-amber-700',
+  applied:  'bg-green-100 text-green-700',
+  pass:     'bg-red-100 text-red-500',
 }
 
 // Job Boards bucket key <-> Notion Applications.Triage select value

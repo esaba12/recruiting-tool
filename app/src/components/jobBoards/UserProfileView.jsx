@@ -9,14 +9,14 @@ export default function UserProfileView({ data, onClear }) {
   const profile = data?.profile
 
   if (!profile) return (
-    <div className="p-4 bg-warning-50 border border-warning-200 rounded-md text-sm text-warning-700">
+    <div className="p-4 bg-warning-50 border border-warning-200 rounded-xl text-sm text-warning-700">
       Profile data unavailable — username may not exist or GitHub rate-limited the request.
     </div>
   )
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-md p-5 border border-ink-300">
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-ink-100">
         <div className="flex items-start gap-4">
           <img src={profile.avatar_url} alt={profile.login}
             className="w-16 h-16 rounded-full border border-ink-200 flex-shrink-0" />
@@ -39,14 +39,14 @@ export default function UserProfileView({ data, onClear }) {
       </div>
 
       {weeks.length > 0 && (
-        <div className="bg-white rounded-md p-5 border border-ink-300">
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-ink-100">
           <h3 className="text-sm font-semibold text-ink-700 mb-3">Contribution Timeline</h3>
           <ContributionGrid weeks={weeks} total={data.contributions?.total} />
         </div>
       )}
 
       <div className="grid md:grid-cols-3 gap-4">
-        <div className="md:col-span-2 bg-white rounded-md p-5 border border-ink-300">
+        <div className="md:col-span-2 bg-white rounded-xl p-5 shadow-sm border border-ink-100">
           <h3 className="text-sm font-semibold text-ink-700 mb-3">Recent Repos</h3>
           <div className="space-y-3">
             {(data.repos || []).filter(r => !r.fork).slice(0, 6).map(r => (
@@ -63,7 +63,7 @@ export default function UserProfileView({ data, onClear }) {
             ))}
           </div>
         </div>
-        <div className="bg-white rounded-md p-5 border border-ink-300">
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-ink-100">
           <h3 className="text-sm font-semibold text-ink-700 mb-3">Languages</h3>
           <div className="space-y-2.5">
             {langs.map(([lang, count], i) => {
@@ -85,7 +85,7 @@ export default function UserProfileView({ data, onClear }) {
       </div>
 
       {recent.length > 0 && (
-        <div className="bg-white rounded-md p-5 border border-ink-300">
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-ink-100">
           <h3 className="text-sm font-semibold text-ink-700 mb-3">Recent Activity</h3>
           <div className="space-y-2">
             {recent.map((e, i) => {
