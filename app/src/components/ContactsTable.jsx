@@ -130,7 +130,7 @@ export default function ContactsTable({ contacts, onEdit, onMet }) {
   })
 
   return (
-    <div className="bg-white rounded-xl border border-ink-100 shadow-sm overflow-x-auto">
+    <div className="bg-white rounded-md border border-ink-300 overflow-x-auto">
       <table className="w-full text-xs">
         <thead>
           {table.getHeaderGroups().map(hg => (

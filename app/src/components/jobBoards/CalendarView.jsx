@@ -29,7 +29,7 @@ export default function CalendarView({ jobs, selectedDay, onDaySelect }) {
   const maxDay     = Math.max(...Object.values(jobsByDay), 1)
 
   return (
-    <div className="bg-white rounded-xl p-5 shadow-sm border border-ink-100">
+    <div className="bg-white rounded-md p-5 border border-ink-300">
       <div className="flex items-center justify-between mb-4">
         <button onClick={() => setViewDate(new Date(year, mo - 1, 1))}
           className="p-1.5 hover:bg-ink-100 rounded-lg text-ink-500 text-sm">←</button>

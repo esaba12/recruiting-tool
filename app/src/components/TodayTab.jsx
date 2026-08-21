@@ -171,7 +171,7 @@ function KeepInTouchRow({ contact: c, status, interactions, onOpen, onLog, onMet
   const bucket = tieStrengthBucket(c, interactions)
   const overdue = !status.never && status.overdueDays > 0
   return (
-    <div className={`bg-white rounded-xl px-4 py-3 shadow-sm border transition-shadow hover:shadow-md ${overdue ? 'border-warning-300' : 'border-ink-100'}`}>
+    <div className={`bg-white rounded-md px-4 py-3 border transition-shadow hover:shadow-md ${overdue ? 'border-warning-300' : 'border-ink-300'}`}>
       <div className="flex items-start gap-3">
         <button onClick={() => onOpen(c)} className="flex-1 min-w-0 text-left">
           <div className="flex items-center gap-2 flex-wrap">

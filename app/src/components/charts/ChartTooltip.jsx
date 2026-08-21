@@ -3,7 +3,7 @@
 export default function ChartTooltip({ active, payload, label, formatter }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-white border border-ink-100 shadow-sm rounded-xl px-3 py-2 text-xs">
+    <div className="bg-white border border-ink-300 rounded-md px-3 py-2 text-xs">
       {label && <p className="font-medium text-ink-700 mb-1">{label}</p>}
       {payload.map((p, i) => (
         <p key={i} className="text-ink-500">

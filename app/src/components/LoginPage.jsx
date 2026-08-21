@@ -63,7 +63,7 @@ export default function LoginPage() {
           <p className="text-sm text-ink-400 mt-1">Your job search, on autopilot. Bring your own AI keys.</p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-ink-100 shadow-sm p-6">
+        <div className="bg-white rounded-md border border-ink-300 p-6">
           <div className="flex mb-5 rounded-full bg-ink-50 p-1 text-xs font-medium">
             <button type="button" onClick={() => setMode('signin')}
               className={`flex-1 py-1.5 rounded-full transition-colors ${mode === 'signin' ? 'bg-white shadow-sm text-ink-900' : 'text-ink-400'}`}>

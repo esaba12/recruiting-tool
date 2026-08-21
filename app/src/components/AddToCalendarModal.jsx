@@ -172,7 +172,7 @@ export default function AddToCalendarModal({ onClose }) {
         </div>
 
         {extracted && (
-          <div className="space-y-3 bg-white rounded-xl p-4 border border-ink-100 shadow-sm">
+          <div className="space-y-3 bg-white rounded-md p-4 border border-ink-300">
             <p className="text-xs font-semibold text-ink-400 uppercase tracking-wide">Review & edit before creating</p>
             <div>
               <label className="block text-xs text-ink-400 mb-0.5">Title</label>

@@ -6,7 +6,7 @@ function OutboxRow({ msg, contactName, contactCompany }) {
   const text = expanded && msg.body ? msg.body : msg.summary
 
   return (
-    <div className="bg-white rounded-xl px-4 py-3 shadow-sm border border-ink-100">
+    <div className="bg-white rounded-md px-4 py-3 border border-ink-300">
       <div className="flex items-center gap-2 flex-wrap">
         <Badge label={msg.type} color={TYPE_COLOR[msg.type] || TYPE_COLOR.Other} />
         <span className="font-medium text-ink-900">{contactName}</span>
