@@ -1,4 +1,4 @@
-// This hook exists because framer-motion cannot express different transform
+// This hook exists because CSS cannot express different motion/react transform
 // values per CSS breakpoint, so the breakpoint must be readable from JS.
 import { useState, useEffect } from 'react'
 
