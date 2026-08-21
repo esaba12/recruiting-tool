@@ -1,8 +1,8 @@
 // Record-panel shell — a sibling of the centered-dialog primitive (ui/Modal.jsx),
 // not a variant of it. The animated axis is chosen in JS because a CSS breakpoint
-// cannot select which motion transform values apply.
+// cannot select which framer-motion transform values apply.
 import { useEffect, useRef, createContext, useContext } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '../../lib/cn.js'
 import useMediaQuery from '../../lib/useMediaQuery.js'
 
@@ -54,7 +54,7 @@ export default function SidePanel({ open = true, onClose, children, className })
           >
             <motion.div
               className={cn(
-                'bg-white w-full md:w-[480px] md:max-w-[92vw] rounded-t-md md:rounded-none border border-ink-300 max-h-[90vh] md:max-h-none md:h-full overflow-y-auto',
+                'bg-white w-full md:w-[480px] md:max-w-[92vw] rounded-t-2xl md:rounded-none shadow-2xl max-h-[90vh] md:max-h-none md:h-full overflow-y-auto',
                 className,
               )}
               {...transform}

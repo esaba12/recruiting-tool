@@ -12,7 +12,7 @@ const inputCls = 'w-full px-3 py-2 border border-accent-200 rounded-lg text-sm b
 function Chip({ label, active, onClick }) {
   return (
     <button type="button" onClick={onClick}
-      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${active
+      className={`px-3 py-1 rounded-sm text-xs font-medium border transition-colors ${active
         ? 'bg-accent-600 text-white border-accent-600'
         : 'bg-white text-ink-600 border-ink-200 hover:border-accent-300'}`}>
       {label}
@@ -44,7 +44,7 @@ export default function CompanyOnboarding({ initial, onSave, onCancel }) {
   })
 
   return (
-    <div className="rounded-2xl border border-accent-100 bg-gradient-to-br from-accent-50 to-indigo-50 p-6 space-y-5">
+    <div className="rounded-md border border-accent-100 bg-gradient-to-br from-accent-50 to-ink-100 p-6 space-y-5">
       <div>
         <h2 className="font-heading text-lg font-semibold text-ink-900">Find companies you'll actually like</h2>
         <p className="text-xs text-ink-500 mt-0.5">A few quick questions — all optional. We infer the rest from the companies you already admire.</p>

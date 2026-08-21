@@ -11,11 +11,11 @@ export default function NetworkGraphTab({ contacts, contactRelationships = [] })
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div className="md:col-span-2 bg-ink-900 rounded-xl border border-ink-800 shadow-sm overflow-hidden" style={{ height: 520 }}>
+      <div className="md:col-span-2 bg-ink-900 rounded-md border border-ink-800 shadow-sm overflow-hidden" style={{ height: 520 }}>
         <NetworkGraphView contacts={contacts} contactRelationships={contactRelationships} height={520} onNodeSelect={setSelected} />
       </div>
 
-      <div className="bg-white rounded-xl border border-ink-100 shadow-sm p-4">
+      <div className="bg-white rounded-md border border-ink-300 p-4">
         {!selected ? (
           <div className="text-sm text-ink-400 space-y-2">
             <p>Hover a node to see its name · click a contact for details.</p>

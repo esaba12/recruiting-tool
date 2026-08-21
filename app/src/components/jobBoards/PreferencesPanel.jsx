@@ -15,7 +15,7 @@ export default function PreferencesPanel({ prefs, onChange }) {
   ]
 
   return (
-    <div className="rounded-xl border border-accent-100 bg-gradient-to-r from-accent-50 to-indigo-50 overflow-hidden">
+    <div className="rounded-md border border-accent-100 bg-gradient-to-r from-accent-50 to-ink-100 overflow-hidden">
       <button onClick={() => setOpen(o => !o)}
         className="w-full px-5 py-3 flex items-center justify-between text-sm font-medium text-accent-800">
         <span>🎯 What I'm looking for {Object.keys(prefs).filter(k=>prefs[k]).length > 0 ? '· saved' : '· click to set'}</span>
