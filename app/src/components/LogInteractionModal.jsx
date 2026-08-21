@@ -204,7 +204,7 @@ export default function LogInteractionModal({ contacts = [], contact = null, onC
               <div className="space-y-4">
                 <p className="text-sm font-semibold text-ink-700">Extracted — review & edit before saving</p>
 
-                <div className="bg-white rounded-xl p-4 border border-ink-100 shadow-sm">
+                <div className="bg-white rounded-md p-4 border border-ink-300">
                   <p className="text-xs font-semibold text-ink-400 uppercase tracking-wide mb-3">Contact</p>
                   <div className="grid grid-cols-2 gap-3">
                     {[
@@ -235,7 +235,7 @@ export default function LogInteractionModal({ contacts = [], contact = null, onC
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl p-4 border border-ink-100 shadow-sm space-y-3">
+                <div className="bg-white rounded-md p-4 border border-ink-300 space-y-3">
                   <p className="text-xs font-semibold text-ink-400 uppercase tracking-wide">Summary</p>
                   {(channel === 'call'
                     ? [{ key: 'summary', label: 'Summary', rows: 3 }, { key: 'key_insights', label: 'Key Insights', rows: 2 }, { key: 'my_commitments', label: 'My Commitments', rows: 2 }]

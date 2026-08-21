@@ -16,7 +16,7 @@ export default function Button({ variant = 'primary', size = 'md', className, ch
   return (
     <button
       className={cn(
-        'rounded-md font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
+        'rounded-xl font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
         VARIANTS[variant], SIZES[size], className,
       )}
       {...rest}
