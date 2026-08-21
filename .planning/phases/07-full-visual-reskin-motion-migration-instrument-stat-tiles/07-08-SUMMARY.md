@@ -135,3 +135,13 @@ None - no external service configuration required.
 ---
 *Phase: 07-full-visual-reskin-motion-migration-instrument-stat-tiles*
 *Completed: 2026-08-21*
+
+## Self-Check: PASSED
+
+- FOUND: app/src/lib/statTiles.js
+- FOUND: app/src/components/StatTileRow.jsx
+- FOUND: .planning/phases/07-full-visual-reskin-motion-migration-instrument-stat-tiles/07-08-SUMMARY.md
+- FOUND commit: 2e71ea9
+- FOUND commit: 3306a45
+- FOUND commit: ea05408
+- FOUND commit: 00ed5ff

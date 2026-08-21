@@ -224,7 +224,7 @@ Plans:
   2. Staggered reveals and transitions run through the `motion` package, with the force-directed network graph canvas and Recharts internals explicitly untouched by the migration.
   3. Today's KPI tiles read as gauge-like mono readouts (funnel counts, days-to-deadline countdowns, an activity sparkline) instead of generic card grids, built on the existing Recharts wiring.
 
-**Plans**: 7/9 plans executed
+**Plans**: 8/9 plans executed
 Plans:
 **Wave 1**
 
@@ -238,7 +238,7 @@ Plans:
 
 **Wave 2** *(blocked on 07-01, 07-05)*
 
-- [ ] 07-08-PLAN.md — STAT-01 instrument-panel stat tiles (lib/statTiles.js, StatTileRow.jsx) + Today Section-list motion stagger
+- [x] 07-08-PLAN.md — STAT-01 instrument-panel stat tiles (lib/statTiles.js, StatTileRow.jsx) + Today Section-list motion stagger
 
 **Wave 3** *(blocked on Wave 1 + Wave 2 completion)*
 
@@ -259,4 +259,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Shared Record Side-Panel | 5/5 | Complete   | 2026-08-19 |
 | 5. Pipeline + Job Boards Merge | 2/2 | Complete    | 2026-08-20 |
 | 6. Navigation Consolidation Complete | 3/3 | Complete    | 2026-08-21 |
-| 7. Full Visual Reskin + Motion + Stat Tiles | 7/9 | In Progress|  |
+| 7. Full Visual Reskin + Motion + Stat Tiles | 8/9 | In Progress|  |

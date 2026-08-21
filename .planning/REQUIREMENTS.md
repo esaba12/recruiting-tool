@@ -40,7 +40,7 @@
 
 ### Instrument-Panel Stat Tiles (STAT)
 
-- [ ] **STAT-01**: Today's KPI tiles are restyled as gauge-like mono readouts (funnel counts, days-to-deadline countdowns, activity sparkline) instead of generic card grids, reusing the existing Recharts wiring
+- [x] **STAT-01**: Today's KPI tiles are restyled as gauge-like mono readouts (funnel counts, days-to-deadline countdowns, activity sparkline) instead of generic card grids, reusing the existing Recharts wiring
 
 ## Future Requirements (Deferred Past This Milestone)
 
@@ -79,7 +79,7 @@
 | NAV-04 | Phase 6 | Complete |
 | VIS-01 | Phase 7 | Complete |
 | VIS-04 | Phase 7 | Complete |
-| STAT-01 | Phase 7 | Pending |
+| STAT-01 | Phase 7 | Complete |
 
 **Coverage:** 19/19 v1 requirements mapped.
 
