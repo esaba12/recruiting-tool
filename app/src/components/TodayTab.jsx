@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { motion } from 'motion/react'
 import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TYPE_COLOR, fmt, daysUntil, daysSince, Badge, EmptyState, isUntriaged } from '../shared.jsx'
 import { updateContact, addInteraction, updateApplicationTriage, archiveApplication, updateApplication } from '../db.js'
 import BarChartWrapper from './charts/BarChart.jsx'
@@ -19,6 +20,7 @@ import ApplicationPanelBody from './panels/ApplicationPanelBody.jsx'
 import LogInteractionModal from './LogInteractionModal.jsx'
 import MetButton from './MetButton.jsx'
 import TimelineFindsPanel from './TimelineFindsPanel.jsx'
+import StatTileRow from './StatTileRow.jsx'
 import Mono from './ui/Mono.jsx'
 import { Section, RowCap, HEADING_COLOR } from './ui/Section.jsx'
 import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity } from 'lucide-react'
@@ -26,6 +28,11 @@ import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlu
 // Matches KeepInTouchTab.jsx:8 exactly — private to that component there, ported verbatim
 // here since it isn't exported.
 const TIE_LABEL = { strong: 'Close tie', moderate: 'Moderate tie', weak: 'Weak tie', cold: 'Not yet connected' }
+
+// Mount-time stagger for the whole Section list (D-04) — same shape as NotFoundPage.jsx's
+// container/rise precedent, lighter values matching UI-SPEC's "~100ms per section" cue.
+const container = { hidden: {}, show: { transition: { staggerChildren: 0.1 } } }
+const rise = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } }
 
 // A contact whose Follow-Up Date already passed, but who has a logged interaction newer
 // than that date — the date's just stale, not actually overdue. Ported verbatim from the
@@ -354,6 +361,7 @@ function ActivitySection({ contacts, apps, interactions }) {
 
   return (
     <Section title="Activity" accent="ink" icon={Activity}>
+      <StatTileRow triagedApps={triagedApps} apps={apps} trendData={trendData} />
       {hasRecruitingActivity && (
         <div className="py-3">
           <h3 className="text-xs font-semibold text-ink-500 mb-3">Application Funnel</h3>
@@ -438,77 +446,97 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
     && oaDueList.length === 0 && oaNeedsCheckList.length === 0 && (isDemoMode || timelineFinds.length === 0)
 
   return (
-    <div className="space-y-4">
+    <motion.div className="space-y-4" variants={container} initial="hidden" animate="show">
       {allEmpty && <EmptyState msg="✓ Nothing needs your attention. You're on top of it." />}
 
       {overdueContacts.length > 0 && (
-        <Section title={`Overdue Follow-Ups (${overdueContacts.length})`} accent="danger" icon={CalendarClock}>
-          <RowCap items={overdueContacts} tier="danger"
-            renderItem={c => <OverdueRow key={c.id} contact={c} interactions={interactions} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} />} />
-        </Section>
+        <motion.div variants={rise}>
+          <Section title={`Overdue Follow-Ups (${overdueContacts.length})`} accent="danger" icon={CalendarClock}>
+            <RowCap items={overdueContacts} tier="danger"
+              renderItem={c => <OverdueRow key={c.id} contact={c} interactions={interactions} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} />} />
+          </Section>
+        </motion.div>
       )}
 
       {staleApps.length > 0 && (
-        <Section title={`Stale Applications (${staleApps.length})`} accent="danger" icon={Hourglass}
-          subtitle="No movement in 14+ days — follow up or update the stage.">
-          <RowCap items={staleApps} tier="danger"
-            renderItem={a => <ApplicationRow key={a.id} app={a} showTriageChips={false} onOpen={x => setSelectedAppId(x.id)} changeAppTriage={changeAppTriage} />} />
-        </Section>
+        <motion.div variants={rise}>
+          <Section title={`Stale Applications (${staleApps.length})`} accent="danger" icon={Hourglass}
+            subtitle="No movement in 14+ days — follow up or update the stage.">
+            <RowCap items={staleApps} tier="danger"
+              renderItem={a => <ApplicationRow key={a.id} app={a} showTriageChips={false} onOpen={x => setSelectedAppId(x.id)} changeAppTriage={changeAppTriage} />} />
+          </Section>
+        </motion.div>
       )}
 
       {highUrgency.length > 0 && (
-        <Section title={`High Urgency Contacts (${highUrgency.length})`} accent="danger" icon={AlertTriangle}>
-          <RowCap items={highUrgency} tier="danger"
-            renderItem={c => <HighUrgencyRow key={c.id} contact={c} onOpen={x => setSelectedContactId(x.id)} />} />
-        </Section>
+        <motion.div variants={rise}>
+          <Section title={`High Urgency Contacts (${highUrgency.length})`} accent="danger" icon={AlertTriangle}>
+            <RowCap items={highUrgency} tier="danger"
+              renderItem={c => <HighUrgencyRow key={c.id} contact={c} onOpen={x => setSelectedContactId(x.id)} />} />
+          </Section>
+        </motion.div>
       )}
 
       {keepInTouch.length > 0 && (
-        <Section title={`Keep in Touch Due (${keepInTouch.length})`} accent="warning" icon={HeartHandshake}>
-          <RowCap items={keepInTouch} tier="warning"
-            renderItem={({ contact: c, status }) => (
-              <KeepInTouchRow key={c.id} contact={c} status={status} interactions={interactions}
-                onOpen={x => setSelectedContactId(x.id)} onLog={x => setLogContact(x)} onMet={handleMet} />
-            )} />
-        </Section>
+        <motion.div variants={rise}>
+          <Section title={`Keep in Touch Due (${keepInTouch.length})`} accent="warning" icon={HeartHandshake}>
+            <RowCap items={keepInTouch} tier="warning"
+              renderItem={({ contact: c, status }) => (
+                <KeepInTouchRow key={c.id} contact={c} status={status} interactions={interactions}
+                  onOpen={x => setSelectedContactId(x.id)} onLog={x => setLogContact(x)} onMet={handleMet} />
+              )} />
+          </Section>
+        </motion.div>
       )}
 
       {needsReview.length > 0 && (
-        <Section title={`Job Boards Needs-Review (${needsReview.length})`} accent="warning" icon={Inbox}>
-          <RowCap items={needsReview} tier="warning"
-            renderItem={a => <ApplicationRow key={a.id} app={a} showTriageChips onOpen={x => setSelectedAppId(x.id)} changeAppTriage={changeAppTriage} />} />
-        </Section>
+        <motion.div variants={rise}>
+          <Section title={`Job Boards Needs-Review (${needsReview.length})`} accent="warning" icon={Inbox}>
+            <RowCap items={needsReview} tier="warning"
+              renderItem={a => <ApplicationRow key={a.id} app={a} showTriageChips onOpen={x => setSelectedAppId(x.id)} changeAppTriage={changeAppTriage} />} />
+          </Section>
+        </motion.div>
       )}
 
       {scheduleContacts.length > 0 && (
-        <Section title={`Want to Schedule (${scheduleContacts.length})`} accent="ink" icon={UserPlus}>
-          <RowCap items={scheduleContacts} tier="ink"
-            renderItem={c => <ScheduleRow key={c.id} contact={c} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} />} />
-        </Section>
+        <motion.div variants={rise}>
+          <Section title={`Want to Schedule (${scheduleContacts.length})`} accent="ink" icon={UserPlus}>
+            <RowCap items={scheduleContacts} tier="ink"
+              renderItem={c => <ScheduleRow key={c.id} contact={c} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} />} />
+          </Section>
+        </motion.div>
       )}
 
       {oaDueList.length > 0 && (
-        <Section title={`OA-Due (${oaDueList.length})`} accent="warning" icon={ClipboardCheck}>
-          <RowCap items={oaDueList} tier="warning"
-            renderItem={a => <OaRow key={a.id} app={a} onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} />} />
-        </Section>
+        <motion.div variants={rise}>
+          <Section title={`OA-Due (${oaDueList.length})`} accent="warning" icon={ClipboardCheck}>
+            <RowCap items={oaDueList} tier="warning"
+              renderItem={a => <OaRow key={a.id} app={a} onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} />} />
+          </Section>
+        </motion.div>
       )}
 
       {oaNeedsCheckList.length > 0 && (
-        <Section title={`OA-Needs-Check (${oaNeedsCheckList.length})`} accent="ink" icon={Search}>
-          <RowCap items={oaNeedsCheckList} tier="ink"
-            renderItem={a => <OaRow key={a.id} app={a} needsCheck onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} />} />
-        </Section>
+        <motion.div variants={rise}>
+          <Section title={`OA-Needs-Check (${oaNeedsCheckList.length})`} accent="ink" icon={Search}>
+            <RowCap items={oaNeedsCheckList} tier="ink"
+              renderItem={a => <OaRow key={a.id} app={a} needsCheck onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} />} />
+          </Section>
+        </motion.div>
       )}
 
       {!isDemoMode && !allEmpty && (
-        <TimelineFindsPanel
-          pending={timelineFinds} running={timelineFindsRunning} error={timelineFindsError} meta={timelineFindsMeta}
-          onScan={scanTimelineFinds} onDismiss={dismissTimelineFind} onUpdateField={updateTimelineFindField} onApprove={approveTimelineFind}
-        />
+        <motion.div variants={rise}>
+          <TimelineFindsPanel
+            pending={timelineFinds} running={timelineFindsRunning} error={timelineFindsError} meta={timelineFindsMeta}
+            onScan={scanTimelineFinds} onDismiss={dismissTimelineFind} onUpdateField={updateTimelineFindField} onApprove={approveTimelineFind}
+          />
+        </motion.div>
       )}
 
-      <ActivitySection contacts={contacts} apps={apps} interactions={interactions} />
+      <motion.div variants={rise}>
+        <ActivitySection contacts={contacts} apps={apps} interactions={interactions} />
+      </motion.div>
 
       <SidePanel open={!!selectedContactId} onClose={() => setSelectedContactId(null)}>
         {selectedContactId && (
@@ -549,6 +577,6 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
           />
         )}
       </SidePanel>
-    </div>
+    </motion.div>
   )
 }
