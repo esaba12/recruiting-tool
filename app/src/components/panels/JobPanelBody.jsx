@@ -75,11 +75,11 @@ export default function JobPanelBody({ job, status, blurb, deadline, onRecheckDe
         <div className="flex items-center gap-2 mt-3">
           {job.applyUrl && (
             <a href={job.applyUrl} target="_blank" rel="noreferrer"
-              className="px-4 py-2 bg-ink-900 text-white text-xs rounded-xl hover:bg-ink-800 font-medium">
+              className="px-4 py-2 bg-ink-900 text-white text-xs rounded-md hover:bg-ink-800 font-medium">
               Apply ↗
             </a>
           )}
-          <span className={`px-3 py-2 text-xs rounded-xl font-medium ${status ? 'bg-success-50 text-success-700' : 'bg-ink-50 text-ink-400'}`}>
+          <span className={`px-3 py-2 text-xs rounded-md font-medium ${status ? 'bg-success-50 text-success-700' : 'bg-ink-50 text-ink-400'}`}>
             {status ? '✓ In Notion' : 'Importing to Notion...'}
           </span>
         </div>
@@ -91,7 +91,7 @@ export default function JobPanelBody({ job, status, blurb, deadline, onRecheckDe
         <div className="flex gap-2 flex-wrap">
           {BUCKET_CONFIG.filter(b => b.key !== 'all').map(b => (
             <button key={b.key} disabled={!status} onClick={() => onStatusChange(status === b.key ? null : b.key)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors disabled:opacity-40
+              className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors disabled:opacity-40
                 ${status === b.key ? BUCKET_ACTIVE[b.key] : 'bg-ink-50 text-ink-500 border-ink-200 hover:bg-ink-100'}`}>
               {b.icon} {b.label}
             </button>
@@ -119,7 +119,7 @@ export default function JobPanelBody({ job, status, blurb, deadline, onRecheckDe
         )}
 
         {aiError && (
-          <div className="text-xs text-danger-600 bg-danger-50 rounded-xl p-3">{aiError}</div>
+          <div className="text-xs text-danger-600 bg-danger-50 rounded-md p-3">{aiError}</div>
         )}
 
         {analysis && (

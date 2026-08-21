@@ -42,7 +42,7 @@ function NetworkAtCompany({ company, contacts, interactions, relationships, onFi
   const count = paths.length
 
   return (
-    <div className={`mx-5 mt-4 rounded-2xl border ${NETWORK_ACCENT[status]} px-4 py-4`}>
+    <div className={`mx-5 mt-4 rounded-md border ${NETWORK_ACCENT[status]} px-4 py-4`}>
       <div className="flex items-baseline justify-between gap-3 flex-wrap">
         <div className="flex items-baseline gap-2.5">
           <span className="font-heading text-3xl font-bold text-ink-900 tabular-nums leading-none">{count}</span>
@@ -63,7 +63,7 @@ function NetworkAtCompany({ company, contacts, interactions, relationships, onFi
           <p className="text-xs text-ink-500">Nobody in your network is tagged at {company} yet.</p>
           {onFindPeople && (
             <button onClick={() => onFindPeople(company)}
-              className="px-3 py-1.5 bg-ink-900 text-white text-xs rounded-xl hover:bg-ink-800 font-medium whitespace-nowrap">
+              className="px-3 py-1.5 bg-ink-900 text-white text-xs rounded-md hover:bg-ink-800 font-medium whitespace-nowrap">
               🔍 Find people to meet →
             </button>
           )}
@@ -74,7 +74,7 @@ function NetworkAtCompany({ company, contacts, interactions, relationships, onFi
             const tie = tieStrengthBucket(c, interactions)
             return (
               <button key={c.id} onClick={() => onOpenContact?.(c.id)}
-                className="w-full text-left flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-white/70 hover:bg-white border border-transparent hover:border-ink-100 transition-colors">
+                className="w-full text-left flex items-center gap-2.5 px-2.5 py-2 rounded-md bg-white/70 hover:bg-white border border-transparent hover:border-ink-100 transition-colors">
                 <span className="w-7 h-7 rounded-full bg-ink-900 text-white text-[11px] font-semibold flex items-center justify-center shrink-0">
                   {c.name?.trim()?.[0]?.toUpperCase() || '?'}
                 </span>
@@ -268,7 +268,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
               <div className="flex items-center gap-2 mt-3 flex-wrap">
                 {app.jdLink && (
                   <a href={app.jdLink} target="_blank" rel="noreferrer"
-                    className="px-4 py-2 bg-ink-900 text-white text-xs rounded-xl hover:bg-ink-800 font-medium">
+                    className="px-4 py-2 bg-ink-900 text-white text-xs rounded-md hover:bg-ink-800 font-medium">
                     View Posting ↗
                   </a>
                 )}
@@ -293,7 +293,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
             onFindPeople={onFindPeople} onOpenContact={setOpenContactId} />
         )}
 
-        {error && <div className="mx-5 mt-4 p-3 bg-danger-50 border border-danger-200 rounded-xl text-xs text-danger-700">{error}</div>}
+        {error && <div className="mx-5 mt-4 p-3 bg-danger-50 border border-danger-200 rounded-md text-xs text-danger-700">{error}</div>}
 
         {!isNew && (
           <div className="px-5 py-4 border-b border-ink-100 grid grid-cols-3 gap-3">
@@ -323,7 +323,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
               </select>
             </div>
             <button onClick={saveDates} disabled={savingDates}
-              className="col-span-3 py-2 bg-ink-900 text-white text-xs rounded-xl hover:bg-ink-800 disabled:opacity-50 font-medium transition-colors">
+              className="col-span-3 py-2 bg-ink-900 text-white text-xs rounded-md hover:bg-ink-800 disabled:opacity-50 font-medium transition-colors">
               {savingDates ? 'Saving...' : 'Save Stage / Dates'}
             </button>
           </div>
@@ -331,7 +331,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
 
         {isNew && (
           <div className="px-5 py-4 space-y-3">
-            <div className="p-3 bg-accent-50 border border-accent-100 rounded-xl space-y-2">
+            <div className="p-3 bg-accent-50 border border-accent-100 rounded-md space-y-2">
               <label className="block text-xs font-semibold text-accent-700">Paste an application link to auto-fill</label>
               <div className="flex gap-2">
                 <input value={pasteUrl} onChange={e => setPasteUrl(e.target.value)}
@@ -371,7 +371,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
               </select>
             </div>
             <button onClick={save} disabled={saving}
-              className="w-full py-3 bg-accent-600 text-white text-sm rounded-xl hover:bg-accent-700 disabled:opacity-50 font-medium transition-colors">
+              className="w-full py-3 bg-accent-600 text-white text-sm rounded-md hover:bg-accent-700 disabled:opacity-50 font-medium transition-colors">
               {saving ? 'Adding...' : '+ Add Application'}
             </button>
           </div>
@@ -384,7 +384,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
             <div className="flex gap-2 flex-wrap">
               {BUCKET_CONFIG.filter(b => b.key !== 'all').map(b => (
                 <button key={b.key} disabled={saving} onClick={() => changeStatus(status === b.key ? null : b.key)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors disabled:opacity-40
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors disabled:opacity-40
                     ${status === b.key ? BUCKET_ACTIVE[b.key] : 'bg-ink-50 text-ink-500 border-ink-200 hover:bg-ink-100'}`}>
                   {b.icon} {b.label}
                 </button>
@@ -422,7 +422,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
             )}
 
             {aiError && (
-              <div className="text-xs text-danger-600 bg-danger-50 rounded-xl p-3">{aiError}</div>
+              <div className="text-xs text-danger-600 bg-danger-50 rounded-md p-3">{aiError}</div>
             )}
 
             {analysis && (
@@ -495,7 +495,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
         {!isNew && (
           <div className="px-5 pb-5">
             <button onClick={del} disabled={deleting}
-              className="w-full py-2 text-danger-600 text-xs rounded-xl hover:bg-danger-50 disabled:opacity-50 font-medium transition-colors">
+              className="w-full py-2 text-danger-600 text-xs rounded-md hover:bg-danger-50 disabled:opacity-50 font-medium transition-colors">
               {deleting ? 'Deleting...' : 'Delete Application'}
             </button>
           </div>

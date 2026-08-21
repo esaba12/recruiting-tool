@@ -196,7 +196,7 @@ export default function ContactPanelBody({ contact, contacts, interactions, cont
         </div>
 
         <div className="px-5 py-4 space-y-4">
-          {error && <div className="p-3 bg-danger-50 border border-danger-200 rounded-xl text-xs text-danger-700">{error}</div>}
+          {error && <div className="p-3 bg-danger-50 border border-danger-200 rounded-md text-xs text-danger-700">{error}</div>}
 
           <div className="grid grid-cols-2 gap-3">
             {field('Name', 'name')}
@@ -356,7 +356,7 @@ export default function ContactPanelBody({ contact, contacts, interactions, cont
                 <DraftPanel contact={contact} kind="cold_open" />
               ) : (
                 <button onClick={() => setDraftOpen(true)}
-                  className="w-full py-2 bg-white border border-accent-200 rounded-xl text-xs font-medium text-accent-700 hover:border-accent-400">
+                  className="w-full py-2 bg-white border border-accent-200 rounded-md text-xs font-medium text-accent-700 hover:border-accent-400">
                   ✎ Draft outreach — little or no interaction history with this contact yet
                 </button>
               )}
@@ -364,13 +364,13 @@ export default function ContactPanelBody({ contact, contacts, interactions, cont
           )}
 
           <button onClick={save} disabled={saving}
-            className="w-full py-3 bg-accent-600 text-white text-sm rounded-xl hover:bg-accent-700 disabled:opacity-50 font-medium transition-colors">
+            className="w-full py-3 bg-accent-600 text-white text-sm rounded-md hover:bg-accent-700 disabled:opacity-50 font-medium transition-colors">
             {saving ? 'Saving...' : isNew ? '+ Add Contact' : 'Save Changes'}
           </button>
 
           {!isNew && (
             <button onClick={del} disabled={deleting}
-              className="w-full py-2 text-danger-600 text-xs rounded-xl hover:bg-danger-50 disabled:opacity-50 font-medium transition-colors">
+              className="w-full py-2 text-danger-600 text-xs rounded-md hover:bg-danger-50 disabled:opacity-50 font-medium transition-colors">
               {deleting ? 'Deleting...' : 'Delete Contact'}
             </button>
           )}
