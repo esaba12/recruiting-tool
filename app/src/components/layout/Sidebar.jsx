@@ -106,7 +106,7 @@ export default function Sidebar({ activeTab, onTabChange, counts = {}, loading, 
       {!hideQuickActions && (
         <>
           <button onClick={() => onTabChange('settings')} aria-label="Settings"
-            className="md:hidden fixed right-4 bottom-56 z-30 w-12 h-12 rounded-full bg-ink-800 text-white shadow-lg flex items-center justify-center hover:bg-ink-700">
+            className="md:hidden fixed right-4 bottom-68 z-30 w-12 h-12 rounded-full bg-ink-800 text-white shadow-lg flex items-center justify-center hover:bg-ink-700">
             <NAV_ICON.settings size={20} />
           </button>
           <button onClick={onQuickCapture}
