@@ -33,7 +33,7 @@ export default function EventDetailModal({ event, onClose, onDeleted }) {
     <div className="fixed inset-0 bg-ink-900/40 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
       onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="bg-white w-full md:max-w-lg rounded-t-md md:rounded-md border border-ink-300 max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-ink-100 px-5 py-4 rounded-t-2xl md:rounded-t-2xl">
+        <div className="sticky top-0 bg-white border-b border-ink-100 px-5 py-4 rounded-t-md">
           <div className="flex items-start justify-between gap-3">
             <h2 className="text-base font-bold text-ink-900 truncate">{event.title}</h2>
             <button onClick={onClose} className="shrink-0 w-7 h-7 rounded-full bg-ink-100 hover:bg-ink-200 flex items-center justify-center text-ink-500 text-sm">✕</button>

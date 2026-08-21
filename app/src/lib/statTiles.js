@@ -17,6 +17,8 @@ const DEADLINE_KEY = 'rec_job_deadlines'
 //
 // Never fabricates a deadline for a missing/rolling entry — daysUntilDeadline() already
 // returns null for an entry lacking `.deadline`, and those are filtered out before sorting.
+// Already-passed deadlines (days < 0) are filtered out too, so the tile never renders a
+// misleading negative countdown for an application that's already missed its window.
 // Returns an empty array (never null/undefined) when nothing matches, so the caller can
 // treat "no entries" as the fail-soft "no known deadlines" case.
 export function nextDeadlines(apps, limit = 3) {
@@ -29,7 +31,7 @@ export function nextDeadlines(apps, limit = 3) {
     const info = cache[jobId({ company: a.company, role: a.role })]
     if (!info?.deadline) continue
     const days = daysUntilDeadline(info)
-    if (days === null) continue
+    if (days === null || days < 0) continue
     matches.push({ company: a.company, role: a.role, deadline: info.deadline, days })
   }
 

@@ -250,7 +250,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
     <>
 
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-ink-100 px-5 py-4 rounded-t-2xl md:rounded-none">
+        <div className="sticky top-0 bg-white border-b border-ink-100 px-5 py-4 rounded-t-md md:rounded-none">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-base font-bold text-ink-900 truncate">{isNew ? 'New Application' : app.company}</h2>

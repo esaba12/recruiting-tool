@@ -189,7 +189,7 @@ export default function QuickCaptureModal({ contacts = [], apps = [], onClose, o
 
   return (
     <Modal onClose={onClose} size="lg">
-      <div className="sticky top-0 bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between z-10 rounded-t-2xl">
+      <div className="sticky top-0 bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between z-10 rounded-t-md">
         <h2 className="text-base font-heading font-semibold text-ink-900 flex items-center gap-2">
           <Sparkles size={16} className="text-accent-500" /> Quick Capture
         </h2>
