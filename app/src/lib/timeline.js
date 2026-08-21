@@ -55,7 +55,7 @@ export function buildTimelineItems({ contacts = [], apps = [], interactions = []
     items.push({
       id: `followup-${c.id}`, type: 'followup', date: new Date(c.followUpDate), days, tier: tierFor(days),
       title: c.name, subtitle: [c.company, c.role].filter(Boolean).join(' · ') || 'Follow-up',
-      badgeLabel: 'Follow-up', badgeColor: 'bg-indigo-50 text-indigo-600', refType: 'contact', ref: c,
+      badgeLabel: 'Follow-up', badgeColor: 'bg-accent-100 text-accent-700', refType: 'contact', ref: c,
     })
   }
 
@@ -65,7 +65,7 @@ export function buildTimelineItems({ contacts = [], apps = [], interactions = []
     items.push({
       id: `schedule-${c.id}`, type: 'schedule', date: new Date(c.scheduleBy), days, tier: tierFor(days),
       title: c.name, subtitle: [c.company, c.role].filter(Boolean).join(' · ') || 'Wants to schedule',
-      badgeLabel: 'Schedule', badgeColor: 'bg-purple-50 text-purple-700', refType: 'contact', ref: c,
+      badgeLabel: 'Schedule', badgeColor: 'bg-ink-100 text-ink-600', refType: 'contact', ref: c,
     })
   }
 
@@ -77,7 +77,7 @@ export function buildTimelineItems({ contacts = [], apps = [], interactions = []
       id: `reconnect-${contact.id}`, type: 'reconnect', date: status.never ? null : status.dueDate, days, tier: tierFor(days),
       title: contact.name,
       subtitle: status.never ? 'Never logged a touch' : `${status.overdueDays}d since due to reconnect`,
-      badgeLabel: 'Reconnect', badgeColor: 'bg-teal-50 text-teal-700', refType: 'contact', ref: contact,
+      badgeLabel: 'Reconnect', badgeColor: 'bg-warning-100 text-warning-800', refType: 'contact', ref: contact,
     })
   }
 

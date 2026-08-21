@@ -13,7 +13,7 @@ import AddEventModal from './AddEventModal.jsx'
 
 const OVERLAYS = [
   { key: 'events',       label: 'Events',       dot: 'bg-accent-600',  chipActive: 'bg-accent-600 text-white border-accent-600' },
-  { key: 'followups',    label: 'Follow-ups',   dot: 'bg-indigo-500',  chipActive: 'bg-indigo-500 text-white border-indigo-500' },
+  { key: 'followups',    label: 'Follow-ups',   dot: 'bg-accent-500',  chipActive: 'bg-accent-600 text-white border-accent-600' },
   { key: 'applications', label: 'Applications', dot: 'bg-success-500', chipActive: 'bg-success-500 text-white border-success-500' },
 ]
 
@@ -188,7 +188,7 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
       {viewMode === 'grid' && (
       <>
       {/* Month grid */}
-      <div className="bg-white rounded-xl p-5 shadow-sm border border-ink-100">
+      <div className="bg-white rounded-md p-5 border border-ink-300">
         <div className="flex items-center justify-between mb-4">
           <button onClick={() => { setViewDate(new Date(year, mo - 1, 1)); setSelectedDay(null) }}
             className="p-1.5 hover:bg-ink-100 rounded-lg text-ink-500 text-sm">←</button>
@@ -233,7 +233,7 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
         <div className="space-y-2">
           {visible.events && selectedItems.events.map(ev => (
             <button key={`${ev.slot}-${ev.id}`} onClick={() => setSelectedEvent(ev)}
-              className="w-full text-left bg-white rounded-xl px-4 py-3 shadow-sm border border-ink-100 hover:shadow-md hover:border-accent-200 transition-all flex items-center gap-3">
+              className="w-full text-left bg-white rounded-md px-4 py-3 border border-ink-300 hover:shadow-md hover:border-accent-200 transition-all flex items-center gap-3">
               <Badge label={CALENDAR_SLOTS[ev.slot] || 'Event'} color={ev.slot === 'school' ? 'bg-purple-100 text-purple-700' : 'bg-accent-100 text-accent-700'} />
               <span className="text-sm font-medium text-ink-900 truncate">{ev.title}</span>
               {!ev.allDay && <span className="text-xs text-ink-400 ml-auto shrink-0">{new Date(ev.start).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>}
@@ -241,15 +241,15 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
           ))}
           {visible.followups && selectedItems.followups.map(c => (
             <button key={c.id} onClick={() => setSelectedContact(c)}
-              className="w-full text-left bg-white rounded-xl px-4 py-3 shadow-sm border border-ink-100 hover:shadow-md hover:border-accent-200 transition-all flex items-center gap-3">
-              <Badge label="Follow-up" color="bg-indigo-50 text-indigo-600" />
+              className="w-full text-left bg-white rounded-md px-4 py-3 border border-ink-300 hover:shadow-md hover:border-accent-200 transition-all flex items-center gap-3">
+              <Badge label="Follow-up" color="bg-accent-100 text-accent-700" />
               <span className="text-sm font-medium text-ink-900 truncate">{c.name}</span>
               {c.company && <span className="text-xs text-ink-500 truncate">@ {c.company}</span>}
             </button>
           ))}
           {visible.applications && selectedItems.applications.map(a => (
             <button key={a.id} onClick={() => setSelectedApp(a)}
-              className="w-full text-left bg-white rounded-xl px-4 py-3 shadow-sm border border-ink-100 hover:shadow-md hover:border-accent-200 transition-all flex items-center gap-3">
+              className="w-full text-left bg-white rounded-md px-4 py-3 border border-ink-300 hover:shadow-md hover:border-accent-200 transition-all flex items-center gap-3">
               <Badge label="Applied" color="bg-success-50 text-success-700" />
               <span className="text-sm font-medium text-ink-900 truncate">{a.company}</span>
               {a.role && <span className="text-xs text-ink-500 truncate">· {a.role}</span>}
@@ -340,7 +340,7 @@ function TimelineFeed({ groups, loading, error, onOpen }) {
       )}
 
       {total === 0 && !loading && (
-        <div className="bg-white rounded-xl p-8 shadow-sm border border-ink-100 text-center">
+        <div className="bg-white rounded-md p-8 border border-ink-300 text-center">
           <p className="text-sm text-ink-400">✓ Nothing on the horizon — deadlines, events, follow-ups, and reconnects will show up here.</p>
         </div>
       )}
@@ -350,7 +350,7 @@ function TimelineFeed({ groups, loading, error, onOpen }) {
         if (items.length === 0) return null
         const shown = section.key === 'later' ? items.slice(0, FEED_LATER_CAP) : items
         return (
-          <div key={section.key} className={`bg-white rounded-xl p-5 shadow-sm border ${section.border}`}>
+          <div key={section.key} className={`bg-white rounded-md p-5 border ${section.border}`}>
             <h2 className={`text-sm font-semibold ${section.heading} mb-3`}>{section.title} ({items.length})</h2>
             <div className="divide-y divide-ink-100">
               {shown.map(item => (

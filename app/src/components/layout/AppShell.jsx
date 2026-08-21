@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'motion/react'
 import Sidebar from './Sidebar.jsx'
 import ErrorBoundary from '../ErrorBoundary.jsx'
 

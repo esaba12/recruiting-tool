@@ -12,7 +12,7 @@ const SOURCE_LABEL = { application: 'Application notes', call: 'Call', interacti
 // there's something to show, and only renders what it's handed via props.
 export default function TimelineFindsPanel({ pending, running, error, meta, onScan, onDismiss, onUpdateField, onApprove }) {
   return (
-    <div className="bg-white rounded-xl p-5 shadow-sm border border-accent-200">
+    <div className="bg-white rounded-md p-5 border border-accent-200">
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-sm font-semibold text-accent-700 mb-1 flex items-center gap-1.5">
           <CalendarSearch size={16} strokeWidth={2} />
@@ -39,7 +39,7 @@ export default function TimelineFindsPanel({ pending, running, error, meta, onSc
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                      <Badge label={SOURCE_LABEL[item.sourceType]} color="bg-indigo-50 text-indigo-600" />
+                      <Badge label={SOURCE_LABEL[item.sourceType]} color="bg-accent-100 text-accent-700" />
                       {item.company && <span className="text-xs text-ink-500">{item.company}{item.role ? ` · ${item.role}` : ''}</span>}
                     </div>
                     <input value={item.title} onChange={e => onUpdateField(item.key, 'title', e.target.value)}

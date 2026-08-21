@@ -240,20 +240,20 @@ export default function QuickCaptureModal({ contacts = [], apps = [], onClose, o
 
 function MessageBubble({ m, contacts, apps, onPatchDraft, onConfirm, onPatchItem, onConfirmItem, onConfirmAll }) {
   if (m.role === 'user') {
-    return <div className="ml-auto max-w-[80%] bg-accent-500 text-white rounded-md rounded-tr-sm px-3.5 py-2 text-sm">{m.text}</div>
+    return <div className="ml-auto max-w-[80%] bg-accent-500 text-white rounded-2xl rounded-tr-sm px-3.5 py-2 text-sm">{m.text}</div>
   }
   if (m.kind === 'thinking') {
     return (
-      <div className="max-w-[80%] bg-ink-50 border border-ink-100 rounded-md rounded-tl-sm px-3.5 py-2 text-sm text-ink-400 flex items-center gap-1.5">
+      <div className="max-w-[80%] bg-ink-50 border border-ink-100 rounded-2xl rounded-tl-sm px-3.5 py-2 text-sm text-ink-400 flex items-center gap-1.5">
         <Loader2 size={13} className="animate-spin" /> Thinking...
       </div>
     )
   }
   if (m.kind === 'text') {
-    return <div className="max-w-[80%] bg-ink-50 border border-ink-100 rounded-md rounded-tl-sm px-3.5 py-2 text-sm text-ink-700">{m.text}</div>
+    return <div className="max-w-[80%] bg-ink-50 border border-ink-100 rounded-2xl rounded-tl-sm px-3.5 py-2 text-sm text-ink-700">{m.text}</div>
   }
   if (m.kind === 'error') {
-    return <div className="max-w-[85%] bg-danger-50 border border-danger-200 rounded-md rounded-tl-sm px-3.5 py-2 text-sm text-danger-700">{m.text}</div>
+    return <div className="max-w-[85%] bg-danger-50 border border-danger-200 rounded-2xl rounded-tl-sm px-3.5 py-2 text-sm text-danger-700">{m.text}</div>
   }
   if (m.kind === 'draft' && m.draft.action === 'add_application_multi') {
     return (
@@ -267,21 +267,21 @@ function MessageBubble({ m, contacts, apps, onPatchDraft, onConfirm, onPatchItem
     if (m.status === 'saved') {
       if (m.savedInfo.isApplication) {
         return (
-          <div className="max-w-[90%] bg-success-50 border border-success-200 rounded-md rounded-tl-sm px-3.5 py-2.5 text-sm text-success-700">
+          <div className="max-w-[90%] bg-success-50 border border-success-200 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-sm text-success-700">
             ✓ Added to Pipeline — <strong>{m.savedInfo.name}</strong>{m.savedInfo.company ? ` — ${m.savedInfo.company}` : ''}.
           </div>
         )
       }
       if (m.savedInfo.isApplicationUpdate) {
         return (
-          <div className="max-w-[90%] bg-success-50 border border-success-200 rounded-md rounded-tl-sm px-3.5 py-2.5 text-sm text-success-700">
+          <div className="max-w-[90%] bg-success-50 border border-success-200 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-sm text-success-700">
             ✓ Updated <strong>{m.savedInfo.name}</strong> — {m.savedInfo.company}.
           </div>
         )
       }
       if (m.savedInfo.isTargetCompany) {
         return (
-          <div className="max-w-[90%] bg-success-50 border border-success-200 rounded-md rounded-tl-sm px-3.5 py-2.5 text-sm text-success-700">
+          <div className="max-w-[90%] bg-success-50 border border-success-200 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-sm text-success-700">
             {m.savedInfo.alreadyTargeted
               ? <>Already targeting <strong>{m.savedInfo.name}</strong>.</>
               : <>✓ Added <strong>{m.savedInfo.name}</strong> to target companies.</>}
@@ -289,7 +289,7 @@ function MessageBubble({ m, contacts, apps, onPatchDraft, onConfirm, onPatchItem
         )
       }
       return (
-        <div className="max-w-[90%] bg-success-50 border border-success-200 rounded-md rounded-tl-sm px-3.5 py-2.5 text-sm text-success-700">
+        <div className="max-w-[90%] bg-success-50 border border-success-200 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-sm text-success-700">
           ✓ Logged — {m.savedInfo.created ? 'created new contact' : 'updated'} <strong>{m.savedInfo.name}</strong>{m.savedInfo.company ? ` @ ${m.savedInfo.company}` : ''}.
         </div>
       )
@@ -311,7 +311,7 @@ function MessageBubble({ m, contacts, apps, onPatchDraft, onConfirm, onPatchItem
 function ApplicationDraftCard({ draft, status, error, onPatch, onConfirm }) {
   const saving = status === 'saving'
   return (
-    <div className="max-w-[90%] bg-white border border-ink-200 rounded-md rounded-tl-sm p-3.5 space-y-3">
+    <div className="max-w-[90%] bg-white border border-ink-200 rounded-2xl rounded-tl-sm shadow-sm p-3.5 space-y-3">
       {error && <div className="p-2 bg-danger-50 border border-danger-200 rounded-lg text-xs text-danger-700">{error}</div>}
       {draft.importNote && <div className="p-2 bg-warning-50 border border-warning-200 rounded-lg text-xs text-warning-800">{draft.importNote}</div>}
 
@@ -359,7 +359,7 @@ function MultiApplicationDraftCard({ draft, onPatchItem, onConfirmItem, onConfir
   const allSaving = pending.length > 0 && pending.every(it => it.status === 'saving')
 
   return (
-    <div className="max-w-[95%] bg-white border border-ink-200 rounded-md rounded-tl-sm p-3.5 space-y-3">
+    <div className="max-w-[95%] bg-white border border-ink-200 rounded-2xl rounded-tl-sm shadow-sm p-3.5 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-semibold text-ink-400 uppercase tracking-wide">Add {items.length} to Pipeline</p>
         {pending.length > 1 && (
@@ -437,7 +437,7 @@ function ApplicationUpdateDraftCard({ draft, status, error, apps, onPatch, onCon
   const saving = status === 'saving'
 
   return (
-    <div className="max-w-[90%] bg-white border border-ink-200 rounded-md rounded-tl-sm p-3.5 space-y-3">
+    <div className="max-w-[90%] bg-white border border-ink-200 rounded-2xl rounded-tl-sm shadow-sm p-3.5 space-y-3">
       {error && <div className="p-2 bg-danger-50 border border-danger-200 rounded-lg text-xs text-danger-700">{error}</div>}
 
       <p className="text-[11px] font-semibold text-ink-400 uppercase tracking-wide">Update application</p>
@@ -489,7 +489,7 @@ function ApplicationUpdateDraftCard({ draft, status, error, apps, onPatch, onCon
 function TargetCompanyDraftCard({ draft, status, error, onPatch, onConfirm }) {
   const saving = status === 'saving'
   return (
-    <div className="max-w-[90%] bg-white border border-ink-200 rounded-md rounded-tl-sm p-3.5 space-y-3">
+    <div className="max-w-[90%] bg-white border border-ink-200 rounded-2xl rounded-tl-sm shadow-sm p-3.5 space-y-3">
       {error && <div className="p-2 bg-danger-50 border border-danger-200 rounded-lg text-xs text-danger-700">{error}</div>}
 
       <p className="text-[11px] font-semibold text-ink-400 uppercase tracking-wide">Add target company</p>
@@ -512,7 +512,7 @@ function DraftCard({ draft, status, error, contacts, onPatch, onConfirm }) {
   const saving = status === 'saving'
 
   return (
-    <div className="max-w-[90%] bg-white border border-ink-200 rounded-md rounded-tl-sm p-3.5 space-y-3">
+    <div className="max-w-[90%] bg-white border border-ink-200 rounded-2xl rounded-tl-sm shadow-sm p-3.5 space-y-3">
       {error && <div className="p-2 bg-danger-50 border border-danger-200 rounded-lg text-xs text-danger-700">{error}</div>}
 
       <div>

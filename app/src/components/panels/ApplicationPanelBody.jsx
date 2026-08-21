@@ -274,7 +274,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
                 )}
                 <Badge label={app.stage} color={STAGE_COLOR[app.stage]} />
                 {app.daysInStage !== null && app.daysInStage !== undefined && (
-                  <span className={`text-xs ${app.daysInStage > 14 ? 'text-orange-600 font-medium' : 'text-ink-400'}`}>
+                  <span className={`text-xs ${app.daysInStage > 14 ? 'text-warning-700 font-medium' : 'text-ink-400'}`}>
                     {app.daysInStage}d in stage{app.daysInStage > 14 ? ' ⚠' : ''}
                   </span>
                 )}
@@ -408,7 +408,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
               <p className="text-xs font-semibold text-ink-400 uppercase tracking-wide">Fit Analysis</p>
               {!analysis && !aiLoading && (
                 <button onClick={doAnalysis}
-                  className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-xs rounded-lg hover:bg-indigo-100 font-medium">
+                  className="px-3 py-1.5 bg-accent-50 text-accent-600 text-xs rounded-lg hover:bg-accent-100 font-medium">
                   Analyze →
                 </button>
               )}

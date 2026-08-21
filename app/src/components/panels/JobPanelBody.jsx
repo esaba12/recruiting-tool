@@ -105,7 +105,7 @@ export default function JobPanelBody({ job, status, blurb, deadline, onRecheckDe
           <p className="text-xs font-semibold text-ink-400 uppercase tracking-wide">Fit Analysis</p>
           {!analysis && !aiLoading && (
             <button onClick={doAnalysis}
-              className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-xs rounded-lg hover:bg-indigo-100 font-medium">
+              className="px-3 py-1.5 bg-accent-50 text-accent-600 text-xs rounded-lg hover:bg-accent-100 font-medium">
               Analyze →
             </button>
           )}

@@ -13,7 +13,7 @@ function Section({ title, subtitle, accent, icon: Icon, step, children }) {
   const border = { danger: 'border-danger-200', warning: 'border-warning-200', ink: 'border-ink-200', accent: 'border-accent-200' }[accent] || 'border-ink-200'
   const heading = HEADING_COLOR[accent] || 'text-ink-700'
   return (
-    <div className={`bg-white rounded-xl p-5 shadow-sm border ${border}`}>
+    <div className={`bg-white rounded-md p-5 border ${border}`}>
       <h2 className={`text-sm font-semibold ${heading} mb-1 flex items-center gap-1.5`}>
         {step && <Mono className="text-ink-500">{step}</Mono>}
         {Icon && <Icon size={16} strokeWidth={2} />} {title}

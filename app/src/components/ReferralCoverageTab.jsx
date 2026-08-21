@@ -92,7 +92,7 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-accent-100 bg-gradient-to-r from-accent-50 to-indigo-50 overflow-hidden">
+      <div className="rounded-md border border-accent-100 bg-gradient-to-r from-accent-50 to-ink-100 overflow-hidden">
         <button onClick={() => { setDraft(targets.join('\n')); setEditingList(o => !o) }}
           className="w-full px-5 py-3 flex items-center justify-between text-sm font-medium text-accent-800">
           <span>🎯 Target companies {targets.length > 0 ? `· ${targets.length} tracked` : '· click to set'}</span>
@@ -127,7 +127,7 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
           <div className="space-y-2">
             <RowCap items={rows} cap={ROW_CAP} tier="ink" renderItem={r => (
               <div key={r.company} ref={el => { if (el) rowRefs.current.set(normalizeCompanyName(r.company), el) }}
-                className={`bg-white rounded-xl p-4 shadow-sm border flex items-start justify-between gap-3 ${focus && normalizeCompanyName(focus.company) === normalizeCompanyName(r.company) ? 'ring-2 ring-accent-300' : ''} ${r.status === 'gap' ? 'border-danger-200' : r.status === 'weak' ? 'border-warning-200' : 'border-ink-100'}`}>
+                className={`bg-white rounded-md p-4 border flex items-start justify-between gap-3 ${focus && normalizeCompanyName(focus.company) === normalizeCompanyName(r.company) ? 'ring-2 ring-accent-300' : ''} ${r.status === 'gap' ? 'border-danger-200' : r.status === 'weak' ? 'border-warning-200' : 'border-ink-300'}`}>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-ink-900">{r.company}</span>
@@ -144,7 +144,7 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
                     </p>
                   )}
                   {r.bestPath && (
-                    <p className="text-[11px] text-indigo-600 mt-0.5 truncate" title="Referral chain that led to this contact">
+                    <p className="text-[11px] text-accent-600 mt-0.5 truncate" title="Referral chain that led to this contact">
                       ↩ Path: {pathLabel(r.bestPath)}
                     </p>
                   )}

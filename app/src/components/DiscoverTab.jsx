@@ -279,7 +279,7 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
                 const live = (r.ranked || []).filter(isLive)
                 return (
                   <div key={r.company} ref={el => { if (el) rowRefs.current.set(normalizeCompanyName(r.company), el) }}
-                    className={`bg-white rounded-md p-4 border transition-shadow ${focus && normalizeCompanyName(focus.company) === normalizeCompanyName(r.company) ? 'ring-2 ring-accent-300' : ''} ${r.status === 'gap' ? 'border-danger-200' : r.status === 'weak' ? 'border-warning-200' : 'border-ink-300'}`}>
+                    className={`bg-white rounded-xl p-4 shadow-sm border transition-shadow ${focus && normalizeCompanyName(focus.company) === normalizeCompanyName(r.company) ? 'ring-2 ring-accent-300' : ''} ${r.status === 'gap' ? 'border-danger-200' : r.status === 'weak' ? 'border-warning-200' : 'border-ink-100'}`}>
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-ink-900">{r.company}</span>
@@ -477,7 +477,7 @@ function ProfilePanel({ profile, open, onToggle, onSave }) {
   ]
 
   return (
-    <div className="rounded-md border border-accent-100 bg-gradient-to-r from-accent-50 to-ink-100 overflow-hidden">
+    <div className="rounded-xl border border-accent-100 bg-gradient-to-r from-accent-50 to-indigo-50 overflow-hidden">
       <button onClick={onToggle} className="w-full px-5 py-3 flex items-center justify-between text-sm font-medium text-accent-800">
         <span>🧭 Your background signals {profile.pastEmployers?.length || profile.programs?.length ? `· ${(profile.pastEmployers?.length || 0) + (profile.programs?.length || 0)} set` : '· click to set up'}</span>
         <span className="text-accent-400 text-xs">{open ? '▲ collapse' : '▼ edit'}</span>

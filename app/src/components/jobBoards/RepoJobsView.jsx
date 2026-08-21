@@ -162,7 +162,7 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
   return (
     <div className="space-y-4">
       {/* Header — single repo, or aggregated across every tracked board */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-ink-100 flex items-center gap-3">
+      <div className="bg-white rounded-md p-4 border border-ink-300 flex items-center gap-3">
         <div className="flex-1 min-w-0">
           {data.mode === 'boards' ? (
             <>
@@ -286,7 +286,7 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
             title="Hide listings with no detected update in 45+ days"
             className={`px-2.5 py-1 rounded-full text-xs border transition-colors
               ${hideStale
-                ? 'bg-warning-500 text-white border-warning-500'
+                ? 'bg-warning-600 text-white border-warning-600'
                 : 'bg-white text-ink-500 border-ink-200 hover:border-warning-300 hover:text-warning-700'}`}>
             👻 Hide stale
           </button>

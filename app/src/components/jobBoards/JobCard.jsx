@@ -11,10 +11,10 @@ const DEADLINE_BADGE = {
 function DeadlineBadge({ deadline }) {
   const tier = urgencyTier(deadline)
   if (tier === 'unknown') return null
-  if (tier === 'rolling') return <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-ink-50 text-ink-400">Rolling — no deadline</span>
+  if (tier === 'rolling') return <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-sm bg-ink-50 text-ink-400">Rolling — no deadline</span>
   const days = daysUntilDeadline(deadline)
   const label = days < 0 ? 'Closed' : days === 0 ? 'Closes today' : `Closes in ${days}d`
-  return <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${DEADLINE_BADGE[tier]}`}>⏰ <Mono>{label}</Mono></span>
+  return <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-sm ${DEADLINE_BADGE[tier]}`}>⏰ <Mono>{label}</Mono></span>
 }
 
 export default function JobCard({ job, status, blurb, deadline, onStatusChange, onClick }) {
@@ -30,10 +30,10 @@ export default function JobCard({ job, status, blurb, deadline, onStatusChange, 
 
   return (
     <div onClick={() => !isClosed && onClick()}
-      className={`bg-white rounded-xl border p-4 transition-all group
-        ${isClosed ? 'opacity-40 cursor-default border-ink-100' :
-          stale ? 'opacity-70 cursor-pointer border-ink-100 hover:border-accent-200 hover:shadow-md hover:-translate-y-0.5' :
-          'cursor-pointer border-ink-100 hover:border-accent-200 hover:shadow-md hover:-translate-y-0.5'}`}>
+      className={`bg-white rounded-md border p-4 transition-all group
+        ${isClosed ? 'opacity-40 cursor-default border-ink-300' :
+          stale ? 'opacity-70 cursor-pointer border-ink-300 hover:border-accent-200 hover:shadow-md hover:-translate-y-0.5' :
+          'cursor-pointer border-ink-300 hover:border-accent-200 hover:shadow-md hover:-translate-y-0.5'}`}>
       <div className="flex items-start gap-3">
         <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 select-none
           ${status === 'applying' ? 'bg-accent-100 text-accent-700' :
@@ -66,7 +66,7 @@ export default function JobCard({ job, status, blurb, deadline, onStatusChange, 
             {!isClosed && <DeadlineBadge deadline={deadline} />}
             {!isClosed && stale && (
               <span title={`No update detected in ${ageDays} days — may be a ghost listing`}
-                className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-warning-100 text-warning-800">
+                className="text-[10px] font-medium px-1.5 py-0.5 rounded-sm bg-warning-100 text-warning-800">
                 👻 Stale <Mono>{ageDays}</Mono>d
               </span>
             )}
@@ -80,7 +80,7 @@ export default function JobCard({ job, status, blurb, deadline, onStatusChange, 
               ? (() => {
                   const Icon = BUCKET_ICON[status]
                   return (
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${BUCKET_TAG[status]}`}>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-[10px] font-medium ${BUCKET_TAG[status]}`}>
                       {Icon && <Icon size={10} strokeWidth={2.5} />}
                       {BUCKET_CONFIG.find(b => b.key === status)?.label}
                     </span>

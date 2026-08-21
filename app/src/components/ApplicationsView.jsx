@@ -39,23 +39,23 @@ function DuplicatesPanel({ apps, onRefresh }) {
   }
 
   return (
-    <div className="mb-4 bg-orange-50 border border-orange-200 rounded-xl p-4">
+    <div className="mb-4 bg-warning-50 border border-warning-200 rounded-md p-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <p className="text-sm text-orange-800">
+          <p className="text-sm text-warning-800">
             <strong>{groups.length}</strong> duplicate group{groups.length !== 1 ? 's' : ''} found
             (<strong>{extraCount}</strong> extra row{extraCount !== 1 ? 's' : ''} — same company + role).
           </p>
-          <p className="text-xs text-orange-600 mt-0.5">Matches exact company/role text only — differently-worded listings of the same job aren't caught.</p>
+          <p className="text-xs text-warning-700 mt-0.5">Matches exact company/role text only — differently-worded listings of the same job aren't caught.</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => setExpanded(e => !e)}
-            className="px-3 py-1.5 bg-white border border-orange-200 text-orange-700 text-xs rounded-lg hover:bg-orange-100 font-medium">
+            className="px-3 py-1.5 bg-white border border-warning-200 text-warning-700 text-xs rounded-lg hover:bg-warning-100 font-medium">
             {expanded ? 'Hide' : 'Review'}
           </button>
           <button onClick={() => { if (confirm(`Archive ${extraCount} duplicate row${extraCount !== 1 ? 's' : ''}? This keeps the oldest copy of each and archives the rest in Notion (recoverable from Notion's trash).`)) dedupe() }}
             disabled={archiving}
-            className="px-3 py-1.5 bg-orange-600 text-white text-xs rounded-lg hover:bg-orange-700 disabled:opacity-50 font-medium">
+            className="px-3 py-1.5 bg-danger-600 text-white text-xs rounded-lg hover:bg-danger-700 disabled:opacity-50 font-medium">
             {archiving ? 'Archiving...' : `Archive ${extraCount} duplicate${extraCount !== 1 ? 's' : ''}`}
           </button>
         </div>
@@ -66,7 +66,7 @@ function DuplicatesPanel({ apps, onRefresh }) {
       {expanded && (
         <div className="mt-3 space-y-2 max-h-72 overflow-y-auto">
           {groups.map((g, i) => (
-            <div key={i} className="bg-white rounded-lg border border-orange-100 px-3 py-2">
+            <div key={i} className="bg-white rounded-lg border border-warning-100 px-3 py-2">
               <p className="text-xs font-semibold text-ink-700">{g[0].company} · {g[0].role || '(no role)'} — {g.length} copies</p>
               <div className="mt-1 space-y-0.5">
                 {g.map((a, j) => (
@@ -162,7 +162,7 @@ export default function ApplicationsView({ apps, contacts = [], interactions = [
               const coverage = a.company?.trim() ? companyCoverage(a.company, contacts, interactions) : null
               return (
                 <div key={a.id} onClick={() => setSelectedAppId(a.id)}
-                  className={`bg-white rounded-xl px-4 py-3 shadow-sm border transition-all cursor-pointer hover:shadow-md hover:border-accent-200 ${stale ? 'border-orange-200' : 'border-ink-100'}`}>
+                  className={`bg-white rounded-md px-4 py-3 border transition-all cursor-pointer hover:shadow-md hover:border-accent-200 ${stale ? 'border-warning-200' : 'border-ink-300'}`}>
                   <div className="flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -183,7 +183,7 @@ export default function ApplicationsView({ apps, contacts = [], interactions = [
                           </span>
                         )}
                         {days !== null && (
-                          <span className={`text-xs ${stale ? 'text-orange-600 font-medium' : 'text-ink-400'}`}>
+                          <span className={`text-xs ${stale ? 'text-warning-700 font-medium' : 'text-ink-400'}`}>
                             <Mono>{days}</Mono>d in stage{stale ? ' ⚠' : ''}
                           </span>
                         )}

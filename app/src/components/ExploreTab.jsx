@@ -162,7 +162,7 @@ function CompanyCard({ company: c, index, isAdded, onAdd, onDismiss, onExpand, e
   const stop = (fn) => (e) => { e.stopPropagation(); fn?.(e) }
   return (
     <div onClick={c.website ? openSite : undefined}
-      className={`bg-white rounded-xl p-4 shadow-sm border border-ink-100 transition-colors ${c.website ? 'cursor-pointer hover:border-accent-300 hover:shadow-md' : ''}`}>
+      className={`bg-white rounded-md p-4 border border-ink-300 transition-colors ${c.website ? 'cursor-pointer hover:border-accent-300 hover:shadow-md' : ''}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -176,7 +176,7 @@ function CompanyCard({ company: c, index, isAdded, onAdd, onDismiss, onExpand, e
           {c.oneLiner && <p className="text-xs text-ink-500 mt-0.5">{c.oneLiner}</p>}
           {c.whyFit && <p className="text-xs text-ink-700 mt-1.5"><span className="text-accent-600 font-medium">Why you: </span>{c.whyFit}</p>}
           <div className="flex flex-wrap items-center gap-1 mt-2">
-            {c.domain && <Badge label={c.domain} color="bg-indigo-50 text-indigo-600" />}
+            {c.domain && <Badge label={c.domain} color="bg-accent-100 text-accent-700" />}
             {c.stage && <Badge label={c.stage} color="bg-ink-100 text-ink-600" />}
             {(c.badges || []).slice(0, 3).map((b, k) => <Badge key={k} label={b} color="bg-accent-50 text-accent-700" />)}
             <VelocityBadge company={c.name} />
