@@ -224,7 +224,26 @@ Plans:
   2. Staggered reveals and transitions run through the `motion` package, with the force-directed network graph canvas and Recharts internals explicitly untouched by the migration.
   3. Today's KPI tiles read as gauge-like mono readouts (funnel counts, days-to-deadline countdowns, an activity sparkline) instead of generic card grids, built on the existing Recharts wiring.
 
-**Plans**: TBD
+**Plans**: 0/9 plans complete
+Plans:
+**Wave 1**
+
+- [ ] 07-01-PLAN.md — Motion package migration (framer-motion → motion) + Modal/SidePanel shape system
+- [ ] 07-02-PLAN.md — Shape system: Card/Section/Button/Badge/Tabs/ChipToggleGroup
+- [ ] 07-03-PLAN.md — charts/theme.js resync + jobBoards/helpers.js bucket-color remap + RepoStats/UserProfileView shape
+- [ ] 07-04-PLAN.md — Mid-traffic color sweep: AI-fit buttons, Calendar/timeline badges, DuplicatesPanel, RepoJobsView WCAG fix, JobCard shape
+- [ ] 07-05-PLAN.md — Modal-shell + list-row shape sweep (AddEventModal, EventDetailModal, LogInteractionModal, KeepInTouchTab, TodayTab's OverdueRow)
+- [ ] 07-06-PLAN.md — Table/tooltip/dashboard shape sweep (ContactsTable, CalendarView, ChartTooltip, LoginPage, OutboxTab, AddToCalendarModal)
+- [ ] 07-07-PLAN.md — NetworkGraphTab wrapper shape + QuickCaptureModal chat bubbles + gradient-header sweep
+
+**Wave 2** *(blocked on 07-01, 07-05)*
+
+- [ ] 07-08-PLAN.md — STAT-01 instrument-panel stat tiles (lib/statTiles.js, StatTileRow.jsx) + Today Section-list motion stagger
+
+**Wave 3** *(blocked on Wave 1 + Wave 2 completion)*
+
+- [ ] 07-09-PLAN.md — Combined regression sweep + repo-wide audit closure + staged end-of-phase manual verification
+
 **UI hint**: yes
 
 ## Progress
