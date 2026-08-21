@@ -4,10 +4,10 @@
 
 ### Navigation (NAV)
 
-- [ ] **NAV-01**: User can reach every primary destination (Today, Network, Grow, Pipeline, Calendar) from a persistent nav of ~5 items, down from the current 8 top-level tabs
-- [ ] **NAV-02**: User reaches Settings via a footer/profile affordance rather than a primary nav slot
-- [ ] **NAV-03**: Every existing cross-tab deep link (e.g. "Find people →" from Pipeline/Explore into Discover) continues to work after the restructure, including repeat-click re-triggering on the same target company
-- [ ] **NAV-04**: The public `/demo` route continues to show its trimmed nav and function with zero backend/BYOK dependency after the restructure
+- [x] **NAV-01**: User can reach every primary destination (Today, Network, Grow, Pipeline, Calendar) from a persistent nav of ~5 items, down from the current 8 top-level tabs
+- [x] **NAV-02**: User reaches Settings via a footer/profile affordance rather than a primary nav slot
+- [x] **NAV-03**: Every existing cross-tab deep link (e.g. "Find people →" from Pipeline/Explore into Discover) continues to work after the restructure, including repeat-click re-triggering on the same target company
+- [x] **NAV-04**: The public `/demo` route continues to show its trimmed nav and function with zero backend/BYOK dependency after the restructure
 
 ### Unified Attention Feed (ATTN)
 
@@ -73,10 +73,10 @@
 | PIPE-01 | Phase 5 | Complete |
 | PIPE-02 | Phase 5 | Complete |
 | PIPE-03 | Phase 5 | Complete |
-| NAV-01 | Phase 6 | Pending |
-| NAV-02 | Phase 6 | Pending |
-| NAV-03 | Phase 6 | Pending |
-| NAV-04 | Phase 6 | Pending |
+| NAV-01 | Phase 6 | Complete |
+| NAV-02 | Phase 6 | Complete |
+| NAV-03 | Phase 6 | Complete |
+| NAV-04 | Phase 6 | Complete |
 | VIS-01 | Phase 7 | Pending |
 | VIS-04 | Phase 7 | Pending |
 | STAT-01 | Phase 7 | Pending |
