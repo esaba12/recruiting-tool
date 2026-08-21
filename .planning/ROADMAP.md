@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 4: Shared Record Side-Panel** - Contact, application, and job records open in one consistent side-panel component instead of 3+ divergent modals. (executed 2026-08-19, awaiting human UAT — see 04-UAT.md)
 - [x] **Phase 5: Pipeline + Job Boards Merge** - Job Boards becomes a view inside Pipeline (alongside Applications), using the shared side-panel from Phase 4 for record editing. (completed 2026-08-20)
 - [x] **Phase 6: Navigation Consolidation Complete** - Primary nav lands at ~5 destinations (Today, Network, Grow, Pipeline, Calendar), Settings moves to a footer affordance, and every cross-tab deep link plus the public `/demo` route are verified intact. (completed 2026-08-21)
-- [ ] **Phase 7: Full Visual Reskin + Motion Migration + Instrument Stat Tiles** - Every screen — including low-traffic ones — fully commits to the industrial aesthetic, motion runs on the `motion` package, and Today's KPI tiles become gauge-like mono readouts. (all 9 plans executed 2026-08-21 — awaiting verification + human UAT)
+- [x] **Phase 7: Full Visual Reskin + Motion Migration + Instrument Stat Tiles** - Every screen — including low-traffic ones — fully commits to the industrial aesthetic, motion runs on the `motion` package, and Today's KPI tiles become gauge-like mono readouts. (completed 2026-08-21)
 
 ## Phase Details
 
@@ -259,4 +259,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Shared Record Side-Panel | 5/5 | Complete   | 2026-08-19 |
 | 5. Pipeline + Job Boards Merge | 2/2 | Complete    | 2026-08-20 |
 | 6. Navigation Consolidation Complete | 3/3 | Complete    | 2026-08-21 |
-| 7. Full Visual Reskin + Motion + Stat Tiles | 9/9 | Executed — UAT pending | 2026-08-21 |
+| 7. Full Visual Reskin + Motion + Stat Tiles | 9/9 | Complete    | 2026-08-21 |
