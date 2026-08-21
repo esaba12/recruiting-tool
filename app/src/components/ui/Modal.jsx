@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'motion/react'
 import { cn } from '../../lib/cn.js'
 
 const SIZES = {
@@ -27,7 +27,7 @@ export default function Modal({ open = true, onClose, children, size = 'md', cla
         >
           <motion.div
             className={cn(
-              'bg-white w-full rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto',
+              'bg-white w-full rounded-t-md md:rounded-md border border-ink-300 max-h-[90vh] overflow-y-auto',
               SIZES[size], className,
             )}
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
