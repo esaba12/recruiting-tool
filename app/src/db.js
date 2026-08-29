@@ -307,8 +307,18 @@ export async function updateApplication(id, fields) {
 
 export async function fetchApplications() {
   if (isDemoMode()) return demoStore().applications.map(a => ({ ...a }))
-  const { data, error } = await supabase.from('applications').select('*').eq('archived', false)
-  throwIfError(error, 'fetchApplications')
+  // PostgREST caps a single response at 1000 rows — this table's Job Boards auto-import
+  // volume has grown past that, which was silently dropping newest rows (no .order() meant
+  // an arbitrary 1000 came back). Page through with .range() so nothing gets dropped.
+  const PAGE_SIZE = 1000
+  const data = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data: page, error } = await supabase.from('applications').select('*').eq('archived', false)
+      .order('created_at', { ascending: true }).range(from, from + PAGE_SIZE - 1)
+    throwIfError(error, 'fetchApplications')
+    data.push(...(page || []))
+    if (!page || page.length < PAGE_SIZE) break
+  }
   const now = new Date()
   return (data || []).map(r => ({
     id: r.id,
