@@ -1,17 +1,17 @@
 # Recruiting OS
 
 A near zero-touch **recruiting operating system** for a student or early-career
-job search — a lightweight CRM, application tracker, and job-board aggregator
+job search: a lightweight CRM, application tracker, and job-board aggregator
 with AI assistance, wrapped in a **React** dashboard.
 
 ![Recruiting OS demo](docs/media/recruiter-demo.gif)
 
-▶ [Watch with sound](https://ethansaba.com/videos/recruiter.mp4) — built to read my own Gmail.
+▶ [Watch with sound](https://ethansaba.com/videos/recruiter.mp4): built to read my own Gmail.
 
 > **Multi-tenant, bring-your-own-key.** Sign up with email/password or Google,
 > then add your own Anthropic/OpenAI/Exa/GitHub API keys in Settings. Your data
 > (contacts, applications, interactions) lives in your own Supabase-backed
-> account — nobody else can see it, and you're never billed for anyone else's
+> account. Nobody else can see it, and you're never billed for anyone else's
 > AI usage (or vice versa). Try it without signing up at `/demo` (sample data,
 > nothing saved).
 
@@ -19,26 +19,26 @@ with AI assistance, wrapped in a **React** dashboard.
 
 ## What it does
 
-- **Contact CRM** — a contact list with status, urgency, follow-up dates, a
+- **Contact CRM**: a contact list with status, urgency, follow-up dates, a
   "referred by" self-relation, table + card + force-directed graph views, and
   an interaction history ledger.
-- **Application tracker** — one row per company/role with a stage funnel.
-- **Networking tracker** — unified Call/LinkedIn/Meeting/Email/Other logging,
+- **Application tracker**: one row per company/role with a stage funnel.
+- **Networking tracker**: unified Call/LinkedIn/Meeting/Email/Other logging,
   a "Keep in Touch" reconnect-cadence queue, and referral coverage gaps against
   a target-company list.
-- **Discover / Explore** — AI-ranked company + people discovery for target
+- **Discover / Explore**: AI-ranked company + people discovery for target
   companies, sourced from Exa's public-web search (never scrapes or logs into
   LinkedIn).
-- **Job-board aggregator** — track multiple GitHub internship-list repos,
+- **Job-board aggregator**: track multiple GitHub internship-list repos,
   auto-import + dedup listings, bucket them (Needs Review / Applying / Maybe /
   Applied / Pass), get per-job AI fit analysis, and real deadline extraction
   from the actual apply page.
-- **AI email pipeline** — a Google Apps Script watches a Gmail label, uses
+- **AI email pipeline**: a Google Apps Script watches a Gmail label, uses
   Claude/GPT to classify + extract each recruiting email, upserts the contact
   and application, and creates a Calendar event when an interview is scheduled.
-- **"+ Event" / "+ Schedule"** — screenshot or text → Google Calendar event via
+- **"+ Event" / "+ Schedule"**: screenshot or text → Google Calendar event via
   Claude vision extraction, plus a lightweight scheduling-intent tracker.
-- **AI provider switch** — every text-only AI call site runs through one
+- **AI provider switch**: every text-only AI call site runs through one
   provider-agnostic switch (`lib/ai.js`); flip between Claude and OpenAI with a
   single env var, no code changes.
 
@@ -69,7 +69,7 @@ flowchart TD
 **Nobody's API key or data is ever visible to another user.** Row Level
 Security policies scope every table read/write to `auth.uid() = user_id`;
 `user_api_keys` and `google_calendar_tokens` have *no* client-facing RLS
-policies at all — only server code holding the service-role key can decrypt
+policies at all; only server code holding the service-role key can decrypt
 them, and only after verifying the caller's JWT names that same user.
 
 ---
@@ -83,7 +83,7 @@ them, and only after verifying the caller's JWT names that same user.
 | Data tables / graph | `@tanstack/react-table`, `react-force-graph-2d` |
 | Charts | Recharts |
 | Hosting | Vercel (serverless functions for auth + key injection) |
-| AI | Claude (Anthropic) and/or OpenAI GPT — one switch, BYOK per user |
+| AI | Claude (Anthropic) and/or OpenAI GPT; one switch, BYOK per user |
 | Search | Exa (people/company discovery, deadline extraction) |
 | Email automation | Google Apps Script |
 | Calendar | Google Calendar API, per-user OAuth |
@@ -95,7 +95,7 @@ them, and only after verifying the caller's JWT names that same user.
 ```
 app/                        React + Vite dashboard (primary interface)
   src/
-    App.jsx                 Root App() — routes to /demo or the authed app
+    App.jsx                 Root App(): routes to /demo or the authed app
     db.js                    Supabase Postgres data layer (+ demo-mode in-memory branch)
     demoData.js              Seed data for the public /demo route
     lib/
@@ -111,13 +111,13 @@ app/                        React + Vite dashboard (primary interface)
     keys.js                   BYOK key CRUD (encrypted, server-only)
     google-connect.js         Per-user Google Calendar OAuth token capture
     claude-api.js / openai.js / exa.js / gh-api.js / google-calendar.js
-  vite.config.js             Dev server — runs the real api/*.js handlers directly
+  vite.config.js             Dev server: runs the real api/*.js handlers directly
 scripts/
-  email-pipeline.js          Google Apps Script — Gmail → Claude/GPT → Supabase
+  email-pipeline.js          Google Apps Script: Gmail → Claude/GPT → Supabase
   migrate-notion-to-supabase.js   One-time: pull an existing Notion workspace into Supabase
 supabase/
   migrations/                 SQL schema + RLS policies
-notion/                      Legacy — schema reference + setup scripts for the
+notion/                      Legacy: schema reference + setup scripts for the
                              original single-tenant Notion version, kept only
                              for the one-time migration path above.
 ```
@@ -131,7 +131,7 @@ See [`CLAUDE.md`](CLAUDE.md) for a full technical overview.
 ### 1. Supabase
 Local dev (recommended to start):
 ```bash
-supabase start   # from the repo root — prints your local API URL + anon/service_role keys
+supabase start   # from the repo root; prints your local API URL + anon/service_role keys
 ```
 Or create a free project at <https://supabase.com> for production.
 
@@ -149,7 +149,7 @@ Fill in `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` / `SUPABASE_URL` /
 `SECRET_ENCRYPTION_KEY` (command is in the `.env.example` comment). Google
 Calendar's `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are optional (only needed
 for the "+ Event"/"Connect Calendar" feature). Everything else (Anthropic,
-OpenAI, Exa, GitHub) is BYOK — added per-user in the app's Settings tab, not
+OpenAI, Exa, GitHub) is BYOK, added per-user in the app's Settings tab, not
 in `.env`.
 
 ### 3. Dashboard (`app/`)
@@ -170,7 +170,7 @@ Notion as the data store:
 node scripts/migrate-notion-to-supabase.js you@example.com   # sign up in the app first
 ```
 Requires `NOTION_API_KEY` + the four `*_DB_ID` vars in `.env` (see
-[`notion/schema.md`](notion/schema.md)). Safe to re-run — it replaces just
+[`notion/schema.md`](notion/schema.md)). Safe to re-run: it replaces just
 that user's rows each time.
 
 ### 5. Email pipeline (`scripts/email-pipeline.js`)
@@ -188,7 +188,7 @@ that user's rows each time.
 **Multi-tenant BYOK, so the app costs nothing to run.** A single-tenant version would have
 been far simpler, but it would mean either eating everyone's AI bill or shipping my key to
 the browser. Instead each user brings their own key, encrypted at rest with AES-256-GCM in
-a table that has *no* client-facing RLS policy at all — the browser cannot read it under
+a table that has *no* client-facing RLS policy at all: the browser cannot read it under
 any query. Only server code holding the service-role key can decrypt, and only after
 verifying the caller's JWT names that same user.
 
@@ -202,7 +202,7 @@ for.
 Provider outages and pricing changes stop being code changes.
 
 **PostgREST silently caps responses at 1000 rows.** `fetchApplications` looked correct and
-worked fine — until an account crossed a thousand records and simply stopped seeing the
+worked fine, until an account crossed a thousand records and simply stopped seeing the
 rest, with no error anywhere. It now paginates explicitly. Silent truncation is the worst
 class of bug: the happy path never tells you.
 
@@ -217,14 +217,14 @@ read of live data.
 ## Security & privacy
 
 - **Row Level Security everywhere.** Every user-data table enforces
-  `auth.uid() = user_id` in Postgres itself — not just in application code.
+  `auth.uid() = user_id` in Postgres itself, not just in application code.
 - **BYOK keys and Google refresh tokens are never exposed to the browser.**
   They're AES-256-GCM encrypted at rest, in tables with zero client-facing RLS
   policies; only server code holding the service-role key can decrypt them,
   and only after verifying the caller's own JWT.
 - **No secrets in the repo.** All keys are read from environment variables
   (`.env`, gitignored). Copy `.env.example` and fill in your own.
-- **`/demo` is fully isolated** — in-memory sample data only, no Supabase
+- **`/demo` is fully isolated**: in-memory sample data only, no Supabase
   session, no real backend calls, resets on reload.
 
 ---
