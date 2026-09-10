@@ -46,18 +46,24 @@ with AI assistance, wrapped in a **React** dashboard.
 
 ## Architecture
 
-```
-Browser (React + Vite) ──auth──► Supabase Auth (email/password + Google)
-        │                              │
-        │ same-origin proxy routes     ▼
-        ▼                        Supabase Postgres (RLS: auth.uid() = user_id)
-Vercel serverless fns (app/api/*.js)   contacts / applications / interactions / calls
-  - verify the caller's Supabase JWT        │
-  - look up THAT user's own BYOK key   user_api_keys / google_calendar_tokens
-    (AES-256-GCM encrypted, service-  (server-only, zero client-facing RLS —
-     role only, never sent to browser) decrypted only inside api/*.js)
-  - forward to Anthropic / OpenAI /
-    Exa / GitHub / Google Calendar
+The browser never holds an API key. Every third-party call is proxied through a serverless
+function that verifies the caller's JWT, then decrypts *that user's* key server-side.
+
+```mermaid
+flowchart TD
+    B["Browser - React + Vite"]
+    AUTH["Supabase Auth - email/password + Google"]
+    FN["Vercel serverless functions - app/api/*.js"]
+    PG[("Supabase Postgres - RLS: auth.uid() = user_id")]
+    KEYS[("user_api_keys + google_calendar_tokens - AES-256-GCM, no client-facing RLS")]
+    EXT["Anthropic / OpenAI / Exa / GitHub / Google Calendar"]
+
+    B --> AUTH
+    B -->|"reads and writes own rows only"| PG
+    B -->|"same-origin proxy routes"| FN
+    FN -->|"1 - verify caller's JWT"| AUTH
+    FN -->|"2 - decrypt that user's key, service-role only"| KEYS
+    FN -->|"3 - forward the request"| EXT
 ```
 
 **Nobody's API key or data is ever visible to another user.** Row Level
@@ -176,6 +182,37 @@ that user's rows each time.
    `processRecruitingEmails`.
 
 ---
+
+## Notable decisions
+
+**Multi-tenant BYOK, so the app costs nothing to run.** A single-tenant version would have
+been far simpler, but it would mean either eating everyone's AI bill or shipping my key to
+the browser. Instead each user brings their own key, encrypted at rest with AES-256-GCM in
+a table that has *no* client-facing RLS policy at all — the browser cannot read it under
+any query. Only server code holding the service-role key can decrypt, and only after
+verifying the caller's JWT names that same user.
+
+**Security lives in Postgres, not in application code.** Every user-data table enforces
+`auth.uid() = user_id` as an RLS policy. A bug in a React component can't leak another
+user's contacts, because the database refuses the read regardless of what the client asks
+for.
+
+**One AI switch instead of two integrations.** Every text-only AI call site goes through
+`lib/ai.js`, so moving between Claude and OpenAI is one env var rather than a refactor.
+Provider outages and pricing changes stop being code changes.
+
+**PostgREST silently caps responses at 1000 rows.** `fetchApplications` looked correct and
+worked fine — until an account crossed a thousand records and simply stopped seeing the
+rest, with no error anywhere. It now paginates explicitly. Silent truncation is the worst
+class of bug: the happy path never tells you.
+
+**Vercel's zero-config catch-all routes only match one path segment.** `api/notion/[...path].js`
+404s on deeper paths, which cost real debugging time. The fix was flat handlers with the
+sub-path passed as a query param via `vercel.json` rewrites.
+
+**`/demo` shares no code path with the real app.** It runs on in-memory seed data with no
+Supabase session and no backend calls, so a public demo route can't become an accidental
+read of live data.
 
 ## Security & privacy
 
