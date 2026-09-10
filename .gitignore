@@ -22,3 +22,7 @@ node_modules/
 # graphify knowledge-graph output — regenerate with `graphify . --no-viz --code-only`
 graphify-out/
 .playwright-mcp/
+
+# Video-production working files (HyperFrames output, briefs) — kept locally, not part of the project.
+brag-output/
+video-brief.md
