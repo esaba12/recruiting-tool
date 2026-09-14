@@ -25,8 +25,6 @@ export default function useTimelineFinds({ apps, calls, interactions, contacts, 
 
   const contactsById = useMemo(() => new Map((contacts || []).map(c => [c.id, c])), [contacts])
 
-  function persistMeta(next) { setMeta(next); lsSet(META_KEY, next) }
-  function persistPending(next) { setPending(next); lsSet(PENDING_KEY, next) }
 
   async function scan({ force = false } = {}) {
     if (running) return
@@ -36,12 +34,24 @@ export default function useTimelineFinds({ apps, calls, interactions, contacts, 
         apps, calls, interactions, contactsById,
         skipHashes: force ? {} : meta.hashes,
       })
+      // WR-09: merge against the FRESHEST state, not the `pending`/`meta` closed over
+      // when this scan started — a dismiss()/updateField() that landed while the AI
+      // call was in flight would otherwise be silently overwritten (resurrecting a
+      // just-dismissed find). Functional updaters + write-through inside them.
       if (events.length) {
-        const byKey = new Map(pending.map(p => [p.key, p]))
-        for (const e of events) if (!byKey.has(e.key)) byKey.set(e.key, e)
-        persistPending([...byKey.values()])
+        setPending(prev => {
+          const byKey = new Map(prev.map(p => [p.key, p]))
+          for (const e of events) if (!byKey.has(e.key)) byKey.set(e.key, e)
+          const next = [...byKey.values()]
+          lsSet(PENDING_KEY, next)
+          return next
+        })
       }
-      persistMeta({ lastCheck: todayStr(), lastRun: Date.now(), hashes: { ...meta.hashes, ...scannedKeys } })
+      setMeta(prev => {
+        const next = { lastCheck: todayStr(), lastRun: Date.now(), hashes: { ...prev.hashes, ...scannedKeys } }
+        lsSet(META_KEY, next)
+        return next
+      })
       if (partialError) setError(partialError)
     } catch (e) {
       setError(e.message)
@@ -62,11 +72,11 @@ export default function useTimelineFinds({ apps, calls, interactions, contacts, 
   }, [enabled])
 
   function dismiss(key) {
-    persistPending(pending.filter(p => p.key !== key))
+    setPending(prev => { const next = prev.filter(p => p.key !== key); lsSet(PENDING_KEY, next); return next })
   }
 
   function updateField(key, field, value) {
-    persistPending(pending.map(p => p.key === key ? { ...p, [field]: value } : p))
+    setPending(prev => { const next = prev.map(p => p.key === key ? { ...p, [field]: value } : p); lsSet(PENDING_KEY, next); return next })
   }
 
   async function approve(item) {
@@ -79,7 +89,7 @@ export default function useTimelineFinds({ apps, calls, interactions, contacts, 
         endTime: item.startTime ? addOneHour(item.startTime) : '',
         description: item.description,
       })
-      persistPending(pending.filter(p => p.key !== item.key))
+      dismiss(item.key)   // same stale-closure hazard as scan() — createEvent awaits
       onEventCreated?.()
     } catch (e) {
       updateField(item.key, 'status', null)

@@ -77,6 +77,7 @@ export default defineConfig(({ mode }) => {
       mountApiHandler('/google-calendar', 'google-calendar.js'),
       mountApiHandler('/api/keys', 'keys.js', 'direct'),
       mountApiHandler('/api/google-connect', 'google-connect.js', 'direct'),
+      mountApiHandler('/api/events-ingest', 'events-ingest.js', 'direct'),
       mountApiHandler('/api/google-oauth-start', 'google-oauth-start.js', 'direct'),
       mountApiHandler('/api/google-oauth-callback', 'google-oauth-callback.js', 'direct'),
     ],

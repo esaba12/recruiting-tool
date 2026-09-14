@@ -1,0 +1,1740 @@
+[
+ {
+  "id": "149606-21906757",
+  "datetime_modified": "20260728T102616",
+  "datetime_start": "20260914T100000",
+  "datetime_end": "20260914T160000",
+  "has_end_time": 1,
+  "date_start": "2026-09-14",
+  "date_end": "2026-09-14",
+  "time_start": "10:00:00",
+  "time_end": "16:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Fall Engineering Career Fair, hosted by SWE/TBP",
+  "occurrence_title": "",
+  "combined_title": "Fall Engineering Career Fair, hosted by SWE/TBP",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "The Fall Engineering Career Fair, hosted by SWE/TBP will be held on Monday, September 14 and Tuesday, September 15 from 10 AM - 4 PM on North Campus. Employers participate in this event to recruit students for full-time, internship and co-op employment opportunities.\n\nStudent pre-registration is not needed for this event. You may view event details and the company list in Career Forge and Career Fair Plus. Please contact ecrc-info@umich.edu with any questions.\n\nThis is a College of Engineering event.",
+  "occurrence_notes": null,
+  "guid": "149606-21906757@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/149606",
+  "building_id": "1000396",
+  "building_name": "Duderstadt Center",
+  "building_official_id": 1000396,
+  "campus_maps_id": "181",
+  "campus_maps_link_path": "james-and-anne-duderstadt-center",
+  "campus_maps_link": "https://maps.studentlife.umich.edu/building/james-and-anne-duderstadt-center",
+  "room": "",
+  "location_name": "Duderstadt Center",
+  "has_livestream": 0,
+  "cost": "",
+  "tags": [
+   "Career",
+   "Engineering",
+   "Graduate",
+   "Graduate Students",
+   "Michigan Engineering",
+   "Transfer Students",
+   "Undergraduate",
+   "Undergraduate Students"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "https://career.engin.umich.edu/career-fairs-students/",
+    "title": "Career Fair Prep"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://app.careerfairplus.com/ume_mi",
+    "title": "Career Fair Plus (CF+)"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "https://events.umich.edu/media/attachments/2026/07/event_149606_original-1.jpg",
+  "image_description": "Career Fair",
+  "styled_images": {
+   "event_thumb": "https://events.umich.edu/media/cache/event_thumb/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_large": "https://events.umich.edu/media/cache/event_large/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_large_2x": "https://events.umich.edu/media/cache/event_large_2x/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_large_lightbox": "https://events.umich.edu/media/cache/event_large_lightbox/media/attachments/2026/07/event_149606_original-1.jpg",
+   "group_thumb": "https://events.umich.edu/media/cache/group_thumb/media/attachments/2026/07/event_149606_original-1.jpg",
+   "group_thumb_square": "https://events.umich.edu/media/cache/group_thumb_square/media/attachments/2026/07/event_149606_original-1.jpg",
+   "group_large": "https://events.umich.edu/media/cache/group_large/media/attachments/2026/07/event_149606_original-1.jpg",
+   "group_large_lightbox": "https://events.umich.edu/media/cache/group_large_lightbox/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_large_crop": "https://events.umich.edu/media/cache/event_large_crop/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_list": "https://events.umich.edu/media/cache/event_list/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_list_2x": "https://events.umich.edu/media/cache/event_list_2x/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_grid": "https://events.umich.edu/media/cache/event_grid/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_grid_2x": "https://events.umich.edu/media/cache/event_grid_2x/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_feature_large": "https://events.umich.edu/media/cache/event_feature_large/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_feature_thumb": "https://events.umich.edu/media/cache/event_feature_thumb/media/attachments/2026/07/event_149606_original-1.jpg"
+  },
+  "qr_code_url": "http://events.umich.edu/event/149606/qrcode.png",
+  "occurrence_count": 2,
+  "first_occurrence": 21906757
+ },
+ {
+  "id": "149606-21906758",
+  "datetime_modified": "20260728T102616",
+  "datetime_start": "20260915T100000",
+  "datetime_end": "20260915T160000",
+  "has_end_time": 1,
+  "date_start": "2026-09-15",
+  "date_end": "2026-09-15",
+  "time_start": "10:00:00",
+  "time_end": "16:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Fall Engineering Career Fair, hosted by SWE/TBP",
+  "occurrence_title": "",
+  "combined_title": "Fall Engineering Career Fair, hosted by SWE/TBP",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "The Fall Engineering Career Fair, hosted by SWE/TBP will be held on Monday, September 14 and Tuesday, September 15 from 10 AM - 4 PM on North Campus. Employers participate in this event to recruit students for full-time, internship and co-op employment opportunities.\n\nStudent pre-registration is not needed for this event. You may view event details and the company list in Career Forge and Career Fair Plus. Please contact ecrc-info@umich.edu with any questions.\n\nThis is a College of Engineering event.",
+  "occurrence_notes": null,
+  "guid": "149606-21906758@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/149606",
+  "building_id": "1000396",
+  "building_name": "Duderstadt Center",
+  "building_official_id": 1000396,
+  "campus_maps_id": "181",
+  "campus_maps_link_path": "james-and-anne-duderstadt-center",
+  "campus_maps_link": "https://maps.studentlife.umich.edu/building/james-and-anne-duderstadt-center",
+  "room": "",
+  "location_name": "Duderstadt Center",
+  "has_livestream": 0,
+  "cost": "",
+  "tags": [
+   "Career",
+   "Engineering",
+   "Graduate",
+   "Graduate Students",
+   "Michigan Engineering",
+   "Transfer Students",
+   "Undergraduate",
+   "Undergraduate Students"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "https://career.engin.umich.edu/career-fairs-students/",
+    "title": "Career Fair Prep"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://app.careerfairplus.com/ume_mi",
+    "title": "Career Fair Plus (CF+)"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "https://events.umich.edu/media/attachments/2026/07/event_149606_original-1.jpg",
+  "image_description": "Career Fair",
+  "styled_images": {
+   "event_thumb": "https://events.umich.edu/media/cache/event_thumb/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_large": "https://events.umich.edu/media/cache/event_large/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_large_2x": "https://events.umich.edu/media/cache/event_large_2x/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_large_lightbox": "https://events.umich.edu/media/cache/event_large_lightbox/media/attachments/2026/07/event_149606_original-1.jpg",
+   "group_thumb": "https://events.umich.edu/media/cache/group_thumb/media/attachments/2026/07/event_149606_original-1.jpg",
+   "group_thumb_square": "https://events.umich.edu/media/cache/group_thumb_square/media/attachments/2026/07/event_149606_original-1.jpg",
+   "group_large": "https://events.umich.edu/media/cache/group_large/media/attachments/2026/07/event_149606_original-1.jpg",
+   "group_large_lightbox": "https://events.umich.edu/media/cache/group_large_lightbox/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_large_crop": "https://events.umich.edu/media/cache/event_large_crop/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_list": "https://events.umich.edu/media/cache/event_list/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_list_2x": "https://events.umich.edu/media/cache/event_list_2x/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_grid": "https://events.umich.edu/media/cache/event_grid/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_grid_2x": "https://events.umich.edu/media/cache/event_grid_2x/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_feature_large": "https://events.umich.edu/media/cache/event_feature_large/media/attachments/2026/07/event_149606_original-1.jpg",
+   "event_feature_thumb": "https://events.umich.edu/media/cache/event_feature_thumb/media/attachments/2026/07/event_149606_original-1.jpg"
+  },
+  "qr_code_url": "http://events.umich.edu/event/149606/qrcode.png",
+  "occurrence_count": 2,
+  "first_occurrence": 21906757
+ },
+ {
+  "id": "149314-21906215",
+  "datetime_modified": "20260713T102839",
+  "datetime_start": "20260917T110000",
+  "datetime_end": "20260917T140000",
+  "has_end_time": 1,
+  "date_start": "2026-09-17",
+  "date_end": "2026-09-17",
+  "time_start": "11:00:00",
+  "time_end": "14:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Immersed Fair 2026",
+  "occurrence_title": "",
+  "combined_title": "Immersed Fair 2026",
+  "event_subtitle": "",
+  "event_type": "Fair / Festival",
+  "event_type_id": "10",
+  "description": "Join us on Thursday, September 17th, from 11am to 2pm for an event designed just for YOU! We want you to get connected with experiences available uniquely to Michigan Engineering students. Engineering Immersed advisors will be available to provide a tailored experience, connecting you with programs and opportunities aligned with your interests and open to engineering students!\n\nFree snacks and gifts will be provided - RSVP today!",
+  "occurrence_notes": null,
+  "guid": "149314-21906215@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/149314",
+  "building_id": "",
+  "building_name": "",
+  "building_official_id": "",
+  "campus_maps_id": "",
+  "campus_maps_link_path": "",
+  "campus_maps_link": "",
+  "room": "",
+  "location_name": "Duderstadt Center Atrium",
+  "has_livestream": 0,
+  "cost": "",
+  "tags": [
+   "Center For Entrepreneurship",
+   "Engineering",
+   "Experiential Learning",
+   "First Year",
+   "Food",
+   "Free",
+   "Graduate",
+   "Graduate and Professional Students",
+   "Graduate Students",
+   "In Person",
+   "Michigan Engineering",
+   "Multidisciplinary Design",
+   "North campus",
+   "Sessions",
+   "Transfer Students",
+   "Undergraduate",
+   "Undergraduate Students"
+  ],
+  "website": "https://sessions.studentlife.umich.edu/p/track/17306",
+  "links": [
+   {
+    "type": "sessions",
+    "url": "https://sessions.studentlife.umich.edu/p/track/17306",
+    "title": "Register On Sessions @ Michigan"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "https://events.umich.edu/media/attachments/2026/07/event_149314_original-1.jpg",
+  "image_description": "Student visits Immersed Fair 2025",
+  "styled_images": {
+   "event_thumb": "https://events.umich.edu/media/cache/event_thumb/media/attachments/2026/07/event_149314_original-1.jpg",
+   "event_large": "https://events.umich.edu/media/cache/event_large/media/attachments/2026/07/event_149314_original-1.jpg",
+   "event_large_2x": "https://events.umich.edu/media/cache/event_large_2x/media/attachments/2026/07/event_149314_original-1.jpg",
+   "event_large_lightbox": "https://events.umich.edu/media/cache/event_large_lightbox/media/attachments/2026/07/event_149314_original-1.jpg",
+   "group_thumb": "https://events.umich.edu/media/cache/group_thumb/media/attachments/2026/07/event_149314_original-1.jpg",
+   "group_thumb_square": "https://events.umich.edu/media/cache/group_thumb_square/media/attachments/2026/07/event_149314_original-1.jpg",
+   "group_large": "https://events.umich.edu/media/cache/group_large/media/attachments/2026/07/event_149314_original-1.jpg",
+   "group_large_lightbox": "https://events.umich.edu/media/cache/group_large_lightbox/media/attachments/2026/07/event_149314_original-1.jpg",
+   "event_large_crop": "https://events.umich.edu/media/cache/event_large_crop/media/attachments/2026/07/event_149314_original-1.jpg",
+   "event_list": "https://events.umich.edu/media/cache/event_list/media/attachments/2026/07/event_149314_original-1.jpg",
+   "event_list_2x": "https://events.umich.edu/media/cache/event_list_2x/media/attachments/2026/07/event_149314_original-1.jpg",
+   "event_grid": "https://events.umich.edu/media/cache/event_grid/media/attachments/2026/07/event_149314_original-1.jpg",
+   "event_grid_2x": "https://events.umich.edu/media/cache/event_grid_2x/media/attachments/2026/07/event_149314_original-1.jpg",
+   "event_feature_large": "https://events.umich.edu/media/cache/event_feature_large/media/attachments/2026/07/event_149314_original-1.jpg",
+   "event_feature_thumb": "https://events.umich.edu/media/cache/event_feature_thumb/media/attachments/2026/07/event_149314_original-1.jpg"
+  },
+  "qr_code_url": "http://events.umich.edu/event/149314/qrcode.png",
+  "occurrence_count": 1,
+  "first_occurrence": 21906215
+ },
+ {
+  "id": "149605-21906755",
+  "datetime_modified": "20260728T102023",
+  "datetime_start": "20260917T180000",
+  "datetime_end": "20260917T190000",
+  "has_end_time": 1,
+  "date_start": "2026-09-17",
+  "date_end": "2026-09-17",
+  "time_start": "18:00:00",
+  "time_end": "19:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Engineering Interview Essentials: Achieve Interview Success",
+  "occurrence_title": "",
+  "combined_title": "Engineering Interview Essentials: Achieve Interview Success",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "Step into your interviews with confidence! In this session we’ll cover how to effectively prepare for interviews, with a focus on behavioral questions and proven strategies to help you stand out. Learn what to expect, how to frame your experiences and tips on how to leave a lasting impression.\n\nPro Tip! Interview success comes from preparation – Don’t try and wing it!\n\nThis is a College of Engineering event. Registration in Career Forge is encouraged.",
+  "occurrence_notes": null,
+  "guid": "149605-21906755@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/149605",
+  "building_id": "",
+  "building_name": "Off Campus Location",
+  "building_official_id": null,
+  "campus_maps_id": "1",
+  "campus_maps_link_path": "",
+  "campus_maps_link": "",
+  "room": "",
+  "location_name": "Virtual",
+  "has_livestream": 1,
+  "livestream_type": "zoom",
+  "livetream_require_login": 0,
+  "livestream_id": "96717842250",
+  "livestream_link": "https://umich.zoom.us/j/96717842250",
+  "cost": "",
+  "tags": [
+   "Career",
+   "Engineering",
+   "Graduate",
+   "Graduate Students",
+   "Michigan Engineering",
+   "Transfer Students",
+   "Undergraduate",
+   "Undergraduate Students",
+   "Workshop"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "https://events.umich.edu/media/attachments/2026/07/event_149605_original-1.png",
+  "image_description": "Interviewing",
+  "styled_images": {
+   "event_thumb": "https://events.umich.edu/media/cache/event_thumb/media/attachments/2026/07/event_149605_original-1.png",
+   "event_large": "https://events.umich.edu/media/cache/event_large/media/attachments/2026/07/event_149605_original-1.png",
+   "event_large_2x": "https://events.umich.edu/media/cache/event_large_2x/media/attachments/2026/07/event_149605_original-1.png",
+   "event_large_lightbox": "https://events.umich.edu/media/cache/event_large_lightbox/media/attachments/2026/07/event_149605_original-1.png",
+   "group_thumb": "https://events.umich.edu/media/cache/group_thumb/media/attachments/2026/07/event_149605_original-1.png",
+   "group_thumb_square": "https://events.umich.edu/media/cache/group_thumb_square/media/attachments/2026/07/event_149605_original-1.png",
+   "group_large": "https://events.umich.edu/media/cache/group_large/media/attachments/2026/07/event_149605_original-1.png",
+   "group_large_lightbox": "https://events.umich.edu/media/cache/group_large_lightbox/media/attachments/2026/07/event_149605_original-1.png",
+   "event_large_crop": "https://events.umich.edu/media/cache/event_large_crop/media/attachments/2026/07/event_149605_original-1.png",
+   "event_list": "https://events.umich.edu/media/cache/event_list/media/attachments/2026/07/event_149605_original-1.png",
+   "event_list_2x": "https://events.umich.edu/media/cache/event_list_2x/media/attachments/2026/07/event_149605_original-1.png",
+   "event_grid": "https://events.umich.edu/media/cache/event_grid/media/attachments/2026/07/event_149605_original-1.png",
+   "event_grid_2x": "https://events.umich.edu/media/cache/event_grid_2x/media/attachments/2026/07/event_149605_original-1.png",
+   "event_feature_large": "https://events.umich.edu/media/cache/event_feature_large/media/attachments/2026/07/event_149605_original-1.png",
+   "event_feature_thumb": "https://events.umich.edu/media/cache/event_feature_thumb/media/attachments/2026/07/event_149605_original-1.png"
+  },
+  "qr_code_url": "http://events.umich.edu/event/149605/qrcode.png",
+  "occurrence_count": 2,
+  "first_occurrence": 21906755
+ },
+ {
+  "id": "150144-21908255",
+  "datetime_modified": "20260811T155120",
+  "datetime_start": "20260921T100000",
+  "datetime_end": "20260921T113000",
+  "has_end_time": 1,
+  "date_start": "2026-09-21",
+  "date_end": "2026-09-21",
+  "time_start": "10:00:00",
+  "time_end": "11:30:00",
+  "time_zone": "America/Detroit",
+  "event_title": "U.S. Job Search for International Students (Engineering)",
+  "occurrence_title": "",
+  "combined_title": "U.S. Job Search for International Students (Engineering)",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "International students bring valuable talents to the U.S. job market, from cross-cultural insights and language skills to a global outlook that enriches any workplace. Yet, navigating the U.S. job market can be very stressful! The Engineering Career Resource Center (ECRC) and the International Center are co-hosting an informative workshop to better equip you for the job search. \n\nYou will learn about the engineering recruiting timeline, best practices for resumes and interviews in the United States, career resources available to you, how to navigate employment eligibility questions, and the CPT, OPT, and H-1 B processes.",
+  "occurrence_notes": null,
+  "guid": "150144-21908255@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/150144",
+  "building_id": "",
+  "building_name": "Off Campus Location",
+  "building_official_id": null,
+  "campus_maps_id": "1",
+  "campus_maps_link_path": "",
+  "campus_maps_link": "",
+  "room": "",
+  "location_name": "Virtual",
+  "has_livestream": 1,
+  "livestream_type": "zoom",
+  "livetream_require_login": 0,
+  "livestream_id": "98726080538",
+  "livestream_link": "https://umich.zoom.us/j/98726080538",
+  "cost": "",
+  "tags": [
+   "Career",
+   "Engineering",
+   "International",
+   "Michigan Engineering",
+   "Undergraduate Students",
+   "Workshop"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://app.careerfairplus.com/ume_mi",
+    "title": "Career Fair Plus"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "https://events.umich.edu/media/attachments/2026/08/event_150144_original-1.png",
+  "image_description": "International student job search",
+  "styled_images": {
+   "event_thumb": "https://events.umich.edu/media/cache/resolve/event_thumb/media/attachments/2026/08/event_150144_original-1.png",
+   "event_large": "https://events.umich.edu/media/cache/event_large/media/attachments/2026/08/event_150144_original-1.png",
+   "event_large_2x": "https://events.umich.edu/media/cache/resolve/event_large_2x/media/attachments/2026/08/event_150144_original-1.png",
+   "event_large_lightbox": "https://events.umich.edu/media/cache/event_large_lightbox/media/attachments/2026/08/event_150144_original-1.png",
+   "group_thumb": "https://events.umich.edu/media/cache/resolve/group_thumb/media/attachments/2026/08/event_150144_original-1.png",
+   "group_thumb_square": "https://events.umich.edu/media/cache/resolve/group_thumb_square/media/attachments/2026/08/event_150144_original-1.png",
+   "group_large": "https://events.umich.edu/media/cache/resolve/group_large/media/attachments/2026/08/event_150144_original-1.png",
+   "group_large_lightbox": "https://events.umich.edu/media/cache/resolve/group_large_lightbox/media/attachments/2026/08/event_150144_original-1.png",
+   "event_large_crop": "https://events.umich.edu/media/cache/resolve/event_large_crop/media/attachments/2026/08/event_150144_original-1.png",
+   "event_list": "https://events.umich.edu/media/cache/resolve/event_list/media/attachments/2026/08/event_150144_original-1.png",
+   "event_list_2x": "https://events.umich.edu/media/cache/event_list_2x/media/attachments/2026/08/event_150144_original-1.png",
+   "event_grid": "https://events.umich.edu/media/cache/resolve/event_grid/media/attachments/2026/08/event_150144_original-1.png",
+   "event_grid_2x": "https://events.umich.edu/media/cache/resolve/event_grid_2x/media/attachments/2026/08/event_150144_original-1.png",
+   "event_feature_large": "https://events.umich.edu/media/cache/resolve/event_feature_large/media/attachments/2026/08/event_150144_original-1.png",
+   "event_feature_thumb": "https://events.umich.edu/media/cache/resolve/event_feature_thumb/media/attachments/2026/08/event_150144_original-1.png"
+  },
+  "qr_code_url": "http://events.umich.edu/event/150144/qrcode.png",
+  "occurrence_count": 1,
+  "first_occurrence": 21908255
+ },
+ {
+  "id": "151410-21911550",
+  "datetime_modified": "20260902T144442",
+  "datetime_start": "20260921T110000",
+  "datetime_end": "20260921T140000",
+  "has_end_time": 1,
+  "date_start": "2026-09-21",
+  "date_end": "2026-09-21",
+  "time_start": "11:00:00",
+  "time_end": "14:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Engineering Career Cafe featuring AbbVie",
+  "occurrence_title": "",
+  "combined_title": "Engineering Career Cafe featuring AbbVie",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "AbbVie is hosting a Career Cafe event on September 21 to recruit for open positions and network with candidates for future opportunities. Meet with company representatives in a casual setting to explore different career paths, learn about various employment opportunities, and when appropriate, present yourself as a candidate for open positions.\n\nSign Up for the Career Cafe!\nSign up in advance in Career Fair Plus to speak with company representatives! Please note that meeting sign up will close at 11:59 PM the day prior to the event, or once the meeting schedule is full. Sign ups are limited to students who meet the criteria listed in Career Fair Plus.\n\nPlease note this is a College of Engineering event.",
+  "occurrence_notes": null,
+  "guid": "151410-21911550@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/151410",
+  "building_id": "1000396",
+  "building_name": "Duderstadt Center",
+  "building_official_id": 1000396,
+  "campus_maps_id": "181",
+  "campus_maps_link_path": "james-and-anne-duderstadt-center",
+  "campus_maps_link": "https://maps.studentlife.umich.edu/building/james-and-anne-duderstadt-center",
+  "room": "2nd Floor",
+  "location_name": "Duderstadt Center",
+  "has_livestream": 0,
+  "cost": "",
+  "tags": [
+   "Career",
+   "Engineering",
+   "Graduate Students",
+   "Michigan Engineering",
+   "Undergraduate Students"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "https://app.careerfairplus.com/ume_mi",
+    "title": "Career Fair Plus"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "https://events.umich.edu/media/attachments/2026/09/event_151410_original-1.png",
+  "image_description": "AbbVie",
+  "styled_images": {
+   "event_thumb": "https://events.umich.edu/media/cache/resolve/event_thumb/media/attachments/2026/09/event_151410_original-1.png",
+   "event_large": "https://events.umich.edu/media/cache/event_large/media/attachments/2026/09/event_151410_original-1.png",
+   "event_large_2x": "https://events.umich.edu/media/cache/resolve/event_large_2x/media/attachments/2026/09/event_151410_original-1.png",
+   "event_large_lightbox": "https://events.umich.edu/media/cache/event_large_lightbox/media/attachments/2026/09/event_151410_original-1.png",
+   "group_thumb": "https://events.umich.edu/media/cache/resolve/group_thumb/media/attachments/2026/09/event_151410_original-1.png",
+   "group_thumb_square": "https://events.umich.edu/media/cache/resolve/group_thumb_square/media/attachments/2026/09/event_151410_original-1.png",
+   "group_large": "https://events.umich.edu/media/cache/resolve/group_large/media/attachments/2026/09/event_151410_original-1.png",
+   "group_large_lightbox": "https://events.umich.edu/media/cache/resolve/group_large_lightbox/media/attachments/2026/09/event_151410_original-1.png",
+   "event_large_crop": "https://events.umich.edu/media/cache/resolve/event_large_crop/media/attachments/2026/09/event_151410_original-1.png",
+   "event_list": "https://events.umich.edu/media/cache/resolve/event_list/media/attachments/2026/09/event_151410_original-1.png",
+   "event_list_2x": "https://events.umich.edu/media/cache/event_list_2x/media/attachments/2026/09/event_151410_original-1.png",
+   "event_grid": "https://events.umich.edu/media/cache/event_grid/media/attachments/2026/09/event_151410_original-1.png",
+   "event_grid_2x": "https://events.umich.edu/media/cache/resolve/event_grid_2x/media/attachments/2026/09/event_151410_original-1.png",
+   "event_feature_large": "https://events.umich.edu/media/cache/resolve/event_feature_large/media/attachments/2026/09/event_151410_original-1.png",
+   "event_feature_thumb": "https://events.umich.edu/media/cache/event_feature_thumb/media/attachments/2026/09/event_151410_original-1.png"
+  },
+  "qr_code_url": "http://events.umich.edu/event/151410/qrcode.png",
+  "occurrence_count": 1,
+  "first_occurrence": 21911550
+ },
+ {
+  "id": "149780-21907177",
+  "datetime_modified": "20260908T160650",
+  "datetime_start": "20260922T110000",
+  "datetime_end": "20260922T150000",
+  "has_end_time": 1,
+  "date_start": "2026-09-22",
+  "date_end": "2026-09-22",
+  "time_start": "11:00:00",
+  "time_end": "15:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Engineering Career Cafe featuring Fifth Third Bank",
+  "occurrence_title": "",
+  "combined_title": "Engineering Career Cafe featuring Fifth Third Bank",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "Fifth Third Bank is hosting a Career Cafe event to recruit for open positions and network with candidates for future opportunities. Meet with company representatives in a casual setting to explore different career paths, learn about various employment opportunities, and when appropriate, present yourself as a candidate for open positions.\n\nDrop in throughout the event to speak with company representatives; pre-registration is not needed for this event.\nView more information in Career Forge or Career Fair Plus (CF+).\n\nThis is a College of Engineering event.",
+  "occurrence_notes": null,
+  "guid": "149780-21907177@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/149780",
+  "building_id": "1000396",
+  "building_name": "Duderstadt Center",
+  "building_official_id": 1000396,
+  "campus_maps_id": "181",
+  "campus_maps_link_path": "james-and-anne-duderstadt-center",
+  "campus_maps_link": "https://maps.studentlife.umich.edu/building/james-and-anne-duderstadt-center",
+  "room": "2nd Floor",
+  "location_name": "Duderstadt Center",
+  "has_livestream": 0,
+  "cost": "",
+  "tags": [
+   "Career",
+   "Michigan Engineering",
+   "Undergraduate Students"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://app.careerfairplus.com/ume_mi",
+    "title": "Career Fair Plus"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "https://events.umich.edu/media/attachments/2026/09/event_149780_original-2.png",
+  "image_description": "Fifth Third Bank",
+  "styled_images": {
+   "event_thumb": "https://events.umich.edu/media/cache/resolve/event_thumb/media/attachments/2026/09/event_149780_original-2.png",
+   "event_large": "https://events.umich.edu/media/cache/event_large/media/attachments/2026/09/event_149780_original-2.png",
+   "event_large_2x": "https://events.umich.edu/media/cache/resolve/event_large_2x/media/attachments/2026/09/event_149780_original-2.png",
+   "event_large_lightbox": "https://events.umich.edu/media/cache/event_large_lightbox/media/attachments/2026/09/event_149780_original-2.png",
+   "group_thumb": "https://events.umich.edu/media/cache/resolve/group_thumb/media/attachments/2026/09/event_149780_original-2.png",
+   "group_thumb_square": "https://events.umich.edu/media/cache/resolve/group_thumb_square/media/attachments/2026/09/event_149780_original-2.png",
+   "group_large": "https://events.umich.edu/media/cache/resolve/group_large/media/attachments/2026/09/event_149780_original-2.png",
+   "group_large_lightbox": "https://events.umich.edu/media/cache/resolve/group_large_lightbox/media/attachments/2026/09/event_149780_original-2.png",
+   "event_large_crop": "https://events.umich.edu/media/cache/resolve/event_large_crop/media/attachments/2026/09/event_149780_original-2.png",
+   "event_list": "https://events.umich.edu/media/cache/resolve/event_list/media/attachments/2026/09/event_149780_original-2.png",
+   "event_list_2x": "https://events.umich.edu/media/cache/event_list_2x/media/attachments/2026/09/event_149780_original-2.png",
+   "event_grid": "https://events.umich.edu/media/cache/event_grid/media/attachments/2026/09/event_149780_original-2.png",
+   "event_grid_2x": "https://events.umich.edu/media/cache/resolve/event_grid_2x/media/attachments/2026/09/event_149780_original-2.png",
+   "event_feature_large": "https://events.umich.edu/media/cache/resolve/event_feature_large/media/attachments/2026/09/event_149780_original-2.png",
+   "event_feature_thumb": "https://events.umich.edu/media/cache/event_feature_thumb/media/attachments/2026/09/event_149780_original-2.png"
+  },
+  "qr_code_url": "http://events.umich.edu/event/149780/qrcode.png",
+  "occurrence_count": 1,
+  "first_occurrence": 21907177
+ },
+ {
+  "id": "150238-21908438",
+  "datetime_modified": "20260813T144951",
+  "datetime_start": "20260923T140000",
+  "datetime_end": "20260923T160000",
+  "has_end_time": 1,
+  "date_start": "2026-09-23",
+  "date_end": "2026-09-23",
+  "time_start": "14:00:00",
+  "time_end": "16:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Engineering Headshot Session",
+  "occurrence_title": "",
+  "combined_title": "Engineering Headshot Session",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "Need a professional headshot for networking or other communications? The ECRC is offering FREE portrait-style headshots to engineering students on Wednesday, September 23rd.\n\nRegister in Career Forge – Spots are limited and will be available on a first-to-sign up basis.",
+  "occurrence_notes": null,
+  "guid": "150238-21908438@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/150238",
+  "building_id": "1000448",
+  "building_name": "Electrical Engineering and Computer Science Building",
+  "building_official_id": 1000448,
+  "campus_maps_id": "56",
+  "campus_maps_link_path": "electrical-engineering-and-computer-science-bld",
+  "campus_maps_link": "https://maps.studentlife.umich.edu/building/electrical-engineering-and-computer-science-bld",
+  "room": "",
+  "location_name": "Electrical Engineering and Computer Science Building",
+  "has_livestream": 0,
+  "cost": "",
+  "tags": [
+   "Career",
+   "Engineering",
+   "Graduate Students",
+   "Undergraduate Students"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "https://events.umich.edu/media/attachments/2026/08/event_150238_original-1.png",
+  "image_description": "Headshots",
+  "styled_images": {
+   "event_thumb": "https://events.umich.edu/media/cache/resolve/event_thumb/media/attachments/2026/08/event_150238_original-1.png",
+   "event_large": "https://events.umich.edu/media/cache/event_large/media/attachments/2026/08/event_150238_original-1.png",
+   "event_large_2x": "https://events.umich.edu/media/cache/resolve/event_large_2x/media/attachments/2026/08/event_150238_original-1.png",
+   "event_large_lightbox": "https://events.umich.edu/media/cache/event_large_lightbox/media/attachments/2026/08/event_150238_original-1.png",
+   "group_thumb": "https://events.umich.edu/media/cache/resolve/group_thumb/media/attachments/2026/08/event_150238_original-1.png",
+   "group_thumb_square": "https://events.umich.edu/media/cache/resolve/group_thumb_square/media/attachments/2026/08/event_150238_original-1.png",
+   "group_large": "https://events.umich.edu/media/cache/resolve/group_large/media/attachments/2026/08/event_150238_original-1.png",
+   "group_large_lightbox": "https://events.umich.edu/media/cache/resolve/group_large_lightbox/media/attachments/2026/08/event_150238_original-1.png",
+   "event_large_crop": "https://events.umich.edu/media/cache/resolve/event_large_crop/media/attachments/2026/08/event_150238_original-1.png",
+   "event_list": "https://events.umich.edu/media/cache/resolve/event_list/media/attachments/2026/08/event_150238_original-1.png",
+   "event_list_2x": "https://events.umich.edu/media/cache/event_list_2x/media/attachments/2026/08/event_150238_original-1.png",
+   "event_grid": "https://events.umich.edu/media/cache/event_grid/media/attachments/2026/08/event_150238_original-1.png",
+   "event_grid_2x": "https://events.umich.edu/media/cache/resolve/event_grid_2x/media/attachments/2026/08/event_150238_original-1.png",
+   "event_feature_large": "https://events.umich.edu/media/cache/resolve/event_feature_large/media/attachments/2026/08/event_150238_original-1.png",
+   "event_feature_thumb": "https://events.umich.edu/media/cache/resolve/event_feature_thumb/media/attachments/2026/08/event_150238_original-1.png"
+  },
+  "qr_code_url": "http://events.umich.edu/event/150238/qrcode.png",
+  "occurrence_count": 1,
+  "first_occurrence": 21908438
+ },
+ {
+  "id": "149791-21907188",
+  "datetime_modified": "20260803T161823",
+  "datetime_start": "20260924T110000",
+  "datetime_end": "20260924T150000",
+  "has_end_time": 1,
+  "date_start": "2026-09-24",
+  "date_end": "2026-09-24",
+  "time_start": "11:00:00",
+  "time_end": "15:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Engineering Department Career Day featuring AERO, APPL PHYS, BME, DESCI, IOE, ME, NERS & ENG PHYS and ROB, hosted by ECRC",
+  "occurrence_title": "",
+  "combined_title": "Engineering Department Career Day featuring AERO, APPL PHYS, BME, DESCI, IOE, ME, NERS & ENG PHYS and ROB, hosted by ECRC",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "The Department Career Day featuring the departments below will take place on Thursday, September 24 from 11 AM–3 PM on North Campus.\n\nFeatured Departments may include:\n\nAerospace Engineering (AERO)\nApplied Physics (APPL PHYS)\nBiomedical Engineering (BME)\nDesign Science (DESCI)\nIndustrial and Operations Engineering (IOE)\nMechanical Engineering (ME)\nNuclear Engineering and Radiological Sciences (NERS) & Engineering Physics (ENG PHYS)\nRobotics (ROB) \n\nThis event is designed to connect you with employers who are specifically seeking students from your engineering department. You’ll have the opportunity to engage with companies that are coming to recruit talent in your major for full-time, internship, and co-op opportunities.\n\nMake the most of this event, we encourage you to review and research participating employers in Career Forge and Career Fair Plus (CF+).",
+  "occurrence_notes": null,
+  "guid": "149791-21907188@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/149791",
+  "building_id": "1000396",
+  "building_name": "Duderstadt Center",
+  "building_official_id": 1000396,
+  "campus_maps_id": "181",
+  "campus_maps_link_path": "james-and-anne-duderstadt-center",
+  "campus_maps_link": "https://maps.studentlife.umich.edu/building/james-and-anne-duderstadt-center",
+  "room": "",
+  "location_name": "Duderstadt Center",
+  "has_livestream": 0,
+  "cost": "",
+  "tags": [
+   "Career",
+   "Graduate Students",
+   "Michigan Engineering",
+   "Undergraduate Students"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://app.careerfairplus.com/ume_mi",
+    "title": "Career Fair Plus"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "",
+  "image_description": "",
+  "styled_images": {
+   "event_thumb": "",
+   "event_large": "",
+   "event_large_2x": "",
+   "event_large_lightbox": "",
+   "group_thumb": "",
+   "group_thumb_square": "",
+   "group_large": "",
+   "group_large_lightbox": "",
+   "event_large_crop": "",
+   "event_list": "",
+   "event_list_2x": "",
+   "event_grid": "",
+   "event_grid_2x": "",
+   "event_feature_large": "",
+   "event_feature_thumb": ""
+  },
+  "qr_code_url": "http://events.umich.edu/event/149791/qrcode.png",
+  "occurrence_count": 1,
+  "first_occurrence": 21907188
+ },
+ {
+  "id": "149781-21907179",
+  "datetime_modified": "20260902T144139",
+  "datetime_start": "20260928T100000",
+  "datetime_end": "20260928T150000",
+  "has_end_time": 1,
+  "date_start": "2026-09-28",
+  "date_end": "2026-09-28",
+  "time_start": "10:00:00",
+  "time_end": "15:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Engineering Career Cafe featuring Walbridge",
+  "occurrence_title": "",
+  "combined_title": "Engineering Career Cafe featuring Walbridge",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "Walbridge is hosting a Career Cafe event on September 28 to recruit for open positions and network with candidates for future opportunities. Meet with company representatives in a casual setting to explore different career paths, learn about various employment opportunities, and when appropriate, present yourself as a candidate for open positions.\n\nSign Up or Drop In for the Career Cafe!\nStudents may drop in throughout the event to speak with company representatives, or sign up in advance for scheduled meeting times in Career Fair Plus. Please note that meeting sign up will close at 11:59 PM the day prior to the event, or once the meeting schedule is full. While all Michigan Engineering students may attend this event on a drop in basis, meeting sign up is limited to students who meet the criteria in Career Fair Plus. If you do not meet the criteria, or if you are unable to secure a timeslot, you may stop by any time during the event to speak with representatives on a first-come first serve basis.\n\nThis is a College of Engineering event.",
+  "occurrence_notes": null,
+  "guid": "149781-21907179@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/149781",
+  "building_id": "1000396",
+  "building_name": "Duderstadt Center",
+  "building_official_id": 1000396,
+  "campus_maps_id": "181",
+  "campus_maps_link_path": "james-and-anne-duderstadt-center",
+  "campus_maps_link": "https://maps.studentlife.umich.edu/building/james-and-anne-duderstadt-center",
+  "room": "2nd Floor",
+  "location_name": "Duderstadt Center",
+  "has_livestream": 0,
+  "cost": "",
+  "tags": [
+   "Career",
+   "Graduate",
+   "Michigan Engineering",
+   "Undergraduate Students"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://app.careerfairplus.com/ume_mi",
+    "title": "Career Fair Plus"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "https://events.umich.edu/media/attachments/2026/09/event_149781_original-2.png",
+  "image_description": "Walbridge",
+  "styled_images": {
+   "event_thumb": "https://events.umich.edu/media/cache/resolve/event_thumb/media/attachments/2026/09/event_149781_original-2.png",
+   "event_large": "https://events.umich.edu/media/cache/event_large/media/attachments/2026/09/event_149781_original-2.png",
+   "event_large_2x": "https://events.umich.edu/media/cache/resolve/event_large_2x/media/attachments/2026/09/event_149781_original-2.png",
+   "event_large_lightbox": "https://events.umich.edu/media/cache/event_large_lightbox/media/attachments/2026/09/event_149781_original-2.png",
+   "group_thumb": "https://events.umich.edu/media/cache/resolve/group_thumb/media/attachments/2026/09/event_149781_original-2.png",
+   "group_thumb_square": "https://events.umich.edu/media/cache/resolve/group_thumb_square/media/attachments/2026/09/event_149781_original-2.png",
+   "group_large": "https://events.umich.edu/media/cache/resolve/group_large/media/attachments/2026/09/event_149781_original-2.png",
+   "group_large_lightbox": "https://events.umich.edu/media/cache/resolve/group_large_lightbox/media/attachments/2026/09/event_149781_original-2.png",
+   "event_large_crop": "https://events.umich.edu/media/cache/resolve/event_large_crop/media/attachments/2026/09/event_149781_original-2.png",
+   "event_list": "https://events.umich.edu/media/cache/resolve/event_list/media/attachments/2026/09/event_149781_original-2.png",
+   "event_list_2x": "https://events.umich.edu/media/cache/event_list_2x/media/attachments/2026/09/event_149781_original-2.png",
+   "event_grid": "https://events.umich.edu/media/cache/resolve/event_grid/media/attachments/2026/09/event_149781_original-2.png",
+   "event_grid_2x": "https://events.umich.edu/media/cache/resolve/event_grid_2x/media/attachments/2026/09/event_149781_original-2.png",
+   "event_feature_large": "https://events.umich.edu/media/cache/resolve/event_feature_large/media/attachments/2026/09/event_149781_original-2.png",
+   "event_feature_thumb": "https://events.umich.edu/media/cache/event_feature_thumb/media/attachments/2026/09/event_149781_original-2.png"
+  },
+  "qr_code_url": "http://events.umich.edu/event/149781/qrcode.png",
+  "occurrence_count": 1,
+  "first_occurrence": 21907179
+ },
+ {
+  "id": "149792-21907190",
+  "datetime_modified": "20260803T162337",
+  "datetime_start": "20260929T110000",
+  "datetime_end": "20260929T150000",
+  "has_end_time": 1,
+  "date_start": "2026-09-29",
+  "date_end": "2026-09-29",
+  "time_start": "11:00:00",
+  "time_end": "15:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Engineering Department Career Day featuring CSE, ECE and EER hosted by ECRC",
+  "occurrence_title": "",
+  "combined_title": "Engineering Department Career Day featuring CSE, ECE and EER hosted by ECRC",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "The Department Career Day featuring the departments below will take place on Tuesday, September 29 from 11 AM–3 PM on North Campus.\n\nFeatured Departments may include:\nComputer Science and Engineering (CSE)\nElectrical and Computer Engineering (ECE)\nEngineering Education Research (EER)\n\nThis event is designed to connect you with employers who are specifically seeking students from your engineering department. You’ll have the opportunity to engage with companies that are coming to recruit talent in your major for full-time, internship, and co-op opportunities.\n\nMake the most of this event, we encourage you to review and research participating employers in Career Forge and Career Fair Plus (CF+)",
+  "occurrence_notes": null,
+  "guid": "149792-21907190@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/149792",
+  "building_id": "1000396",
+  "building_name": "Duderstadt Center",
+  "building_official_id": 1000396,
+  "campus_maps_id": "181",
+  "campus_maps_link_path": "james-and-anne-duderstadt-center",
+  "campus_maps_link": "https://maps.studentlife.umich.edu/building/james-and-anne-duderstadt-center",
+  "room": "",
+  "location_name": "Duderstadt Center",
+  "has_livestream": 0,
+  "cost": "",
+  "tags": [
+   "Career",
+   "Graduate Students",
+   "Michigan Engineering",
+   "Undergraduate Students"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://app.careerfairplus.com/ume_mi",
+    "title": "Career Fair Plus"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "",
+  "image_description": "",
+  "styled_images": {
+   "event_thumb": "",
+   "event_large": "",
+   "event_large_2x": "",
+   "event_large_lightbox": "",
+   "group_thumb": "",
+   "group_thumb_square": "",
+   "group_large": "",
+   "group_large_lightbox": "",
+   "event_large_crop": "",
+   "event_list": "",
+   "event_list_2x": "",
+   "event_grid": "",
+   "event_grid_2x": "",
+   "event_feature_large": "",
+   "event_feature_thumb": ""
+  },
+  "qr_code_url": "http://events.umich.edu/event/149792/qrcode.png",
+  "occurrence_count": 1,
+  "first_occurrence": 21907190
+ },
+ {
+  "id": "149782-21907180",
+  "datetime_modified": "20260902T170143",
+  "datetime_start": "20260930T100000",
+  "datetime_end": "20260930T140000",
+  "has_end_time": 1,
+  "date_start": "2026-09-30",
+  "date_end": "2026-09-30",
+  "time_start": "10:00:00",
+  "time_end": "14:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Engineering Career Cafe featuring Medtronic",
+  "occurrence_title": "",
+  "combined_title": "Engineering Career Cafe featuring Medtronic",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "Medtronic is hosting a Career Cafe event on September 30 to recruit for open positions and network with candidates for future opportunities. Meet with company representatives in a casual setting to explore different career paths, learn about various employment opportunities, and when appropriate, present yourelf as a candidate for open positions\n\nSign up in advance in Career Fair Plus to speak with company representatives! Please note that meeting sign up will close at 11:59 PM the day prior to the event, or once the meeting schedule is full. Sign ups are limited to specific majors. View more information in Career Forge or Career Fair Plus.\n\nThis is a College of Engineering event.",
+  "occurrence_notes": null,
+  "guid": "149782-21907180@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/149782",
+  "building_id": "1000396",
+  "building_name": "Duderstadt Center",
+  "building_official_id": 1000396,
+  "campus_maps_id": "181",
+  "campus_maps_link_path": "james-and-anne-duderstadt-center",
+  "campus_maps_link": "https://maps.studentlife.umich.edu/building/james-and-anne-duderstadt-center",
+  "room": "2nd Floor",
+  "location_name": "Duderstadt Center",
+  "has_livestream": 0,
+  "cost": "",
+  "tags": [
+   "Career",
+   "Graduate Students",
+   "Michigan Engineering",
+   "Undergraduate Students"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://app.careerfairplus.com/ume_mi",
+    "title": "Career Fair Plus"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "https://events.umich.edu/media/attachments/2026/09/event_149782_original-2.png",
+  "image_description": "Medtronic",
+  "styled_images": {
+   "event_thumb": "https://events.umich.edu/media/cache/resolve/event_thumb/media/attachments/2026/09/event_149782_original-2.png",
+   "event_large": "https://events.umich.edu/media/cache/event_large/media/attachments/2026/09/event_149782_original-2.png",
+   "event_large_2x": "https://events.umich.edu/media/cache/resolve/event_large_2x/media/attachments/2026/09/event_149782_original-2.png",
+   "event_large_lightbox": "https://events.umich.edu/media/cache/event_large_lightbox/media/attachments/2026/09/event_149782_original-2.png",
+   "group_thumb": "https://events.umich.edu/media/cache/resolve/group_thumb/media/attachments/2026/09/event_149782_original-2.png",
+   "group_thumb_square": "https://events.umich.edu/media/cache/resolve/group_thumb_square/media/attachments/2026/09/event_149782_original-2.png",
+   "group_large": "https://events.umich.edu/media/cache/resolve/group_large/media/attachments/2026/09/event_149782_original-2.png",
+   "group_large_lightbox": "https://events.umich.edu/media/cache/resolve/group_large_lightbox/media/attachments/2026/09/event_149782_original-2.png",
+   "event_large_crop": "https://events.umich.edu/media/cache/resolve/event_large_crop/media/attachments/2026/09/event_149782_original-2.png",
+   "event_list": "https://events.umich.edu/media/cache/resolve/event_list/media/attachments/2026/09/event_149782_original-2.png",
+   "event_list_2x": "https://events.umich.edu/media/cache/event_list_2x/media/attachments/2026/09/event_149782_original-2.png",
+   "event_grid": "https://events.umich.edu/media/cache/resolve/event_grid/media/attachments/2026/09/event_149782_original-2.png",
+   "event_grid_2x": "https://events.umich.edu/media/cache/resolve/event_grid_2x/media/attachments/2026/09/event_149782_original-2.png",
+   "event_feature_large": "https://events.umich.edu/media/cache/resolve/event_feature_large/media/attachments/2026/09/event_149782_original-2.png",
+   "event_feature_thumb": "https://events.umich.edu/media/cache/event_feature_thumb/media/attachments/2026/09/event_149782_original-2.png"
+  },
+  "qr_code_url": "http://events.umich.edu/event/149782/qrcode.png",
+  "occurrence_count": 1,
+  "first_occurrence": 21907180
+ },
+ {
+  "id": "149784-21907181",
+  "datetime_modified": "20260902T152149",
+  "datetime_start": "20261001T090000",
+  "datetime_end": "20261001T150000",
+  "has_end_time": 1,
+  "date_start": "2026-10-01",
+  "date_end": "2026-10-01",
+  "time_start": "09:00:00",
+  "time_end": "15:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Engineering Career Cafe featuring Sandia National Laboratories",
+  "occurrence_title": "",
+  "combined_title": "Engineering Career Cafe featuring Sandia National Laboratories",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "Sandia National Laboratories is hosting a Career Cafe event on October 1 to recruit for open positions and network with candidates for future opportunities. Meet with company representatives in a casual setting to explore different career paths, learn about various employment opportunities, and when appropriate, present yourself as a candidate for open positions.\n\nDrop In for the Career Cafe!\nStudents may drop in throughout the event to speak with company representatives, pre-registration is not needed for this event. \n\nView more information in Career Forge or Career Fair Plus.\n\nThis is a College of Engineering event.",
+  "occurrence_notes": null,
+  "guid": "149784-21907181@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/149784",
+  "building_id": "1000396",
+  "building_name": "Duderstadt Center",
+  "building_official_id": 1000396,
+  "campus_maps_id": "181",
+  "campus_maps_link_path": "james-and-anne-duderstadt-center",
+  "campus_maps_link": "https://maps.studentlife.umich.edu/building/james-and-anne-duderstadt-center",
+  "room": "2nd Floor",
+  "location_name": "Duderstadt Center",
+  "has_livestream": 0,
+  "cost": "",
+  "tags": [
+   "Career",
+   "Graduate Students",
+   "Michigan Engineering",
+   "Undergraduate Students"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://app.careerfairplus.com/ume_mi",
+    "title": "Career Fair Plus"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "https://events.umich.edu/media/attachments/2026/09/event_149784_original-2.png",
+  "image_description": "Sandia",
+  "styled_images": {
+   "event_thumb": "https://events.umich.edu/media/cache/resolve/event_thumb/media/attachments/2026/09/event_149784_original-2.png",
+   "event_large": "https://events.umich.edu/media/cache/event_large/media/attachments/2026/09/event_149784_original-2.png",
+   "event_large_2x": "https://events.umich.edu/media/cache/resolve/event_large_2x/media/attachments/2026/09/event_149784_original-2.png",
+   "event_large_lightbox": "https://events.umich.edu/media/cache/event_large_lightbox/media/attachments/2026/09/event_149784_original-2.png",
+   "group_thumb": "https://events.umich.edu/media/cache/resolve/group_thumb/media/attachments/2026/09/event_149784_original-2.png",
+   "group_thumb_square": "https://events.umich.edu/media/cache/resolve/group_thumb_square/media/attachments/2026/09/event_149784_original-2.png",
+   "group_large": "https://events.umich.edu/media/cache/resolve/group_large/media/attachments/2026/09/event_149784_original-2.png",
+   "group_large_lightbox": "https://events.umich.edu/media/cache/resolve/group_large_lightbox/media/attachments/2026/09/event_149784_original-2.png",
+   "event_large_crop": "https://events.umich.edu/media/cache/resolve/event_large_crop/media/attachments/2026/09/event_149784_original-2.png",
+   "event_list": "https://events.umich.edu/media/cache/resolve/event_list/media/attachments/2026/09/event_149784_original-2.png",
+   "event_list_2x": "https://events.umich.edu/media/cache/event_list_2x/media/attachments/2026/09/event_149784_original-2.png",
+   "event_grid": "https://events.umich.edu/media/cache/resolve/event_grid/media/attachments/2026/09/event_149784_original-2.png",
+   "event_grid_2x": "https://events.umich.edu/media/cache/resolve/event_grid_2x/media/attachments/2026/09/event_149784_original-2.png",
+   "event_feature_large": "https://events.umich.edu/media/cache/resolve/event_feature_large/media/attachments/2026/09/event_149784_original-2.png",
+   "event_feature_thumb": "https://events.umich.edu/media/cache/event_feature_thumb/media/attachments/2026/09/event_149784_original-2.png"
+  },
+  "qr_code_url": "http://events.umich.edu/event/149784/qrcode.png",
+  "occurrence_count": 1,
+  "first_occurrence": 21907181
+ },
+ {
+  "id": "149785-21907182",
+  "datetime_modified": "20260903T110325",
+  "datetime_start": "20261005T100000",
+  "datetime_end": "20261005T150000",
+  "has_end_time": 1,
+  "date_start": "2026-10-05",
+  "date_end": "2026-10-05",
+  "time_start": "10:00:00",
+  "time_end": "15:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Engineering Career Cafe featuring RTX",
+  "occurrence_title": "",
+  "combined_title": "Engineering Career Cafe featuring RTX",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "RTX is hosting a Career Cafe event on October 5 to network with candidates for future opportunities. Meet with company representatives in a casual setting to explore different career paths, learn about various employment opportunities, and when appropriate, present yourself as a candidate for open positions.\n\nDrop in throughout the event to speak with company representatives; pre-registration is not needed for this event.\n\nView more information in Career Forge or Career Fair Plus.\n\nThis is a College of Engineering event.",
+  "occurrence_notes": null,
+  "guid": "149785-21907182@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/149785",
+  "building_id": "1000396",
+  "building_name": "Duderstadt Center",
+  "building_official_id": 1000396,
+  "campus_maps_id": "181",
+  "campus_maps_link_path": "james-and-anne-duderstadt-center",
+  "campus_maps_link": "https://maps.studentlife.umich.edu/building/james-and-anne-duderstadt-center",
+  "room": "2nd Floor",
+  "location_name": "Duderstadt Center",
+  "has_livestream": 0,
+  "cost": "",
+  "tags": [
+   "Career",
+   "Graduate Students",
+   "Michigan Engineering",
+   "Undergraduate Students"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://app.careerfairplus.com/ume_mi",
+    "title": "Career Fair Plus"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "https://events.umich.edu/media/attachments/2026/09/event_149785_original-2.png",
+  "image_description": "RTX",
+  "styled_images": {
+   "event_thumb": "https://events.umich.edu/media/cache/resolve/event_thumb/media/attachments/2026/09/event_149785_original-2.png",
+   "event_large": "https://events.umich.edu/media/cache/event_large/media/attachments/2026/09/event_149785_original-2.png",
+   "event_large_2x": "https://events.umich.edu/media/cache/resolve/event_large_2x/media/attachments/2026/09/event_149785_original-2.png",
+   "event_large_lightbox": "https://events.umich.edu/media/cache/event_large_lightbox/media/attachments/2026/09/event_149785_original-2.png",
+   "group_thumb": "https://events.umich.edu/media/cache/resolve/group_thumb/media/attachments/2026/09/event_149785_original-2.png",
+   "group_thumb_square": "https://events.umich.edu/media/cache/resolve/group_thumb_square/media/attachments/2026/09/event_149785_original-2.png",
+   "group_large": "https://events.umich.edu/media/cache/resolve/group_large/media/attachments/2026/09/event_149785_original-2.png",
+   "group_large_lightbox": "https://events.umich.edu/media/cache/resolve/group_large_lightbox/media/attachments/2026/09/event_149785_original-2.png",
+   "event_large_crop": "https://events.umich.edu/media/cache/resolve/event_large_crop/media/attachments/2026/09/event_149785_original-2.png",
+   "event_list": "https://events.umich.edu/media/cache/resolve/event_list/media/attachments/2026/09/event_149785_original-2.png",
+   "event_list_2x": "https://events.umich.edu/media/cache/event_list_2x/media/attachments/2026/09/event_149785_original-2.png",
+   "event_grid": "https://events.umich.edu/media/cache/resolve/event_grid/media/attachments/2026/09/event_149785_original-2.png",
+   "event_grid_2x": "https://events.umich.edu/media/cache/resolve/event_grid_2x/media/attachments/2026/09/event_149785_original-2.png",
+   "event_feature_large": "https://events.umich.edu/media/cache/resolve/event_feature_large/media/attachments/2026/09/event_149785_original-2.png",
+   "event_feature_thumb": "https://events.umich.edu/media/cache/resolve/event_feature_thumb/media/attachments/2026/09/event_149785_original-2.png"
+  },
+  "qr_code_url": "http://events.umich.edu/event/149785/qrcode.png",
+  "occurrence_count": 1,
+  "first_occurrence": 21907182
+ },
+ {
+  "id": "149786-21907183",
+  "datetime_modified": "20260902T152831",
+  "datetime_start": "20261006T090000",
+  "datetime_end": "20261006T150000",
+  "has_end_time": 1,
+  "date_start": "2026-10-06",
+  "date_end": "2026-10-06",
+  "time_start": "09:00:00",
+  "time_end": "15:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Engineering Career Cafe featuring Donaldson",
+  "occurrence_title": "",
+  "combined_title": "Engineering Career Cafe featuring Donaldson",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "Donaldson is hosting a Career Cafe event on October 6 to recruit for open positions and network with candidates for future opportunities. Meet with company representatives in a casual setting to explore different career paths, learn about various employment opportunities, and when appropriate, present yourself as a candidate for open positions.\n\nStudents may drop in throughout the event to speak with company representatives, pre-registration is not needed for this event.\n\nView more information in Career Forge or Career Fair Plus.\n\nThis is a College of Engineering event.",
+  "occurrence_notes": null,
+  "guid": "149786-21907183@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/149786",
+  "building_id": "1000396",
+  "building_name": "Duderstadt Center",
+  "building_official_id": 1000396,
+  "campus_maps_id": "181",
+  "campus_maps_link_path": "james-and-anne-duderstadt-center",
+  "campus_maps_link": "https://maps.studentlife.umich.edu/building/james-and-anne-duderstadt-center",
+  "room": "2nd Floor",
+  "location_name": "Duderstadt Center",
+  "has_livestream": 0,
+  "cost": "",
+  "tags": [
+   "Career",
+   "Graduate Students",
+   "Michigan Engineering",
+   "Undergraduate Students"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://app.careerfairplus.com/ume_mi",
+    "title": "Career Fair Plus"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "https://events.umich.edu/media/attachments/2026/09/event_149786_original-2.png",
+  "image_description": "Donaldson",
+  "styled_images": {
+   "event_thumb": "https://events.umich.edu/media/cache/resolve/event_thumb/media/attachments/2026/09/event_149786_original-2.png",
+   "event_large": "https://events.umich.edu/media/cache/event_large/media/attachments/2026/09/event_149786_original-2.png",
+   "event_large_2x": "https://events.umich.edu/media/cache/resolve/event_large_2x/media/attachments/2026/09/event_149786_original-2.png",
+   "event_large_lightbox": "https://events.umich.edu/media/cache/event_large_lightbox/media/attachments/2026/09/event_149786_original-2.png",
+   "group_thumb": "https://events.umich.edu/media/cache/resolve/group_thumb/media/attachments/2026/09/event_149786_original-2.png",
+   "group_thumb_square": "https://events.umich.edu/media/cache/resolve/group_thumb_square/media/attachments/2026/09/event_149786_original-2.png",
+   "group_large": "https://events.umich.edu/media/cache/resolve/group_large/media/attachments/2026/09/event_149786_original-2.png",
+   "group_large_lightbox": "https://events.umich.edu/media/cache/resolve/group_large_lightbox/media/attachments/2026/09/event_149786_original-2.png",
+   "event_large_crop": "https://events.umich.edu/media/cache/resolve/event_large_crop/media/attachments/2026/09/event_149786_original-2.png",
+   "event_list": "https://events.umich.edu/media/cache/resolve/event_list/media/attachments/2026/09/event_149786_original-2.png",
+   "event_list_2x": "https://events.umich.edu/media/cache/event_list_2x/media/attachments/2026/09/event_149786_original-2.png",
+   "event_grid": "https://events.umich.edu/media/cache/resolve/event_grid/media/attachments/2026/09/event_149786_original-2.png",
+   "event_grid_2x": "https://events.umich.edu/media/cache/resolve/event_grid_2x/media/attachments/2026/09/event_149786_original-2.png",
+   "event_feature_large": "https://events.umich.edu/media/cache/resolve/event_feature_large/media/attachments/2026/09/event_149786_original-2.png",
+   "event_feature_thumb": "https://events.umich.edu/media/cache/resolve/event_feature_thumb/media/attachments/2026/09/event_149786_original-2.png"
+  },
+  "qr_code_url": "http://events.umich.edu/event/149786/qrcode.png",
+  "occurrence_count": 1,
+  "first_occurrence": 21907183
+ },
+ {
+  "id": "149605-21906756",
+  "datetime_modified": "20260728T102023",
+  "datetime_start": "20261006T120000",
+  "datetime_end": "20261006T130000",
+  "has_end_time": 1,
+  "date_start": "2026-10-06",
+  "date_end": "2026-10-06",
+  "time_start": "12:00:00",
+  "time_end": "13:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Engineering Interview Essentials: Achieve Interview Success",
+  "occurrence_title": "",
+  "combined_title": "Engineering Interview Essentials: Achieve Interview Success",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "Step into your interviews with confidence! In this session we’ll cover how to effectively prepare for interviews, with a focus on behavioral questions and proven strategies to help you stand out. Learn what to expect, how to frame your experiences and tips on how to leave a lasting impression.\n\nPro Tip! Interview success comes from preparation – Don’t try and wing it!\n\nThis is a College of Engineering event. Registration in Career Forge is encouraged.",
+  "occurrence_notes": null,
+  "guid": "149605-21906756@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/149605",
+  "building_id": "",
+  "building_name": "Off Campus Location",
+  "building_official_id": null,
+  "campus_maps_id": "1",
+  "campus_maps_link_path": "",
+  "campus_maps_link": "",
+  "room": "",
+  "location_name": "Virtual",
+  "has_livestream": 1,
+  "livestream_type": "zoom",
+  "livetream_require_login": 0,
+  "livestream_id": "94800641618",
+  "livestream_link": "https://umich.zoom.us/j/94800641618",
+  "cost": "",
+  "tags": [
+   "Career",
+   "Engineering",
+   "Graduate",
+   "Graduate Students",
+   "Michigan Engineering",
+   "Transfer Students",
+   "Undergraduate",
+   "Undergraduate Students",
+   "Workshop"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "https://events.umich.edu/media/attachments/2026/07/event_149605_original-1.png",
+  "image_description": "Interviewing",
+  "styled_images": {
+   "event_thumb": "https://events.umich.edu/media/cache/event_thumb/media/attachments/2026/07/event_149605_original-1.png",
+   "event_large": "https://events.umich.edu/media/cache/event_large/media/attachments/2026/07/event_149605_original-1.png",
+   "event_large_2x": "https://events.umich.edu/media/cache/event_large_2x/media/attachments/2026/07/event_149605_original-1.png",
+   "event_large_lightbox": "https://events.umich.edu/media/cache/event_large_lightbox/media/attachments/2026/07/event_149605_original-1.png",
+   "group_thumb": "https://events.umich.edu/media/cache/group_thumb/media/attachments/2026/07/event_149605_original-1.png",
+   "group_thumb_square": "https://events.umich.edu/media/cache/group_thumb_square/media/attachments/2026/07/event_149605_original-1.png",
+   "group_large": "https://events.umich.edu/media/cache/group_large/media/attachments/2026/07/event_149605_original-1.png",
+   "group_large_lightbox": "https://events.umich.edu/media/cache/group_large_lightbox/media/attachments/2026/07/event_149605_original-1.png",
+   "event_large_crop": "https://events.umich.edu/media/cache/event_large_crop/media/attachments/2026/07/event_149605_original-1.png",
+   "event_list": "https://events.umich.edu/media/cache/event_list/media/attachments/2026/07/event_149605_original-1.png",
+   "event_list_2x": "https://events.umich.edu/media/cache/event_list_2x/media/attachments/2026/07/event_149605_original-1.png",
+   "event_grid": "https://events.umich.edu/media/cache/event_grid/media/attachments/2026/07/event_149605_original-1.png",
+   "event_grid_2x": "https://events.umich.edu/media/cache/event_grid_2x/media/attachments/2026/07/event_149605_original-1.png",
+   "event_feature_large": "https://events.umich.edu/media/cache/event_feature_large/media/attachments/2026/07/event_149605_original-1.png",
+   "event_feature_thumb": "https://events.umich.edu/media/cache/event_feature_thumb/media/attachments/2026/07/event_149605_original-1.png"
+  },
+  "qr_code_url": "http://events.umich.edu/event/149605/qrcode.png",
+  "occurrence_count": 2,
+  "first_occurrence": 21906755
+ },
+ {
+  "id": "149793-21907191",
+  "datetime_modified": "20260803T162518",
+  "datetime_start": "20261007T110000",
+  "datetime_end": "20261007T150000",
+  "has_end_time": 1,
+  "date_start": "2026-10-07",
+  "date_end": "2026-10-07",
+  "time_start": "11:00:00",
+  "time_end": "15:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Engineering Department Career Day featuring CEE, CHE, CLASP, Macro, MSE and NAME, hosted by ECRC",
+  "occurrence_title": "",
+  "combined_title": "Engineering Department Career Day featuring CEE, CHE, CLASP, Macro, MSE and NAME, hosted by ECRC",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "The Department Career Day featuring the departments below will take place on Wednesday, October 7 from 11 AM–3 PM on North Campus.\n\nFeatured Departments may include:\nCivil and Environmental Engineering (CEE)\nChemical Engineering (CHE)\nClimate and Space Sciences and Engineering (CLASP)\nMacromolecular Science and Engineering (Macro)\nMechanical Engineering (MSE)\nNaval Architecture and Marine Engineering (NAME)\n\nThis event is designed to connect you with employers who are specifically seeking students from your engineering department. You’ll have the opportunity to engage with companies that are coming to recruit talent in your major for full-time, internship, and co-op opportunities.\n\nMake the most of this event, we encourage you to review and research participating employers in Career Forge and Career Fair Plus (CF+)",
+  "occurrence_notes": null,
+  "guid": "149793-21907191@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/149793",
+  "building_id": "1000396",
+  "building_name": "Duderstadt Center",
+  "building_official_id": 1000396,
+  "campus_maps_id": "181",
+  "campus_maps_link_path": "james-and-anne-duderstadt-center",
+  "campus_maps_link": "https://maps.studentlife.umich.edu/building/james-and-anne-duderstadt-center",
+  "room": "",
+  "location_name": "Duderstadt Center",
+  "has_livestream": 0,
+  "cost": "",
+  "tags": [
+   "Career",
+   "Graduate Students",
+   "Michigan Engineering",
+   "Undergraduate Students"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://app.careerfairplus.com/ume_mi",
+    "title": "Career Fair Plus"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "",
+  "image_description": "",
+  "styled_images": {
+   "event_thumb": "",
+   "event_large": "",
+   "event_large_2x": "",
+   "event_large_lightbox": "",
+   "group_thumb": "",
+   "group_thumb_square": "",
+   "group_large": "",
+   "group_large_lightbox": "",
+   "event_large_crop": "",
+   "event_list": "",
+   "event_list_2x": "",
+   "event_grid": "",
+   "event_grid_2x": "",
+   "event_feature_large": "",
+   "event_feature_thumb": ""
+  },
+  "qr_code_url": "http://events.umich.edu/event/149793/qrcode.png",
+  "occurrence_count": 1,
+  "first_occurrence": 21907191
+ },
+ {
+  "id": "149603-21906752",
+  "datetime_modified": "20260728T101452",
+  "datetime_start": "20261008T120000",
+  "datetime_end": "20261008T130000",
+  "has_end_time": 1,
+  "date_start": "2026-10-08",
+  "date_end": "2026-10-08",
+  "time_start": "12:00:00",
+  "time_end": "13:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Engineering - How to Evaluate and Negotiate a Job Offer",
+  "occurrence_title": "",
+  "combined_title": "Engineering - How to Evaluate and Negotiate a Job Offer",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "Landing a full-time job offer can feel amazing... and a little overwhelming. Don’t worry—you’ve got this (and we’ve got you). We’ll cover what to expect when you receive a job offer, break down the key components of typical offers, and share strategies for evaluating and negotiating effectively. Whether you’re reviewing an offer now or preparing for future opportunities, this session will equip you with the knowledge and tools to make informed, empowered decisions.\n\nBe confident. Be informed. Be ready.\n\nThis is a College of Engineering event. Registration in Career Forge is encouraged.",
+  "occurrence_notes": null,
+  "guid": "149603-21906752@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/149603",
+  "building_id": "",
+  "building_name": "Off Campus Location",
+  "building_official_id": null,
+  "campus_maps_id": "1",
+  "campus_maps_link_path": "",
+  "campus_maps_link": "",
+  "room": "",
+  "location_name": "Virtual",
+  "has_livestream": 1,
+  "livestream_type": "zoom",
+  "livetream_require_login": 0,
+  "livestream_id": "98682830910",
+  "livestream_link": "https://umich.zoom.us/j/98682830910",
+  "cost": "",
+  "tags": [
+   "Career",
+   "Engineering",
+   "Graduate",
+   "Graduate Students",
+   "Michigan Engineering",
+   "Transfer Students",
+   "Undergraduate",
+   "Undergraduate Students",
+   "Workshop"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodation Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "https://events.umich.edu/media/attachments/2026/07/event_149603_original-1.png",
+  "image_description": "Job offers",
+  "styled_images": {
+   "event_thumb": "https://events.umich.edu/media/cache/event_thumb/media/attachments/2026/07/event_149603_original-1.png",
+   "event_large": "https://events.umich.edu/media/cache/event_large/media/attachments/2026/07/event_149603_original-1.png",
+   "event_large_2x": "https://events.umich.edu/media/cache/event_large_2x/media/attachments/2026/07/event_149603_original-1.png",
+   "event_large_lightbox": "https://events.umich.edu/media/cache/event_large_lightbox/media/attachments/2026/07/event_149603_original-1.png",
+   "group_thumb": "https://events.umich.edu/media/cache/group_thumb/media/attachments/2026/07/event_149603_original-1.png",
+   "group_thumb_square": "https://events.umich.edu/media/cache/group_thumb_square/media/attachments/2026/07/event_149603_original-1.png",
+   "group_large": "https://events.umich.edu/media/cache/group_large/media/attachments/2026/07/event_149603_original-1.png",
+   "group_large_lightbox": "https://events.umich.edu/media/cache/group_large_lightbox/media/attachments/2026/07/event_149603_original-1.png",
+   "event_large_crop": "https://events.umich.edu/media/cache/event_large_crop/media/attachments/2026/07/event_149603_original-1.png",
+   "event_list": "https://events.umich.edu/media/cache/event_list/media/attachments/2026/07/event_149603_original-1.png",
+   "event_list_2x": "https://events.umich.edu/media/cache/event_list_2x/media/attachments/2026/07/event_149603_original-1.png",
+   "event_grid": "https://events.umich.edu/media/cache/event_grid/media/attachments/2026/07/event_149603_original-1.png",
+   "event_grid_2x": "https://events.umich.edu/media/cache/event_grid_2x/media/attachments/2026/07/event_149603_original-1.png",
+   "event_feature_large": "https://events.umich.edu/media/cache/event_feature_large/media/attachments/2026/07/event_149603_original-1.png",
+   "event_feature_thumb": "https://events.umich.edu/media/cache/event_feature_thumb/media/attachments/2026/07/event_149603_original-1.png"
+  },
+  "qr_code_url": "http://events.umich.edu/event/149603/qrcode.png",
+  "occurrence_count": 2,
+  "first_occurrence": 21906751
+ },
+ {
+  "id": "151757-21912133",
+  "datetime_modified": "20260908T161256",
+  "datetime_start": "20261015T100000",
+  "datetime_end": "20261015T150000",
+  "has_end_time": 1,
+  "date_start": "2026-10-15",
+  "date_end": "2026-10-15",
+  "time_start": "10:00:00",
+  "time_end": "15:00:00",
+  "time_zone": "America/Detroit",
+  "event_title": "Engineering Career Cafe featuring Eaton",
+  "occurrence_title": "",
+  "combined_title": "Engineering Career Cafe featuring Eaton",
+  "event_subtitle": "",
+  "event_type": "Careers / Jobs",
+  "event_type_id": "2",
+  "description": "Eaton is hosting a Career Cafe event to network with candidates for future opportunities. Meet with company representatives in a casual setting to explore different career paths, learn about various employment opportunities, and when appropriate, present yourself as a candidate for open positions.\n\nDrop in throughout the event to speak with company representatives; pre-registration is not needed for this event.\nView more information in Career Forge or Career Fair Plus (CF+).\n\nThis is a College of Engineering event.",
+  "occurrence_notes": null,
+  "guid": "151757-21912133@events.umich.edu",
+  "permalink": "http://events.umich.edu/event/151757",
+  "building_id": "1000396",
+  "building_name": "Duderstadt Center",
+  "building_official_id": 1000396,
+  "campus_maps_id": "181",
+  "campus_maps_link_path": "james-and-anne-duderstadt-center",
+  "campus_maps_link": "https://maps.studentlife.umich.edu/building/james-and-anne-duderstadt-center",
+  "room": "2nd Floor",
+  "location_name": "Duderstadt Center",
+  "has_livestream": 0,
+  "cost": "",
+  "tags": [
+   "Career",
+   "Michigan Engineering",
+   "Undergraduate Students"
+  ],
+  "website": "http://career.engin.umich.edu/",
+  "links": [
+   {
+    "type": "other",
+    "url": "http://career.engin.umich.edu/",
+    "title": "ECRC Website"
+   },
+   {
+    "type": "other",
+    "url": "https://app.careerfairplus.com/ume_mi",
+    "title": "Career Fair Plus (CF+)"
+   },
+   {
+    "type": "other",
+    "url": "http://careerforge.com/login",
+    "title": "Career Forge"
+   },
+   {
+    "type": "other",
+    "url": "https://umich.qualtrics.com/jfe/form/SV_6QJUbw52V39OVqS",
+    "title": "Disability Accommodations Request"
+   }
+  ],
+  "sponsors": [
+   {
+    "group_name": "Engineering Career Resource Center",
+    "group_id": "3172",
+    "website": "http://career.engin.umich.edu/"
+   }
+  ],
+  "image_url": "https://events.umich.edu/media/attachments/2026/09/event_151757_original-1.png",
+  "image_description": "Eaton",
+  "styled_images": {
+   "event_thumb": "https://events.umich.edu/media/cache/resolve/event_thumb/media/attachments/2026/09/event_151757_original-1.png",
+   "event_large": "https://events.umich.edu/media/cache/event_large/media/attachments/2026/09/event_151757_original-1.png",
+   "event_large_2x": "https://events.umich.edu/media/cache/resolve/event_large_2x/media/attachments/2026/09/event_151757_original-1.png",
+   "event_large_lightbox": "https://events.umich.edu/media/cache/event_large_lightbox/media/attachments/2026/09/event_151757_original-1.png",
+   "group_thumb": "https://events.umich.edu/media/cache/resolve/group_thumb/media/attachments/2026/09/event_151757_original-1.png",
+   "group_thumb_square": "https://events.umich.edu/media/cache/resolve/group_thumb_square/media/attachments/2026/09/event_151757_original-1.png",
+   "group_large": "https://events.umich.edu/media/cache/resolve/group_large/media/attachments/2026/09/event_151757_original-1.png",
+   "group_large_lightbox": "https://events.umich.edu/media/cache/resolve/group_large_lightbox/media/attachments/2026/09/event_151757_original-1.png",
+   "event_large_crop": "https://events.umich.edu/media/cache/resolve/event_large_crop/media/attachments/2026/09/event_151757_original-1.png",
+   "event_list": "https://events.umich.edu/media/cache/resolve/event_list/media/attachments/2026/09/event_151757_original-1.png",
+   "event_list_2x": "https://events.umich.edu/media/cache/event_list_2x/media/attachments/2026/09/event_151757_original-1.png",
+   "event_grid": "https://events.umich.edu/media/cache/resolve/event_grid/media/attachments/2026/09/event_151757_original-1.png",
+   "event_grid_2x": "https://events.umich.edu/media/cache/resolve/event_grid_2x/media/attachments/2026/09/event_151757_original-1.png",
+   "event_feature_large": "https://events.umich.edu/media/cache/resolve/event_feature_large/media/attachments/2026/09/event_151757_original-1.png",
+   "event_feature_thumb": "https://events.umich.edu/media/cache/event_feature_thumb/media/attachments/2026/09/event_151757_original-1.png"
+  },
+  "qr_code_url": "http://events.umich.edu/event/151757/qrcode.png",
+  "occurrence_count": 1,
+  "first_occurrence": 21912133
+ }
+]

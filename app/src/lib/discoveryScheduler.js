@@ -1,5 +1,6 @@
 import { normalizeCompanyName } from './networkGraph.js'
 import { affinityScore } from './affinity.js'
+import { pickDue, daysToMs, todayStr } from './ingest/scheduler.js'
 
 // Picks which target companies the hands-off background refresh should search *right now*,
 // so discovery stays cheap: it runs daily but each company is only re-searched on a
@@ -34,8 +35,6 @@ function priorityTier(status, appliedTo) {
   return 3 // weak, not applied-to
 }
 
-const DAY_MS = 86400000
-
 // targets: string[] company names · contacts/apps/interactions: dashboard data ·
 // meta: rec_discovery_meta ({ perCompany: { [key]: { lastRun, resultHash } } })
 // -> ordered [{ company, key, status, tier, priorResultHash }] to search now.
@@ -43,22 +42,16 @@ export function dueCompanies(targets, contacts, apps, interactions, meta = {}, o
   const { cooldownDays = 7, dailyBudget = 3, now = Date.now() } = opts
   const perCompany = meta.perCompany || {}
 
-  return targets
+  const candidates = targets
     .map(company => {
       const key = normalizeCompanyName(company)
       const status = coverageStatus(company, contacts, interactions)
       const tier = priorityTier(status, hasActiveApplication(company, apps))
-      const lastRun = perCompany[key]?.lastRun || 0
-      return { company, key, status, tier, lastRun, priorResultHash: perCompany[key]?.resultHash || null }
+      return { company, key, status, tier, priorResultHash: perCompany[key]?.resultHash || null }
     })
     .filter(r => r.status !== 'strong')                       // never spend on well-covered companies
-    .filter(r => !r.lastRun || now - r.lastRun > cooldownDays * DAY_MS) // per-company cooldown
-    .sort((a, b) => a.tier - b.tier || a.lastRun - b.lastRun) // priority, then oldest-searched first (rotate)
-    .slice(0, dailyBudget)                                    // cap daily spend
-    .map(({ lastRun, ...keep }) => keep)
+
+  return pickDue(candidates, perCompany, { cooldownMs: daysToMs(cooldownDays), budget: dailyBudget, now })
 }
 
-// YYYY-MM-DD in local time — the once-per-day gate key.
-export function todayStr(d = new Date()) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+export { todayStr }

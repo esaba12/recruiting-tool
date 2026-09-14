@@ -6,16 +6,9 @@
 // useTimelineFinds.js is what actually writes to Google Calendar, on approval.
 
 import { aiJSON, AI_MODELS } from './ai.js'
+import { hashText, splitFresh, runChunked, partialErrorMessage } from './ingest/hashGate.js'
 
 const CHUNK_SIZE = 30 // records per Haiku call — keeps prompts small even on a big history
-
-// FNV-1a, same algorithm as exa.js's hashUrls — detects "this record's scanned text
-// changed since last run" without needing a real diff.
-function hashText(s) {
-  let h = 0x811c9dc5
-  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) }
-  return (h >>> 0).toString(16)
-}
 
 // One candidate per source record that has non-trivial text worth scanning. `key` is
 // stable across runs (used for the hash-skip cache); `anchorDate` lets Haiku resolve
@@ -81,26 +74,14 @@ async function scanChunk(chunk) {
 // JSON-boundary detection) shouldn't take the whole batch down with it.
 export async function findTimelineEvents({ apps, calls, interactions, contactsById, skipHashes = {} }) {
   const all = candidatesFrom(apps, calls, interactions, contactsById)
-  const fresh = all.filter(c => skipHashes[c.key] !== c.hash)
-  const scannedKeys = Object.fromEntries(all.filter(c => skipHashes[c.key] === c.hash).map(c => [c.key, c.hash]))
+  const { fresh, scannedKeys } = splitFresh(all, skipHashes)
   if (!fresh.length) return { events: [], scannedKeys, error: null }
 
-  const chunks = []
-  for (let i = 0; i < fresh.length; i += CHUNK_SIZE) chunks.push(fresh.slice(i, i + CHUNK_SIZE))
   const byKey = new Map(fresh.map(c => [c.key, c]))
   const today = new Date().toISOString().slice(0, 10)
 
-  const results = await Promise.allSettled(chunks.map(scanChunk))
-  const rawEvents = []
-  const errors = []
-  results.forEach((r, idx) => {
-    if (r.status === 'fulfilled') {
-      rawEvents.push(...r.value)
-      for (const c of chunks[idx]) scannedKeys[c.key] = c.hash
-    } else {
-      errors.push(r.reason?.message || 'Scan failed')
-    }
-  })
+  const { results: rawEvents, scannedKeys: done, errors, chunkCount } = await runChunked(fresh, CHUNK_SIZE, scanChunk)
+  Object.assign(scannedKeys, done)
 
   const events = rawEvents
     .filter(e => byKey.has(e.id) && e.date && e.date >= today)
@@ -115,6 +96,5 @@ export async function findTimelineEvents({ apps, calls, interactions, contactsBy
       }
     })
 
-  const error = errors.length ? `${errors.length}/${chunks.length} scan batch(es) failed (will retry next run): ${errors[0]}` : null
-  return { events, scannedKeys, error }
+  return { events, scannedKeys, error: partialErrorMessage(errors, chunkCount, 'scan batch') }
 }

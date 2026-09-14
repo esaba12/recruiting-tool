@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships } from './db.js'
 import { researchOaDeadlines } from './lib/oaResearch.js'
 import { useAuth } from './lib/AuthContext.jsx'
+import useEventIngest from './lib/useEventIngest.js'
 import LoginPage from './components/LoginPage.jsx'
 import SettingsTab from './components/SettingsTab.jsx'
 import { STATUS_COLOR, URGENCY_COLOR, REFERRAL_STATUS_COLOR, daysSince, daysUntil, fmt, Badge, EmptyState, isOverdue } from './shared.jsx'
@@ -243,6 +244,11 @@ function AppInner() {
 
   useEffect(() => { load() }, [])
 
+  // Recruiting Events: hands-off daily pull of the school's feeds into the shared
+  // pool (server-side cooldown means only the first open of the day at a campus
+  // actually pulls). Lives here, not in CalendarTab, so it fires on any tab.
+  useEventIngest({ enabled: true })
+
   async function load() {
     setLoading(true); setError(null)
     try {
@@ -360,6 +366,11 @@ function DemoApp() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { load() }, [])
+
+  // Recruiting Events: hands-off daily pull of the school's feeds into the shared
+  // pool (server-side cooldown means only the first open of the day at a campus
+  // actually pulls). Lives here, not in CalendarTab, so it fires on any tab.
+  useEventIngest({ enabled: true })
 
   async function load() {
     setLoading(true)
