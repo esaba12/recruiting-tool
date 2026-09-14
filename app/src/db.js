@@ -8,7 +8,10 @@
 // imported it (ContactDetailModal, LogInteractionModal, PipelineTab, etc.)
 // needed zero changes beyond the import path.
 import { supabase } from './lib/supabaseClient.js'
-import { DEMO_CONTACTS, DEMO_APPLICATIONS, DEMO_INTERACTIONS, DEMO_CALLS, DEMO_CONTACT_RELATIONSHIPS, nextDemoId } from './demoData.js'
+import {
+  DEMO_CONTACTS, DEMO_APPLICATIONS, DEMO_INTERACTIONS, DEMO_CALLS, DEMO_CONTACT_RELATIONSHIPS, nextDemoId,
+  DEMO_SCHOOLS, DEMO_EMPLOYERS, DEMO_EVENTS, DEMO_USER_EVENTS, DEMO_EVENT_RELEVANCE, DEMO_REQUIREMENT_COMPLETIONS, DEMO_INGEST_SOURCES,
+} from './demoData.js'
 import { ROLE_OPTIONS } from './shared.jsx'
 
 function todayStr() { return new Date().toISOString().split('T')[0] }
@@ -40,6 +43,13 @@ function demoStore() {
       interactions: DEMO_INTERACTIONS.map(i => ({ ...i })),
       calls: DEMO_CALLS.map(c => ({ ...c })),
       contactRelationships: DEMO_CONTACT_RELATIONSHIPS.map(r => ({ ...r })),
+      schools: DEMO_SCHOOLS.map(s => ({ ...s })),
+      employers: DEMO_EMPLOYERS.map(e => ({ ...e })),
+      events: DEMO_EVENTS.map(e => ({ ...e, requirements: e.requirements.map(r => ({ ...r })) })),
+      userEvents: DEMO_USER_EVENTS.map(u => ({ ...u })),
+      eventRelevance: DEMO_EVENT_RELEVANCE.map(r => ({ ...r })),
+      requirementCompletions: DEMO_REQUIREMENT_COMPLETIONS.map(c => ({ ...c })),
+      ingestSources: DEMO_INGEST_SOURCES.map(i => ({ ...i })),
     }
   }
   return demo
@@ -464,4 +474,245 @@ export async function saveTargetCompanies(companies) {
   const { error } = await supabase.from('user_settings')
     .upsert({ key: 'target_companies', value: companies }, { onConflict: 'user_id,key' })
   throwIfError(error, 'saveTargetCompanies')
+}
+
+// ── Recruiting Events ───────────────────────────────────────────────────────
+// The shared, school-scoped pool (schools / employers / events + attributes +
+// requirements / ingest_sources) is READ-ONLY from the client — Postgres has no
+// insert/update/delete policies on those tables, only service-role handlers in
+// api/ write them (see supabase/migrations/20260913000000_recruiting_events.sql's
+// TENANCY NOTE). The per-user overlays (user_events, user_event_relevance,
+// user_event_requirement_completions) are ordinary `auth.uid() = user_id` tables
+// and are written directly here like everything else in this file.
+
+function mapSchoolRow(r) {
+  return {
+    id: r.id, slug: r.slug, name: r.name, emailDomain: r.email_domain || null, timezone: r.timezone,
+    feedConfig: r.feed_config || {}, termWindows: r.term_windows || [], transitBufferMin: r.transit_buffer_min ?? 15,
+  }
+}
+
+function mapEmployerRow(r) {
+  return { id: r.id, name: r.name, normalizedName: r.normalized_name, website: r.website || null }
+}
+
+function mapRequirementRow(r) {
+  return {
+    id: r.id, eventId: r.event_id, stepOrder: r.step_order, kind: r.kind, label: r.label || '',
+    url: r.url || null, dueAt: r.due_at || null, required: r.required !== false,
+  }
+}
+
+function mapAttributesRow(a) {
+  if (!a) return null
+  return {
+    roles: a.roles || [], majors: a.majors || [], term: a.term || null, format: a.format || null,
+    sponsorship: a.sponsorship || null, employerIds: a.employer_ids || [], extractedAt: a.extracted_at || null,
+  }
+}
+
+function mapEventRow(r) {
+  // PostgREST embeds a 1:1 as an object and a 1:many as an array.
+  const attrs = Array.isArray(r.event_attributes) ? r.event_attributes[0] : r.event_attributes
+  return {
+    id: r.id, schoolId: r.school_id, visibility: r.visibility, contributedBy: r.contributed_by || null,
+    kind: r.kind, title: r.title, description: r.description || '', location: r.location || '',
+    isVirtual: !!r.is_virtual, startsAt: r.starts_at, endsAt: r.ends_at || null, allDay: !!r.all_day,
+    timezone: r.timezone || null, url: r.url || null, registrationUrl: r.registration_url || null,
+    registrationDeadline: r.registration_deadline || null, employerId: r.employer_id || null,
+    sourceKind: r.source_kind, sourceRef: r.source_ref || null, sourceLastVerifiedAt: r.source_last_verified_at,
+    confidence: r.confidence == null ? 1 : Number(r.confidence), archived: !!r.archived,
+    attributes: mapAttributesRow(attrs),
+    requirements: (r.event_requirements || []).map(mapRequirementRow).sort((a, b) => a.stepOrder - b.stepOrder),
+  }
+}
+
+function mapUserEventRow(r) {
+  return {
+    userId: r.user_id, eventId: r.event_id, status: r.status, calendarSlot: r.calendar_slot || null,
+    calendarEventId: r.calendar_event_id || null, calendarSyncedAt: r.calendar_synced_at || null,
+    notes: r.notes || '', followupDueAt: r.followup_due_at || null, followupDoneAt: r.followup_done_at || null,
+    blockOverrides: r.block_overrides || {},
+  }
+}
+
+function mapRelevanceRow(r) {
+  return {
+    userId: r.user_id, eventId: r.event_id, score: r.score == null ? null : Number(r.score), tier: r.tier || null,
+    reason: r.reason || '', overrideTier: r.override_tier || null, dismissedAt: r.dismissed_at || null,
+    inputHash: r.input_hash || null, computedAt: r.computed_at || null,
+  }
+}
+
+function mapIngestSourceRow(r) {
+  return {
+    id: r.id, schoolId: r.school_id, kind: r.kind, ref: r.ref, label: r.label || '', lastRunAt: r.last_run_at || null,
+    lastSuccessAt: r.last_success_at || null, lastCount: r.last_count ?? null, degradedAt: r.degraded_at || null,
+    degradedReason: r.degraded_reason || null,
+  }
+}
+
+export async function fetchSchools() {
+  if (isDemoMode()) return demoStore().schools.map(s => ({ ...s }))
+  const { data, error } = await supabase.from('schools').select('*').order('name')
+  throwIfError(error, 'fetchSchools')
+  return (data || []).map(mapSchoolRow)
+}
+
+export async function fetchEmployers() {
+  if (isDemoMode()) return demoStore().employers.map(e => ({ ...e }))
+  const { data, error } = await supabase.from('employers').select('*').order('name')
+  throwIfError(error, 'fetchEmployers')
+  return (data || []).map(mapEmployerRow)
+}
+
+// Every event the signed-in user can read (RLS: their school's shared pool +
+// their own private rows), with attributes + requirements embedded. `from`/`to`
+// are ISO strings bounding starts_at; default is 7 days back → 120 days ahead.
+export async function fetchSchoolEvents({ from, to } = {}) {
+  const fromIso = from || new Date(Date.now() - 7 * 86400000).toISOString()
+  const toIso = to || new Date(Date.now() + 120 * 86400000).toISOString()
+  if (isDemoMode()) {
+    return demoStore().events
+      .filter(e => !e.archived && e.startsAt >= fromIso && e.startsAt <= toIso)
+      .map(e => ({ ...e, requirements: e.requirements.map(r => ({ ...r })) }))
+  }
+  const { data, error } = await supabase
+    .from('events')
+    .select('*, event_attributes(*), event_requirements(*)')
+    .eq('archived', false)
+    .gte('starts_at', fromIso)
+    .lte('starts_at', toIso)
+    .order('starts_at', { ascending: true })
+  throwIfError(error, 'fetchSchoolEvents')
+  return (data || []).map(mapEventRow)
+}
+
+export async function fetchIngestSources() {
+  if (isDemoMode()) return demoStore().ingestSources.map(s => ({ ...s }))
+  const { data, error } = await supabase.from('ingest_sources').select('*').order('label')
+  throwIfError(error, 'fetchIngestSources')
+  return (data || []).map(mapIngestSourceRow)
+}
+
+// The signed-in user's private overlay across all three per-user tables in one
+// round trip — status/notes, relevance, and requirement completions.
+export async function fetchMyEventState() {
+  if (isDemoMode()) {
+    const d = demoStore()
+    return {
+      userEvents: d.userEvents.map(u => ({ ...u })),
+      relevance: d.eventRelevance.map(r => ({ ...r })),
+      completions: d.requirementCompletions.map(c => ({ ...c })),
+    }
+  }
+  const [ue, rel, comp] = await Promise.all([
+    supabase.from('user_events').select('*'),
+    supabase.from('user_event_relevance').select('*'),
+    supabase.from('user_event_requirement_completions').select('*'),
+  ])
+  throwIfError(ue.error, 'fetchMyEventState.user_events')
+  throwIfError(rel.error, 'fetchMyEventState.relevance')
+  throwIfError(comp.error, 'fetchMyEventState.completions')
+  return {
+    userEvents: (ue.data || []).map(mapUserEventRow),
+    relevance: (rel.data || []).map(mapRelevanceRow),
+    completions: (comp.data || []).map(c => ({ userId: c.user_id, requirementId: c.requirement_id, completedAt: c.completed_at })),
+  }
+}
+
+const USER_EVENT_FIELD_MAP = {
+  status: 'status', calendarSlot: 'calendar_slot', calendarEventId: 'calendar_event_id',
+  calendarSyncedAt: 'calendar_synced_at', notes: 'notes', followupDueAt: 'followup_due_at',
+  followupDoneAt: 'followup_done_at', blockOverrides: 'block_overrides',
+}
+
+// NOTE: callers must gate status='confirmed'/'attended' through
+// lib/eventRequirements.js's canSetStatus() first — this writer doesn't re-check.
+export async function upsertUserEvent(eventId, fields = {}) {
+  if (isDemoMode()) {
+    const { userEvents } = demoStore()
+    let row = userEvents.find(u => u.eventId === eventId)
+    if (!row) {
+      row = { userId: 'demo-user', eventId, status: 'interested', calendarSlot: null, calendarEventId: null, calendarSyncedAt: null, notes: '', followupDueAt: null, followupDoneAt: null, blockOverrides: {} }
+      userEvents.push(row)
+    }
+    Object.assign(row, fields)
+    return { ...row }
+  }
+  const patch = { event_id: eventId }
+  for (const [camel, snake] of Object.entries(USER_EVENT_FIELD_MAP)) if (camel in fields) patch[snake] = fields[camel]
+  const { data, error } = await supabase.from('user_events')
+    .upsert(patch, { onConflict: 'user_id,event_id' }).select('*').single()
+  throwIfError(error, 'upsertUserEvent')
+  return mapUserEventRow(data)
+}
+
+export async function removeUserEvent(eventId) {
+  if (isDemoMode()) {
+    const { userEvents } = demoStore()
+    const idx = userEvents.findIndex(u => u.eventId === eventId)
+    if (idx !== -1) userEvents.splice(idx, 1)
+    return
+  }
+  const { error } = await supabase.from('user_events').delete().eq('event_id', eventId)
+  throwIfError(error, 'removeUserEvent')
+}
+
+const RELEVANCE_FIELD_MAP = {
+  score: 'score', tier: 'tier', reason: 'reason', overrideTier: 'override_tier',
+  dismissedAt: 'dismissed_at', inputHash: 'input_hash', computedAt: 'computed_at',
+}
+
+export async function upsertEventRelevance(eventId, fields = {}) {
+  if (isDemoMode()) {
+    const { eventRelevance } = demoStore()
+    let row = eventRelevance.find(r => r.eventId === eventId)
+    if (!row) {
+      row = { userId: 'demo-user', eventId, score: null, tier: null, reason: '', overrideTier: null, dismissedAt: null, inputHash: null, computedAt: null }
+      eventRelevance.push(row)
+    }
+    Object.assign(row, fields)
+    return { ...row }
+  }
+  const patch = { event_id: eventId }
+  for (const [camel, snake] of Object.entries(RELEVANCE_FIELD_MAP)) if (camel in fields) patch[snake] = fields[camel]
+  const { data, error } = await supabase.from('user_event_relevance')
+    .upsert(patch, { onConflict: 'user_id,event_id' }).select('*').single()
+  throwIfError(error, 'upsertEventRelevance')
+  return mapRelevanceRow(data)
+}
+
+// Bulk variant for the scorer — one round trip per recompute, not one per event.
+export async function upsertEventRelevanceMany(rows) {
+  if (!rows?.length) return
+  if (isDemoMode()) {
+    for (const r of rows) await upsertEventRelevance(r.eventId, r)
+    return
+  }
+  const patches = rows.map(r => {
+    const patch = { event_id: r.eventId }
+    for (const [camel, snake] of Object.entries(RELEVANCE_FIELD_MAP)) if (camel in r) patch[snake] = r[camel]
+    return patch
+  })
+  const { error } = await supabase.from('user_event_relevance').upsert(patches, { onConflict: 'user_id,event_id' })
+  throwIfError(error, 'upsertEventRelevanceMany')
+}
+
+export async function setRequirementCompletion(requirementId, completed) {
+  if (isDemoMode()) {
+    const { requirementCompletions } = demoStore()
+    const idx = requirementCompletions.findIndex(c => c.requirementId === requirementId)
+    if (completed && idx === -1) requirementCompletions.push({ userId: 'demo-user', requirementId, completedAt: new Date().toISOString() })
+    if (!completed && idx !== -1) requirementCompletions.splice(idx, 1)
+    return
+  }
+  if (completed) {
+    const { error } = await supabase.from('user_event_requirement_completions')
+      .upsert({ requirement_id: requirementId, completed_at: new Date().toISOString() }, { onConflict: 'user_id,requirement_id' })
+    throwIfError(error, 'setRequirementCompletion')
+  } else {
+    const { error } = await supabase.from('user_event_requirement_completions').delete().eq('requirement_id', requirementId)
+    throwIfError(error, 'setRequirementCompletion')
+  }
 }

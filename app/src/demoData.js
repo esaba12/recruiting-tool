@@ -125,3 +125,115 @@ export const DEMO_CALLS = [
     fullTranscript: '',
   },
 ]
+
+// ── Recruiting Events (school-scoped shared pool + per-user overlays) ──────────
+// Shapes match db.js's fetchSchoolEvents / fetchMyEventState return shapes. One
+// fictional campus; events are dated relative to today so the demo's stale badge,
+// overdue requirement, and upcoming fair all render regardless of when it's viewed.
+
+function hoursFromNow(days, hour, minutes = 0) {
+  const d = new Date(Date.now() + days * 86400000)
+  d.setHours(hour, minutes, 0, 0)
+  return d.toISOString()
+}
+
+export const DEMO_SCHOOLS = [
+  {
+    id: 'demo-s1', slug: 'demo-u', name: 'Demo University', emailDomain: 'demo-u.edu', timezone: 'America/Detroit',
+    feedConfig: { sources: [{ kind: 'localist', base: 'https://events.demo-u.edu', groupId: 1, label: 'Engineering Career Center' }] },
+    termWindows: [{ name: 'Fall 2026', start: '2026-08-10', end: '2026-12-31' }],
+    transitBufferMin: 15,
+  },
+]
+
+export const DEMO_EMPLOYERS = [
+  { id: 'demo-e1', name: 'Stripe', normalizedName: 'stripe', website: 'https://stripe.com' },
+  { id: 'demo-e2', name: 'Anthropic', normalizedName: 'anthropic', website: 'https://anthropic.com' },
+  { id: 'demo-e3', name: 'Figma', normalizedName: 'figma', website: 'https://figma.com' },
+  { id: 'demo-e4', name: 'Ramp', normalizedName: 'ramp', website: 'https://ramp.com' },
+]
+
+const evBase = {
+  schoolId: 'demo-s1', visibility: 'shared', contributedBy: null, description: '', location: '', isVirtual: false,
+  allDay: false, timezone: 'America/Detroit', url: null, registrationUrl: null, registrationDeadline: null,
+  employerId: null, sourceKind: 'localist', sourceRef: null, confidence: 1, archived: false, attributes: null, requirements: [],
+}
+
+export const DEMO_EVENTS = [
+  {
+    ...evBase, id: 'demo-ev1', kind: 'career_fair', title: 'Fall Engineering Career Fair',
+    description: 'Two-day fair with 200+ employers. Tech companies concentrated on day one.',
+    location: 'Duderstadt Center', startsAt: hoursFromNow(9, 10), endsAt: hoursFromNow(9, 16),
+    url: 'https://events.demo-u.edu/event/fall-fair', registrationUrl: 'https://careerfair.demo-u.edu/register',
+    registrationDeadline: hoursFromNow(4, 23, 59), sourceRef: 'localist-1001', sourceLastVerifiedAt: hoursFromNow(-1, 6),
+    attributes: { roles: ['SWE', 'PM'], majors: ['CS', 'CE', 'DS'], term: 'Fall 2026', format: 'in_person', sponsorship: 'unknown', employerIds: ['demo-e1', 'demo-e2', 'demo-e4'] },
+    requirements: [
+      { id: 'demo-rq1', eventId: 'demo-ev1', stepOrder: 1, kind: 'register', label: 'Register on Career Fair Plus', url: 'https://careerfair.demo-u.edu/register', dueAt: hoursFromNow(4, 23, 59), required: true },
+      { id: 'demo-rq2', eventId: 'demo-ev1', stepOrder: 2, kind: 'upload_resume', label: 'Upload résumé to the fair portal', url: null, dueAt: hoursFromNow(6, 23, 59), required: true },
+      { id: 'demo-rq3', eventId: 'demo-ev1', stepOrder: 3, kind: 'rsvp_external', label: 'RSVP for the Stripe pre-fair mixer', url: 'https://stripe.com/events', dueAt: hoursFromNow(7, 17), required: false },
+    ],
+  },
+  {
+    ...evBase, id: 'demo-ev2', kind: 'info_session', title: 'Anthropic Info Session + Q&A',
+    description: 'Engineers from the model behavior team on what an intern project looks like.',
+    location: 'BBB 1670', startsAt: hoursFromNow(3, 18), endsAt: hoursFromNow(3, 19, 30),
+    employerId: 'demo-e2', registrationUrl: 'https://demo-u.joinhandshake.com/events/1', registrationDeadline: hoursFromNow(2, 12),
+    sourceKind: 'paste', sourceRef: null, sourceLastVerifiedAt: hoursFromNow(-2, 9), confidence: 0.86,
+    attributes: { roles: ['SWE'], majors: ['CS'], term: 'Fall 2026', format: 'in_person', sponsorship: 'yes', employerIds: ['demo-e2'] },
+    requirements: [
+      { id: 'demo-rq4', eventId: 'demo-ev2', stepOrder: 1, kind: 'register', label: 'RSVP on Handshake', url: 'https://demo-u.joinhandshake.com/events/1', dueAt: hoursFromNow(2, 12), required: true },
+      { id: 'demo-rq5', eventId: 'demo-ev2', stepOrder: 2, kind: 'email_recruiter_to_confirm', label: 'Email the recruiter to confirm your spot', url: null, dueAt: hoursFromNow(-1, 17), required: true },
+    ],
+  },
+  {
+    ...evBase, id: 'demo-ev3', kind: 'coffee_chat', title: 'Figma PM Coffee Chats (15-min slots)',
+    location: 'Virtual', isVirtual: true, startsAt: hoursFromNow(5, 13), endsAt: hoursFromNow(5, 16),
+    employerId: 'demo-e3', registrationUrl: 'https://figma.com/students', sourceRef: 'localist-1004', sourceLastVerifiedAt: hoursFromNow(0, 6),
+    attributes: { roles: ['PM'], majors: [], term: 'Fall 2026', format: 'virtual', sponsorship: 'unknown', employerIds: ['demo-e3'] },
+    requirements: [
+      { id: 'demo-rq6', eventId: 'demo-ev3', stepOrder: 1, kind: 'apply_first', label: 'Apply to the PM Intern role first', url: 'https://figma.com/careers', dueAt: hoursFromNow(3, 23, 59), required: true },
+      { id: 'demo-rq7', eventId: 'demo-ev3', stepOrder: 2, kind: 'invite_only_selection', label: 'Selected applicants receive a slot invite', url: null, dueAt: null, required: true },
+    ],
+  },
+  {
+    ...evBase, id: 'demo-ev4', kind: 'workshop', title: 'Career Cafe: Technical Interview Prep',
+    location: 'Career Center, Rm 2', startsAt: hoursFromNow(1, 12), endsAt: hoursFromNow(1, 13),
+    sourceRef: 'localist-1007', sourceLastVerifiedAt: hoursFromNow(0, 6),
+    attributes: { roles: ['SWE'], majors: [], term: 'Fall 2026', format: 'in_person', sponsorship: 'unknown', employerIds: [] },
+  },
+  {
+    ...evBase, id: 'demo-ev5', kind: 'networking', title: 'Ramp x Demo U Alumni Mixer',
+    location: 'Ross School, Winter Garden', startsAt: hoursFromNow(12, 17, 30), endsAt: hoursFromNow(12, 19, 30),
+    employerId: 'demo-e4', sourceRef: 'localist-1011', sourceLastVerifiedAt: hoursFromNow(-21, 6),  // > 14d ⇒ stale badge
+    attributes: { roles: ['SWE', 'PM'], majors: [], term: 'Fall 2026', format: 'in_person', sponsorship: 'no', employerIds: ['demo-e4'] },
+  },
+  {
+    ...evBase, id: 'demo-ev6', kind: 'coffee_chat', title: 'Coffee with Liam (Airbnb alum)', visibility: 'private', contributedBy: 'demo-user',
+    location: 'Sweetwaters, State St', startsAt: hoursFromNow(2, 9), endsAt: hoursFromNow(2, 9, 45),
+    sourceKind: 'manual', sourceLastVerifiedAt: hoursFromNow(0, 6),
+  },
+]
+
+export const DEMO_USER_EVENTS = [
+  { userId: 'demo-user', eventId: 'demo-ev1', status: 'registering', calendarSlot: null, calendarEventId: null, calendarSyncedAt: null, notes: 'Target Stripe + Anthropic booths first.', followupDueAt: null, followupDoneAt: null, blockOverrides: {} },
+  { userId: 'demo-user', eventId: 'demo-ev2', status: 'registering', calendarSlot: null, calendarEventId: null, calendarSyncedAt: null, notes: '', followupDueAt: null, followupDoneAt: null, blockOverrides: {} },
+  { userId: 'demo-user', eventId: 'demo-ev4', status: 'attended', calendarSlot: null, calendarEventId: null, calendarSyncedAt: null, notes: '', followupDueAt: hoursFromNow(-2, 9), followupDoneAt: null, blockOverrides: {} },
+]
+
+export const DEMO_EVENT_RELEVANCE = [
+  { userId: 'demo-user', eventId: 'demo-ev1', score: 9.2, tier: 'high', reason: '3 target employers attending; SWE + PM roles', overrideTier: null, dismissedAt: null },
+  { userId: 'demo-user', eventId: 'demo-ev2', score: 8.7, tier: 'high', reason: 'Active Anthropic application; you know Deepak there', overrideTier: null, dismissedAt: null },
+  { userId: 'demo-user', eventId: 'demo-ev3', score: 6.1, tier: 'medium', reason: 'PM track; Figma application in progress', overrideTier: null, dismissedAt: null },
+  { userId: 'demo-user', eventId: 'demo-ev4', score: 4.0, tier: 'low', reason: 'General prep workshop', overrideTier: null, dismissedAt: null },
+  { userId: 'demo-user', eventId: 'demo-ev5', score: 7.4, tier: 'medium', reason: 'Ramp offer pending; source unverified for 3 weeks', overrideTier: null, dismissedAt: null },
+]
+
+export const DEMO_REQUIREMENT_COMPLETIONS = [
+  { userId: 'demo-user', requirementId: 'demo-rq1', completedAt: hoursFromNow(-1, 20) },
+  { userId: 'demo-user', requirementId: 'demo-rq4', completedAt: hoursFromNow(-3, 11) },
+]
+
+export const DEMO_INGEST_SOURCES = [
+  { id: 'demo-is1', schoolId: 'demo-s1', kind: 'localist', ref: '1', label: 'Engineering Career Center', lastRunAt: hoursFromNow(0, 6), lastSuccessAt: hoursFromNow(0, 6), lastCount: 4, degradedAt: null, degradedReason: null },
+  { id: 'demo-is2', schoolId: 'demo-s1', kind: 'localist', ref: '9', label: 'Student Org Fairs (legacy mirror)', lastRunAt: hoursFromNow(0, 6), lastSuccessAt: hoursFromNow(-30, 6), lastCount: 0, degradedAt: hoursFromNow(0, 6), degradedReason: 'Feed returned events dated 2023 for a Fall 2026 query' },
+]

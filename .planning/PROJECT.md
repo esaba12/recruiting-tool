@@ -37,9 +37,24 @@ The dashboard must be fast and cohesive to use every day during an active job se
 
 - [ ] Reduce the 18 separate `rec_*` localStorage keys' surface area where the features they back get merged (not a hard requirement to eliminate all of them, but don't add more without reason) — held to throughout (no phase added a new key without cause), but no final consolidation pass or key-count audit was run; candidate for a standalone follow-up if still wanted.
 
+## Current Milestone: v1.1 Recruiting Events
+
+**Goal:** Career fairs, coffee chats, info sessions and their multi-step registration deadlines become a first-class surface — a school-scoped **shared** event pool (the repo's first non-per-user data), per-user relevance, requirement-ladder tracking, Google Calendar push to a dedicated Recruiting calendar, and a free-fragment conflict engine against both calendar slots.
+
+**Target features:**
+- Shared-pool schema + RLS with cross-school/cross-user isolation tests (Phase 8)
+- Feed ingestion (Localist adapter, parameterized per school) with dedup + staleness/degraded-source detection (Phase 9)
+- Once-per-event attribute + registration-deadline extraction; per-user relevance; requirement gating (Phase 10)
+- Calendar extension: `updateEvent`, widened proxy allowlist, dedicated Recruiting calendar (new scope, re-consent), CR-02 fix (Phase 11)
+- Conflict engine returning usable free fragments, tests first (Phase 12)
+- Paste/CSV/ICS import + manual entry with a confidence gate + contributed-event dedup (Phase 13)
+- UI inside the existing 5-destination IA: Events view in Calendar, EventPanelBody, Today attention sections, day plan + booth route, post-event capture (Phases 14–15)
+
+**Process note:** this milestone is executed directly (no GSD orchestration — judged too credit-heavy); phase breakdown approved 2026-09-13, one commit per phase.
+
 ### Out of Scope
 
-- Backend / data-model restructuring (e.g. folding Job Boards' import mechanics directly into Pipeline's Postgres schema) — this milestone is IA + visual layer only; deeper structural changes are a separate future milestone if still wanted after the reskin
+- ~~Backend / data-model restructuring~~ — **this is now the v1.1 milestone** (above). The v1.0 deferral ("a separate future milestone if still wanted") is being exercised: new tables are added alongside the existing 4-table schema; existing free-text `company`/`school` columns are resolved via nullable `employer_id`/`school_id`, never migrated in place.
 - Auth, BYOK, or multi-tenant architecture changes — already solid, unrelated to the nav/visual problem
 - New AI capabilities or model/provider changes — out of scope; existing AI features get relocated, not rebuilt
 - Mobile-native app — stays a responsive web dashboard (existing mobile bottom-bar/floating-action patterns carry forward, adapted to the new nav)
@@ -99,4 +114,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-21 after Phase 7 (Full Visual Reskin + Motion Migration + Instrument Stat Tiles) — all 7 phases of the v1.0 UI/UX Overhaul milestone complete, 19/19 requirements validated. Milestone close-out (`/gsd-complete-milestone`) not yet run.*
+*Last updated: 2026-09-13 — v1.1 Recruiting Events started (Phase 8 in progress). v1.0 UI/UX Overhaul: all 7 phases complete, 19/19 requirements validated; formal close-out never run.*

@@ -3,6 +3,7 @@ import { useAuth } from '../lib/AuthContext.jsx'
 import { authHeader, supabase } from '../lib/supabaseClient.js'
 import { connectGoogleCalendar, disconnectGoogleCalendar, getGoogleCalendarStatus, linkGoogleIdentity } from '../lib/googleAuth.js'
 import { CALENDAR_SLOTS } from '../googleCalendar.js'
+import { fetchSchools } from '../db.js'
 import Button from './ui/Button.jsx'
 import Input from './ui/Input.jsx'
 import { Badge } from '../shared.jsx'
@@ -25,6 +26,7 @@ export default function SettingsTab() {
   const [calStatus, setCalStatus] = useState(() => Object.fromEntries(Object.keys(CALENDAR_SLOTS).map(k => [k, { connected: false, email: null }])))
   const [connectingSlot, setConnectingSlot] = useState(null)
   const [profileForm, setProfileForm] = useState(null)
+  const [schools, setSchools] = useState([])
   const [savingProfile, setSavingProfile] = useState(false)
   const [error, setError] = useState(null)
 
@@ -50,11 +52,13 @@ export default function SettingsTab() {
     Object.keys(CALENDAR_SLOTS).forEach(slot => {
       getGoogleCalendarStatus(slot).then(status => setCalStatus(cs => ({ ...cs, [slot]: status })))
     })
+    fetchSchools().then(setSchools).catch(() => setSchools([]))
   }, [])
   useEffect(() => {
     if (profile) setProfileForm({
       full_name: profile.full_name || '',
       school: profile.school || '',
+      school_id: profile.school_id || '',
       grad_year: profile.grad_year || '',
       focus: profile.focus || 'SWE',
       ai_provider: profile.ai_provider || 'claude',
@@ -94,6 +98,9 @@ export default function SettingsTab() {
       const { error } = await supabase.from('profiles').update({
         full_name: profileForm.full_name || null,
         school: profileForm.school || null,
+        // Campus for the shared Recruiting Events pool — resolved from the typed
+        // school name when it matches a known campus, else left as-is.
+        school_id: profileForm.school_id || null,
         grad_year: profileForm.grad_year ? Number(profileForm.grad_year) : null,
         focus: profileForm.focus,
         ai_provider: profileForm.ai_provider,
@@ -201,7 +208,20 @@ export default function SettingsTab() {
         {profileForm && (
           <div className="grid grid-cols-2 gap-3">
             <Input label="Name" value={profileForm.full_name} onChange={e => setProfileForm(f => ({ ...f, full_name: e.target.value }))} />
-            <Input label="School" placeholder={SCHOOLS_HINT} value={profileForm.school} onChange={e => setProfileForm(f => ({ ...f, school: e.target.value }))} />
+            <div>
+              <Input label="School" placeholder={SCHOOLS_HINT} list="settings-schools" value={profileForm.school}
+                onChange={e => {
+                  const school = e.target.value
+                  const match = schools.find(s => s.name.toLowerCase() === school.trim().toLowerCase() || s.slug === school.trim().toLowerCase())
+                  setProfileForm(f => ({ ...f, school, school_id: match ? match.id : '' }))
+                }} />
+              <datalist id="settings-schools">{schools.map(s => <option key={s.id} value={s.name} />)}</datalist>
+              <p className="text-[11px] text-ink-400 mt-0.5">
+                {profileForm.school_id
+                  ? `Events pool: ${schools.find(s => s.id === profileForm.school_id)?.name || 'linked campus'}`
+                  : 'Pick a listed campus to see its shared recruiting events.'}
+              </p>
+            </div>
             <Input label="Grad year" type="number" value={profileForm.grad_year} onChange={e => setProfileForm(f => ({ ...f, grad_year: e.target.value }))} />
             <div>
               <label className="block text-xs text-ink-400 mb-0.5">Focus</label>
