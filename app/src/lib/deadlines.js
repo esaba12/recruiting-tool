@@ -37,46 +37,66 @@ async function fetchContents(urls) {
   return data.results || []
 }
 
-const PROMPT_HEADER = `Below are real internship/job application pages. For EACH one, determine whether the page states an explicit application deadline or closing date.
+// Two subjects share the fetch→read pipeline: job apply pages (the original use)
+// and recruiting-event registration pages (Recruiting Events). Both obey the same
+// rule — report a date only if the page STATES one, never guess.
+const SUBJECTS = {
+  application: {
+    intro: 'Below are real internship/job application pages. For EACH one, determine whether the page states an explicit application deadline or closing date.',
+    example: '"Apply by August 15", "Applications close 8/20/2026"',
+    fallback: 'If the page failed to load or has no real job content',
+  },
+  registration: {
+    intro: 'Below are pages for campus recruiting events (career fairs, info sessions, coffee chats). For EACH one, determine whether the page states an explicit registration / RSVP deadline or a "registration closes" date for attendees.',
+    example: '"Register by September 20", "RSVP closes 9/22 at 5pm", "Sign-up deadline: Oct 1"',
+    fallback: 'If the page failed to load, has no event content, or only shows the event date itself (not a registration cutoff)',
+  },
+}
+
+function promptHeader(subject) {
+  const s = SUBJECTS[subject] || SUBJECTS.application
+  return `${s.intro}
 
 Rules:
-- Only report a deadline if the page actually states one (e.g. "Apply by August 15", "Applications close 8/20/2026"). Many postings are rolling/continuous — do NOT invent or estimate a date for those.
+- Only report a deadline if the page actually states one (e.g. ${s.example}). Many are rolling/open until the event — do NOT invent or estimate a date for those.
 - "id" in your output must be the exact bracketed ID from the page's label.
 - Resolve relative dates using today's date: ${new Date().toISOString().slice(0, 10)}.
-- If the page failed to load or has no real job content, set rolling:false, deadline:null, confidence:"none".
+- ${s.fallback}, set rolling:false, deadline:null, confidence:"none".
 
 Return ONLY valid JSON, no markdown, no explanation:
 {"results": [{"id": "...", "deadline": "YYYY-MM-DD or null", "rolling": true or false, "confidence": "stated" | "none", "note": "short quote or reason, <15 words"}]}
 
 Pages:
 `
+}
 
 function normalizeUrl(u) { return (u || '').trim().replace(/\/+$/, '') }
 
-async function extractChunk(jobs) {
-  const urls = jobs.map(j => j.applyUrl)
+// items: [{ key, url, label }]
+async function extractChunk(items, subject) {
+  const urls = items.map(j => j.url)
   let pages
   try {
     pages = await fetchContents(urls)
   } catch (e) {
-    return Object.fromEntries(jobs.map(j => [j.key, { error: e.message }]))
+    return Object.fromEntries(items.map(j => [j.key, { error: e.message }]))
   }
 
   // Exa's /contents preserves input order; fall back to positional matching if a
   // result's own url/id doesn't line up (redirects sometimes rewrite it).
   const byUrl = new Map(pages.map(p => [normalizeUrl(p.url || p.id), p]))
 
-  const digest = jobs.map((j, i) => {
-    const page = byUrl.get(normalizeUrl(j.applyUrl)) || pages[i]
+  const digest = items.map((j, i) => {
+    const page = byUrl.get(normalizeUrl(j.url)) || pages[i]
     const text = (page?.text || '').trim()
-    return `[${j.key}] ${j.company} — ${j.role || 'Internship'}\n${text ? text.slice(0, 2200) : '(page had no readable text — likely JS-only or blocked)'}`
+    return `[${j.key}] ${j.label}\n${text ? text.slice(0, 2200) : '(page had no readable text — likely JS-only or blocked)'}`
   }).join('\n---\n')
 
   try {
-    const parsed = await aiJSON({ model: AI_MODELS.MINI, content: PROMPT_HEADER + digest, maxTokens: 1100 })
+    const parsed = await aiJSON({ model: AI_MODELS.MINI, content: promptHeader(subject) + digest, maxTokens: 1100 })
     const byKey = new Map((parsed.results || []).map(r => [r.id, r]))
     const out = {}
-    for (const j of jobs) {
+    for (const j of items) {
       const r = byKey.get(j.key)
       out[j.key] = r
         ? { deadline: r.deadline || null, rolling: !!r.rolling, confidence: r.confidence || 'none', note: r.note || '' }
@@ -84,18 +104,16 @@ async function extractChunk(jobs) {
     }
     return out
   } catch (e) {
-    return Object.fromEntries(jobs.map(j => [j.key, { error: e.message }]))
+    return Object.fromEntries(items.map(j => [j.key, { error: e.message }]))
   }
 }
 
-// jobs: [{key, company, role, applyUrl}] — key is caller-defined (jobId(job) in
-// practice) and is what the returned map is keyed by. Only jobs with an applyUrl are
-// checked; everything else resolves to {deadline:null, rolling:false, confidence:'none'}
-// with no network call spent.
-export async function extractDeadlines(jobs) {
-  const checkable = jobs.filter(j => j.applyUrl)
+// Generic form: items [{ key, url, label }] → { [key]: { deadline, rolling, confidence, note } | { error } }.
+// Items without a url resolve immediately with no network call.
+export async function extractStatedDeadlines(items, { subject = 'application', noUrlNote = 'No link' } = {}) {
+  const checkable = items.filter(j => j.url)
   const results = {}
-  for (const j of jobs) if (!j.applyUrl) results[j.key] = { deadline: null, rolling: false, confidence: 'none', note: 'No apply link on this listing' }
+  for (const j of items) if (!j.url) results[j.key] = { deadline: null, rolling: false, confidence: 'none', note: noUrlNote }
 
   const chunks = []
   for (let i = 0; i < checkable.length; i += CONTENTS_CHUNK) chunks.push(checkable.slice(i, i + CONTENTS_CHUNK))
@@ -104,11 +122,22 @@ export async function extractDeadlines(jobs) {
   async function worker() {
     while (idx < chunks.length) {
       const chunk = chunks[idx++]
-      Object.assign(results, await extractChunk(chunk))
+      Object.assign(results, await extractChunk(chunk, subject))
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, chunks.length) }, worker))
   return results
+}
+
+// jobs: [{key, company, role, applyUrl}] — key is caller-defined (jobId(job) in
+// practice) and is what the returned map is keyed by. Only jobs with an applyUrl are
+// checked; everything else resolves to {deadline:null, rolling:false, confidence:'none'}
+// with no network call spent.
+export function extractDeadlines(jobs) {
+  return extractStatedDeadlines(
+    jobs.map(j => ({ key: j.key, url: j.applyUrl, label: `${j.company} — ${j.role || 'Internship'}` })),
+    { subject: 'application', noUrlNote: 'No apply link on this listing' },
+  )
 }
 
 // Urgency ordering: a confirmed deadline sorts soonest-first; everything else falls

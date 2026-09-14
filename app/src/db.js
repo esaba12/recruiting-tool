@@ -508,6 +508,7 @@ function mapAttributesRow(a) {
   return {
     roles: a.roles || [], majors: a.majors || [], term: a.term || null, format: a.format || null,
     sponsorship: a.sponsorship || null, employerIds: a.employer_ids || [], extractedAt: a.extracted_at || null,
+    contentHash: a.content_hash || null, deadlineCheckedAt: a.raw?.deadlineCheckedAt || null, deadlineNote: a.raw?.deadlineNote || null,
   }
 }
 

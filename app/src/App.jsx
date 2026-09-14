@@ -3,6 +3,8 @@ import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchC
 import { researchOaDeadlines } from './lib/oaResearch.js'
 import { useAuth } from './lib/AuthContext.jsx'
 import useEventIngest from './lib/useEventIngest.js'
+import useRecruitingEvents from './lib/useRecruitingEvents.js'
+import { useTargetCompanies } from './lib/useTargetCompanies.js'
 import LoginPage from './components/LoginPage.jsx'
 import SettingsTab from './components/SettingsTab.jsx'
 import { STATUS_COLOR, URGENCY_COLOR, REFERRAL_STATUS_COLOR, daysSince, daysUntil, fmt, Badge, EmptyState, isOverdue } from './shared.jsx'
@@ -246,8 +248,17 @@ function AppInner() {
 
   // Recruiting Events: hands-off daily pull of the school's feeds into the shared
   // pool (server-side cooldown means only the first open of the day at a campus
-  // actually pulls). Lives here, not in CalendarTab, so it fires on any tab.
-  useEventIngest({ enabled: true })
+  // actually pulls). Lives here, not in CalendarTab, so it fires on any tab. A
+  // successful pull bumps `eventsRefreshKey` so the pool hook below re-reads.
+  const [eventsRefreshKey, setEventsRefreshKey] = useState(0)
+  useEventIngest({ enabled: true, onIngested: () => setEventsRefreshKey(k => k + 1) })
+  const { profile } = useAuth()
+  const { targets: targetCompanies } = useTargetCompanies()
+  // Shared pool + this user's overlay; consumed by Today (attention sections) and
+  // Calendar (Events view). Enrichment/relevance run inside the hook.
+  const eventPool = useRecruitingEvents({
+    enabled: !!profile?.school_id, profile, targets: targetCompanies, contacts, apps, refreshKey: eventsRefreshKey,
+  })
 
   async function load() {
     setLoading(true); setError(null)
@@ -367,10 +378,6 @@ function DemoApp() {
 
   useEffect(() => { load() }, [])
 
-  // Recruiting Events: hands-off daily pull of the school's feeds into the shared
-  // pool (server-side cooldown means only the first open of the day at a campus
-  // actually pulls). Lives here, not in CalendarTab, so it fires on any tab.
-  useEventIngest({ enabled: true })
 
   async function load() {
     setLoading(true)
