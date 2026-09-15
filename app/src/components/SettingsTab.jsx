@@ -3,7 +3,8 @@ import { useAuth } from '../lib/AuthContext.jsx'
 import { authHeader, supabase } from '../lib/supabaseClient.js'
 import { connectGoogleCalendar, disconnectGoogleCalendar, getGoogleCalendarStatus, linkGoogleIdentity } from '../lib/googleAuth.js'
 import { CALENDAR_SLOTS } from '../googleCalendar.js'
-import { fetchSchools } from '../db.js'
+import { fetchSchools, getUserSetting, setUserSetting } from '../db.js'
+import { SYNC_SETTING_KEY, DEFAULT_SYNC } from '../lib/useEventCalendarSync.js'
 import Button from './ui/Button.jsx'
 import Input from './ui/Input.jsx'
 import { Badge } from '../shared.jsx'
@@ -27,6 +28,7 @@ export default function SettingsTab() {
   const [connectingSlot, setConnectingSlot] = useState(null)
   const [profileForm, setProfileForm] = useState(null)
   const [schools, setSchools] = useState([])
+  const [syncSetting, setSyncSetting] = useState(null)
   const [savingProfile, setSavingProfile] = useState(false)
   const [error, setError] = useState(null)
 
@@ -53,6 +55,7 @@ export default function SettingsTab() {
       getGoogleCalendarStatus(slot).then(status => setCalStatus(cs => ({ ...cs, [slot]: status })))
     })
     fetchSchools().then(setSchools).catch(() => setSchools([]))
+    getUserSetting(SYNC_SETTING_KEY).then(v => setSyncSetting({ ...DEFAULT_SYNC, ...(v || {}) })).catch(() => setSyncSetting(DEFAULT_SYNC))
   }, [])
   useEffect(() => {
     if (profile) setProfileForm({
@@ -135,6 +138,12 @@ export default function SettingsTab() {
     try {
       await linkGoogleIdentity() // redirects away; returns to Settings on success
     } catch (e) { setError(e.message); setLinkingGoogle(false) }
+  }
+
+  async function updateSync(patch) {
+    const next = { ...DEFAULT_SYNC, ...(syncSetting || {}), ...patch }
+    setSyncSetting(next)
+    try { await setUserSetting(SYNC_SETTING_KEY, next) } catch (e) { setError(e.message) }
   }
 
   async function toggleCalendar(slot) {
@@ -291,18 +300,46 @@ export default function SettingsTab() {
         </div>
         {Object.entries(CALENDAR_SLOTS).map(([slot, label]) => {
           const status = calStatus[slot] || { connected: false, email: null }
+          const needsReconnect = status.connected && !status.canManageCalendars && syncSetting?.enabled && syncSetting.slot === slot
           return (
-            <div key={slot} className="flex items-center gap-2">
-              <span className="text-xs font-medium text-ink-600 w-14 shrink-0">{label}</span>
-              {status.connected
-                ? <Badge label={`Connected${status.email ? ` (${status.email})` : ''}`} color="bg-success-50 text-success-700" />
-                : <Badge label="Not connected" color="bg-ink-100 text-ink-500" />}
-              <Button size="sm" variant={status.connected ? 'ghost' : 'secondary'} onClick={() => toggleCalendar(slot)} disabled={connectingSlot === slot}>
-                {connectingSlot === slot ? 'Redirecting...' : status.connected ? 'Disconnect' : `Connect ${label}`}
-              </Button>
+            <div key={slot}>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-ink-600 w-14 shrink-0">{label}</span>
+                {status.connected
+                  ? <Badge label={`Connected${status.email ? ` (${status.email})` : ''}`} color="bg-success-50 text-success-700" />
+                  : <Badge label="Not connected" color="bg-ink-100 text-ink-500" />}
+                <Button size="sm" variant={status.connected ? 'ghost' : 'secondary'} onClick={() => toggleCalendar(slot)} disabled={connectingSlot === slot}>
+                  {connectingSlot === slot ? 'Redirecting...' : status.connected ? 'Disconnect' : `Connect ${label}`}
+                </Button>
+              </div>
+              {needsReconnect && (
+                <p className="text-[11px] text-warning-700 pl-16 mt-1">
+                  ⚠ Reconnect this account to enable the Recruiting calendar — your existing grant predates the calendar-management permission.
+                </p>
+              )}
             </div>
           )
         })}
+        {/* Recruiting Events → dedicated "Recruiting" calendar (never primary). */}
+        <div className="pt-3 border-t border-ink-100 space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium text-ink-700">Recruiting calendar sync</p>
+              <p className="text-[11px] text-ink-400">Pushes high-relevance events plus a reminder per signup step and follow-up to a separate "Recruiting" calendar this app creates.</p>
+            </div>
+            <label className="flex items-center gap-2 text-xs text-ink-600 shrink-0">
+              <input type="checkbox" checked={!!syncSetting?.enabled} onChange={e => updateSync({ enabled: e.target.checked })} />
+              Enabled
+            </label>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-ink-500">Lives on</span>
+            <select value={syncSetting?.slot || 'personal'} onChange={e => updateSync({ slot: e.target.value })}
+              className="px-2 py-1 border border-ink-100 rounded-md text-xs focus:outline-none focus:border-accent-400">
+              {Object.entries(CALENDAR_SLOTS).map(([slot, label]) => <option key={slot} value={slot}>{label}{calStatus[slot]?.connected ? '' : ' (not connected)'}</option>)}
+            </select>
+          </div>
+        </div>
       </section>
 
       <Button variant="ghost" onClick={signOut}>Sign out</Button>

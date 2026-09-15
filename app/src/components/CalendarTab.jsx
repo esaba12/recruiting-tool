@@ -105,6 +105,14 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode])
 
+  // CR-02: the Feed's own cache used to survive create/delete (only the grid's month
+  // cache was refetched), so a deleted event stayed listed until a full reload. Both
+  // mutation paths now refresh it too — immediately if the feed is loaded, or by
+  // invalidating so the next switch to Feed refetches.
+  function refetchFeed() {
+    if (feedEvents !== null) fetchFeedEvents()
+  }
+
   // Build a day -> { events[], followups[], applications[] } map for the visible month
   const itemsByDay = {}
   function addItem(key, type, item) {
@@ -293,7 +301,7 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
         <EventDetailModal
           event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
-          onDeleted={() => { setSelectedEvent(null); refetchMonth() }}
+          onDeleted={() => { setSelectedEvent(null); refetchMonth(); refetchFeed() }}
         />
       )}
 
@@ -301,7 +309,7 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
         <AddEventModal
           defaultDate={selectedDay || undefined}
           onClose={() => setAddEventOpen(false)}
-          onCreated={() => { setAddEventOpen(false); refetchMonth() }}
+          onCreated={() => { setAddEventOpen(false); refetchMonth(); refetchFeed() }}
         />
       )}
     </div>

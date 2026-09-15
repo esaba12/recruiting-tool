@@ -4,6 +4,7 @@ import { researchOaDeadlines } from './lib/oaResearch.js'
 import { useAuth } from './lib/AuthContext.jsx'
 import useEventIngest from './lib/useEventIngest.js'
 import useRecruitingEvents from './lib/useRecruitingEvents.js'
+import useEventCalendarSync from './lib/useEventCalendarSync.js'
 import { useTargetCompanies } from './lib/useTargetCompanies.js'
 import LoginPage from './components/LoginPage.jsx'
 import SettingsTab from './components/SettingsTab.jsx'
@@ -259,6 +260,9 @@ function AppInner() {
   const eventPool = useRecruitingEvents({
     enabled: !!profile?.school_id, profile, targets: targetCompanies, contacts, apps, refreshKey: eventsRefreshKey,
   })
+  // Google Calendar push for the pool (dedicated "Recruiting" calendar) — auto-pushes
+  // relevance-high events, reconciles Google-side deletes; exposes push/unpush to the UI.
+  const eventCalendarSync = useEventCalendarSync({ pool: eventPool, enabled: !!profile?.school_id })
 
   async function load() {
     setLoading(true); setError(null)

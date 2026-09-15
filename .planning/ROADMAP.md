@@ -271,7 +271,7 @@ Phase breakdown approved 2026-09-13 (full detail in the session plan). Continues
 - [x] **Phase 8: Shared-pool schema, RLS, employers/schools, test harness** — new tables with school-scoped read / service-role-only write; `vitest` + RLS isolation harness; `db.js` + demo seed; Settings campus picker.
 - [x] **Phase 9: Ingestion core + Localist adapter + dedup + staleness** — `lib/ingest/` lifted from `timelineFinder`/`discoveryScheduler`; WR-09 fixed; adapter interface; `api/events-ingest.js`; freshness gate → degraded sources.
 - [x] **Phase 10: Attributes, registration deadlines, requirements, relevance** — once-per-event extraction; `lib/eventRelevance.js`; `attention.js` derivations.
-- [ ] **Phase 11: Calendar extension** — `updateEvent`, allowlist widening, dedicated Recruiting calendar (new scope + re-consent), sync semantics, CR-02.
+- [x] **Phase 11: Calendar extension** — `updateEvent`, allowlist widening, dedicated Recruiting calendar (new scope + re-consent), sync semantics, CR-02.
 - [ ] **Phase 12: Conflict engine** — `lib/conflicts.js` free fragments, hard/soft blocks, all-day, straddle, tz, transit; tests first.
 - [ ] **Phase 13: Paste-import, CSV/ICS upload, manual entry, moderation** — `EventImportModal` on the QuickCapture draft-card pattern; confidence gate; contributed dedup.
 - [ ] **Phase 14: UI I** — Events view in CalendarTab, `EventPanelBody`, Today sections, stale badge, school token, `/demo`.

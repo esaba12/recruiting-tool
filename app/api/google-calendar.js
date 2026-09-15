@@ -8,6 +8,7 @@
 import { requireUser, supabaseAdmin } from './_lib/supabaseAdmin.js'
 import { decrypt } from './_lib/crypto.js'
 import { checkRateLimit, sendRateLimited } from './_lib/rateLimit.js'
+import { isAllowedCalendarPath } from './_lib/calendarAllowlist.js'
 
 // `slot` picks WHICH connected Google account's token to use ('personal' | 'school',
 // see _lib/googleOAuth.js's CALENDAR_SLOTS) — everything else about the request
@@ -54,8 +55,10 @@ export default async function handler(req, res) {
   const rl = await checkRateLimit(user.id, 'CALENDAR')
   if (rl.limited) return sendRateLimited(res, rl.retryAfter)
 
+  // Explicit allowlist (api/_lib/calendarAllowlist.js) — checked before the
+  // token lookup so a bad path fails fast without a DB round-trip.
   const path = req.query.path || ''
-  if (!/^calendar\/v3\/calendars\/primary\/events(\/|$)/.test(path)) {
+  if (!isAllowedCalendarPath(path, req.method)) {
     return res.status(403).json({ error: { message: 'Path not allowed' } })
   }
 

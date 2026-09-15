@@ -75,6 +75,7 @@ export default async function handler(req, res) {
     slot,
     refresh_token_ciphertext: encrypt(tokens.refresh_token),
     connected_email: email,
+    scopes: tokens.scope || null,   // what Google actually granted — Settings reads this to know whether the Recruiting calendar is available
   }, { onConflict: 'user_id,slot' })
   if (dbError) return errorPage(res, 500, dbError.message)
 

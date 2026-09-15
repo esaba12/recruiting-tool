@@ -462,6 +462,22 @@ export async function deleteContactRelationship(id) {
 // Demo mode never calls this (Explore/Discover/Coverage aren't in the demo nav), but the
 // branch is here for consistency with every other export in this file.
 
+// Generic per-user KV on top of user_settings — small settings blobs (Recruiting
+// calendar id per slot, sync preferences). Demo mode keeps them in memory.
+const demoSettings = new Map()
+export async function getUserSetting(key) {
+  if (isDemoMode()) return demoSettings.has(key) ? demoSettings.get(key) : null
+  const { data, error } = await supabase.from('user_settings').select('value').eq('key', key).maybeSingle()
+  throwIfError(error, `getUserSetting(${key})`)
+  return data ? data.value : null
+}
+
+export async function setUserSetting(key, value) {
+  if (isDemoMode()) { demoSettings.set(key, value); return }
+  const { error } = await supabase.from('user_settings').upsert({ key, value }, { onConflict: 'user_id,key' })
+  throwIfError(error, `setUserSetting(${key})`)
+}
+
 export async function fetchTargetCompanies() {
   if (isDemoMode()) return []
   const { data, error } = await supabase.from('user_settings').select('value').eq('key', 'target_companies').maybeSingle()
@@ -522,7 +538,7 @@ function mapEventRow(r) {
     timezone: r.timezone || null, url: r.url || null, registrationUrl: r.registration_url || null,
     registrationDeadline: r.registration_deadline || null, employerId: r.employer_id || null,
     sourceKind: r.source_kind, sourceRef: r.source_ref || null, sourceLastVerifiedAt: r.source_last_verified_at,
-    confidence: r.confidence == null ? 1 : Number(r.confidence), archived: !!r.archived,
+    confidence: r.confidence == null ? 1 : Number(r.confidence), archived: !!r.archived, updatedAt: r.updated_at || null,
     attributes: mapAttributesRow(attrs),
     requirements: (r.event_requirements || []).map(mapRequirementRow).sort((a, b) => a.stepOrder - b.stepOrder),
   }
@@ -533,7 +549,7 @@ function mapUserEventRow(r) {
     userId: r.user_id, eventId: r.event_id, status: r.status, calendarSlot: r.calendar_slot || null,
     calendarEventId: r.calendar_event_id || null, calendarSyncedAt: r.calendar_synced_at || null,
     notes: r.notes || '', followupDueAt: r.followup_due_at || null, followupDoneAt: r.followup_done_at || null,
-    blockOverrides: r.block_overrides || {},
+    blockOverrides: r.block_overrides || {}, calendarReminderIds: r.calendar_reminder_ids || {}, calendarSyncHash: r.calendar_sync_hash || null,
   }
 }
 
@@ -625,7 +641,7 @@ export async function fetchMyEventState() {
 const USER_EVENT_FIELD_MAP = {
   status: 'status', calendarSlot: 'calendar_slot', calendarEventId: 'calendar_event_id',
   calendarSyncedAt: 'calendar_synced_at', notes: 'notes', followupDueAt: 'followup_due_at',
-  followupDoneAt: 'followup_done_at', blockOverrides: 'block_overrides',
+  followupDoneAt: 'followup_done_at', blockOverrides: 'block_overrides', calendarReminderIds: 'calendar_reminder_ids', calendarSyncHash: 'calendar_sync_hash',
 }
 
 // NOTE: callers must gate status='confirmed'/'attended' through
@@ -635,7 +651,7 @@ export async function upsertUserEvent(eventId, fields = {}) {
     const { userEvents } = demoStore()
     let row = userEvents.find(u => u.eventId === eventId)
     if (!row) {
-      row = { userId: 'demo-user', eventId, status: 'interested', calendarSlot: null, calendarEventId: null, calendarSyncedAt: null, notes: '', followupDueAt: null, followupDoneAt: null, blockOverrides: {} }
+      row = { userId: 'demo-user', eventId, status: 'interested', calendarSlot: null, calendarEventId: null, calendarSyncedAt: null, notes: '', followupDueAt: null, followupDoneAt: null, blockOverrides: {}, calendarReminderIds: {} }
       userEvents.push(row)
     }
     Object.assign(row, fields)

@@ -13,7 +13,19 @@ export const CALENDAR_SLOTS = {
   school: 'School',
 }
 
-export const CALENDAR_OAUTH_SCOPE = 'https://www.googleapis.com/auth/calendar.events email'
+// calendar.events: read/write events on the user's own calendars (class schedule reads,
+// the legacy primary-calendar "+ Event" flow). calendar.app.created (added for Recruiting
+// Events, non-sensitive): create + manage a secondary calendar this app owns — the
+// dedicated "Recruiting" calendar events are pushed to, never primary. Users who
+// consented before this scope existed keep working for everything but the Recruiting
+// calendar until they reconnect the slot (Settings shows a nudge; see hasCalendarScope).
+export const CALENDAR_EVENTS_SCOPE = 'https://www.googleapis.com/auth/calendar.events'
+export const CALENDAR_APP_CREATED_SCOPE = 'https://www.googleapis.com/auth/calendar.app.created'
+export const CALENDAR_OAUTH_SCOPE = `${CALENDAR_EVENTS_SCOPE} ${CALENDAR_APP_CREATED_SCOPE} email`
+
+export function hasCalendarScope(scopes, scope) {
+  return String(scopes || '').split(/\s+/).includes(scope)
+}
 
 // Derives this deployment's own origin from the incoming request rather than a hardcoded
 // env var, so the same code works unmodified against localhost in dev and whatever domain
