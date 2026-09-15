@@ -336,7 +336,7 @@ function AppInner() {
           onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} />
       )}
       {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} />}
-      {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} />}
+      {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} eventPool={eventPool} eventCalendarSync={eventCalendarSync} />}
       {tab === 'settings' && <SettingsTab />}
 
       {addEventOpen && <AddToCalendarModal onClose={() => setAddEventOpen(false)} />}

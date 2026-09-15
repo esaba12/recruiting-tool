@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
-  fetchSchoolEvents, fetchEmployers, fetchIngestSources, fetchMyEventState,
+  fetchSchools, fetchSchoolEvents, fetchEmployers, fetchIngestSources, fetchMyEventState,
   upsertUserEvent, upsertEventRelevance, upsertEventRelevanceMany, setRequirementCompletion,
 } from '../db.js'
 import { lsGet, lsSet } from './scopedStorage.js'
@@ -24,6 +24,7 @@ export default function useRecruitingEvents({ enabled = true, profile, targets =
   const [events, setEvents] = useState([])
   const [employers, setEmployers] = useState([])
   const [sources, setSources] = useState([])
+  const [school, setSchool] = useState(null)
   const [myState, setMyState] = useState({ userEvents: [], relevance: [], completions: [] })
   const [loading, setLoading] = useState(false)
   const [enriching, setEnriching] = useState(false)
@@ -34,11 +35,13 @@ export default function useRecruitingEvents({ enabled = true, profile, targets =
     if (!enabled) return
     setLoading(true); setError(null)
     try {
-      const [ev, emp, src, mine] = await Promise.all([fetchSchoolEvents(), fetchEmployers(), fetchIngestSources(), fetchMyEventState()])
+      const [ev, emp, src, mine, schools] = await Promise.all([fetchSchoolEvents(), fetchEmployers(), fetchIngestSources(), fetchMyEventState(), fetchSchools()])
       setEvents(ev); setEmployers(emp); setSources(src); setMyState(mine)
+      setSchool(schools.find(s => s.id === profile?.school_id) || schools[0] || null)
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
-  }, [enabled])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, profile?.school_id])
 
   useEffect(() => { load() }, [load, refreshKey])
 
@@ -116,7 +119,7 @@ export default function useRecruitingEvents({ enabled = true, profile, targets =
   }
 
   return {
-    events: sorted, employers, sources, userEvents: myState.userEvents, completions: myState.completions,
+    events: sorted, employers, sources, school, userEvents: myState.userEvents, completions: myState.completions,
     relevance: relevanceView, tierOf: ev => effectiveTier(relevanceView.get(ev.id)), userEventsById,
     loading, enriching, error, refresh: load,
     setStatus, updateUserEvent, toggleRequirement, setOverride, dismiss,

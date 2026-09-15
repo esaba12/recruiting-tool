@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CalendarDays, ListTodo } from 'lucide-react'
+import { CalendarDays, ListTodo, Upload } from 'lucide-react'
 import { listEvents, CALENDAR_SLOTS } from '../googleCalendar.js'
 import { updateApplicationTriage, archiveApplication } from '../db.js'
 import { BUCKET_TO_TRIAGE, MONTH_NAMES } from './jobBoards/helpers.js'
@@ -10,6 +10,7 @@ import ContactPanelBody from './panels/ContactPanelBody.jsx'
 import ApplicationPanelBody from './panels/ApplicationPanelBody.jsx'
 import EventDetailModal from './EventDetailModal.jsx'
 import AddEventModal from './AddEventModal.jsx'
+import EventImportModal from './EventImportModal.jsx'
 
 const OVERLAYS = [
   { key: 'events',       label: 'Events',       dot: 'bg-accent-600',  chipActive: 'bg-accent-600 text-white border-accent-600' },
@@ -33,7 +34,8 @@ function eventDayKey(event) {
   return dayKey(d.getFullYear(), d.getMonth(), d.getDate())
 }
 
-export default function CalendarTab({ contacts, apps, interactions, calls, onRefresh }) {
+export default function CalendarTab({ contacts, apps, interactions, calls, onRefresh, eventPool = null, eventCalendarSync = null }) {
+  const [importOpen, setImportOpen] = useState(false)
   const [viewDate, setViewDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const [eventsByMonth, setEventsByMonth] = useState({}) // 'YYYY-MM' -> normalized event[]
   const [loadingEvents, setLoadingEvents] = useState(false)
@@ -171,6 +173,12 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
             <ListTodo size={13} strokeWidth={2.25} /> Feed
           </button>
         </div>
+        {eventPool?.school && (
+          <button onClick={() => setImportOpen(true)}
+            className="px-3 py-1 rounded-full text-xs font-medium border border-ink-200 bg-white text-ink-500 hover:bg-ink-50 flex items-center gap-1.5">
+            <Upload size={13} strokeWidth={2.25} /> Import events
+          </button>
+        )}
 
         {viewMode === 'grid' && OVERLAYS.map(o => (
           <button key={o.key} onClick={() => toggle(o.key)}
@@ -302,6 +310,15 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
           event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
           onDeleted={() => { setSelectedEvent(null); refetchMonth(); refetchFeed() }}
+        />
+      )}
+
+      {importOpen && eventPool && (
+        <EventImportModal
+          school={eventPool.school}
+          poolEvents={eventPool.events}
+          onClose={() => setImportOpen(false)}
+          onCommitted={() => eventPool.refresh()}
         />
       )}
 

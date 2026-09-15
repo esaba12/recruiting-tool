@@ -16,7 +16,7 @@ export function normalizeTitle(title) {
     .normalize('NFKD').replace(/[̀-ͯ]/g, '')   // strip accents
     .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
-    .filter(w => w && !STOP.has(w))
+    .filter(w => w.length > 1 && !STOP.has(w))   // 1-char leftovers ("Q&A" → q, a) are noise
     .join(' ')
     .trim()
 }

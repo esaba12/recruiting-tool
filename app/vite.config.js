@@ -79,6 +79,7 @@ export default defineConfig(({ mode }) => {
       mountApiHandler('/api/google-connect', 'google-connect.js', 'direct'),
       mountApiHandler('/api/events-ingest', 'events-ingest.js', 'direct'),
       mountApiHandler('/api/events-enrich', 'events-enrich.js', 'direct'),
+      mountApiHandler('/api/events-contribute', 'events-contribute.js', 'direct'),
       mountApiHandler('/api/google-oauth-start', 'google-oauth-start.js', 'direct'),
       mountApiHandler('/api/google-oauth-callback', 'google-oauth-callback.js', 'direct'),
     ],
