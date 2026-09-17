@@ -11,6 +11,10 @@ CLAUDE.local.md
 .env*.local
 *.local.md
 
+# clasp — .clasp.json holds a Script ID tied to a personal Google account/Drive
+.clasp.json
+.clasprc.json
+
 # local one-off / verification scripts
 app/.verify-*
 
