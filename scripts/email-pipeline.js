@@ -113,21 +113,37 @@ function getKeys() {
 
 // Fail-soft and a no-op when NTFY_TOPIC isn't set — a push reminder is a nice-to-have, never
 // something that should break email processing or leave a thread unprocessed if it fails.
+// UrlFetchApp intermittently throws "Address unavailable" against ntfy.sh specifically — a
+// known, reported flakiness in Apps Script's fetch against Cloudflare-fronted origins (this
+// project already hit the same class of issue with events.umich.edu's Cloudflare challenge,
+// see the Ingestion section above), not a real outage: ntfy.sh itself responds in well under
+// a second when hit from anywhere else. A short retry clears it almost every time.
+const PUSH_RETRY_ATTEMPTS = 3
+const PUSH_RETRY_DELAY_MS = 1500
+
 function sendPush(keys, { title, message, priority = 'default', tags = [] }) {
   if (!keys.ntfyTopic) return
-  try {
-    UrlFetchApp.fetch(`https://ntfy.sh/${keys.ntfyTopic}`, {
-      method:             'post',
-      muteHttpExceptions: true,
-      payload:            message,
-      headers: {
-        Title:    title,
-        Priority: priority,
-        Tags:     tags.join(','),
-      },
-    })
-  } catch (e) {
-    console.error(`  ✗ push failed: ${e.message}`)
+  for (let attempt = 1; attempt <= PUSH_RETRY_ATTEMPTS; attempt++) {
+    try {
+      const resp = UrlFetchApp.fetch(`https://ntfy.sh/${keys.ntfyTopic}`, {
+        method:             'post',
+        muteHttpExceptions: true,
+        payload:            message,
+        headers: {
+          Title:    title,
+          Priority: priority,
+          Tags:     tags.join(','),
+        },
+      })
+      if (resp.getResponseCode() >= 400) {
+        throw new Error(`ntfy ${resp.getResponseCode()}: ${resp.getContentText().slice(0, 200)}`)
+      }
+      return // success
+    } catch (e) {
+      const lastAttempt = attempt === PUSH_RETRY_ATTEMPTS
+      console.error(`  ✗ push attempt ${attempt}/${PUSH_RETRY_ATTEMPTS} failed: ${e.message}${lastAttempt ? ' — giving up' : ' — retrying'}`)
+      if (!lastAttempt) Utilities.sleep(PUSH_RETRY_DELAY_MS)
+    }
   }
 }
 
