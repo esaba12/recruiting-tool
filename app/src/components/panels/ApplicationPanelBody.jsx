@@ -114,6 +114,16 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
     closedDate:   app?.closedDate   ? app.closedDate.slice(0, 10) : '',
     referredById: app?.referredById || '',
   }))
+  // OA fields are normally set by the email pipeline (see scripts/email-pipeline.js's
+  // OA_INVITE handling), but an invite that arrives outside email (a portal notification, a
+  // recruiter DM) needs a manual way in — this is that. Kept in its own state/save path from
+  // `dates` above since it's a separate concern (assessment tracking vs. pipeline stage).
+  const [oa, setOa] = useState(() => ({
+    oaDueDate:  app?.oaDueDate ? app.oaDueDate.slice(0, 10) : '',
+    oaLink:     app?.oaLink || '',
+    oaCompleted: app?.oaCompleted || false,
+  }))
+  const [savingOa, setSavingOa] = useState(false)
   const [savingDates, setSavingDates] = useState(false)
   const [saving, setSaving]       = useState(false)
   const [deleting, setDeleting]   = useState(false)
@@ -152,6 +162,26 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
     } catch (e) {
       setError(e.message)
       setSavingDates(false)
+    }
+  }
+
+  async function saveOa() {
+    setSavingOa(true); setError(null)
+    try {
+      await updateApplication(app.id, {
+        oaDueDate: oa.oaDueDate || null,
+        oaLink: oa.oaLink.trim() || null,
+        oaCompleted: oa.oaCompleted,
+        // A fresh/edited due date means the client-side research fallback (lib/oaResearch.js)
+        // should stop treating this as "already checked" — same reset the email pipeline does
+        // on a re-sent OA_INVITE, see upsertApplication() there.
+        oaResearchCheckedAt: null,
+      })
+      onSaved()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSavingOa(false)
     }
   }
 
@@ -325,6 +355,38 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
             <button onClick={saveDates} disabled={savingDates}
               className="col-span-3 py-2 bg-ink-900 text-white text-xs rounded-md hover:bg-ink-800 disabled:opacity-50 font-medium transition-colors">
               {savingDates ? 'Saving...' : 'Save Stage / Dates'}
+            </button>
+          </div>
+        )}
+
+        {!isNew && (
+          <div className="px-5 py-4 border-b border-ink-100">
+            <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">Online Assessment</p>
+            <p className="text-[11px] text-ink-400 -mt-1 mb-2">
+              Usually filled in automatically from the invite email — edit here if it was missed, or add one from a portal notification.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-ink-400 mb-0.5">Due Date</label>
+                <input type="date" value={oa.oaDueDate} onChange={e => setOa(o => ({ ...o, oaDueDate: e.target.value }))}
+                  className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
+              </div>
+              <div className="flex items-end pb-1.5">
+                <label className="flex items-center gap-2 text-sm text-ink-700">
+                  <input type="checkbox" checked={oa.oaCompleted} onChange={e => setOa(o => ({ ...o, oaCompleted: e.target.checked }))}
+                    className="w-4 h-4 accent-accent-500" />
+                  Completed
+                </label>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs text-ink-400 mb-0.5">Assessment Link</label>
+                <input type="url" placeholder="https://..." value={oa.oaLink} onChange={e => setOa(o => ({ ...o, oaLink: e.target.value }))}
+                  className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
+              </div>
+            </div>
+            <button onClick={saveOa} disabled={savingOa}
+              className="w-full mt-3 py-2 bg-ink-900 text-white text-xs rounded-md hover:bg-ink-800 disabled:opacity-50 font-medium transition-colors">
+              {savingOa ? 'Saving...' : 'Save Online Assessment'}
             </button>
           </div>
         )}

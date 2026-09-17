@@ -7,7 +7,7 @@ import DonutChart from './charts/DonutChart.jsx'
 import TrendChart from './charts/TrendChart.jsx'
 import { STATUS_CHART_COLORS } from './charts/theme.js'
 import { logMetWithContact } from '../lib/quickLog.js'
-import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue } from '../lib/attention.js'
+import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue, awaitingReply } from '../lib/attention.js'
 import { lastPointOfContact } from '../lib/keepInTouch.js'
 import { tieStrengthBucket } from '../lib/affinity.js'
 import { statusIconFor } from '../lib/icons.js'
@@ -23,7 +23,7 @@ import TimelineFindsPanel from './TimelineFindsPanel.jsx'
 import StatTileRow from './StatTileRow.jsx'
 import Mono from './ui/Mono.jsx'
 import { Section, RowCap, HEADING_COLOR } from './ui/Section.jsx'
-import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity } from 'lucide-react'
+import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity, MailQuestion } from 'lucide-react'
 
 // Matches KeepInTouchTab.jsx:8 exactly — private to that component there, ported verbatim
 // here since it isn't exported.
@@ -91,6 +91,52 @@ function OverdueRow({ contact: c, interactions, onRefresh, onOpen }) {
           )
           : <DraftPanel contact={c} kind="follow_up" daysOverdue={Math.abs(daysUntil(c.followUpDate))} onSaved={onRefresh} />
       )}
+    </div>
+  )
+}
+
+// A contact whose last logged touchpoint was something the user sent (Email/LinkedIn) with
+// nothing back for `thresholdDays`+ — see lib/attention.js's awaitingReply() for the exact
+// inference. Two ways off this list: log the reply that actually came in, or send a nudge
+// (which just resets the clock, same as a fresh Outbound interaction would).
+function AwaitingReplyRow({ item, onRefresh, onOpen }) {
+  const { contact: c, lastInteraction, daysWaiting } = item
+  const [expanded, setExpanded] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  async function logReply() {
+    setBusy(true)
+    try {
+      await addInteraction({ contactId: c.id, contactName: c.name, type: lastInteraction.type, direction: 'Inbound', summary: 'They replied (logged via Today)' })
+      onRefresh?.()
+    } catch {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 cursor-pointer" onClick={() => onOpen(c)}>
+          <p className="text-sm font-medium text-ink-900">{c.name}</p>
+          <p className="text-xs text-ink-500">{[c.company, c.role].filter(Boolean).join(' · ')}</p>
+        </div>
+        <div className="text-right shrink-0 space-y-1">
+          <Badge label={lastInteraction.type} color={TYPE_COLOR[lastInteraction.type] || TYPE_COLOR.Other} />
+          <p className="text-xs font-medium text-warning-700">
+            No reply in <Mono className="text-warning-700 font-medium">{daysWaiting}d</Mono>
+          </p>
+          <div className="flex items-center gap-2 justify-end">
+            <button onClick={() => setExpanded(e => !e)} className="text-xs text-accent-500 hover:underline">
+              {expanded ? 'Hide' : 'Draft nudge'}
+            </button>
+            <button onClick={logReply} disabled={busy} className="text-xs text-ink-400 hover:text-ink-600 hover:underline disabled:opacity-40">
+              {busy ? 'Marking...' : 'They replied'}
+            </button>
+          </div>
+        </div>
+      </div>
+      {expanded && <DraftPanel contact={c} kind="follow_up" daysOverdue={daysWaiting} onSaved={onRefresh} />}
     </div>
   )
 }
@@ -409,6 +455,7 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
   const needsReview = needsReviewApps(apps)
   const oaDueList = oaDue(apps)
   const oaNeedsCheckList = oaNeedsCheck(apps)
+  const awaitingReplyList = awaitingReply(contacts, interactions)
 
   const [selectedContactId, setSelectedContactId] = useState(null)
   const [selectedAppId, setSelectedAppId] = useState(null)
@@ -443,7 +490,8 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
   // matching the section's own demo-mode exclusion below.
   const allEmpty = overdueContacts.length === 0 && staleApps.length === 0 && highUrgency.length === 0
     && keepInTouch.length === 0 && needsReview.length === 0 && scheduleContacts.length === 0
-    && oaDueList.length === 0 && oaNeedsCheckList.length === 0 && (isDemoMode || timelineFinds.length === 0)
+    && oaDueList.length === 0 && oaNeedsCheckList.length === 0 && awaitingReplyList.length === 0
+    && (isDemoMode || timelineFinds.length === 0)
 
   return (
     <motion.div className="space-y-4" variants={container} initial="hidden" animate="show">
@@ -521,6 +569,16 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
           <Section title={`OA-Needs-Check (${oaNeedsCheckList.length})`} accent="ink" icon={Search}>
             <RowCap items={oaNeedsCheckList} tier="ink"
               renderItem={a => <OaRow key={a.id} app={a} needsCheck onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} />} />
+          </Section>
+        </motion.div>
+      )}
+
+      {awaitingReplyList.length > 0 && (
+        <motion.div variants={rise}>
+          <Section title={`Awaiting Reply (${awaitingReplyList.length})`} accent="warning" icon={MailQuestion}
+            subtitle="You sent the last message and haven't heard back — nudge or note the reply.">
+            <RowCap items={awaitingReplyList} tier="warning"
+              renderItem={item => <AwaitingReplyRow key={item.contact.id} item={item} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} />} />
           </Section>
         </motion.div>
       )}

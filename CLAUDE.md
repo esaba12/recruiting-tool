@@ -361,6 +361,22 @@ Deploy: script.google.com → paste file → Script Properties → add `ANTHROPI
 
 Cost: ~$0.001/email with Haiku (classification only runs once per thread-update, not per logged message) — the broader inbox keyword search increases how many threads get *scanned*, not how many get *classified* twice; each thread's Haiku call still only runs once per new message via the existing `msgcount_<threadId>` tracking.
 
+### Push reminders — ntfy.sh (shipped 2026-09-17)
+
+The pipeline can push a real phone notification instead of relying on you to notice something in the app or your inbox — deliberately not another email, since the whole point is cutting through the inbox this script already reads. Uses [ntfy.sh](https://ntfy.sh), a free public push-notification relay: `sendPush()` POSTs to `https://ntfy.sh/<NTFY_TOPIC>` and anything subscribed to that topic (the ntfy phone app, or the web app) gets a native push. Entirely optional — `NTFY_TOPIC` unset means `sendPush()` no-ops and everything else keeps working; there's no paid tier, phone number, or account involved.
+
+- **Immediate, on classification** (`notifyStatusChange()`, called right after `upsertApplication()`): `OA_INVITE` (priority `high`, includes due date/link if known), `INTERVIEW_INVITE` (`high`), `OFFER` (`urgent`), `REJECTION` (`default`). Deliberately not `APPLICATION_CONFIRMATION`/`REPLY` — those are routine enough to just show up in the app rather than interrupt you.
+- **Daily digest** (`checkOaDeadlines()`, its own time-driven trigger — separate from the every-10-minutes `processRecruitingEmails`, since it reads current application state rather than new email): one push listing every open, incomplete OA due within 3 days or already overdue, `urgent` priority if anything's due today/tomorrow/overdue else `high`. Re-sends daily until the OA is marked completed or its due date moves out of the window — that's intentional nagging, not a bug.
+- **Setup**: install the ntfy app (iOS/Android) or use `https://ntfy.sh/app`, pick a long random topic string and subscribe to it, set `NTFY_TOPIC` to that string in Script Properties, then add a second trigger (`checkOaDeadlines`, Day timer) alongside the existing 10-minute one. `testPush()`/`runOaCheckNow()` are manual-run helpers for verifying the wiring. See the setup comment at the top of `scripts/email-pipeline.js` for the full walkthrough.
+
+---
+
+## Today Tab — Awaiting Reply (shipped 2026-09-17)
+
+Closes a real gap in email-networking tracking: `OutboxTab.jsx` showed every sent email but never flagged which ones went unanswered. `lib/attention.js`'s `awaitingReply(contacts, interactions)` is a pure derivation — for each contact, find their most recent Email/LinkedIn interaction; if it was Outbound and `thresholdDays` (default 5) have passed with nothing back, surface it. Deliberately distinct from `keepInTouchDue` (relationships going cold over weeks/months, tie-strength cadence) and `overdueFollowUps` (an explicit to-do the user set) — this is the one purely inferred from the interaction ledger itself, and specifically excludes anyone with any Follow-Up Date set (past or future) so it doesn't double-nag alongside the explicit to-do system. Rendered as a new "Awaiting Reply" section in `TodayTab.jsx` (`AwaitingReplyRow` — "They replied" logs an Inbound interaction to clear it, "Draft nudge" reuses `DraftPanel`'s `follow_up` kind).
+
+Same phase also added manual OA editing to `ApplicationPanelBody.jsx` — OA due date/link/completed were previously only ever set by the email pipeline (`OA_INVITE` extraction) or toggled off from Today's "Mark completed," with no way to add or correct one from the application's own detail panel (e.g. an OA that arrived via a portal notification instead of email). Now editable directly there, writing through the same `updateApplication()` fields the pipeline and Today already use.
+
 ---
 
 ## Critical Constraints
@@ -391,6 +407,7 @@ Cost: ~$0.001/email with Haiku (classification only runs once per thread-update,
 - ~~Provision Upstash Redis for rate limiting~~ — **done 2026-08-11** (see API Hardening above). Only remaining piece: mirror `KV_REST_API_URL`/`KV_REST_API_TOKEN` into the root `.env` for local dev (one manual `grep >> ` command, see above) — production already has them and is verified live.
 - **Register the school-calendar OAuth redirect URI** (see Multi-calendar: Personal + School above) — `/api/google-oauth-callback` isn't in the Google Cloud OAuth client's Authorized redirect URIs yet, so connecting a School calendar will fail until it's added for both localhost and the production domain.
 - **Add the school Google account as an OAuth consent screen Test user** (same place the personal account was already added, per the Testing-mode gotcha above) — otherwise connecting it hits `Error 403: access_denied`.
+- **Re-paste `scripts/email-pipeline.js` into script.google.com and set `NTFY_TOPIC`** to enable push reminders (see Push reminders — ntfy.sh above) — optional, everything else in the pipeline works without it. Needs the ntfy app installed and subscribed to that same topic string, plus a second Day-timer trigger for `checkOaDeadlines`.
 
 **Done:** local Supabase stack verified end-to-end (2026-07-23) — auth signup/signin, BYOK key CRUD (add/list/delete, encrypted at rest), RLS cross-account isolation (a second test account confirmed to see zero rows of the primary account's 229 applications / 8 contacts), and the Notion→Supabase migration for the primary account. Leftover local test accounts (`otheruser@test.dev`, `ethan@test.dev`) created during that verification were deleted afterward — the local auth stack now has just the one real account.
 

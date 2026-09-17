@@ -8,10 +8,29 @@
 //        SUPABASE_URL            =  https://<project-ref>.supabase.co
 //        SUPABASE_SERVICE_ROLE_KEY = <service role key, from Supabase dashboard → Settings → API>
 //        RECRUITING_USER_ID      =  <uuid of the signed-up Supabase account this pipeline writes to>
+//        NTFY_TOPIC              =  (optional) a long random string, e.g. "ethan-recruiting-x7f2q9"
+//                                    — enables push-notification reminders, see below. Leave unset
+//                                    to skip pushes entirely (everything else still works).
 //   3. Run setup() once manually — approve all permission prompts
 //   4. Triggers (clock icon) → Add Trigger:
 //        Function: processRecruitingEmails
 //        Event: Time-driven → Every 10 minutes
+//   5. (optional, for reminders) Triggers → Add Trigger:
+//        Function: checkOaDeadlines
+//        Event: Time-driven → Day timer → pick an hour (e.g. 9am–10am)
+//
+// PUSH REMINDERS (optional, via ntfy.sh — free, no account, no phone number needed):
+//   ntfy.sh is a public push-notification relay: anything POSTed to https://ntfy.sh/<topic>
+//   shows up as a real phone push notification to anyone subscribed to that topic. Setup:
+//     1. Install the "ntfy" app (iOS/Android) or open https://ntfy.sh/app in a browser.
+//     2. Pick a long, hard-to-guess topic name (it's the only thing gating who can push to
+//        it — treat it like a secret) and subscribe to it in the app.
+//     3. Set NTFY_TOPIC to that same string in Script Properties above.
+//   Once set, this script pushes immediately when a thread is classified as OA_INVITE,
+//   INTERVIEW_INVITE, OFFER, or REJECTION (see notifyStatusChange()), and once a day
+//   (via the checkOaDeadlines trigger above) digests any OA due within 3 days or overdue —
+//   see checkOaDeadlines() below. Deliberately not email: the whole point is a notification
+//   that doesn't get lost in an inbox that's already full of the emails this script reads.
 //
 // This writes directly to this app's Supabase Postgres tables (contacts, applications,
 // interactions) via the raw PostgREST API — Apps Script has no npm, so there's no
@@ -84,7 +103,112 @@ function getKeys() {
     supabaseUrl: p.getProperty('SUPABASE_URL'),
     supabaseKey: p.getProperty('SUPABASE_SERVICE_ROLE_KEY'),
     userId:      p.getProperty('RECRUITING_USER_ID'),
+    ntfyTopic:   p.getProperty('NTFY_TOPIC'),
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PUSH NOTIFICATIONS — ntfy.sh, optional (see setup comment above)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Fail-soft and a no-op when NTFY_TOPIC isn't set — a push reminder is a nice-to-have, never
+// something that should break email processing or leave a thread unprocessed if it fails.
+function sendPush(keys, { title, message, priority = 'default', tags = [] }) {
+  if (!keys.ntfyTopic) return
+  try {
+    UrlFetchApp.fetch(`https://ntfy.sh/${keys.ntfyTopic}`, {
+      method:             'post',
+      muteHttpExceptions: true,
+      payload:            message,
+      headers: {
+        Title:    title,
+        Priority: priority,
+        Tags:     tags.join(','),
+      },
+    })
+  } catch (e) {
+    console.error(`  ✗ push failed: ${e.message}`)
+  }
+}
+
+// One push per classified thread for the status changes worth interrupting you for — not
+// APPLICATION_CONFIRMATION or REPLY, which are routine enough to just show up in the app.
+function notifyStatusChange(keys, data) {
+  const company = data.company || 'Unknown company'
+  const role    = data.role ? ` — ${data.role}` : ''
+
+  if (data.type === 'OA_INVITE') {
+    const due = data.oa_due_date ? `\nDue ${data.oa_due_date}` : '\nNo stated deadline — check the assessment page.'
+    sendPush(keys, {
+      title: `🧪 OA received — ${company}`,
+      message: `${role.slice(3) || 'Online Assessment'}${due}${data.oa_link ? `\n${data.oa_link}` : ''}`,
+      priority: 'high',
+      tags: ['test_tube'],
+    })
+  } else if (data.type === 'INTERVIEW_INVITE') {
+    sendPush(keys, {
+      title: `📞 Interview invite — ${company}`,
+      message: `${role.slice(3) || ''}${data.interview_date ? `\nScheduled ${data.interview_date}` : ''}`.trim(),
+      priority: 'high',
+      tags: ['phone'],
+    })
+  } else if (data.type === 'OFFER') {
+    sendPush(keys, {
+      title: `🎉 Offer — ${company}!`,
+      message: role.slice(3) || 'Offer received',
+      priority: 'urgent',
+      tags: ['tada'],
+    })
+  } else if (data.type === 'REJECTION') {
+    sendPush(keys, {
+      title: `❌ Rejected — ${company}`,
+      message: role.slice(3) || 'Rejection received',
+      priority: 'default',
+      tags: ['x'],
+    })
+  }
+}
+
+// Daily digest of Online Assessments due soon or overdue — run via its own time-driven
+// trigger (see setup comment above), separate from the every-10-minutes email scan, since
+// this reads current application state rather than new email.
+function checkOaDeadlines() {
+  const keys = getKeys()
+  if (!keys.ntfyTopic) {
+    console.log('NTFY_TOPIC not set — skipping OA deadline check (see setup comment for how to enable).')
+    return
+  }
+
+  const apps = supabaseReq(keys, 'get',
+    `/applications?user_id=eq.${keys.userId}&oa_due_date=not.is.null&oa_completed=eq.false&archived=eq.false`
+    + `&select=company,role,oa_due_date,oa_link&order=oa_due_date.asc`)
+
+  const todayMs = new Date(Utilities.formatDate(new Date(), 'UTC', 'yyyy-MM-dd')).getTime()
+  const withDays = (apps || []).map(a => ({
+    ...a,
+    daysUntil: Math.round((new Date(a.oa_due_date).getTime() - todayMs) / 86400000),
+  }))
+  const dueSoon = withDays.filter(a => a.daysUntil <= 3)
+
+  if (!dueSoon.length) {
+    console.log('No OA deadlines due within 3 days.')
+    return
+  }
+
+  const lines = dueSoon.map(a => {
+    const label = a.daysUntil < 0 ? `overdue by ${Math.abs(a.daysUntil)}d`
+      : a.daysUntil === 0 ? 'due today' : `due in ${a.daysUntil}d`
+    return `${a.company}${a.role ? ` (${a.role})` : ''} — ${label}`
+  })
+  const urgent = dueSoon.some(a => a.daysUntil <= 1)
+
+  sendPush(keys, {
+    title: `⏰ ${dueSoon.length} OA deadline${dueSoon.length > 1 ? 's' : ''} coming up`,
+    message: lines.join('\n'),
+    priority: urgent ? 'urgent' : 'high',
+    tags: ['stopwatch'],
+  })
+  console.log(`Pushed OA deadline digest: ${dueSoon.length} item(s)`)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -195,6 +319,7 @@ function processRecruitingEmails() {
 
       if (['APPLICATION_CONFIRMATION', 'OA_INVITE', 'INTERVIEW_INVITE', 'OFFER', 'REJECTION'].includes(data.type)) {
         upsertApplication(keys, data)
+        notifyStatusChange(keys, data)
       }
 
       if (data.interview_date) {
@@ -682,11 +807,33 @@ function setup() {
   console.log('✓ Labels created')
   console.log('✓ Keys found')
   console.log('✓ Setup complete')
+  if (!keys.ntfyTopic) {
+    console.log('NOTE: NTFY_TOPIC not set — push reminders disabled (everything else still works). See setup comment at the top of this file.')
+  } else {
+    console.log('✓ NTFY_TOPIC found — push reminders enabled')
+  }
   console.log('')
   console.log('Next: Triggers (clock icon) → Add Trigger → processRecruitingEmails → Time-driven → Every 10 minutes')
+  console.log('Optional: Triggers → Add Trigger → checkOaDeadlines → Time-driven → Day timer, for daily OA-deadline pushes')
 }
 
 // Send yourself a test email, then run this to process it immediately
 function runNow() {
   processRecruitingEmails()
+}
+
+// Manually trigger the OA-deadline digest push (normally runs once/day via its own trigger)
+function runOaCheckNow() {
+  checkOaDeadlines()
+}
+
+// Sends one test push to confirm NTFY_TOPIC is wired up correctly
+function testPush() {
+  const keys = getKeys()
+  if (!keys.ntfyTopic) {
+    console.log('NTFY_TOPIC not set — nothing to test.')
+    return
+  }
+  sendPush(keys, { title: '✅ Test push', message: 'If you see this, ntfy.sh is wired up correctly.', priority: 'default', tags: ['white_check_mark'] })
+  console.log('Sent — check your ntfy app.')
 }

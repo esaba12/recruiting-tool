@@ -63,6 +63,39 @@ export function needsReviewApps(apps) {
 // Thin re-export, do NOT duplicate lib/keepInTouch.js's cadence math
 export { keepInTouchQueue as keepInTouchDue } from './keepInTouch.js'
 
+// "Who did I email/message that never wrote back?" — distinct from keepInTouchDue (which is
+// about relationships going cold over weeks/months) and overdueFollowUps (an explicit to-do
+// the user set themselves, which already surfaces its own way once it's overdue). This is
+// purely inferred from the Interactions ledger: the last thing logged with this contact was
+// something the user sent, on an Email/LinkedIn channel where a reply is the expected next
+// step, and enough days have passed with nothing back.
+// Excluded: closed relationships (parked, not nagged — same rule as keepInTouch.js), and
+// anyone with ANY explicit Follow-Up Date set (past or future) — that means they're already
+// being tracked by the explicit to-do system (Overdue Follow-Ups once it lapses), so this
+// section stays reserved for outreach nobody is otherwise keeping an eye on.
+const AWAITING_REPLY_CHANNELS = ['Email', 'LinkedIn']
+
+export function awaitingReply(contacts, interactions, { thresholdDays = 5 } = {}) {
+  const byContact = new Map()
+  for (const i of interactions) {
+    if (!i.contactId || !AWAITING_REPLY_CHANNELS.includes(i.type) || !i.date) continue
+    const prev = byContact.get(i.contactId)
+    if (!prev || new Date(i.date) > new Date(prev.date)) byContact.set(i.contactId, i)
+  }
+
+  const out = []
+  for (const c of contacts) {
+    if (c.status === '✅ Closed') continue
+    if (c.followUpDate) continue // already tracked by the explicit follow-up system
+    const last = byContact.get(c.id)
+    if (!last || last.direction !== 'Outbound') continue
+    const waiting = daysSince(last.date)
+    if (waiting < thresholdDays) continue
+    out.push({ contact: c, lastInteraction: last, daysWaiting: waiting })
+  }
+  return out.sort((a, b) => b.daysWaiting - a.daysWaiting)
+}
+
 // ── Recruiting Events (v1.1) ─────────────────────────────────────────────────
 // Same contract as everything above: pure derivations over already-fetched,
 // RLS-scoped arrays, consumed by TodayTab's Section stack — NOT a second action queue.
