@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships } from './db.js'
+import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships, fetchActionItems, fetchDailyRecap } from './db.js'
 import { researchOaDeadlines } from './lib/oaResearch.js'
 import { useAuth } from './lib/AuthContext.jsx'
 import useEventIngest from './lib/useEventIngest.js'
@@ -238,6 +238,8 @@ function AppInner() {
   const [interactions, setInteractions] = useState([])
   const [calls, setCalls]       = useState([])
   const [contactRelationships, setContactRelationships] = useState([])
+  const [actionItems, setActionItems] = useState([])
+  const [dailyRecap, setDailyRecap] = useState(null)
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
   const [lastLoaded, setLastLoaded] = useState(null)
@@ -267,8 +269,12 @@ function AppInner() {
   async function load() {
     setLoading(true); setError(null)
     try {
-      const [c, a, i, cl, cr] = await Promise.all([fetchContacts(), fetchApplications(), fetchInteractions(), fetchCalls(), fetchContactRelationships()])
+      const [c, a, i, cl, cr, ai, dr] = await Promise.all([
+        fetchContacts(), fetchApplications(), fetchInteractions(), fetchCalls(), fetchContactRelationships(),
+        fetchActionItems(), fetchDailyRecap(),
+      ])
       setContacts(c); setApps(a); setInteractions(i); setCalls(cl); setContactRelationships(cr)
+      setActionItems(ai); setDailyRecap(dr)
       setLastLoaded(new Date().toLocaleTimeString())
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
@@ -300,7 +306,8 @@ function AppInner() {
   }
 
   const activeApps = apps.filter(a => !['Rejected','Accepted'].includes(a.stage))
-  const todayCount = overdueFollowUps(contacts).length + staleApplications(apps).length + highUrgencyContacts(contacts).length + wantToSchedule(contacts).length + oaDue(apps).length + oaNeedsCheck(apps).length + keepInTouchDue(contacts, interactions).length + needsReviewApps(apps).length
+  const openActionItemCount = actionItems.filter(i => !i.completedAt && !i.dismissedAt).length
+  const todayCount = overdueFollowUps(contacts).length + staleApplications(apps).length + highUrgencyContacts(contacts).length + wantToSchedule(contacts).length + oaDue(apps).length + oaNeedsCheck(apps).length + keepInTouchDue(contacts, interactions).length + needsReviewApps(apps).length + openActionItemCount
 
   const counts = {
     network: contacts.length,
@@ -335,7 +342,7 @@ function AppInner() {
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
           onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} />
       )}
-      {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} />}
+      {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} actionItems={actionItems} dailyRecap={dailyRecap} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} />}
       {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} eventPool={eventPool} eventCalendarSync={eventCalendarSync} />}
       {tab === 'settings' && <SettingsTab />}
 

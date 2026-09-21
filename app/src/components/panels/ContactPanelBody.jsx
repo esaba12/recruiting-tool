@@ -21,6 +21,7 @@ export default function ContactPanelBody({ contact, contacts, interactions, cont
     company:     contact?.company || initial.company || '',
     role:        contact?.role || '',
     email:       contact?.email || '',
+    phone:       contact?.phone || '',
     linkedin:    contact?.linkedin || '',
     source:      contact?.source || '',
     status:      contact?.status || '🟡 Cooling',
@@ -118,10 +119,10 @@ export default function ContactPanelBody({ contact, contacts, interactions, cont
     setSaving(true); setError(null)
     try {
       if (isNew) {
-        await addContact({ name: form.name, company: form.company, role: form.role, email: form.email })
+        await addContact({ name: form.name, company: form.company, role: form.role, email: form.email, phone: form.phone })
       } else {
         await updateContact(contact.id, {
-          name: form.name, company: form.company, role: form.role || null, email: form.email,
+          name: form.name, company: form.company, role: form.role || null, email: form.email, phone: form.phone,
           linkedin: form.linkedin, source: form.source || null, status: form.status, urgency: form.urgency,
           referredById: form.referredById || null, referralStatus: form.referralStatus, whatTheyDid: form.whatTheyDid, notes: form.notes,
           followUpDate: form.followUpDate || null,
@@ -203,6 +204,7 @@ export default function ContactPanelBody({ contact, contacts, interactions, cont
             {field('Company', 'company')}
             {select('Role', 'role', ROLE_OPTIONS)}
             {field('Email', 'email', { type: 'email' })}
+            {field('Phone', 'phone', { type: 'tel', placeholder: '+1 555 555 5555' })}
             {field('LinkedIn URL', 'linkedin')}
             {select('Source', 'source', SOURCE_OPTIONS)}
           </div>

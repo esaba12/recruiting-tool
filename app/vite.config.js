@@ -33,7 +33,9 @@ async function readJsonBody(req) {
 //   same shape api/claude-api.js etc. expect (mirrors vercel.json's `?path=` rewrites).
 // mode 'direct': req.query is just this request's own query string (used for
 //   api/keys.js, api/google-connect.js — not `?path=` proxies).
-function mountApiHandler(mountPath, apiFile, mode = 'proxy') {
+// extraParams: static query params merged in (mirrors a vercel.json rewrite's own extra
+//   params, e.g. gh-contrib's `&upstream=contrib` — see api/gh-api.js's dual-upstream branch).
+function mountApiHandler(mountPath, apiFile, mode = 'proxy', extraParams = {}) {
   const absPath = path.join(__dirname, 'api', apiFile)
   return {
     name: `dev-api-${mountPath}`,
@@ -44,8 +46,8 @@ function mountApiHandler(mountPath, apiFile, mode = 'proxy') {
           const url = new URL(req.url, 'http://localhost')
           const params = Object.fromEntries(url.searchParams)
           req.query = mode === 'proxy'
-            ? { path: url.pathname.replace(/^\//, ''), ...params }
-            : params
+            ? { path: url.pathname.replace(/^\//, ''), ...params, ...extraParams }
+            : { ...params, ...extraParams }
           req.body = await readJsonBody(req)
           nodeResShim(res)
           await handler(req, res)
@@ -73,15 +75,15 @@ export default defineConfig(({ mode }) => {
       mountApiHandler('/openai-api', 'openai.js'),
       mountApiHandler('/exa', 'exa.js'),
       mountApiHandler('/gh-api', 'gh-api.js'),
-      mountApiHandler('/gh-contrib', 'gh-contrib.js'),
+      mountApiHandler('/gh-contrib', 'gh-api.js', 'proxy', { upstream: 'contrib' }),
       mountApiHandler('/google-calendar', 'google-calendar.js'),
       mountApiHandler('/api/keys', 'keys.js', 'direct'),
       mountApiHandler('/api/google-connect', 'google-connect.js', 'direct'),
       mountApiHandler('/api/events-ingest', 'events-ingest.js', 'direct'),
       mountApiHandler('/api/events-enrich', 'events-enrich.js', 'direct'),
       mountApiHandler('/api/events-contribute', 'events-contribute.js', 'direct'),
-      mountApiHandler('/api/google-oauth-start', 'google-oauth-start.js', 'direct'),
       mountApiHandler('/api/google-oauth-callback', 'google-oauth-callback.js', 'direct'),
+      mountApiHandler('/api/gmail', 'gmail.js', 'direct'),
     ],
     server: {
       port: 3001,

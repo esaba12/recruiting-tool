@@ -11,6 +11,8 @@
 //        NTFY_TOPIC              =  (optional) a long random string, e.g. "ethan-recruiting-x7f2q9"
 //                                    — enables push-notification reminders, see below. Leave unset
 //                                    to skip pushes entirely (everything else still works).
+//        DASHBOARD_URL           =  (optional) e.g. https://recruiting-os-phi.vercel.app — lets the
+//                                    daily recap push (see below) open the app when tapped.
 //   3. Run setup() once manually — approve all permission prompts
 //   4. Triggers (clock icon) → Add Trigger:
 //        Function: processRecruitingEmails
@@ -18,6 +20,13 @@
 //   5. (optional, for reminders) Triggers → Add Trigger:
 //        Function: checkOaDeadlines
 //        Event: Time-driven → Day timer → pick an hour (e.g. 9am–10am)
+//   6. (optional, for the daily recap) Triggers → Add Trigger:
+//        Function: generateDailyRecap
+//        Event: Time-driven → Day timer → pick an hour (e.g. 7am–8am, before your day starts)
+//   7. (one-time, to catch up on mail older than the regular job's 30/45-day windows) run
+//      runBackfillChunk() manually, repeatedly, until its log says "✓ Backfill complete." —
+//      see the BACKFILL section below for how it chunks/resumes across Apps Script's
+//      execution time cap. Or add a temporary Trigger (every 5 min) and remove it once done.
 //
 // PUSH REMINDERS (optional, via ntfy.sh — free, no account, no phone number needed):
 //   ntfy.sh is a public push-notification relay: anything POSTed to https://ntfy.sh/<topic>
@@ -42,7 +51,9 @@
 // id, since this pipeline serves exactly one recruiting-os account, not a multi-tenant signup
 // flow. It's included explicitly on every query/insert below.
 //
-// COST: ~$0.001/email with Haiku. 300 emails/month = $0.30 from your Anthropic credits.
+// COST: ~$0.001/email with Haiku (discovery is now ungated — see INBOX_SCAN_QUERY — so this
+// scales with total inbox volume in the window, not just recruiting-shaped mail). Plus one
+// Sonnet call/day (a few cents) if generateDailyRecap()'s trigger is enabled.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const DONE_LABEL      = 'recruiting-done' // visual marker in Gmail only — no longer used to gate processing, since threads can grow replies after being marked done
@@ -51,14 +62,14 @@ const RECRUITING_LABEL = 'recruiting'
 // sends that never went through an already-labeled thread. 30d bounds the first-run backfill.
 const SENT_SCAN_QUERY = `in:sent -label:${RECRUITING_LABEL} newer_than:30d`
 
-// ATS platforms and recruiting-shaped subject phrasing, used to find *inbound* recruiting
-// email without requiring it to be manually labeled first (see INBOX_SCAN_QUERY below). This
-// used to be the actual gap: an inbound "thanks for applying" confirmation that was never
-// manually labeled 'recruiting' was completely invisible to this script — it only ever looked
-// at threads already labeled, or things the user had sent. This is a recall net, not a
-// filter — Claude's UNRELATED classification is the real filter, so it's fine (and
-// intentional) for the keyword list to be broad and catch some noise; a false positive here
-// costs one cheap Haiku call, a false negative here is a missed application.
+// ATS platforms and recruiting-shaped subject phrasing. These USED to gate which inbound
+// emails were even discovered (see INBOX_SCAN_QUERY's old form, git history) — that was a
+// real gap: a recruiter emailing from a personal address, or an informal reply with no
+// ATS-shaped subject, was completely invisible no matter what Claude might have made of it.
+// Discovery is ungated now (INBOX_SCAN_QUERY below scans every inbox thread in the window) —
+// these constants only feed the classification prompt as a recall hint via
+// recruitingShapeHint() and guessCompanyHint(), same "cheap Haiku call vs. silently missed
+// application" tradeoff as every other *_RE hint in this file, just applied one level out.
 const ATS_DOMAINS = [
   'greenhouse.io', 'lever.co', 'myworkday.com', 'icims.com', 'smartrecruiters.com',
   'ashbyhq.com', 'jobvite.com', 'taleo.net', 'workable.com', 'breezy.hr', 'jazz.co',
@@ -70,11 +81,41 @@ const RECRUITING_SUBJECT_KEYWORDS = [
   'internship', 'offer', '"next steps"', 'assessment', '"phone screen"', 'onsite',
   'candidacy', '"thank you for your interest"', '"hiring team"', 'oa', '"coding challenge"',
 ]
-// Recent Inbox threads not yet labeled, from a known ATS domain or with a recruiting-shaped
-// subject — this is what lets a fresh application-confirmation email get picked up without
-// the user ever touching Gmail labels. 45d bounds the first-run backfill.
-const INBOX_SCAN_QUERY = `in:inbox -label:${RECRUITING_LABEL} newer_than:45d `
-  + `(from:(${ATS_DOMAINS.join(' OR ')}) OR subject:(${RECRUITING_SUBJECT_KEYWORDS.join(' OR ')}))`
+// Recent Inbox threads not yet labeled — ungated (no from:/subject: filter): every inbox
+// thread in the window gets one Haiku classification call, and Claude alone decides
+// UNRELATED vs. not. At ~$0.001/email this is not a real cost concern for one personal
+// inbox, and it closes the exact gap the old keyword gate left open. 45d bounds the regular
+// 10-minute job's window — see runBackfillChunk() below for historical mail older than this.
+const INBOX_SCAN_QUERY = `in:inbox -label:${RECRUITING_LABEL} newer_than:45d`
+
+// Per-search result cap for the regular 10-minute job. Was 25 back when INBOX_SCAN_QUERY was
+// keyword-gated to a small subset of inbox mail; raised now that it scans everything in the
+// window. Bump further if the log ever reports a search hitting this cap.
+const SEARCH_CAP = 150
+
+function recruitingShapeHint(fromHeader, subject, body) {
+  const addr = parseAddress(fromHeader)
+  const domain = addr && addr.email ? addr.email.split('@')[1] : null
+  const fromAts = !!domain && ATS_DOMAINS.some(d => domain === d || domain.endsWith('.' + d))
+  const keywordRe = new RegExp(`\\b(${RECRUITING_SUBJECT_KEYWORDS.map(k => k.replace(/"/g, '')).join('|')})\\b`, 'i')
+  if (!fromAts && !keywordRe.test(subject) && !keywordRe.test(body.slice(0, 500))) return ''
+  return '\n\nThis email is from a known ATS domain and/or has recruiting-shaped subject/body phrasing — a signal it may be recruiting-related, but still classify UNRELATED if the actual content isn\'t.'
+}
+
+// Recall net for relationship-building mail, same philosophy/shape as recruitingShapeHint()
+// above — a networking-focused inbox skews toward this kind of mail far more than formal
+// application traffic, and neither NEW_CONTACT nor FOLLOW_UP_NEEDED had a hint at all before.
+const NETWORKING_SHAPE_KEYWORDS = [
+  'nice meeting you', 'great meeting you', 'great to connect', 'great connecting',
+  'stay in touch', 'keep in touch', 'coffee chat', 'informational interview', 'career fair',
+  'info session', 'happy to help', 'happy to chat', 'would love to connect',
+  'thanks for reaching out', 'thanks for connecting', 'introduce you', 'introduction to',
+]
+function networkingShapeHint(subject, body) {
+  const keywordRe = new RegExp(`\\b(${NETWORKING_SHAPE_KEYWORDS.join('|')})\\b`, 'i')
+  if (!keywordRe.test(subject) && !keywordRe.test(body.slice(0, 500))) return ''
+  return '\n\nThis email has networking-shaped language (relationship-building, an event/introduction, a coffee chat/informational interview) — likely NEW_CONTACT or FOLLOW_UP_NEEDED even with no specific job/application mentioned. Still classify UNRELATED if it\'s genuinely unrelated to the candidate\'s job search or professional network.'
+}
 
 // Common personal/webmail domains — never treated as a company-name hint even when they don't
 // match a known ATS, since "Gmail" or "Outlook" is never the company (see guessCompanyHint).
@@ -104,6 +145,10 @@ function getKeys() {
     supabaseKey: p.getProperty('SUPABASE_SERVICE_ROLE_KEY'),
     userId:      p.getProperty('RECRUITING_USER_ID'),
     ntfyTopic:   p.getProperty('NTFY_TOPIC'),
+    // Optional — lets the daily recap push's tap-to-open link land directly on the
+    // dashboard instead of just showing text. Unset means the push still sends, just
+    // without a click-through target. e.g. https://recruiting-os-phi.vercel.app
+    dashboardUrl: p.getProperty('DASHBOARD_URL'),
   }
 }
 
@@ -120,20 +165,28 @@ function getKeys() {
 // a second when hit from anywhere else. A short retry clears it almost every time.
 const PUSH_RETRY_ATTEMPTS = 3
 const PUSH_RETRY_DELAY_MS = 1500
+// notifyStatusChange() only fires for a message this fresh — see the isFreshEnoughToPush
+// comment at its call site for why. 2 days covers the 10-min job's own normal latency plus
+// weekend/offline gaps without ever treating real catch-up mail as "new."
+const PUSH_STALE_THRESHOLD_MS = 2 * 86400000
 
-function sendPush(keys, { title, message, priority = 'default', tags = [] }) {
+function sendPush(keys, { title, message, priority = 'default', tags = [], click }) {
   if (!keys.ntfyTopic) return
   for (let attempt = 1; attempt <= PUSH_RETRY_ATTEMPTS; attempt++) {
     try {
+      const headers = {
+        Title:    title,
+        Priority: priority,
+        Tags:     tags.join(','),
+      }
+      // ntfy opens this URL when the notification itself is tapped — the literal
+      // "recap I can click" mechanism for generateDailyRecap() below.
+      if (click) headers.Click = click
       const resp = UrlFetchApp.fetch(`https://ntfy.sh/${keys.ntfyTopic}`, {
         method:             'post',
         muteHttpExceptions: true,
         payload:            message,
-        headers: {
-          Title:    title,
-          Priority: priority,
-          Tags:     tags.join(','),
-        },
+        headers,
       })
       if (resp.getResponseCode() >= 400) {
         throw new Error(`ntfy ${resp.getResponseCode()}: ${resp.getContentText().slice(0, 200)}`)
@@ -227,6 +280,118 @@ function checkOaDeadlines() {
   console.log(`Pushed OA deadline digest: ${dueSoon.length} item(s)`)
 }
 
+// "Who did I send the last message to, that never wrote back?" — same rule
+// lib/attention.js's awaitingReply() encodes client-side, re-expressed here as a direct
+// query+reduce since Apps Script can't import that ES module. Excludes anyone with an
+// explicit follow_up_date set (already tracked by that system) and Closed relationships.
+function computeAwaitingReply(keys, contacts) {
+  const cutoffStr = Utilities.formatDate(new Date(Date.now() - 60 * 86400000), 'UTC', 'yyyy-MM-dd')
+  const interactions = supabaseReq(keys, 'get',
+    `/interactions?user_id=eq.${keys.userId}&type=in.(Email,LinkedIn)&date=gte.${cutoffStr}`
+    + `&select=contact_id,direction,date&order=date.desc`) || []
+  const latestByContact = new Map()
+  interactions.forEach(i => { if (i.contact_id && !latestByContact.has(i.contact_id)) latestByContact.set(i.contact_id, i) })
+
+  return contacts
+    .filter(c => c.status !== '✅ Closed' && !c.follow_up_date)
+    .map(c => {
+      const last = latestByContact.get(c.id)
+      if (!last || last.direction !== 'Outbound') return null
+      const days = Math.floor((Date.now() - new Date(last.date).getTime()) / 86400000)
+      return days >= 5 ? { name: c.name, company: c.company, days } : null
+    })
+    .filter(Boolean)
+}
+
+// One Sonnet call (heavier judgment than the per-email Haiku classification above) that
+// synthesizes the day's raw facts into a short recap + prioritized todolist. Mirrors
+// extractWithClaude()'s request/parse shape but against a different model and prompt.
+function generateRecapWithClaude(apiKey, bundle) {
+  const prompt = `You are summarizing one day of recruiting-related activity for a job-searching student. Return ONLY valid JSON, no explanation, no markdown.
+
+{
+  "summary": "2-4 sentence recap of what happened and what matters most right now, written directly to the student ('you applied to...', 'you're waiting on...').",
+  "todos": ["3-7 short, specific, prioritized action items — most important first. Each one under 15 words."]
+}
+
+Today's raw data (JSON):
+${JSON.stringify(bundle)}`
+
+  const resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method:             'post',
+    muteHttpExceptions: true,
+    headers: {
+      'x-api-key':         apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type':      'application/json',
+    },
+    payload: JSON.stringify({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 800,
+      messages:   [{ role: 'user', content: prompt }],
+    }),
+  })
+  if (resp.getResponseCode() !== 200) {
+    throw new Error(`Claude ${resp.getResponseCode()}: ${resp.getContentText().slice(0, 200)}`)
+  }
+  const text  = JSON.parse(resp.getContentText()).content[0].text
+  const match = text.match(/\{[\s\S]*\}/)
+  if (!match) throw new Error('No JSON in Claude response')
+  return JSON.parse(match[0])
+}
+
+// Daily AI recap — its own time-driven trigger (same pattern as checkOaDeadlines, added
+// alongside it not instead of it). Gathers a day's worth of raw facts via direct
+// PostgREST queries (Apps Script can't import lib/attention.js's client-side derivations),
+// feeds them to one Sonnet call, writes the result to daily_recaps for TodayTab's in-app
+// card, and pushes it via ntfy with a tap-to-open link — the literal "recap I can click".
+function generateDailyRecap() {
+  const keys = getKeys()
+  const todayStr = Utilities.formatDate(new Date(), 'UTC', 'yyyy-MM-dd')
+  const sinceStr = Utilities.formatDate(new Date(Date.now() - 86400000), 'UTC', 'yyyy-MM-dd')
+
+  const contacts = supabaseReq(keys, 'get',
+    `/contacts?user_id=eq.${keys.userId}&archived=eq.false&select=id,name,company,status,follow_up_date`) || []
+  const newContacts = supabaseReq(keys, 'get',
+    `/contacts?user_id=eq.${keys.userId}&created_at=gte.${sinceStr}&select=name,company`) || []
+  const newApplications = supabaseReq(keys, 'get',
+    `/applications?user_id=eq.${keys.userId}&created_at=gte.${sinceStr}&select=company,role,stage`) || []
+  const openActionItems = supabaseReq(keys, 'get',
+    `/email_action_items?user_id=eq.${keys.userId}&completed_at=is.null&dismissed_at=is.null`
+    + `&select=summary,priority,due_date`) || []
+  const oaApps = supabaseReq(keys, 'get',
+    `/applications?user_id=eq.${keys.userId}&oa_due_date=not.is.null&oa_completed=eq.false&archived=eq.false`
+    + `&select=company,role,oa_due_date&order=oa_due_date.asc`) || []
+  const overdueFollowUps = contacts.filter(c => c.follow_up_date && c.follow_up_date < todayStr && c.status !== '✅ Closed')
+    .map(c => ({ name: c.name, company: c.company, followUpDate: c.follow_up_date }))
+  const awaitingReply = computeAwaitingReply(keys, contacts)
+
+  const bundle = { newContacts, newApplications, openActionItems, oaDueSoon: oaApps, overdueFollowUps, awaitingReply }
+  const hasAnything = Object.values(bundle).some(arr => arr.length > 0)
+  if (!hasAnything) {
+    console.log('Nothing to recap today.')
+    return
+  }
+
+  const { summary, todos } = generateRecapWithClaude(keys.anthropic, bundle)
+
+  supabaseReq(keys, 'post', '/daily_recaps?on_conflict=user_id,date', {
+    user_id:      keys.userId,
+    date:         todayStr,
+    summary_text: summary,
+    todo_json:    todos,
+  }, 'resolution=merge-duplicates,return=representation')
+
+  sendPush(keys, {
+    title:    '📋 Your daily recap',
+    message:  [summary, ...todos.map(t => `• ${t}`)].join('\n'),
+    priority: 'default',
+    tags:     ['clipboard'],
+    click:    keys.dashboardUrl || undefined,
+  })
+  console.log(`Daily recap generated and pushed: ${todos.length} todo(s)`)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN — runs every 10 minutes via trigger
 // ─────────────────────────────────────────────────────────────────────────────
@@ -240,12 +405,11 @@ function processRecruitingEmails() {
   // (1) threads already labeled 'recruiting' (inbound emails, or previously-discovered
   // sent/inbox threads — see the label-application step below), (2) recent Sent-folder
   // threads not yet labeled, which catches brand-new cold outreach the user sends, and
-  // (3) recent Inbox threads not yet labeled that look recruiting-shaped by sender/subject —
-  // this is what catches a fresh ATS "application received" email the user never manually
-  // labeled (see INBOX_SCAN_QUERY above for why this exists).
-  const labeledThreads = GmailApp.search(`label:${RECRUITING_LABEL}`, 0, 25)
-  const sentThreads     = GmailApp.search(SENT_SCAN_QUERY, 0, 25)
-  const inboxThreads    = GmailApp.search(INBOX_SCAN_QUERY, 0, 25)
+  // (3) recent Inbox threads not yet labeled (see INBOX_SCAN_QUERY above — ungated, every
+  // inbox thread in the window).
+  const labeledThreads = GmailApp.search(`label:${RECRUITING_LABEL}`, 0, SEARCH_CAP)
+  const sentThreads     = GmailApp.search(SENT_SCAN_QUERY, 0, SEARCH_CAP)
+  const inboxThreads    = GmailApp.search(INBOX_SCAN_QUERY, 0, SEARCH_CAP)
   const threadsById     = new Map()
   ;[...labeledThreads, ...sentThreads, ...inboxThreads].forEach(t => threadsById.set(t.getId(), t))
   const threads = [...threadsById.values()]
@@ -255,9 +419,16 @@ function processRecruitingEmails() {
     return
   }
 
+  console.log(`Scanning ${threads.length} thread(s)`)
+  processThreadList(threads, keys, props, myEmail)
+}
+
+// Core per-thread processing loop, shared by the regular 10-minute job above and
+// runBackfillChunk() below — the only difference between them is which threads get handed
+// in and over what date window they were discovered.
+function processThreadList(threads, keys, props, myEmail) {
   const doneLabel       = getOrCreateLabel(DONE_LABEL)
   const recruitingLabel = getOrCreateLabel(RECRUITING_LABEL)
-  console.log(`Scanning ${threads.length} thread(s)`)
 
   threads.forEach(thread => {
     const threadId = thread.getId()
@@ -273,6 +444,14 @@ function processRecruitingEmails() {
       const from     = msg.getFrom()
       const body     = msg.getPlainBody().slice(0, 4000)
       const date     = Utilities.formatDate(msg.getDate(), 'UTC', 'yyyy-MM-dd')
+      // A push should mean "this just happened" — without this gate, the first run after
+      // widening INBOX_SCAN_QUERY (or any runBackfillChunk() call) re-surfaces months of
+      // real-but-historical INTERVIEW_INVITE/OFFER/REJECTION mail, each firing a push, which
+      // burns through ntfy.sh's free-tier daily quota in seconds and blocks today's genuinely
+      // new notifications (hit exactly this in production, see git history). Contacts/
+      // applications/action-items/calendar events still get written regardless of age —
+      // only the push is age-gated.
+      const isFreshEnoughToPush = (Date.now() - msg.getDate().getTime()) <= PUSH_STALE_THRESHOLD_MS
 
       // Deterministic meeting signals, extracted before the Claude call so they can be fed
       // in as hints — an attached .ics or a Zoom/Meet/Teams link is more reliable evidence
@@ -294,12 +473,14 @@ function processRecruitingEmails() {
         ? '\n\nThis email\'s subject/body matches typical Online Assessment (OA) invite phrasing (HackerRank/CodeSignal/Codility/etc., or a generic "complete your assessment" template) — likely type OA_INVITE. Extract oa_due_date only if the email actually states a completion deadline, and oa_link as the URL the candidate clicks to start/complete the assessment.'
         : ''
       const companyHint = guessCompanyHint(from)
+      const shapeHint = recruitingShapeHint(from, subject, body)
+      const networkingHint = networkingShapeHint(subject, body)
 
       console.log(`→ "${subject}" from ${from} (${messages.length - seen} new message(s))`)
 
       const data = extractWithClaude(
         keys.anthropic, subject, from, body, date, invite, meetingLink,
-        applicationHint + referralHint + oaHint + companyHint,
+        applicationHint + referralHint + oaHint + companyHint + shapeHint + networkingHint,
       )
 
       if (!data || data.type === 'UNRELATED') {
@@ -333,9 +514,29 @@ function processRecruitingEmails() {
 
       const contactId = upsertContact(keys, data)
 
+      let applicationId = null
       if (['APPLICATION_CONFIRMATION', 'OA_INVITE', 'INTERVIEW_INVITE', 'OFFER', 'REJECTION'].includes(data.type)) {
-        upsertApplication(keys, data)
-        notifyStatusChange(keys, data)
+        applicationId = upsertApplication(keys, data)
+        if (isFreshEnoughToPush) {
+          notifyStatusChange(keys, data)
+        } else {
+          console.log(`  Skipped push — message is older than ${PUSH_STALE_THRESHOLD_MS / 86400000}d (catch-up scan, not a new event)`)
+        }
+      }
+
+      // Orthogonal to `type` — Claude flags a concrete next step whenever the email implies
+      // one, regardless of which (if any) contacts/applications row it also drove. See
+      // extractWithClaude()'s action_item/action_priority/action_due_date fields.
+      if (data.action_item) {
+        upsertActionItem(keys, {
+          gmailMessageId: msg.getId(),
+          threadId,
+          contactId,
+          applicationId,
+          summary: data.action_item,
+          priority: data.action_priority || 'medium',
+          dueDate: data.action_due_date || null,
+        })
       }
 
       if (data.interview_date) {
@@ -369,6 +570,66 @@ function processRecruitingEmails() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// BACKFILL — one-time historical catch-up beyond the regular job's rolling windows
+// (newer_than:30d/45d above). Resumable and chunked: Apps Script caps a single execution at
+// ~6 minutes on a consumer Google account, which a year of mail plus one Haiku call per
+// thread will not fit inside. Each call processes one BACKFILL_CHUNK_DAYS-day slice working
+// backward from "today" (or from wherever the last call left off) and stores its progress in
+// PropertiesService, so re-running it repeatedly — manually from the editor, or via a
+// temporary frequent time-driven trigger removed once done — eventually covers the whole
+// BACKFILL_TOTAL_DAYS window. Reuses processThreadList(), the exact same discovery+
+// classification path the regular 10-minute job uses, just against inbox+sent threads
+// outside its window (already-labeled threads don't need backfilling — that search has no
+// date bound and is already scanned continuously by the regular job).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BACKFILL_TOTAL_DAYS = 365 // how far back to backfill — edit before running for a different window
+const BACKFILL_CHUNK_DAYS = 14  // per-call window size, kept small to stay well inside the execution time cap
+const BACKFILL_SEARCH_CAP = 200 // per-chunk, per-folder search cap — raise if the log reports a chunk hitting it
+
+function runBackfillChunk() {
+  const keys    = getKeys()
+  const props   = PropertiesService.getScriptProperties()
+  const myEmail = Session.getActiveUser().getEmail().toLowerCase()
+
+  const todayMs  = new Date(Utilities.formatDate(new Date(), 'UTC', 'yyyy-MM-dd')).getTime()
+  const targetMs = todayMs - BACKFILL_TOTAL_DAYS * 86400000
+  const cursorMs = Number(props.getProperty('backfill_cursor_ms') || todayMs)
+
+  if (cursorMs <= targetMs) {
+    console.log(`Backfill already complete — cursor is at or past ${BACKFILL_TOTAL_DAYS} days ago. Run resetBackfillCursor() to redo it.`)
+    return
+  }
+
+  const chunkStartMs  = Math.max(cursorMs - BACKFILL_CHUNK_DAYS * 86400000, targetMs)
+  const newerThanDays = Math.ceil((todayMs - chunkStartMs) / 86400000)
+  const olderThanDays = Math.max(Math.ceil((todayMs - cursorMs) / 86400000), 0)
+  const dateClause    = `newer_than:${newerThanDays}d` + (olderThanDays > 0 ? ` older_than:${olderThanDays}d` : '')
+
+  const inboxThreads = GmailApp.search(`in:inbox -label:${RECRUITING_LABEL} ${dateClause}`, 0, BACKFILL_SEARCH_CAP)
+  const sentThreads  = GmailApp.search(`in:sent -label:${RECRUITING_LABEL} ${dateClause}`, 0, BACKFILL_SEARCH_CAP)
+  const threadsById  = new Map()
+  ;[...inboxThreads, ...sentThreads].forEach(t => threadsById.set(t.getId(), t))
+  const threads = [...threadsById.values()]
+
+  console.log(`Backfill chunk (${dateClause}): ${threads.length} thread(s)`
+    + ((inboxThreads.length >= BACKFILL_SEARCH_CAP || sentThreads.length >= BACKFILL_SEARCH_CAP) ? ' — capped, consider raising BACKFILL_SEARCH_CAP' : ''))
+
+  if (threads.length) processThreadList(threads, keys, props, myEmail)
+
+  props.setProperty('backfill_cursor_ms', String(chunkStartMs))
+  const doneDays = Math.ceil((todayMs - chunkStartMs) / 86400000)
+  console.log(`Backfill progress: covered the last ${doneDays}/${BACKFILL_TOTAL_DAYS} days.`
+    + (chunkStartMs <= targetMs ? ' ✓ Backfill complete.' : ' Run runBackfillChunk() again to continue.'))
+}
+
+// Run once before starting a fresh backfill (or to redo it after changing BACKFILL_TOTAL_DAYS).
+function resetBackfillCursor() {
+  PropertiesService.getScriptProperties().deleteProperty('backfill_cursor_ms')
+  console.log('Backfill cursor reset — the next runBackfillChunk() call starts from today.')
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CLAUDE — classify + extract in one Haiku call
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -382,11 +643,19 @@ function extractWithClaude(apiKey, subject, from, body, date, invite, meetingLin
     : ''
   const linkHint = meetingLink ? `\n\nA video meeting link was found in this email: ${meetingLink}` : ''
 
-  const prompt = `You are processing recruiting emails for a CS student targeting SWE internships.
+  const prompt = `You are processing a CS student's email for two equally-in-scope purposes: (1)
+formal recruiting-process signals (an application, assessment, interview, offer, or rejection at a
+specific company) and (2) professional networking — anyone who could plausibly help their job
+search or is worth tracking as a relationship, even with no specific application mentioned at all:
+someone met at a career fair or event, an alum or employee at a company being friendly, a
+coffee-chat or informational-interview thread, a referral offer, or general relationship-building/
+"let's stay in touch" mail. Neither category is more important than the other — a purely
+networking email with no job attached is just as relevant as a formal application update.
 
 Analyze this email. Return ONLY valid JSON — no explanation, no markdown.
 
-If not recruiting-related: {"type":"UNRELATED"}
+If genuinely unrelated to the candidate's job search or professional network (personal mail,
+spam, newsletters, unrelated logistics, etc.): {"type":"UNRELATED"}
 
 Otherwise return:
 {
@@ -403,7 +672,11 @@ Otherwise return:
   "meeting_link": "the Zoom/Google Meet/Teams/etc. video call URL if one is mentioned in the body, else null",
   "referrer_name": "the full name of the person who referred/recommended the candidate for this specific role, ONLY if the email explicitly says so (e.g. 'referred by Jane Doe', 'submitted your referral', 'thanks to an employee referral from...'). Otherwise null — never guess.",
   "oa_due_date": "YYYY-MM-DD if this is an Online Assessment invite AND the email states a completion deadline, else null — never guess or estimate a date that isn't actually stated",
-  "oa_link": "the URL the candidate clicks to start/complete the Online Assessment, if this is an OA_INVITE, else null"
+  "oa_link": "the URL the candidate clicks to start/complete the Online Assessment, if this is an OA_INVITE, else null",
+  "contact_phone": "a phone number for the sender, ONLY if one is explicitly given in their email signature/body (e.g. a mobile number under their name) — otherwise null, never guess or use a company switchboard number",
+  "action_item": "a specific one-line next step the candidate should personally take, phrased as an instruction (e.g. 'Reply to Jane about Tuesday's 2pm call', 'Submit the HackerRank assessment', 'Confirm the onsite date by Friday') — ONLY when the email actually implies the candidate needs to do something. Otherwise null. This is independent of 'type' above: an APPLICATION_CONFIRMATION can still have a null action_item, and a plain REPLY can carry a high-priority one.",
+  "action_priority": "'high'|'medium'|'low', matching how time-sensitive/important the action_item is — null if action_item is null",
+  "action_due_date": "YYYY-MM-DD if the email states or clearly implies a deadline for action_item, else null — never guess a date that isn't actually stated or clearly implied"
 }
 
 APPLICATION_CONFIRMATION means an automated "we received your application" acknowledgment
@@ -416,7 +689,18 @@ OA_INVITE means the email invites the candidate to complete an Online Assessment
 skills test, typically via HackerRank/CodeSignal/Codility/HackerEarth or a similar platform.
 Extract oa_due_date only when the email explicitly states a completion deadline ("complete by
 August 20", "you have 7 days to complete this assessment", etc.) — many OA invites don't state
-one at all, in which case leave it null rather than estimating from the email's send date.${inviteHint}${linkHint}${extraHints || ''}
+one at all, in which case leave it null rather than estimating from the email's send date.
+
+NEW_CONTACT means this introduces or continues a relationship with someone potentially useful to
+the candidate's professional network — met at a career fair/event, an alum, a friendly employee at
+a company of interest, someone offering to help or make an introduction — even if no specific
+job/application is mentioned at all. This should be used often for a networking-focused inbox, not
+treated as a rare fallback.
+
+FOLLOW_UP_NEEDED means a networking thread (not tied to a specific application stage) whose
+natural next step is for the candidate to follow up — say thanks, schedule a call, check in again
+later. Prefer this over REPLY when the email is relationship-building rather than a reply within a
+formal application process.${inviteHint}${linkHint}${extraHints || ''}
 
 Subject: ${subject}
 From: ${from}
@@ -506,7 +790,7 @@ function guessCompanyHint(fromHeader) {
 // Raw HTTP against Supabase's PostgREST API — Apps Script has no npm, so this stands in for
 // what api/_lib/supabaseAdmin.js does with @supabase/supabase-js elsewhere in this repo. The
 // service-role key bypasses RLS entirely, same trust level as that file's supabaseAdmin().
-function supabaseReq(keys, method, path, body) {
+function supabaseReq(keys, method, path, body, prefer) {
   const opts = {
     method,
     muteHttpExceptions: true,
@@ -514,7 +798,7 @@ function supabaseReq(keys, method, path, body) {
       'apikey':        keys.supabaseKey,
       'Authorization': `Bearer ${keys.supabaseKey}`,
       'Content-Type':  'application/json',
-      'Prefer':        'return=representation',
+      'Prefer':        prefer || 'return=representation',
     },
   }
   if (body) opts.payload = JSON.stringify(body)
@@ -549,15 +833,19 @@ function upsertContact(keys, data) {
 
   // Try to find existing contact by email
   let existingId = null
+  let existingPhone = null
   if (data.contact_email) {
     const res = supabaseReq(keys, 'get',
-      `/contacts?user_id=eq.${keys.userId}&email=eq.${encodeURIComponent(data.contact_email)}&select=id&limit=1`)
+      `/contacts?user_id=eq.${keys.userId}&email=eq.${encodeURIComponent(data.contact_email)}&select=id,phone&limit=1`)
     existingId = res?.[0]?.id
+    existingPhone = res?.[0]?.phone
   }
 
   // Status is only set on create, not on every update — otherwise re-processing a thread
   // would silently overwrite a status you'd manually changed in the UI (e.g. to Hot) back to
-  // the default 'Cooling'. Everything else refreshes on every run.
+  // the default 'Cooling'. Everything else refreshes on every run. Phone follows the same
+  // non-clobber rule as referred_by_id below — a later email's opportunistic signature
+  // extraction should never overwrite a number already on file (e.g. one entered by hand).
   const updateProps = {
     company:          data.company || '',
     last_interaction: today,
@@ -565,6 +853,7 @@ function upsertContact(keys, data) {
     urgency:          data.urgency || 'LOW',
     notes:            data.summary || '',
     ...(data.contact_email ? { email: data.contact_email } : {}),
+    ...(data.contact_phone && !existingPhone ? { phone: data.contact_phone } : {}),
   }
 
   if (existingId) {
@@ -666,8 +955,9 @@ function upsertApplication(keys, data) {
     if (stage === 'Rejected' || newRank >= currentRank) props.stage = stage
     supabaseReq(keys, 'patch', `/applications?id=eq.${existing.id}`, props)
     console.log(`  Application updated → ${props.stage || existing.stage}`)
+    return existing.id
   } else {
-    supabaseReq(keys, 'post', '/applications', {
+    const created = supabaseReq(keys, 'post', '/applications', {
       user_id:      keys.userId,
       company:      data.company || 'Unknown',
       applied_date: today,
@@ -675,7 +965,26 @@ function upsertApplication(keys, data) {
       ...props,
     })
     console.log(`  Application created → ${stage}`)
+    return created?.[0]?.id
   }
+}
+
+// One row per email message that carried an actionable next step (see extractWithClaude's
+// action_item field) — unique on (user_id, gmail_message_id) so re-processing a thread never
+// duplicates a row (upsert, not insert-only, since a re-run should still refresh
+// summary/priority/due_date if Claude's read of the same message ever changes).
+function upsertActionItem(keys, { gmailMessageId, threadId, contactId, applicationId, summary, priority, dueDate }) {
+  supabaseReq(keys, 'post', '/email_action_items?on_conflict=user_id,gmail_message_id', {
+    user_id:          keys.userId,
+    gmail_message_id: gmailMessageId,
+    thread_id:        threadId || null,
+    contact_id:       contactId || null,
+    application_id:   applicationId || null,
+    summary,
+    priority,
+    due_date:         dueDate,
+  }, 'resolution=merge-duplicates,return=representation')
+  console.log(`  Action item: ${summary}`)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -831,6 +1140,8 @@ function setup() {
   console.log('')
   console.log('Next: Triggers (clock icon) → Add Trigger → processRecruitingEmails → Time-driven → Every 10 minutes')
   console.log('Optional: Triggers → Add Trigger → checkOaDeadlines → Time-driven → Day timer, for daily OA-deadline pushes')
+  console.log('Optional: Triggers → Add Trigger → generateDailyRecap → Time-driven → Day timer, for the daily AI recap')
+  console.log('One-time: run runBackfillChunk() repeatedly (or via a temporary frequent Trigger) to catch up on older mail')
 }
 
 // Send yourself a test email, then run this to process it immediately
@@ -841,6 +1152,11 @@ function runNow() {
 // Manually trigger the OA-deadline digest push (normally runs once/day via its own trigger)
 function runOaCheckNow() {
   checkOaDeadlines()
+}
+
+// Manually trigger the daily recap (normally runs once/day via its own trigger)
+function runDailyRecapNow() {
+  generateDailyRecap()
 }
 
 // Sends one test push to confirm NTFY_TOPIC is wired up correctly

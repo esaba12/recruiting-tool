@@ -33,7 +33,7 @@ export async function linkGoogleIdentity() {
 // just asks Google for calendar.events access and stores the resulting refresh token
 // against whichever slot was requested.
 export async function connectGoogleCalendar(slot = 'personal') {
-  const res = await fetch(`/api/google-oauth-start?slot=${slot}`, { headers: await authHeader() })
+  const res = await fetch(`/api/google-connect?slot=${slot}&action=start`, { headers: await authHeader() })
   if (!res.ok) {
     const e = await res.json().catch(() => ({}))
     throw new Error(e.error?.message || 'Failed to start Google Calendar connection')
@@ -50,6 +50,32 @@ export async function getGoogleCalendarStatus(slot = 'personal') {
 
 export async function disconnectGoogleCalendar(slot = 'personal') {
   const res = await fetch(`/api/google-connect?slot=${slot}`, { method: 'DELETE', headers: await authHeader() })
+  if (!res.ok) throw new Error('Failed to disconnect')
+  return res.json()
+}
+
+// "Connect Gmail" (networking pipeline — api/_lib/emailPipeline.js) — same direct-OAuth
+// shape as connectGoogleCalendar above, but unslotted: a user can connect any number of
+// Gmail accounts, each identified by whichever email Google returns after consent, not a
+// fixed personal/school choice made upfront.
+export async function connectGmail() {
+  const res = await fetch('/api/gmail?action=start', { headers: await authHeader() })
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}))
+    throw new Error(e.error?.message || 'Failed to start Gmail connection')
+  }
+  const { authUrl } = await res.json()
+  window.location.href = authUrl
+}
+
+export async function listGmailConnections() {
+  const res = await fetch('/api/gmail', { headers: await authHeader() })
+  if (!res.ok) return []
+  return res.json()
+}
+
+export async function disconnectGmail(email) {
+  const res = await fetch(`/api/gmail?email=${encodeURIComponent(email)}`, { method: 'DELETE', headers: await authHeader() })
   if (!res.ok) throw new Error('Failed to disconnect')
   return res.json()
 }

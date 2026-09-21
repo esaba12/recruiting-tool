@@ -104,6 +104,7 @@ export default function ContactsTable({ contacts, onEdit, onMet }) {
       cell: info => (
         <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
           {info.row.original.email && <a href={`mailto:${info.row.original.email}`} className="text-accent-500 hover:underline">Email</a>}
+          {info.row.original.phone && <a href={`sms:${info.row.original.phone}`} className="text-accent-500 hover:underline">Text</a>}
           {info.row.original.linkedin && <a href={info.row.original.linkedin} target="_blank" rel="noreferrer" className="text-accent-500 hover:underline">LinkedIn</a>}
         </div>
       ),

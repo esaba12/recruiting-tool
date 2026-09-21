@@ -40,3 +40,19 @@ export function baseUrl(req) {
 export function redirectUri(req) {
   return `${baseUrl(req)}/api/google-oauth-callback`
 }
+
+// gmail.readonly: read-only access to list/read messages for the networking pipeline
+// (api/_lib/emailPipeline.js, api/gmail-scan.js) — a Google *restricted* scope (same
+// unverified-app Testing-mode situation as CALENDAR_APP_CREATED_SCOPE above: capped at
+// ~100 test users + a click-through warning until the OAuth consent screen goes through
+// Google's verification/security review). Deliberately not gmail.modify/gmail.labels —
+// this pipeline never writes to Gmail (no labels, no sending), so the narrowest scope
+// that can actually read message content is all it asks for.
+export const GMAIL_READONLY_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly'
+export const GMAIL_OAUTH_SCOPE = `${GMAIL_READONLY_SCOPE} email`
+
+// Single consolidated endpoint (api/gmail.js) handles start/callback/connect/scan — see its
+// header comment for why (Vercel Hobby's 12-serverless-function cap).
+export function gmailRedirectUri(req) {
+  return `${baseUrl(req)}/api/gmail`
+}

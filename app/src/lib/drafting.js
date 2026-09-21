@@ -39,7 +39,7 @@ const TIER_GUIDANCE = {
   3: 'Final low-pressure check-in — explicitly give them an easy out ("no worries if the timing isn\'t right"), keep it very short.',
 }
 
-// content-block builder for both cold-open and follow-up drafts. For cold_open,
+// content-block builder for cold-open, follow-up, and text-follow-up drafts. For cold_open,
 // personalizationContext is required — generic cold outreach gets <1% response vs.
 // 10-15%+ for genuinely personalized messages, so a template fallback here would
 // silently defeat the point of the feature. Enforced here (not just in the UI) so any
@@ -47,6 +47,23 @@ const TIER_GUIDANCE = {
 export function buildDraftPrompt({ contact, kind, tier, personalizationContext, profile }) {
   const clause = isPersonalContact(contact) ? '' : personaClause(profile)
   const from = clause ? ` from ${clause}` : ''
+
+  if (kind === 'text_follow_up') {
+    return `Draft a short text message${from} to a contact who hasn't responded to an earlier outreach. Return ONLY valid JSON, no explanation, no markdown.
+
+Contact: ${contact.name}${contact.company ? ` (${contact.company}${contact.role ? `, ${contact.role}` : ''})` : ''}
+This is follow-up tier ${tier} of 3. ${TIER_GUIDANCE[tier]}
+
+{
+  "draft": "1-2 sentence text message matching the tone guidance above. Casual, texting register — not an email. No greeting like \\"Dear\\" or a formal sign-off.",
+  "subjectLine": null
+}
+
+Rules:
+- Do not repeat the same phrasing a first message would use — this should read like a distinct, brief nudge, not a resend.
+- Keep it under 30 words — this is a text, not an email.
+- Tier 3 must include an explicit low-pressure opt-out.`
+  }
 
   if (kind === 'cold_open') {
     if (!personalizationContext?.trim()) {

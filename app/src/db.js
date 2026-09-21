@@ -64,6 +64,7 @@ function mapContactRow(r) {
     company: r.company || '',
     role: r.role || '',
     email: r.email || '',
+    phone: r.phone || '',
     linkedin: r.linkedin || null,
     source: r.source || '',
     status: r.status || '🟡 Cooling',
@@ -103,12 +104,12 @@ export async function searchContactByName(name) {
   return data?.[0] || null
 }
 
-export async function addContact({ name, company, role, email }) {
+export async function addContact({ name, company, role, email, phone }) {
   const roleSelect = ROLE_OPTIONS.find(r => role?.toLowerCase().includes(r.toLowerCase())) || 'Other'
   if (isDemoMode()) {
     const id = nextDemoId()
     demoStore().contacts.push({
-      id, name, company: company || '', role: roleSelect, email: email || '', linkedin: null, source: '',
+      id, name, company: company || '', role: roleSelect, email: email || '', phone: phone || '', linkedin: null, source: '',
       status: '🟡 Cooling', urgency: 'LOW', lastInteraction: todayStr(), followUpDate: plusDays(3), notes: '',
       whatTheyDid: '', referredById: null, followUpDraft: '', followUpDraftTier: null, followUpDraftKind: '',
       isUMichAlum: false, affinity: [], lifeDomain: [], wantsToSchedule: false, scheduleBy: null, scheduleNote: '',
@@ -121,6 +122,7 @@ export async function addContact({ name, company, role, email }) {
     company: company || null,
     role: roleSelect,
     email: email || null,
+    phone: phone || null,
     status: '🟡 Cooling',
     last_interaction: todayStr(),
     follow_up_date: plusDays(3),
@@ -133,6 +135,7 @@ const CONTACT_FIELD_MAP = {
   name: 'name',
   company: 'company',
   email: 'email',
+  phone: 'phone',
   linkedin: 'linkedin',
   notes: 'notes',
   whatTheyDid: 'what_they_did',
@@ -141,7 +144,7 @@ const CONTACT_FIELD_MAP = {
 }
 
 const CONTACT_DEMO_KEYS = [
-  'name', 'company', 'role', 'email', 'linkedin', 'notes', 'whatTheyDid', 'followUpDraft', 'scheduleNote',
+  'name', 'company', 'role', 'email', 'phone', 'linkedin', 'notes', 'whatTheyDid', 'followUpDraft', 'scheduleNote',
   'source', 'status', 'urgency', 'lastInteraction', 'followUpDate', 'referredById', 'followUpDraftTier',
   'followUpDraftKind', 'isUMichAlum', 'affinity', 'lifeDomain', 'exaEnriched', 'wantsToSchedule', 'scheduleBy', 'referralStatus',
 ]
@@ -451,6 +454,61 @@ export async function deleteContactRelationship(id) {
   }
   const { error } = await supabase.from('contact_relationships').delete().eq('id', id)
   throwIfError(error, 'deleteContactRelationship')
+}
+
+// ── AI action items + daily recap (email pipeline's discovery/classification rewrite) ──
+// email_action_items is written by scripts/email-pipeline.js (service-role key, bypasses
+// RLS) whenever a processed email implies a concrete next step — this is read-only CRUD
+// from the client's side (mark done / dismiss), never created here. daily_recaps is
+// likewise pipeline-written; fetchDailyRecap just reads today's (or the most recent) row
+// for TodayTab's recap card. Demo mode returns nothing for both — an anonymous /demo
+// visitor has no pipeline running against them, same reasoning as fetchTargetCompanies().
+
+function mapActionItemRow(r) {
+  return {
+    id: r.id,
+    gmailMessageId: r.gmail_message_id,
+    threadId: r.thread_id || null,
+    contactId: r.contact_id || null,
+    applicationId: r.application_id || null,
+    summary: r.summary,
+    priority: r.priority || 'medium',
+    dueDate: r.due_date || null,
+    createdAt: r.created_at,
+    completedAt: r.completed_at || null,
+    dismissedAt: r.dismissed_at || null,
+  }
+}
+
+export async function fetchActionItems() {
+  if (isDemoMode()) return []
+  const { data, error } = await supabase.from('email_action_items').select('*')
+    .is('completed_at', null).is('dismissed_at', null)
+  throwIfError(error, 'fetchActionItems')
+  return (data || []).map(mapActionItemRow)
+}
+
+export async function completeActionItem(id) {
+  if (isDemoMode()) return
+  const { error } = await supabase.from('email_action_items')
+    .update({ completed_at: new Date().toISOString() }).eq('id', id)
+  throwIfError(error, 'completeActionItem')
+}
+
+export async function dismissActionItem(id) {
+  if (isDemoMode()) return
+  const { error } = await supabase.from('email_action_items')
+    .update({ dismissed_at: new Date().toISOString() }).eq('id', id)
+  throwIfError(error, 'dismissActionItem')
+}
+
+export async function fetchDailyRecap() {
+  if (isDemoMode()) return null
+  const { data, error } = await supabase.from('daily_recaps').select('*')
+    .order('date', { ascending: false }).limit(1).maybeSingle()
+  throwIfError(error, 'fetchDailyRecap')
+  if (!data) return null
+  return { date: data.date, summaryText: data.summary_text, todos: data.todo_json || [], createdAt: data.created_at }
 }
 
 // ── Target companies (Explore/Discover/Coverage's shared target-company list) ──

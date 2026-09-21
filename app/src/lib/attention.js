@@ -60,6 +60,24 @@ export function needsReviewApps(apps) {
   return apps.filter(a => a.triage === 'Needs Review' && a.stage === 'Wishlist')
 }
 
+// Open (not completed/dismissed) AI-flagged action items from the email pipeline's
+// classification pass — a specific one-line next step ("reply to Jane about Tuesday's
+// call"), distinct from every other section here in that it's authored by Claude at
+// classification time rather than inferred after the fact from stale dates. Sorted
+// high→medium→low priority, then soonest due date within a tier.
+const ACTION_ITEM_PRIORITY_RANK = { high: 0, medium: 1, low: 2 }
+
+export function openActionItems(items) {
+  return [...items].sort((a, b) => {
+    const rankDiff = (ACTION_ITEM_PRIORITY_RANK[a.priority] ?? 1) - (ACTION_ITEM_PRIORITY_RANK[b.priority] ?? 1)
+    if (rankDiff !== 0) return rankDiff
+    if (!a.dueDate && !b.dueDate) return 0
+    if (!a.dueDate) return 1
+    if (!b.dueDate) return -1
+    return new Date(a.dueDate) - new Date(b.dueDate)
+  })
+}
+
 // Thin re-export, do NOT duplicate lib/keepInTouch.js's cadence math
 export { keepInTouchQueue as keepInTouchDue } from './keepInTouch.js'
 

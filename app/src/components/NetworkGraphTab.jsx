@@ -36,6 +36,7 @@ export default function NetworkGraphTab({ contacts, contactRelationships = [] })
             </div>
             {selected.referredByName && <p className="text-xs text-ink-500">Referred by <strong>{selected.referredByName}</strong></p>}
             {selected.email && <p className="text-xs"><a href={`mailto:${selected.email}`} className="text-accent-500 hover:underline">{selected.email}</a></p>}
+            {selected.phone && <p className="text-xs"><a href={`sms:${selected.phone}`} className="text-accent-500 hover:underline">Text {selected.phone}</a></p>}
             {selected.linkedin && <p className="text-xs"><a href={selected.linkedin} target="_blank" rel="noreferrer" className="text-accent-500 hover:underline">LinkedIn ↗</a></p>}
             {selected.whatTheyDid && <p className="text-xs text-ink-500 italic mt-2">"{selected.whatTheyDid}"</p>}
           </div>

@@ -1,7 +1,7 @@
 {
   "rewrites": [
     { "source": "/gh-api/:path*", "destination": "/api/gh-api?path=:path*" },
-    { "source": "/gh-contrib/:path*", "destination": "/api/gh-contrib?path=:path*" },
+    { "source": "/gh-contrib/:path*", "destination": "/api/gh-api?path=:path*&upstream=contrib" },
     { "source": "/claude-api/:path*", "destination": "/api/claude-api?path=:path*" },
     { "source": "/google-calendar/:path*", "destination": "/api/google-calendar?path=:path*" },
     { "source": "/exa/:path*", "destination": "/api/exa?path=:path*" },

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { authHeader, supabase } from '../lib/supabaseClient.js'
-import { connectGoogleCalendar, disconnectGoogleCalendar, getGoogleCalendarStatus, linkGoogleIdentity } from '../lib/googleAuth.js'
+import { connectGoogleCalendar, disconnectGoogleCalendar, getGoogleCalendarStatus, linkGoogleIdentity, connectGmail, listGmailConnections, disconnectGmail } from '../lib/googleAuth.js'
 import { CALENDAR_SLOTS } from '../googleCalendar.js'
 import { fetchSchools, getUserSetting, setUserSetting } from '../db.js'
 import { SYNC_SETTING_KEY, DEFAULT_SYNC } from '../lib/useEventCalendarSync.js'
@@ -26,6 +26,8 @@ export default function SettingsTab() {
   const [savingProvider, setSavingProvider] = useState(null)
   const [calStatus, setCalStatus] = useState(() => Object.fromEntries(Object.keys(CALENDAR_SLOTS).map(k => [k, { connected: false, email: null }])))
   const [connectingSlot, setConnectingSlot] = useState(null)
+  const [gmailConnections, setGmailConnections] = useState([])
+  const [connectingGmail, setConnectingGmail] = useState(false)
   const [profileForm, setProfileForm] = useState(null)
   const [schools, setSchools] = useState([])
   const [syncSetting, setSyncSetting] = useState(null)
@@ -56,6 +58,7 @@ export default function SettingsTab() {
     })
     fetchSchools().then(setSchools).catch(() => setSchools([]))
     getUserSetting(SYNC_SETTING_KEY).then(v => setSyncSetting({ ...DEFAULT_SYNC, ...(v || {}) })).catch(() => setSyncSetting(DEFAULT_SYNC))
+    listGmailConnections().then(setGmailConnections).catch(() => setGmailConnections([]))
   }, [])
   useEffect(() => {
     if (profile) setProfileForm({
@@ -158,6 +161,25 @@ export default function SettingsTab() {
         setError(e.message)
         setConnectingSlot(null)
       }
+    }
+  }
+
+  async function handleConnectGmail() {
+    setConnectingGmail(true); setError(null)
+    try {
+      await connectGmail() // redirects away on success — connections list refreshes on return
+    } catch (e) {
+      setError(e.message)
+      setConnectingGmail(false)
+    }
+  }
+
+  async function handleDisconnectGmail(email) {
+    try {
+      await disconnectGmail(email)
+      setGmailConnections(cs => cs.filter(c => c.email !== email))
+    } catch (e) {
+      setError(e.message)
     }
   }
 
@@ -289,6 +311,37 @@ export default function SettingsTab() {
             </div>
           )
         })}
+      </section>
+
+      {/* Networking email accounts — any number of connected Gmail accounts, scanned
+          periodically for recruiting/networking signals (contacts, applications, follow-up
+          action items). See api/_lib/emailPipeline.js. */}
+      <section className="bg-white rounded-2xl border border-ink-100 p-5 space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-ink-900">Networking Email Accounts</h3>
+          <p className="text-xs text-ink-400">
+            Connect any Gmail account (personal, school, work) to automatically track contacts, applications, and
+            follow-up steps from your email — no setup beyond this one click.
+          </p>
+        </div>
+        {!keys.find(k => k.provider === 'anthropic')?.hasKey && (
+          <p className="text-[11px] text-warning-700 bg-warning-50 border border-warning-200 rounded-lg px-2.5 py-1.5">
+            ⚠ Add your Anthropic key above first — scanning uses it to classify your email and silently skips
+            any connected account until one is set.
+          </p>
+        )}
+        {gmailConnections.map(c => (
+          <div key={c.email} className="flex items-center gap-2">
+            <Badge label={c.email} color="bg-success-50 text-success-700" />
+            <span className="text-[11px] text-ink-400">
+              {c.lastScannedAt ? `Last scanned ${new Date(c.lastScannedAt).toLocaleString()}` : 'Not scanned yet'}
+            </span>
+            <Button size="sm" variant="ghost" onClick={() => handleDisconnectGmail(c.email)}>Disconnect</Button>
+          </div>
+        ))}
+        <Button size="sm" variant="secondary" onClick={handleConnectGmail} disabled={connectingGmail}>
+          {connectingGmail ? 'Redirecting...' : '+ Connect another Gmail account'}
+        </Button>
       </section>
 
       {/* Google Calendar — up to two independent connections (e.g. a personal Gmail

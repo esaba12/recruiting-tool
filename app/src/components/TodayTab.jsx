@@ -1,19 +1,20 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
 import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TYPE_COLOR, fmt, daysUntil, daysSince, Badge, EmptyState, isUntriaged } from '../shared.jsx'
-import { updateContact, addInteraction, updateApplicationTriage, archiveApplication, updateApplication } from '../db.js'
+import { updateContact, addInteraction, updateApplicationTriage, archiveApplication, updateApplication, completeActionItem, dismissActionItem } from '../db.js'
 import BarChartWrapper from './charts/BarChart.jsx'
 import DonutChart from './charts/DonutChart.jsx'
 import TrendChart from './charts/TrendChart.jsx'
 import { STATUS_CHART_COLORS } from './charts/theme.js'
 import { logMetWithContact } from '../lib/quickLog.js'
-import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue, awaitingReply } from '../lib/attention.js'
+import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue, awaitingReply, openActionItems } from '../lib/attention.js'
 import { lastPointOfContact } from '../lib/keepInTouch.js'
 import { tieStrengthBucket } from '../lib/affinity.js'
 import { statusIconFor } from '../lib/icons.js'
 import useTimelineFinds from '../lib/useTimelineFinds.js'
 import { BUCKET_CONFIG, BUCKET_TAG, BUCKET_TO_TRIAGE } from './jobBoards/helpers.js'
 import DraftPanel from './DraftPanel.jsx'
+import TextDraftPanel from './TextDraftPanel.jsx'
 import SidePanel from './ui/SidePanel.jsx'
 import ContactPanelBody from './panels/ContactPanelBody.jsx'
 import ApplicationPanelBody from './panels/ApplicationPanelBody.jsx'
@@ -23,7 +24,7 @@ import TimelineFindsPanel from './TimelineFindsPanel.jsx'
 import StatTileRow from './StatTileRow.jsx'
 import Mono from './ui/Mono.jsx'
 import { Section, RowCap, HEADING_COLOR } from './ui/Section.jsx'
-import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity, MailQuestion } from 'lucide-react'
+import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity, MailQuestion, ListTodo, Sparkles } from 'lucide-react'
 
 // Matches KeepInTouchTab.jsx:8 exactly — private to that component there, ported verbatim
 // here since it isn't exported.
@@ -42,7 +43,7 @@ function hasNewerInteraction(contact, interactions) {
 }
 
 function OverdueRow({ contact: c, interactions, onRefresh, onOpen }) {
-  const [expanded, setExpanded] = useState(false)
+  const [panel, setPanel] = useState(null) // null | 'draft' | 'text'
   const [marking, setMarking] = useState(false)
   const alreadyTouched = hasNewerInteraction(c, interactions)
 
@@ -72,9 +73,14 @@ function OverdueRow({ contact: c, interactions, onRefresh, onOpen }) {
             Was due <Mono>{fmt(c.followUpDate)}</Mono> (<Mono className="text-danger-600 font-medium">{Math.abs(daysUntil(c.followUpDate))}d</Mono> ago)
           </p>
           <div className="flex items-center gap-2 justify-end">
-            <button onClick={() => setExpanded(e => !e)} className="text-xs text-accent-500 hover:underline">
-              {expanded ? 'Hide' : alreadyTouched ? 'Details' : 'Draft follow-up'}
+            <button onClick={() => setPanel(p => p === 'draft' ? null : 'draft')} className="text-xs text-accent-500 hover:underline">
+              {panel === 'draft' ? 'Hide' : alreadyTouched ? 'Details' : 'Draft follow-up'}
             </button>
+            {c.phone && (
+              <button onClick={() => setPanel(p => p === 'text' ? null : 'text')} className="text-xs text-accent-500 hover:underline">
+                {panel === 'text' ? 'Hide' : 'Text'}
+              </button>
+            )}
             <button onClick={markFollowedUp} disabled={marking} className="text-xs text-ink-400 hover:text-ink-600 hover:underline disabled:opacity-40">
               {marking ? 'Marking...' : 'Mark followed up'}
             </button>
@@ -82,7 +88,7 @@ function OverdueRow({ contact: c, interactions, onRefresh, onOpen }) {
         </div>
       </div>
 
-      {expanded && (
+      {panel === 'draft' && (
         alreadyTouched
           ? (
             <div className="bg-warning-50 border border-warning-200 rounded-xl p-3 mt-2 text-xs text-warning-800">
@@ -91,6 +97,7 @@ function OverdueRow({ contact: c, interactions, onRefresh, onOpen }) {
           )
           : <DraftPanel contact={c} kind="follow_up" daysOverdue={Math.abs(daysUntil(c.followUpDate))} onSaved={onRefresh} />
       )}
+      {panel === 'text' && <TextDraftPanel contact={c} daysOverdue={Math.abs(daysUntil(c.followUpDate))} />}
     </div>
   )
 }
@@ -101,7 +108,7 @@ function OverdueRow({ contact: c, interactions, onRefresh, onOpen }) {
 // (which just resets the clock, same as a fresh Outbound interaction would).
 function AwaitingReplyRow({ item, onRefresh, onOpen }) {
   const { contact: c, lastInteraction, daysWaiting } = item
-  const [expanded, setExpanded] = useState(false)
+  const [panel, setPanel] = useState(null) // null | 'draft' | 'text'
   const [busy, setBusy] = useState(false)
 
   async function logReply() {
@@ -127,16 +134,22 @@ function AwaitingReplyRow({ item, onRefresh, onOpen }) {
             No reply in <Mono className="text-warning-700 font-medium">{daysWaiting}d</Mono>
           </p>
           <div className="flex items-center gap-2 justify-end">
-            <button onClick={() => setExpanded(e => !e)} className="text-xs text-accent-500 hover:underline">
-              {expanded ? 'Hide' : 'Draft nudge'}
+            <button onClick={() => setPanel(p => p === 'draft' ? null : 'draft')} className="text-xs text-accent-500 hover:underline">
+              {panel === 'draft' ? 'Hide' : 'Draft nudge'}
             </button>
+            {c.phone && (
+              <button onClick={() => setPanel(p => p === 'text' ? null : 'text')} className="text-xs text-accent-500 hover:underline">
+                {panel === 'text' ? 'Hide' : 'Text'}
+              </button>
+            )}
             <button onClick={logReply} disabled={busy} className="text-xs text-ink-400 hover:text-ink-600 hover:underline disabled:opacity-40">
               {busy ? 'Marking...' : 'They replied'}
             </button>
           </div>
         </div>
       </div>
-      {expanded && <DraftPanel contact={c} kind="follow_up" daysOverdue={daysWaiting} onSaved={onRefresh} />}
+      {panel === 'draft' && <DraftPanel contact={c} kind="follow_up" daysOverdue={daysWaiting} onSaved={onRefresh} />}
+      {panel === 'text' && <TextDraftPanel contact={c} daysOverdue={daysWaiting} />}
     </div>
   )
 }
@@ -360,6 +373,81 @@ function OaRow({ app: a, needsCheck, onOpen, onRefresh }) {
   )
 }
 
+// An AI-flagged action item from the email pipeline's classification pass (see
+// lib/attention.js's openActionItems()) — distinct from every other row type in this file
+// in that Claude authored the summary text directly at classification time, rather than it
+// being inferred after the fact from a stale date. Two ways off the list: mark it done, or
+// dismiss it as not actually actionable.
+function ActionItemRow({ item, contacts, onRefresh, onOpen }) {
+  const [busy, setBusy] = useState(false)
+  const contact = item.contactId ? contacts.find(c => c.id === item.contactId) : null
+  const priorityColor = { high: URGENCY_COLOR.HIGH, medium: URGENCY_COLOR.MED, low: URGENCY_COLOR.LOW }[item.priority] || URGENCY_COLOR.MED
+
+  async function act(fn) {
+    setBusy(true)
+    try {
+      await fn(item.id)
+      onRefresh?.()
+    } catch {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 cursor-pointer" onClick={() => contact && onOpen(contact)}>
+          <p className="text-sm font-medium text-ink-900">{item.summary}</p>
+          {contact && <p className="text-xs text-ink-500">{[contact.name, contact.company].filter(Boolean).join(' · ')}</p>}
+        </div>
+        <div className="text-right shrink-0 space-y-1">
+          <Badge label={item.priority.toUpperCase()} color={priorityColor} />
+          {item.dueDate && (
+            <p className={`text-xs font-medium ${daysUntil(item.dueDate) <= 0 ? 'text-danger-600' : 'text-ink-500'}`}>
+              Due <Mono>{fmt(item.dueDate)}</Mono>
+            </p>
+          )}
+          <div className="flex items-center gap-2 justify-end">
+            <button onClick={() => act(completeActionItem)} disabled={busy} className="text-xs text-accent-500 hover:underline disabled:opacity-40">
+              {busy ? '...' : '✓ Done'}
+            </button>
+            <button onClick={() => act(dismissActionItem)} disabled={busy} className="text-xs text-ink-400 hover:text-ink-600 hover:underline disabled:opacity-40">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Read-only display of the pipeline's daily AI recap (generateDailyRecap() in
+// scripts/email-pipeline.js) — the same content already pushed via ntfy, mirrored here so
+// it's still visible in-app after the push notification is gone. Deliberately no
+// interactive state here (no checkboxes on todo_json's bullets) — the actionable version of
+// the same information lives in the Action Items section above, so nothing is duplicated
+// across two independently-clickable surfaces.
+function DailyRecapCard({ recap }) {
+  if (!recap) return null
+  return (
+    <Section title="Today's Recap" accent="ink" icon={Sparkles}>
+      <div className="py-2 space-y-3">
+        <p className="text-sm text-ink-600">{recap.summaryText}</p>
+        {recap.todos?.length > 0 && (
+          <ul className="space-y-1.5">
+            {recap.todos.map((t, i) => (
+              <li key={i} className="text-sm text-ink-700 flex items-start gap-2">
+                <span className="text-accent-500 mt-0.5">•</span>
+                <span>{typeof t === 'string' ? t : t.text}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Section>
+  )
+}
+
 // Monday-anchored ISO week start, used to bucket interactions for the trend chart.
 function weekStart(d) {
   const date = new Date(d)
@@ -446,7 +534,8 @@ function ActivitySection({ contacts, apps, interactions }) {
   )
 }
 
-export default function TodayTab({ contacts, apps, interactions = [], calls = [], relationships = [], onFindPeople, onRefresh, onRefreshRelationships, isDemoMode = false }) {
+export default function TodayTab({ contacts, apps, interactions = [], calls = [], relationships = [], actionItems = [], dailyRecap = null, onFindPeople, onRefresh, onRefreshRelationships, isDemoMode = false }) {
+  const openItems = openActionItems(actionItems)
   const overdueContacts = overdueFollowUps(contacts)
   const staleApps = staleApplications(apps)
   const highUrgency = highUrgencyContacts(contacts)
@@ -491,11 +580,28 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
   const allEmpty = overdueContacts.length === 0 && staleApps.length === 0 && highUrgency.length === 0
     && keepInTouch.length === 0 && needsReview.length === 0 && scheduleContacts.length === 0
     && oaDueList.length === 0 && oaNeedsCheckList.length === 0 && awaitingReplyList.length === 0
+    && openItems.length === 0
     && (isDemoMode || timelineFinds.length === 0)
 
   return (
     <motion.div className="space-y-4" variants={container} initial="hidden" animate="show">
+      {dailyRecap && (
+        <motion.div variants={rise}>
+          <DailyRecapCard recap={dailyRecap} />
+        </motion.div>
+      )}
+
       {allEmpty && <EmptyState msg="✓ Nothing needs your attention. You're on top of it." />}
+
+      {openItems.length > 0 && (
+        <motion.div variants={rise}>
+          <Section title={`Action Items (${openItems.length})`} accent="warning" icon={ListTodo}
+            subtitle="Flagged by AI while processing your email — a specific next step, not just a stale date.">
+            <RowCap items={openItems} tier="warning"
+              renderItem={item => <ActionItemRow key={item.id} item={item} contacts={contacts} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} />} />
+          </Section>
+        </motion.div>
+      )}
 
       {overdueContacts.length > 0 && (
         <motion.div variants={rise}>
