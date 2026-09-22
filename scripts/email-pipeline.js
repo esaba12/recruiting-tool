@@ -515,10 +515,11 @@ function processThreadList(threads, keys, props, myEmail) {
       const contactId = upsertContact(keys, data)
 
       let applicationId = null
+      let shouldPush    = false
       if (['APPLICATION_CONFIRMATION', 'OA_INVITE', 'INTERVIEW_INVITE', 'OFFER', 'REJECTION'].includes(data.type)) {
         applicationId = upsertApplication(keys, data)
         if (isFreshEnoughToPush) {
-          notifyStatusChange(keys, data)
+          shouldPush = true
         } else {
           console.log(`  Skipped push — message is older than ${PUSH_STALE_THRESHOLD_MS / 86400000}d (catch-up scan, not a new event)`)
         }
@@ -561,6 +562,11 @@ function processThreadList(threads, keys, props, myEmail) {
       thread.addLabel(doneLabel)
       props.setProperty(seenKey, String(messages.length))
       console.log('  ✓ Written to Supabase')
+
+      // Pushed only after seenKey is durably saved — if anything above throws, we land in the
+      // catch below and never reach here, so a retry (which reprocesses the same message since
+      // seenKey wasn't advanced) can never fire a second push for a message already pushed once.
+      if (shouldPush) notifyStatusChange(keys, data)
 
     } catch (e) {
       console.error(`  ✗ ${e.message}`)
