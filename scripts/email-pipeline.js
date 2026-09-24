@@ -136,6 +136,10 @@ const APPLICATION_CONFIRMATION_RE = /\b(thank(?:s| you) for (?:your interest|app
 // other *_RE hints above — Claude still makes the final call on type + whether a due date is
 // actually stated.
 const OA_INVITE_RE = /\b(online assessment|coding assessment|coding challenge|skills assessment|hackerrank|codesignal|codility|hackerearth|complete (?:your|the) assessment|assessment invit)/i
+// Submission confirmations from the same ATS/OA platforms — the counterpart to OA_INVITE_RE,
+// used to auto-clear oa_completed instead of relying on the candidate to remember to click
+// "Mark completed" in the app (see checkOaDeadlines()'s daily nag, which this stops).
+const OA_COMPLETED_RE = /\b(assessment (?:has been |was )?(?:submitted|completed)|(?:submitted|completed) (?:your|the) assessment|thank(?:s| you) for completing|test (?:has been |was )?(?:submitted|completed)|your (?:hackerrank|codesignal|codility|hackerearth) (?:test|assessment) (?:is complete|has been received))\b/i
 
 function getKeys() {
   const p = PropertiesService.getScriptProperties()
@@ -213,6 +217,15 @@ function notifyStatusChange(keys, data) {
       message: `${role.slice(3) || 'Online Assessment'}${due}${data.oa_link ? `\n${data.oa_link}` : ''}`,
       priority: 'high',
       tags: ['test_tube'],
+    })
+  } else if (data.type === 'OA_COMPLETED') {
+    // Deliberately low priority/default, unlike OA_INVITE — this is a quiet confirmation that
+    // the daily checkOaDeadlines() digest will stop nagging about this one, not urgent news.
+    sendPush(keys, {
+      title: `✅ OA marked complete — ${company}`,
+      message: `${role.slice(3) || 'Online Assessment'}\nNo more deadline reminders for this one.`,
+      priority: 'default',
+      tags: ['white_check_mark'],
     })
   } else if (data.type === 'INTERVIEW_INVITE') {
     sendPush(keys, {
@@ -472,6 +485,9 @@ function processThreadList(threads, keys, props, myEmail) {
       const oaHint = OA_INVITE_RE.test(subject + ' ' + body)
         ? '\n\nThis email\'s subject/body matches typical Online Assessment (OA) invite phrasing (HackerRank/CodeSignal/Codility/etc., or a generic "complete your assessment" template) — likely type OA_INVITE. Extract oa_due_date only if the email actually states a completion deadline, and oa_link as the URL the candidate clicks to start/complete the assessment.'
         : ''
+      const oaCompletedHint = OA_COMPLETED_RE.test(subject + ' ' + body)
+        ? '\n\nThis email\'s subject/body matches typical Online Assessment submission-confirmation phrasing ("assessment submitted", "thank you for completing", etc.) — likely type OA_COMPLETED, an automated receipt that the candidate finished the OA (distinct from OA_INVITE, which is the invitation to start it).'
+        : ''
       const companyHint = guessCompanyHint(from)
       const shapeHint = recruitingShapeHint(from, subject, body)
       const networkingHint = networkingShapeHint(subject, body)
@@ -480,7 +496,7 @@ function processThreadList(threads, keys, props, myEmail) {
 
       const data = extractWithClaude(
         keys.anthropic, subject, from, body, date, invite, meetingLink,
-        applicationHint + referralHint + oaHint + companyHint + shapeHint + networkingHint,
+        applicationHint + referralHint + oaHint + oaCompletedHint + companyHint + shapeHint + networkingHint,
       )
 
       if (!data || data.type === 'UNRELATED') {
@@ -516,9 +532,14 @@ function processThreadList(threads, keys, props, myEmail) {
 
       let applicationId = null
       let shouldPush    = false
-      if (['APPLICATION_CONFIRMATION', 'OA_INVITE', 'INTERVIEW_INVITE', 'OFFER', 'REJECTION'].includes(data.type)) {
+      if (['APPLICATION_CONFIRMATION', 'OA_INVITE', 'OA_COMPLETED', 'INTERVIEW_INVITE', 'OFFER', 'REJECTION'].includes(data.type)) {
         applicationId = upsertApplication(keys, data)
-        if (isFreshEnoughToPush) {
+        // OA_COMPLETED with no matching application means there was nothing to mark done (no
+        // tracked OA at that company) — nothing changed, so no push, unlike every other type
+        // here which always has something worth surfacing.
+        if (data.type === 'OA_COMPLETED' && !applicationId) {
+          console.log('  Skipped push — OA_COMPLETED but no matching tracked application')
+        } else if (isFreshEnoughToPush) {
           shouldPush = true
         } else {
           console.log(`  Skipped push — message is older than ${PUSH_STALE_THRESHOLD_MS / 86400000}d (catch-up scan, not a new event)`)
@@ -665,7 +686,7 @@ spam, newsletters, unrelated logistics, etc.): {"type":"UNRELATED"}
 
 Otherwise return:
 {
-  "type": "APPLICATION_CONFIRMATION|OA_INVITE|REPLY|INTERVIEW_INVITE|OFFER|REJECTION|NEW_CONTACT|FOLLOW_UP_NEEDED",
+  "type": "APPLICATION_CONFIRMATION|OA_INVITE|OA_COMPLETED|REPLY|INTERVIEW_INVITE|OFFER|REJECTION|NEW_CONTACT|FOLLOW_UP_NEEDED",
   "contact_name": "the recruiter/contact's full name if mentioned in the body or signature, else null — their email address is resolved separately from message headers, not from this field",
   "company": "company name",
   "role": "role title or null",
@@ -696,6 +717,11 @@ skills test, typically via HackerRank/CodeSignal/Codility/HackerEarth or a simil
 Extract oa_due_date only when the email explicitly states a completion deadline ("complete by
 August 20", "you have 7 days to complete this assessment", etc.) — many OA invites don't state
 one at all, in which case leave it null rather than estimating from the email's send date.
+
+OA_COMPLETED means an automated receipt confirming the candidate already finished/submitted the
+Online Assessment ("Your assessment has been submitted", "Thank you for completing the test") —
+this is the counterpart to OA_INVITE and should only be used for a genuine submission receipt,
+never for the original invite itself or a reminder to complete an assessment that's still open.
 
 NEW_CONTACT means this introduces or continues a relationship with someone potentially useful to
 the candidate's professional network — met at a career fair/event, an alum, a friendly employee at
@@ -936,6 +962,15 @@ function upsertApplication(keys, data) {
     `/applications?user_id=eq.${keys.userId}&company=ilike.*${encodeURIComponent(data.company || '')}*&archived=eq.false&order=created_at.desc&limit=1&select=id,stage,referred_by_id,oa_completed`)
   const existing = res?.[0]
 
+  // OA_COMPLETED only means anything against an application we're already tracking an OA for —
+  // with no fuzzy company match, there's nothing to mark done, and creating a fresh "Unknown"
+  // application row from a submission receipt alone would just be noise (see the else-branch
+  // below, which every other type here is fine falling into).
+  if (data.type === 'OA_COMPLETED' && !existing) {
+    console.log('  No matching application for OA_COMPLETED — skipped')
+    return null
+  }
+
   const props = {
     last_activity: today,
     ...(stage === 'Rejected' ? { closed_date: today } : {}),
@@ -951,6 +986,9 @@ function upsertApplication(keys, data) {
     ...(data.type === 'OA_INVITE' && !existing?.oa_completed
       ? { oa_due_date: data.oa_due_date || null, oa_link: data.oa_link || null, oa_research_checked_at: null }
       : {}),
+    // The whole point of OA_COMPLETED: flips the flag checkOaDeadlines() filters on, so the
+    // daily digest stops nagging about this one starting from its next run.
+    ...(data.type === 'OA_COMPLETED' ? { oa_completed: true } : {}),
   }
 
   if (existing) {
