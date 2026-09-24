@@ -656,6 +656,51 @@ function resetBackfillCursor() {
   console.log('Backfill cursor reset — the next runBackfillChunk() call starts from today.')
 }
 
+// One-time backfill for the OA_COMPLETED detector (added after the regular job/backfill above
+// were already run): a submission-confirmation email in a thread that's already fully
+// processed is invisible to both the regular job (msgcount_<threadId> gates on *new* messages
+// only) and runBackfillChunk() (searches `-label:recruiting`, i.e. only threads never seen at
+// all) — so history needs its own one-off pass. Scoped to label:recruiting, since only
+// threads with an application already being tracked can have anything to flip (upsertApplication()
+// no-ops safely if a message matches but no application does). Safe to re-run: every hit still
+// routes through the normal fuzzy-match + oa_completed guard, so anything already flipped is a
+// no-op. Deliberately silent — no ntfy push per item, since this is catching up old history,
+// not new news. Run manually from the Apps Script editor (Run ▸ backfillOaCompletions), same as
+// the other one-off helpers in this file.
+function backfillOaCompletions() {
+  const keys = getKeys()
+  // Keyword pre-filter keeps this cheap (Gmail search, no Claude call) before the regex/Claude
+  // double-check below — same "cheap net, Claude makes the final call" shape as every other
+  // *_RE hint in this file.
+  const query = `label:${RECRUITING_LABEL} (assessment OR hackerrank OR codesignal OR codility OR hackerearth OR test) (submitted OR completed OR complete)`
+  const threads = GmailApp.search(query, 0, 200)
+  console.log(`Backfill: ${threads.length} candidate thread(s) to check for OA completions.`)
+
+  let checked = 0, flipped = 0
+  threads.forEach(thread => {
+    // Check every message, not just the newest — a completion receipt is often not the last
+    // message in the thread (e.g. a later unrelated reply arrived after it).
+    thread.getMessages().forEach(msg => {
+      const subject = msg.getSubject()
+      const body     = msg.getPlainBody().slice(0, 4000)
+      if (!OA_COMPLETED_RE.test(subject + ' ' + body)) return
+      checked++
+      const data = extractWithClaude(
+        keys.anthropic, subject, msg.getFrom(), body,
+        Utilities.formatDate(msg.getDate(), 'UTC', 'yyyy-MM-dd'), null, null,
+        '\n\nThis email was pre-filtered as a likely Online Assessment submission confirmation for a one-time historical backfill — only return type OA_COMPLETED if it genuinely is one, else classify normally.',
+      )
+      if (!data || data.type !== 'OA_COMPLETED') return
+      if (upsertApplication(keys, data)) {
+        flipped++
+        console.log(`  ✓ ${data.company}`)
+      }
+    })
+  })
+  console.log(`Backfill done: checked ${checked} matching message(s), flipped oa_completed on ${flipped} application(s).`
+    + (threads.length >= 200 ? ' — search capped at 200 threads, re-run to continue if this looks incomplete.' : ''))
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CLAUDE — classify + extract in one Haiku call
 // ─────────────────────────────────────────────────────────────────────────────
