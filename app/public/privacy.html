@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Recruiting OS</title>
+<link rel="stylesheet" href="/legal.css">
+</head>
+<body>
+<div class="wrap">
+  <a class="brand" href="/">Recruiting OS</a>
+  <article>
+    <h1>Privacy Policy</h1>
+    <p class="meta">Last updated September 28, 2026</p>
+
+    <p>Recruiting OS ("the app") is a personal recruiting tracker for students searching for internships. This policy explains what data the app collects, how it is used, and the choices you have.</p>
+
+    <h2>Information we collect</h2>
+    <ul>
+      <li><strong>Account information</strong> — your email address and a password or Google sign-in identity, used to create and secure your account.</li>
+      <li><strong>Data you enter</strong> — contacts, job applications, interaction notes, recruiting events and profile details (school, graduation year, interests).</li>
+      <li><strong>API keys you provide</strong> — optional keys for Anthropic, OpenAI, Exa and GitHub. These are encrypted at rest (AES-256-GCM) and are never returned to your browser after saving.</li>
+      <li><strong>Google Calendar data</strong> — if you connect a calendar, the app reads your events to show your schedule and detect conflicts, and creates or edits events you ask it to (including events on a dedicated "Recruiting" calendar it creates).</li>
+      <li><strong>Gmail data</strong> — if you connect a Gmail account, the app reads recent messages to identify recruiting and networking emails (application confirmations, interview invites, assessments, offers, replies from contacts).</li>
+    </ul>
+
+    <h2>How we use Gmail data</h2>
+    <p>Gmail access is read-only. The app never sends, deletes, or modifies email. For each new message it scans, the app:</p>
+    <ul>
+      <li>sends the subject, sender and plain-text body to the AI provider whose API key <em>you</em> supplied (Anthropic), solely to classify the message and extract structured details such as company, role, stage and deadlines;</li>
+      <li>saves the extracted details to your account as contacts, applications, action items and interaction records, including a short excerpt (up to 2,000 characters) of the message for your reference.</li>
+    </ul>
+    <p>Full mailboxes are not copied or stored. Messages that are not recruiting-related are discarded after classification.</p>
+
+    <div class="callout">
+      <p>Recruiting OS's use and transfer of information received from Google APIs to any other app will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+    </div>
+    <p>Specifically: Google user data is used only to provide the features you see in the app; it is not sold, not used for advertising, not used to train AI models, and not read by humans except with your explicit permission, for security purposes, or as required by law.</p>
+
+    <h2>Where data is stored</h2>
+    <p>Data is stored in a Supabase (PostgreSQL) database with row-level security, so each account can access only its own records. Google OAuth refresh tokens and API keys are encrypted and are accessible only to server-side code acting on your behalf. The app is hosted on Vercel.</p>
+
+    <h2>Sharing</h2>
+    <p>We do not sell or share your personal data. Data is sent to third parties only as needed to run features you use: the AI and search providers whose keys you supply (Anthropic, OpenAI, Exa), GitHub, and Google. Recruiting events published by your school's public feeds may be shared with other users at the same school; your own notes, statuses and personal data are never shared.</p>
+
+    <h2>Your choices</h2>
+    <ul>
+      <li>Disconnect Gmail or Google Calendar at any time in Settings — the stored token is deleted. You can also revoke access at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
+      <li>Delete any API key in Settings.</li>
+      <li>Request deletion of your account and all associated data by contacting us below.</li>
+    </ul>
+
+    <h2>Security</h2>
+    <p>Connections use HTTPS, secrets are encrypted at rest, and access to user data is enforced in the database itself. No system is perfectly secure, but we take reasonable measures to protect your information.</p>
+
+    <h2>Changes</h2>
+    <p>If this policy changes, the updated version will be posted here with a new date.</p>
+
+    <h2>Contact</h2>
+    <p>Questions or deletion requests: <a href="mailto:ethansaba12@gmail.com">ethansaba12@gmail.com</a></p>
+  </article>
+  <footer><a href="/">Back to app</a><a href="/terms.html">Terms of Service</a></footer>
+</div>
+</body>
+</html>

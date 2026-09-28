@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Public+Sans:wght@400;600&display=swap');
+
+:root {
+  --bg: #f1f2f3;
+  --paper: #ffffff;
+  --text: #2a2e33;
+  --muted: #4f555d;
+  --rule: #c7cbd0;
+  --head: #101215;
+  --accent: #c94e0a;
+  --accent-bar: #f2680a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101215;
+    --paper: #1a1c20;
+    --text: #e1e3e6;
+    --muted: #a2a7af;
+    --rule: #3a3f45;
+    --head: #f1f2f3;
+    --accent: #ff9f40;
+    --accent-bar: #f97e1c;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 16px/1.7 'Public Sans', system-ui, sans-serif;
+}
+.wrap { max-width: 760px; margin: 0 auto; padding: 48px 16px 80px; }
+.brand {
+  display: inline-flex; align-items: center; gap: 10px;
+  font: 700 14px/1 'Space Grotesk', sans-serif; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--head); text-decoration: none;
+}
+.brand::before { content: ''; width: 12px; height: 12px; background: var(--accent-bar); }
+article {
+  margin-top: 28px; background: var(--paper);
+  border-top: 4px solid var(--accent-bar);
+  padding: 40px clamp(20px, 5vw, 56px) 48px;
+}
+h1 { font: 700 clamp(30px, 6vw, 44px)/1.1 'Space Grotesk', sans-serif; color: var(--head); margin: 0 0 8px; letter-spacing: -.02em; }
+.meta { color: var(--muted); font-size: 14px; margin: 0 0 32px; padding-bottom: 24px; border-bottom: 1px solid var(--rule); }
+h2 { font: 500 20px/1.3 'Space Grotesk', sans-serif; color: var(--head); margin: 36px 0 8px; }
+p, li { margin: 0 0 12px; }
+ul { padding-left: 20px; }
+a { color: var(--accent); text-underline-offset: 3px; }
+.callout { border-left: 3px solid var(--accent-bar); padding: 4px 0 4px 16px; margin: 20px 0; }
+footer { margin-top: 24px; font-size: 14px; color: var(--muted); display: flex; gap: 20px; flex-wrap: wrap; }
