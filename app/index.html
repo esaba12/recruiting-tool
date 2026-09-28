@@ -4,12 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Recruiting OS</title>
+  <meta name="description" content="A personal recruiting tracker for students: contacts, applications, recruiting events and follow-ups in one place." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
 <body class="bg-canvas antialiased font-body text-ink-900">
-  <div id="root"></div>
+  <div id="root">
+    <!-- Crawlable fallback (replaced once React mounts) — Google's OAuth branding check reads the home page without running JS. -->
+    <main style="max-width:36rem;margin:4rem auto;padding:0 16px;font-family:sans-serif">
+      <h1>Recruiting OS</h1>
+      <p>Recruiting OS is a personal recruiting tracker for students searching for internships. It keeps your contacts, job applications, recruiting events and follow-ups in one place, and can optionally read recruiting emails from Gmail and add interviews to Google Calendar.</p>
+      <p><a href="/privacy.html">Privacy Policy</a> · <a href="/terms.html">Terms of Service</a></p>
+    </main>
+  </div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

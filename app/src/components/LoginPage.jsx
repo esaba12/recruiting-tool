@@ -142,6 +142,10 @@ export default function LoginPage() {
         <p className="text-[11px] text-ink-400 text-center mt-4">
           Every user brings their own Anthropic/OpenAI/Exa API keys — nothing is shared. You'll add yours after signing in.
         </p>
+        <p className="text-[11px] text-ink-400 text-center mt-3 space-x-3">
+          <a href="/privacy.html" className="underline underline-offset-2 hover:text-accent-600">Privacy Policy</a>
+          <a href="/terms.html" className="underline underline-offset-2 hover:text-accent-600">Terms of Service</a>
+        </p>
       </div>
     </div>
   )
