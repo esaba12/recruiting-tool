@@ -5,12 +5,12 @@
 // would require the server's own SECRET_ENCRYPTION_KEY.
 import { supabaseAdmin } from './_lib/supabaseAdmin.js'
 import { encrypt, decrypt } from './_lib/crypto.js'
-import { CALENDAR_SLOTS, redirectUri } from './_lib/googleOAuth.js'
+import { CALENDAR_SLOTS, redirectUri, escapeHtml, consumeOAuthNonce } from './_lib/googleOAuth.js'
 
 function errorPage(res, status, message) {
   res.writeHead(status, { 'Content-Type': 'text/html' })
   res.end(`<!doctype html><html><body style="font-family:sans-serif;padding:2rem;max-width:32rem;margin:0 auto">
-    <h2>Couldn't connect that calendar</h2><p>${message}</p><p><a href="/">Back to Recruiting OS</a></p>
+    <h2>Couldn't connect that calendar</h2><p>${escapeHtml(message)}</p><p><a href="/">Back to Recruiting OS</a></p>
   </body></html>`)
 }
 
@@ -54,9 +54,12 @@ export default async function handler(req, res) {
   } catch {
     return errorPage(res, 400, 'This connection link is invalid or was tampered with. Go back to Settings and try again.')
   }
-  const { userId, slot, exp } = parsed
+  const { userId, slot, nonce, exp } = parsed
   if (!userId || !CALENDAR_SLOTS[slot]) return errorPage(res, 400, 'Malformed connection request.')
   if (!exp || Date.now() > exp) return errorPage(res, 400, 'This connection link expired. Go back to Settings and try again.')
+  if (!consumeOAuthNonce(req, res, 'gcal_oauth_nonce', nonce)) {
+    return errorPage(res, 400, 'This connection wasn\'t started from this browser. Go back to Settings and click Connect again.')
+  }
 
   let tokens
   try {
@@ -65,7 +68,7 @@ export default async function handler(req, res) {
     return errorPage(res, 502, e.message)
   }
   if (!tokens.refresh_token) {
-    return errorPage(res, 400, 'Google didn\'t return a refresh token — it only issues one the first time you grant this app access. Revoke access for this app at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a> and try connecting again.')
+    return errorPage(res, 400, 'Google didn\'t return a refresh token — it only issues one the first time you grant this app access. Revoke access for this app at myaccount.google.com/permissions and try connecting again.')
   }
 
   const email = tokens.access_token ? await fetchEmail(tokens.access_token) : null

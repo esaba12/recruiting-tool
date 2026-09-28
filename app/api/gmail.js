@@ -7,10 +7,11 @@
 //   GET  ?action=start                -> requireUser() -> kick off the OAuth redirect
 //   GET  (no action)                  -> requireUser() -> list this user's connections
 //   DELETE ?email=...                 -> requireUser() -> disconnect one connection
+import crypto from 'crypto'
 import { requireUser, supabaseAdmin } from './_lib/supabaseAdmin.js'
 import { encrypt, decrypt } from './_lib/crypto.js'
 import { checkRateLimit, sendRateLimited } from './_lib/rateLimit.js'
-import { GMAIL_OAUTH_SCOPE, gmailRedirectUri } from './_lib/googleOAuth.js'
+import { GMAIL_OAUTH_SCOPE, gmailRedirectUri, escapeHtml, issueOAuthNonce, consumeOAuthNonce } from './_lib/googleOAuth.js'
 import { scanGmailConnection } from './_lib/emailPipeline.js'
 
 const STATE_TTL_MS = 10 * 60 * 1000
@@ -19,7 +20,7 @@ const SCAN_COOLDOWN_MS = 9 * 60 * 1000 // slightly under the ~10-min pinger inte
 function errorPage(res, status, message) {
   res.writeHead(status, { 'Content-Type': 'text/html' })
   res.end(`<!doctype html><html><body style="font-family:sans-serif;padding:2rem;max-width:32rem;margin:0 auto">
-    <h2>Couldn't connect that Gmail account</h2><p>${message}</p><p><a href="/">Back to Recruiting OS</a></p>
+    <h2>Couldn't connect that Gmail account</h2><p>${escapeHtml(message)}</p><p><a href="/">Back to Recruiting OS</a></p>
   </body></html>`)
 }
 
@@ -62,9 +63,12 @@ async function handleOauthCallback(req, res) {
   } catch {
     return errorPage(res, 400, 'This connection link is invalid or was tampered with. Go back to Settings and try again.')
   }
-  const { userId, exp } = parsed
+  const { userId, nonce, exp } = parsed
   if (!userId) return errorPage(res, 400, 'Malformed connection request.')
   if (!exp || Date.now() > exp) return errorPage(res, 400, 'This connection link expired. Go back to Settings and try again.')
+  if (!consumeOAuthNonce(req, res, 'gmail_oauth_nonce', nonce)) {
+    return errorPage(res, 400, 'This connection wasn\'t started from this browser. Go back to Settings and click Connect again.')
+  }
 
   let tokens
   try {
@@ -73,7 +77,7 @@ async function handleOauthCallback(req, res) {
     return errorPage(res, 502, e.message)
   }
   if (!tokens.refresh_token) {
-    return errorPage(res, 400, 'Google didn\'t return a refresh token — it only issues one the first time you grant this app access. Revoke access for this app at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a> and try connecting again.')
+    return errorPage(res, 400, 'Google didn\'t return a refresh token — it only issues one the first time you grant this app access. Revoke access for this app at myaccount.google.com/permissions and try connecting again.')
   }
 
   const email = tokens.access_token ? await fetchEmail(tokens.access_token) : null
@@ -91,8 +95,11 @@ async function handleOauthCallback(req, res) {
 }
 
 async function handleScan(req, res) {
-  const secret = req.headers['x-cron-secret']
-  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
+  const secret = String(req.headers['x-cron-secret'] || '')
+  const expected = process.env.CRON_SECRET || ''
+  const ok = expected && secret.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(secret), Buffer.from(expected))
+  if (!ok) {
     return res.status(401).json({ error: { message: 'Not authorized' } })
   }
 
@@ -133,7 +140,8 @@ export default async function handler(req, res) {
   if (!user) return res.status(401).json({ error: { message: 'Not authenticated' } })
 
   if (req.method === 'GET' && req.query.action === 'start') {
-    const state = encrypt(JSON.stringify({ userId: user.id, exp: Date.now() + STATE_TTL_MS }))
+    const nonce = issueOAuthNonce(req, res, 'gmail_oauth_nonce')
+    const state = encrypt(JSON.stringify({ userId: user.id, nonce, exp: Date.now() + STATE_TTL_MS }))
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID,
       redirect_uri: gmailRedirectUri(req),

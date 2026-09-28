@@ -7,6 +7,7 @@
 // reads while staying signed into the same app account throughout," which is exactly what
 // personal+school calendars need. This flow talks to Google's OAuth endpoints directly,
 // the same GOOGLE_CLIENT_ID/SECRET already used elsewhere, just with its own redirect URI.
+import crypto from 'crypto'
 
 export const CALENDAR_SLOTS = {
   personal: 'Personal',
@@ -55,4 +56,52 @@ export const GMAIL_OAUTH_SCOPE = `${GMAIL_READONLY_SCOPE} email`
 // header comment for why (Vercel Hobby's 12-serverless-function cap).
 export function gmailRedirectUri(req) {
   return `${baseUrl(req)}/api/gmail`
+}
+
+// ── Callback hardening ────────────────────────────────────────────────────────
+// Both OAuth callbacks (google-oauth-callback.js, gmail.js) render a small HTML error page
+// from values that arrive in Google's redirect query string (`?error=`) or upstream error
+// text — anyone can craft that URL, so everything interpolated into the page is escaped.
+export function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]
+  ))
+}
+
+// The encrypted `state` proves *which app user* started a flow, but not *which browser* is
+// finishing it — without this, an attacker could mint a state for their own account and
+// trick a victim into approving Google's consent screen, filing the victim's Gmail/Calendar
+// token under the attacker's user id. The start leg (a same-origin, authenticated fetch)
+// sets a random nonce in an HttpOnly cookie and embeds the same nonce in `state`; the
+// callback (a top-level GET from Google, so SameSite=Lax still sends it) requires both to
+// match. A victim's browser never has the attacker's cookie, so the forged flow is refused.
+const NONCE_TTL_S = 10 * 60
+
+function readCookie(req, name) {
+  const header = req.headers.cookie || ''
+  for (const part of header.split(';')) {
+    const i = part.indexOf('=')
+    if (i > -1 && part.slice(0, i).trim() === name) return decodeURIComponent(part.slice(i + 1).trim())
+  }
+  return null
+}
+
+function nonceCookie(req, name, value, maxAge) {
+  const secure = baseUrl(req).startsWith('https://') ? '; Secure' : ''
+  return `${name}=${encodeURIComponent(value)}; Path=/api; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`
+}
+
+export function issueOAuthNonce(req, res, name) {
+  const nonce = crypto.randomBytes(24).toString('base64url')
+  res.setHeader('Set-Cookie', nonceCookie(req, name, nonce, NONCE_TTL_S))
+  return nonce
+}
+
+// Returns true only if the cookie matches the nonce carried in the decrypted state; always
+// clears the cookie so a nonce can't be replayed by a second callback.
+export function consumeOAuthNonce(req, res, name, expected) {
+  const actual = readCookie(req, name)
+  res.setHeader('Set-Cookie', nonceCookie(req, name, '', 0))
+  if (!actual || !expected || actual.length !== expected.length) return false
+  return crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(expected))
 }

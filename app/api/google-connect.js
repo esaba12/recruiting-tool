@@ -10,7 +10,7 @@
 // DELETE /api/google-connect?slot=personal|school -> disconnect that slot
 import { requireUser, supabaseAdmin } from './_lib/supabaseAdmin.js'
 import { encrypt } from './_lib/crypto.js'
-import { CALENDAR_SLOTS, CALENDAR_APP_CREATED_SCOPE, CALENDAR_OAUTH_SCOPE, hasCalendarScope, redirectUri } from './_lib/googleOAuth.js'
+import { CALENDAR_SLOTS, CALENDAR_APP_CREATED_SCOPE, CALENDAR_OAUTH_SCOPE, hasCalendarScope, redirectUri, issueOAuthNonce } from './_lib/googleOAuth.js'
 import { checkRateLimit, sendRateLimited } from './_lib/rateLimit.js'
 
 const STATE_TTL_MS = 10 * 60 * 1000 // plenty for a consent flow; short enough to bound a stolen/leaked state's blast radius
@@ -25,7 +25,8 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'GET' && req.query.action === 'start') {
-    const state = encrypt(JSON.stringify({ userId: user.id, slot, exp: Date.now() + STATE_TTL_MS }))
+    const nonce = issueOAuthNonce(req, res, 'gcal_oauth_nonce')
+    const state = encrypt(JSON.stringify({ userId: user.id, slot, nonce, exp: Date.now() + STATE_TTL_MS }))
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID,
       redirect_uri: redirectUri(req),

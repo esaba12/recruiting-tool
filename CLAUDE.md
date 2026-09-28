@@ -21,7 +21,6 @@ A zero-touch recruiting OS for a student's SWE/PM internship search. Calls, emai
 | Notion | **Legacy** — original single-tenant hub (5 databases). No longer read/written by the deployed app; only used by `scripts/migrate-notion-to-supabase.js` for a one-time pull into a new Supabase account | 🗄️ Migration-only |
 | Recharts | Overview/Job Boards charts (funnel, donut, trend, top-locations bar) | ✅ Live |
 | Google Calendar API | Screenshot/text → calendar event, via per-user OAuth (Settings → "Connect Calendar") | ✅ Live in dev and production |
-| Granola | Call transcription (no bot) | 🔄 Download + connect |
 | LeetNotion extension | LeetCode → Notion auto-sync | 🔄 Pending install (still Notion-only; not yet ported to Supabase) |
 | Exa | People discovery (Discover) + company discovery (Explore) + Job Boards deadline extraction — public-web search & page-content fetch | ✅ Wired via serverless proxy · BYOK |
 | YC directory (yc-oss/api) | Free public company data (Explore tab candidate pool + autocomplete) | ✅ Direct client fetch, no auth |
@@ -219,6 +218,16 @@ Each user can connect **two independent Google accounts** — a `personal` slot 
 1. Google Cloud Console → the same OAuth client used for `GOOGLE_CLIENT_ID` → **Authorized redirect URIs** → add `http://localhost:3001/api/google-oauth-callback` (dev) and `https://<deployed-domain>/api/google-oauth-callback` (prod, alongside the existing Supabase callback URI already there).
 2. If the OAuth consent screen is still in **Testing** mode (see the Test users gotcha above), the **school** Google account also needs to be added under OAuth consent screen → Test users before it can complete consent — the personal account presumably already is.
 
+### Google OAuth verification — attempted and deliberately skipped (2026-09-28)
+
+What exists now: `app/public/privacy.html` + `app/public/terms.html` (static pages styled by `app/public/legal.css`, served ahead of the SPA rewrite since Vercel's filesystem wins over `rewrites`). The privacy policy documents the read-only Gmail use and carries Google's required **Limited Use** statement. The home page links both and describes the app — via a crawlable fallback inside `index.html`'s `#root` (replaced once React mounts; Google's branding check doesn't run JS) plus a footer on `LoginPage.jsx`. `app/public/google5e6672df13b4aa91.html` is the Search Console **URL-prefix** ownership file for the deployed domain — **never delete it** (Google re-checks). The consent screen's privacy/terms fields point at `/privacy.html` and `/terms.html`.
+
+Why verification still fails: brand verification kept returning *"The website of your home page URL … is not registered to you"*. Google's homepage requirements (support.google.com/cloud/answer/13807376) require the home page to be on **a domain you own** — third-party platforms where subdomain ownership can't be proven are excluded, and a `*.vercel.app` subdomain doesn't qualify even after a successful Search Console URL-prefix verification (a Domain property needs DNS, which Vercel owns). The same doc requires the home page to be **viewable without logging in**, and `/` is the sign-in screen. On top of that, `gmail.readonly` is a *restricted* scope: verifying it for public users also needs a paid third-party CASA security assessment. Not worth it for a personal tool.
+
+Decision: **run unverified.** Publish the consent screen to Production without completing verification (users click through "Google hasn't verified this app → Advanced → Go to recruitingos"; unverified apps are capped at 100 users), or stay in Testing with each account added as a test user (7-day refresh-token expiry). Ignore the branding-verification prompts in Cloud Console.
+
+If public signups ever matter, the path is: buy a domain → add it to the Vercel project → verify it in Search Console as a **Domain** property (DNS) → move sign-in to `/login` and put a public landing page at `/` explaining the Gmail/Calendar data use → update the consent screen URLs → resubmit → CASA assessment for the Gmail scope.
+
 ## Deployment
 
 - **Vercel project:** root directory set to `app/` (your real project/team IDs are in `CLAUDE.local.md`)
@@ -405,9 +414,8 @@ Same phase also added manual OA editing to `ApplicationPanelBody.jsx` — OA due
 - **Sign up in the app, then add your own BYOK keys in Settings** (Anthropic, and optionally OpenAI/Exa/GitHub) — nothing AI-powered works until this is done, by design (no shared keys anymore).
 - **Run the Notion migration** if moving off an existing single-tenant setup: `node scripts/migrate-notion-to-supabase.js you@example.com` (sign up first). Already done once for the primary account (2026-07-23, local stack) — re-run against a real Supabase project once one is linked.
 - Deploy the Supabase-native `scripts/email-pipeline.js` (script.google.com) — code is ported (2026-08-01), just needs pasting in + Script Properties set (`ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RECRUITING_USER_ID`) + the 10-minute trigger added, see Email Pipeline above.
-- Download Granola + connect Google Calendar
 - Install LeetNotion VS Code extension for LC → Notion sync
-- **Publish the Google OAuth consent screen to Production** (Cloud Console → OAuth consent screen → Publish App) — while it's stuck in Testing mode, every user's Calendar refresh token expires every 7 days and "+ Event"/Settings' Connect Calendar silently breaks until they reconnect. Tradeoff: since `calendar.events` is a sensitive scope and the app isn't Google-verified, every user will hit a "Google hasn't verified this app" interstitial on first connect (Advanced → Go to [app] (unsafe)) — acceptable to ship with, not something to push through full verification for at this stage. Not yet done.
+- **Publish the Google OAuth consent screen to Production, unverified** (Cloud Console → OAuth consent screen / Audience → Publish App) — see "Google OAuth verification — attempted and deliberately skipped" above for why verification itself isn't being pursued. While it's stuck in Testing mode, every user's Calendar/Gmail refresh token expires every 7 days and "+ Event"/Connect Calendar/Gmail scanning silently break until they reconnect. Not yet done.
 - ~~Provision Upstash Redis for rate limiting~~ — **done 2026-08-11** (see API Hardening above). Only remaining piece: mirror `KV_REST_API_URL`/`KV_REST_API_TOKEN` into the root `.env` for local dev (one manual `grep >> ` command, see above) — production already has them and is verified live.
 - **Register the school-calendar OAuth redirect URI** (see Multi-calendar: Personal + School above) — `/api/google-oauth-callback` isn't in the Google Cloud OAuth client's Authorized redirect URIs yet, so connecting a School calendar will fail until it's added for both localhost and the production domain.
 - **Add the school Google account as an OAuth consent screen Test user** (same place the personal account was already added, per the Testing-mode gotcha above) — otherwise connecting it hits `Error 403: access_denied`.
