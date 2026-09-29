@@ -11,6 +11,7 @@ import { supabase } from './lib/supabaseClient.js'
 import {
   DEMO_CONTACTS, DEMO_APPLICATIONS, DEMO_INTERACTIONS, DEMO_CALLS, DEMO_CONTACT_RELATIONSHIPS, nextDemoId,
   DEMO_SCHOOLS, DEMO_EMPLOYERS, DEMO_EVENTS, DEMO_USER_EVENTS, DEMO_EVENT_RELEVANCE, DEMO_REQUIREMENT_COMPLETIONS, DEMO_INGEST_SOURCES,
+  buildDemoLearning,
 } from './demoData.js'
 import { ROLE_OPTIONS } from './shared.jsx'
 
@@ -790,4 +791,200 @@ export async function setRequirementCompletion(requirementId, completed) {
     const { error } = await supabase.from('user_event_requirement_completions').delete().eq('requirement_id', requirementId)
     throwIfError(error, 'setRequirementCompletion')
   }
+}
+
+// ── Learn tab (interview prep) ──────────────────────────────────────────────
+// learning_tracks / learning_topics / learning_items / learning_logs — ordinary per-user
+// RLS tables (supabase/migrations/20260928000000_learning.sql). The mastery/gap/goal math
+// lives in lib/learning/mastery.js and is a pure function of what fetchLearning() returns.
+let demoLearning = null
+function demoLearn() {
+  if (!demoLearning) demoLearning = buildDemoLearning()
+  return demoLearning
+}
+
+function mapTrackRow(r) {
+  return { id: r.id, kind: r.kind, name: r.name, config: r.config || {}, sort: r.sort ?? 0, archivedAt: r.archived_at }
+}
+function mapTopicRow(r) {
+  return {
+    id: r.id, trackId: r.track_id, name: r.name, category: r.category || 'General', lcTags: r.lc_tags || [],
+    targetLevel: r.target_level ?? 3, selfRating: r.self_rating, weight: r.weight ?? 1, hidden: !!r.hidden,
+    sort: r.sort ?? 0, source: r.source, rubric: r.rubric || null,
+  }
+}
+function topicToRow(t) {
+  const row = {}
+  if ('trackId' in t) row.track_id = t.trackId
+  if ('name' in t) row.name = t.name
+  if ('category' in t) row.category = t.category
+  if ('lcTags' in t) row.lc_tags = t.lcTags || []
+  if ('targetLevel' in t) row.target_level = t.targetLevel
+  if ('selfRating' in t) row.self_rating = t.selfRating || null
+  if ('weight' in t) row.weight = t.weight
+  if ('hidden' in t) row.hidden = !!t.hidden
+  if ('sort' in t) row.sort = t.sort
+  if ('source' in t) row.source = t.source
+  if ('rubric' in t) row.rubric = t.rubric
+  return row
+}
+function mapItemRow(r) {
+  return { id: r.id, source: r.source, externalRef: r.external_ref, title: r.title, url: r.url, difficulty: r.difficulty, tags: r.tags || [], srs: r.srs, dueAt: r.due_at }
+}
+function mapLogRow(r) {
+  return {
+    id: r.id, trackId: r.track_id, topicIds: r.topic_ids || [], itemId: r.item_id, applicationId: r.application_id,
+    kind: r.kind, source: r.source, externalRef: r.external_ref, title: r.title, difficulty: r.difficulty, outcome: r.outcome,
+    minutes: r.minutes, confidence: r.confidence, score: r.score, notes: r.notes || '', occurredAt: r.occurred_at,
+  }
+}
+function logToRow(l) {
+  return {
+    track_id: l.trackId || null, topic_ids: l.topicIds || [], item_id: l.itemId || null, application_id: l.applicationId || null,
+    kind: l.kind || 'problem', source: l.source || 'manual', external_ref: l.externalRef || null, title: l.title || null,
+    difficulty: l.difficulty || null, outcome: l.outcome || null, minutes: l.minutes ? Number(l.minutes) : null,
+    confidence: l.confidence || null, score: l.score ?? null, notes: l.notes || null,
+    occurred_at: l.occurredAt || new Date().toISOString(),
+  }
+}
+
+export async function fetchLearning() {
+  if (isDemoMode()) {
+    const d = demoLearn()
+    return { tracks: d.tracks.map(t => ({ ...t })), topics: d.topics.map(t => ({ ...t })), items: d.items.map(i => ({ ...i })), logs: d.logs.map(l => ({ ...l })) }
+  }
+  const [tr, tp, it, lg] = await Promise.all([
+    supabase.from('learning_tracks').select('*').is('archived_at', null).order('sort'),
+    supabase.from('learning_topics').select('*').order('sort'),
+    supabase.from('learning_items').select('*'),
+    supabase.from('learning_logs').select('*').order('occurred_at', { ascending: false }).limit(2000),
+  ])
+  throwIfError(tr.error, 'fetchLearning(tracks)'); throwIfError(tp.error, 'fetchLearning(topics)')
+  throwIfError(it.error, 'fetchLearning(items)'); throwIfError(lg.error, 'fetchLearning(logs)')
+  return { tracks: tr.data.map(mapTrackRow), topics: tp.data.map(mapTopicRow), items: it.data.map(mapItemRow), logs: lg.data.map(mapLogRow) }
+}
+
+// { track: { kind, name, config }, topics: [...] } → inserts both, returns mapped rows.
+export async function createTrackWithTopics({ track, topics = [] }, sort = 0) {
+  if (isDemoMode()) {
+    const d = demoLearn()
+    const t = { id: nextDemoId(), ...track, sort, archivedAt: null }
+    const tps = topics.map(tp => ({ id: nextDemoId(), trackId: t.id, hidden: false, selfRating: null, ...tp }))
+    d.tracks.push(t); d.topics.push(...tps)
+    return { track: t, topics: tps }
+  }
+  const { data: t, error } = await supabase.from('learning_tracks')
+    .insert({ kind: track.kind, name: track.name, config: track.config || {}, sort }).select('*').single()
+  throwIfError(error, 'createTrack')
+  let tps = []
+  if (topics.length) {
+    const { data, error: e2 } = await supabase.from('learning_topics')
+      .insert(topics.map(tp => topicToRow({ ...tp, trackId: t.id }))).select('*')
+    throwIfError(e2, 'createTrack(topics)')
+    tps = data.map(mapTopicRow)
+  }
+  return { track: mapTrackRow(t), topics: tps }
+}
+
+export async function updateTrack(id, fields) {
+  if (isDemoMode()) { const t = demoLearn().tracks.find(x => x.id === id); if (t) Object.assign(t, fields); return }
+  const row = {}
+  if ('name' in fields) row.name = fields.name
+  if ('config' in fields) row.config = fields.config
+  if ('sort' in fields) row.sort = fields.sort
+  if ('archivedAt' in fields) row.archived_at = fields.archivedAt
+  const { error } = await supabase.from('learning_tracks').update(row).eq('id', id)
+  throwIfError(error, 'updateTrack')
+}
+
+export async function addTopics(trackId, topics) {
+  if (isDemoMode()) {
+    const tps = topics.map(tp => ({ id: nextDemoId(), trackId, hidden: false, selfRating: null, lcTags: [], weight: 1, targetLevel: 3, ...tp }))
+    demoLearn().topics.push(...tps)
+    return tps
+  }
+  const { data, error } = await supabase.from('learning_topics').insert(topics.map(tp => topicToRow({ ...tp, trackId }))).select('*')
+  throwIfError(error, 'addTopics')
+  return data.map(mapTopicRow)
+}
+
+export async function updateTopic(id, fields) {
+  if (isDemoMode()) { const t = demoLearn().topics.find(x => x.id === id); if (t) Object.assign(t, fields); return }
+  const { error } = await supabase.from('learning_topics').update(topicToRow(fields)).eq('id', id)
+  throwIfError(error, 'updateTopic')
+}
+
+// Bulk sort rewrite after a drag-reorder: [{ id, sort }].
+export async function reorderTopics(rows) {
+  if (isDemoMode()) { rows.forEach(r => { const t = demoLearn().topics.find(x => x.id === r.id); if (t) t.sort = r.sort }); return }
+  const results = await Promise.all(rows.map(r => supabase.from('learning_topics').update({ sort: r.sort }).eq('id', r.id)))
+  results.forEach(r => throwIfError(r.error, 'reorderTopics'))
+}
+
+export async function deleteTopic(id) {
+  if (isDemoMode()) { const d = demoLearn(); d.topics = d.topics.filter(t => t.id !== id); return }
+  const { error } = await supabase.from('learning_topics').delete().eq('id', id)
+  throwIfError(error, 'deleteTopic')
+}
+
+// Idempotent on (source, externalRef). Only fills title/url/difficulty/tags — never
+// clobbers srs/dueAt (those are owned by the re-solve queue).
+export async function upsertLearningItems(items) {
+  if (!items.length) return []
+  if (isDemoMode()) {
+    const d = demoLearn()
+    return items.map(it => {
+      let row = d.items.find(x => x.source === it.source && x.externalRef === it.externalRef)
+      if (!row) { row = { id: nextDemoId(), srs: null, dueAt: null, ...it }; d.items.push(row) }
+      return row
+    })
+  }
+  const { data, error } = await supabase.from('learning_items').upsert(
+    items.map(it => ({ source: it.source, external_ref: it.externalRef, title: it.title, url: it.url || null, difficulty: it.difficulty || null, tags: it.tags || [] })),
+    { onConflict: 'user_id,source,external_ref' },
+  ).select('*')
+  throwIfError(error, 'upsertLearningItems')
+  return data.map(mapItemRow)
+}
+
+export async function updateLearningItem(id, fields) {
+  if (isDemoMode()) { const i = demoLearn().items.find(x => x.id === id); if (i) Object.assign(i, fields); return }
+  const row = {}
+  if ('srs' in fields) row.srs = fields.srs
+  if ('dueAt' in fields) row.due_at = fields.dueAt
+  const { error } = await supabase.from('learning_items').update(row).eq('id', id)
+  throwIfError(error, 'updateLearningItem')
+}
+
+export async function addLearningLog(log) {
+  if (isDemoMode()) {
+    const row = { id: nextDemoId(), topicIds: [], ...log, occurredAt: log.occurredAt || new Date().toISOString() }
+    demoLearn().logs.unshift(row)
+    return row
+  }
+  const { data, error } = await supabase.from('learning_logs').insert(logToRow(log)).select('*').single()
+  throwIfError(error, 'addLearningLog')
+  return mapLogRow(data)
+}
+
+// Import path — rows carrying an externalRef that already exists are skipped (idempotent).
+export async function importLearningLogs(logs) {
+  if (!logs.length) return []
+  if (isDemoMode()) {
+    const d = demoLearn()
+    const fresh = logs.filter(l => !d.logs.some(x => x.source === l.source && x.externalRef && x.externalRef === l.externalRef))
+    const rows = fresh.map(l => ({ id: nextDemoId(), topicIds: [], ...l }))
+    d.logs.unshift(...rows)
+    return rows
+  }
+  const { data, error } = await supabase.from('learning_logs')
+    .upsert(logs.map(logToRow), { onConflict: 'user_id,source,external_ref', ignoreDuplicates: true }).select('*')
+  throwIfError(error, 'importLearningLogs')
+  return (data || []).map(mapLogRow)
+}
+
+export async function deleteLearningLog(id) {
+  if (isDemoMode()) { const d = demoLearn(); d.logs = d.logs.filter(l => l.id !== id); return }
+  const { error } = await supabase.from('learning_logs').delete().eq('id', id)
+  throwIfError(error, 'deleteLearningLog')
 }

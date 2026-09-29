@@ -70,3 +70,17 @@ body {
 h1, h2, h3 {
   font-family: var(--font-heading);
 }
+
+/* Learn tab — "unverified" mastery fill (little evidence yet) reads as provisional hatching
+   rather than a solid bar, and the summary strip's staggered rise-in on mount. */
+.learn-hatch {
+  background-image: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.55) 0 2px, transparent 2px 5px);
+}
+@keyframes learn-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.learn-rise { animation: learn-rise 0.35s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .learn-rise { animation: none; }
+}

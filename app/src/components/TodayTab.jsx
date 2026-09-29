@@ -7,7 +7,7 @@ import DonutChart from './charts/DonutChart.jsx'
 import TrendChart from './charts/TrendChart.jsx'
 import { STATUS_CHART_COLORS } from './charts/theme.js'
 import { logMetWithContact } from '../lib/quickLog.js'
-import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue, awaitingReply, openActionItems } from '../lib/attention.js'
+import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue, awaitingReply, openActionItems, learningAttention } from '../lib/attention.js'
 import { lastPointOfContact } from '../lib/keepInTouch.js'
 import { tieStrengthBucket } from '../lib/affinity.js'
 import { statusIconFor } from '../lib/icons.js'
@@ -24,7 +24,7 @@ import TimelineFindsPanel from './TimelineFindsPanel.jsx'
 import StatTileRow from './StatTileRow.jsx'
 import Mono from './ui/Mono.jsx'
 import { Section, RowCap, HEADING_COLOR } from './ui/Section.jsx'
-import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity, MailQuestion, ListTodo, Sparkles } from 'lucide-react'
+import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity, MailQuestion, ListTodo, Sparkles, GraduationCap } from 'lucide-react'
 
 // Matches KeepInTouchTab.jsx:8 exactly — private to that component there, ported verbatim
 // here since it isn't exported.
@@ -328,14 +328,17 @@ function ApplicationRow({ app: a, showTriageChips, onOpen, changeAppTriage }) {
 // stopPropagation added to the two nested interactive elements (open-assessment link,
 // mark-completed button), neither of which stopped propagation before this phase since the
 // row itself wasn't clickable yet.
-function OaRow({ app: a, needsCheck, onOpen, onRefresh }) {
+function OaRow({ app: a, needsCheck, onOpen, onRefresh, onLogOa }) {
   const [marking, setMarking] = useState(false)
   const overdue = !needsCheck && daysUntil(a.oaDueDate) <= 0
 
-  async function markCompleted() {
+  // withLog: also open Learn's log modal pre-filled as an assessment for this application —
+  // the only way CodeSignal/HackerRank results reach the Learn tab (no public score APIs).
+  async function markCompleted(withLog = false) {
     setMarking(true)
     try {
       await updateApplication(a.id, { oaCompleted: true })
+      if (withLog) onLogOa?.(a)
       onRefresh?.()
     } catch {
       setMarking(false)
@@ -368,6 +371,12 @@ function OaRow({ app: a, needsCheck, onOpen, onRefresh }) {
           className="text-xs text-ink-400 hover:text-ink-600 hover:underline disabled:opacity-40">
           {marking ? 'Marking...' : '✓ Mark completed'}
         </button>
+        {onLogOa && !marking && (
+          <button onClick={e => { e.stopPropagation(); markCompleted(true) }}
+            className="block ml-auto text-xs text-accent-700 hover:underline">
+            Done — log how it went →
+          </button>
+        )}
       </div>
     </div>
   )
@@ -534,7 +543,40 @@ function ActivitySection({ contacts, apps, interactions }) {
   )
 }
 
-export default function TodayTab({ contacts, apps, interactions = [], calls = [], relationships = [], actionItems = [], dailyRecap = null, onFindPeople, onRefresh, onRefreshRelationships, isDemoMode = false }) {
+// Interview-prep attention (lib/attention.js's learningAttention): upcoming OA/interview →
+// that track's top gaps; goals behind pace; re-solve queue items due. Every row deep-links
+// to the Learn tab, which owns logging.
+function InterviewPrepRows({ prep, onOpenLearn }) {
+  return (
+    <>
+      {prep.prepGaps.map((p, i) => (
+        <div key={`p${i}`} className="py-2.5 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-ink-900">{p.app.company} <span className="text-ink-400 font-normal">· {p.kind}{p.kind === 'OA' && p.app.oaDueDate ? <> due <Mono>{fmt(p.app.oaDueDate)}</Mono></> : ''}</span></p>
+            <p className="text-xs text-ink-500">
+              {p.gaps.length ? <>Weakest in {p.track.name}: {p.gaps.map(g => `${g.topic.name} (${g.mastery.level.toFixed(1)}/${g.topic.targetLevel})`).join(', ')}</> : `${p.track.name} topics are at target`}
+            </p>
+          </div>
+          <button onClick={() => onOpenLearn?.()} className="text-xs font-medium text-accent-700 hover:underline shrink-0">Prep →</button>
+        </div>
+      ))}
+      {prep.goalsBehind.map((g, i) => (
+        <div key={`g${i}`} className="py-2.5 flex items-center justify-between gap-3">
+          <p className="text-sm text-ink-800">Behind on a {g.track.name} goal <span className="text-ink-400">· <Mono>{g.progress.current}/{g.progress.target}</Mono> {g.goal.period === 'week' ? 'this week' : ''}</span></p>
+          <button onClick={() => onOpenLearn?.()} className="text-xs font-medium text-accent-700 hover:underline shrink-0">Open →</button>
+        </div>
+      ))}
+      {prep.reviewsDue.length > 0 && (
+        <div className="py-2.5 flex items-center justify-between gap-3">
+          <p className="text-sm text-ink-800">{prep.reviewsDue.length} problem{prep.reviewsDue.length === 1 ? '' : 's'} due to re-solve <span className="text-ink-400">· {prep.reviewsDue.slice(0, 3).map(r => r.item.title).join(', ')}</span></p>
+          <button onClick={() => onOpenLearn?.()} className="text-xs font-medium text-accent-700 hover:underline shrink-0">Review →</button>
+        </div>
+      )}
+    </>
+  )
+}
+
+export default function TodayTab({ contacts, apps, interactions = [], calls = [], relationships = [], actionItems = [], dailyRecap = null, learning = null, onOpenLearn, onLogOa, onFindPeople, onRefresh, onRefreshRelationships, isDemoMode = false }) {
   const openItems = openActionItems(actionItems)
   const overdueContacts = overdueFollowUps(contacts)
   const staleApps = staleApplications(apps)
@@ -545,6 +587,8 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
   const oaDueList = oaDue(apps)
   const oaNeedsCheckList = oaNeedsCheck(apps)
   const awaitingReplyList = awaitingReply(contacts, interactions)
+  const prep = learningAttention(learning, apps)
+  const prepCount = prep.prepGaps.length + prep.goalsBehind.length + prep.reviewsDue.length
 
   const [selectedContactId, setSelectedContactId] = useState(null)
   const [selectedAppId, setSelectedAppId] = useState(null)
@@ -580,7 +624,7 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
   const allEmpty = overdueContacts.length === 0 && staleApps.length === 0 && highUrgency.length === 0
     && keepInTouch.length === 0 && needsReview.length === 0 && scheduleContacts.length === 0
     && oaDueList.length === 0 && oaNeedsCheckList.length === 0 && awaitingReplyList.length === 0
-    && openItems.length === 0
+    && openItems.length === 0 && prepCount === 0
     && (isDemoMode || timelineFinds.length === 0)
 
   return (
@@ -665,7 +709,7 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
         <motion.div variants={rise}>
           <Section title={`OA-Due (${oaDueList.length})`} accent="warning" icon={ClipboardCheck}>
             <RowCap items={oaDueList} tier="warning"
-              renderItem={a => <OaRow key={a.id} app={a} onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} />} />
+              renderItem={a => <OaRow key={a.id} app={a} onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} onLogOa={onLogOa} />} />
           </Section>
         </motion.div>
       )}
@@ -674,7 +718,16 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
         <motion.div variants={rise}>
           <Section title={`OA-Needs-Check (${oaNeedsCheckList.length})`} accent="ink" icon={Search}>
             <RowCap items={oaNeedsCheckList} tier="ink"
-              renderItem={a => <OaRow key={a.id} app={a} needsCheck onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} />} />
+              renderItem={a => <OaRow key={a.id} app={a} needsCheck onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} onLogOa={onLogOa} />} />
+          </Section>
+        </motion.div>
+      )}
+
+      {prepCount > 0 && (
+        <motion.div variants={rise}>
+          <Section title={`Interview Prep (${prepCount})`} accent="accent" icon={GraduationCap}
+            subtitle="From Learn — what to shore up before upcoming assessments and interviews.">
+            <InterviewPrepRows prep={prep} onOpenLearn={onOpenLearn} />
           </Section>
         </motion.div>
       )}

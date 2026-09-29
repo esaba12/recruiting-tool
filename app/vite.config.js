@@ -76,6 +76,7 @@ export default defineConfig(({ mode }) => {
       mountApiHandler('/exa', 'exa.js'),
       mountApiHandler('/gh-api', 'gh-api.js'),
       mountApiHandler('/gh-contrib', 'gh-api.js', 'proxy', { upstream: 'contrib' }),
+      mountApiHandler('/leetcode', 'gh-api.js', 'direct', { upstream: 'leetcode' }),
       mountApiHandler('/google-calendar', 'google-calendar.js'),
       mountApiHandler('/api/keys', 'keys.js', 'direct'),
       mountApiHandler('/api/google-connect', 'google-connect.js', 'direct'),

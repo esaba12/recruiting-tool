@@ -170,6 +170,23 @@ describe.skipIf(!configured)('shared-pool RLS isolation', () => {
     const { count: bCount } = await clients.B.from('user_events').select('*', { count: 'exact', head: true }).eq('event_id', events.shared1.id)
     expect(bCount).toBe(1)
   })
+
+  // Learn tab tables (20260928000000_learning.sql) — plain per-user RLS. Rows cascade-delete
+  // with the throwaway users in afterAll.
+  it('learning tracks/topics/items/logs are private to their owner', async () => {
+    const track = await must(clients.A.from('learning_tracks').insert({ kind: 'swe', name: 'A prep' }).select('id').single(), 'A track')
+    await must(clients.A.from('learning_topics').insert({ track_id: track.id, name: 'A secret topic' }), 'A topic')
+    const item = await must(clients.A.from('learning_items').insert({ external_ref: 'two-sum', title: 'Two Sum' }).select('id').single(), 'A item')
+    await must(clients.A.from('learning_logs').insert({ track_id: track.id, item_id: item.id, notes: 'A secret log' }), 'A log')
+    for (const table of ['learning_tracks', 'learning_topics', 'learning_items', 'learning_logs']) {
+      expect((await must(clients.B.from(table).select('*'), `B ${table}`)).length, table).toBe(0)
+      expect((await must(clients.A.from(table).select('*'), `A ${table}`)).length, table).toBe(1)
+    }
+    const { error } = await clients.B.from('learning_logs').insert({ user_id: users.A.id, notes: 'forged' })
+    expect(error).toBeTruthy()
+    const { data: upd } = await clients.B.from('learning_logs').update({ notes: 'tampered' }).eq('track_id', track.id).select('id')
+    expect(upd || []).toHaveLength(0)
+  })
 })
 
 if (!configured) {

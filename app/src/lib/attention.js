@@ -4,6 +4,8 @@
 // any future consumer) imports the same logic instead of re-deriving it independently.
 import { TERMINAL_STAGES, daysSince, daysUntil, isUntriaged, isOverdue, isStaleApplication } from '../shared.jsx'
 import { keepInTouchQueue } from './keepInTouch.js'
+import { deriveTrack } from './learning/derive.js'
+import { reviewQueue } from './learning/review.js'
 
 // Former Actions tab's activeApps helper, needed by staleApplications
 export function activeApps(apps) {
@@ -158,4 +160,25 @@ export function eventFollowUpsOverdue(userEvents, events, { now = Date.now() } =
 // Feed sources currently marked degraded (freshness gate tripped / fetch failing).
 export function degradedEventSources(sources) {
   return (sources || []).filter(s => s.degradedAt).sort((a, b) => Date.parse(b.degradedAt) - Date.parse(a.degradedAt))
+}
+
+// ── Learn tab (interview prep) ──────────────────────────────────────────────
+// Everything Today surfaces from the Learn tab, derived per track via useLearning's
+// deriveTrack (same mastery/gap/goal engine the Learn dashboard renders):
+//   prepGaps    — an OA due within `withinDays`, or an application at an interview stage,
+//                 paired with that track's top gaps (what to cram before it)
+//   goalsBehind — weekly/deadline goals behind pace
+//   reviewsDue  — re-solve queue items due now
+export function learningAttention(learning, apps, { now = Date.now(), withinDays = 7 } = {}) {
+  const out = { prepGaps: [], goalsBehind: [], reviewsDue: [] }
+  if (!learning?.loaded || !learning.tracks?.length) return out
+  for (const track of learning.tracks) {
+    const view = deriveTrack(learning, track, apps, now)
+    const soonOas = view.demand.oas.filter(a => (new Date(a.oaDueDate + 'T23:59:59') - now) / 86400000 <= withinDays)
+    const upcoming = [...soonOas.map(a => ({ app: a, kind: 'OA' })), ...view.demand.interviews.map(a => ({ app: a, kind: a.stage }))]
+    for (const u of upcoming) out.prepGaps.push({ track, ...u, gaps: view.gaps.slice(0, 3) })
+    for (const g of view.goals) if (g.progress.behind && !g.progress.done) out.goalsBehind.push({ track, ...g })
+    for (const item of reviewQueue(view.items, { now })) out.reviewsDue.push({ track, item })
+  }
+  return out
 }

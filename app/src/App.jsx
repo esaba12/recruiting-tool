@@ -27,6 +27,8 @@ import QuickScheduleModal from './components/QuickScheduleModal.jsx'
 import QuickCaptureModal from './components/QuickCaptureModal.jsx'
 import OutboxTab from './components/OutboxTab.jsx'
 import GrowTab from './components/GrowTab.jsx'
+import LearnTab from './components/LearnTab.jsx'
+import useLearning from './lib/learning/useLearning.js'
 import NotFoundPage from './components/NotFoundPage.jsx'
 import { NAV_ITEMS } from './components/layout/Sidebar.jsx'
 import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, keepInTouchDue, needsReviewApps } from './lib/attention.js'
@@ -246,6 +248,10 @@ function AppInner() {
   const [addEventOpen, setAddEventOpen] = useState(false)
   const [addScheduleOpen, setAddScheduleOpen] = useState(false)
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false)
+  // Learn tab data lives here (not in LearnTab) so Today's Interview Prep section can read it.
+  const learning = useLearning({ enabled: true })
+  const [learnLogRequest, setLearnLogRequest] = useState(null)
+  const logOa = app => { setLearnLogRequest({ kind: 'assessment', applicationId: app.id, title: `${app.company} OA` }); setTab('learn') }
 
   useEffect(() => { load() }, [])
 
@@ -342,7 +348,8 @@ function AppInner() {
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
           onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} />
       )}
-      {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} actionItems={actionItems} dailyRecap={dailyRecap} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} />}
+      {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} actionItems={actionItems} dailyRecap={dailyRecap} learning={learning} onOpenLearn={() => setTab('learn')} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} />}
+      {!loading && tab === 'learn'    && <LearnTab learning={learning} apps={apps} profile={profile} logRequest={learnLogRequest} onLogRequestHandled={() => setLearnLogRequest(null)} />}
       {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} eventPool={eventPool} eventCalendarSync={eventCalendarSync} />}
       {tab === 'settings' && <SettingsTab />}
 
@@ -372,12 +379,13 @@ function AppInner() {
 // (keyed off this same /demo path) means every fetch*/add*/update* call these components
 // already make transparently reads/writes an in-memory seed dataset instead of Supabase,
 // so nothing here needed forking into a separate "read-only" UI. Scope is deliberately
-// trimmed to the 3 tabs that need zero AI/BYOK keys and zero external OAuth (Today,
-// Network table/cards/graph, Pipeline) — Grow/Outbox/Job
+// trimmed to the tabs that need zero AI/BYOK keys and zero external OAuth (Today,
+// Network table/cards/graph, Pipeline, Learn — Learn's AI plan/explain-back buttons are
+// fail-soft and the tab says so in demo mode) — Grow/Outbox/Job
 // Boards/Calendar/Settings all call Claude/OpenAI/Exa/GitHub/Google proxies that
 // `requireUser()`-gate on a real signed-in session and would just 401 for an anonymous
 // visitor, so they're left out rather than shown half-broken.
-const DEMO_NAV_ITEMS = NAV_ITEMS.filter(item => ['today', 'network', 'pipeline'].includes(item.id))
+const DEMO_NAV_ITEMS = NAV_ITEMS.filter(item => ['today', 'network', 'pipeline', 'learn'].includes(item.id))
 
 function DemoApp() {
   const [tab, setTab] = useState('today')
@@ -386,6 +394,7 @@ function DemoApp() {
   const [interactions, setInteractions] = useState([])
   const [contactRelationships, setContactRelationships] = useState([])
   const [loading, setLoading] = useState(true)
+  const learning = useLearning({ enabled: true })
 
   useEffect(() => { load() }, [])
 
@@ -427,8 +436,10 @@ function DemoApp() {
       )}
       {!loading && tab === 'today' && (
         <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships}
+          learning={learning} onOpenLearn={() => setTab('learn')}
           onRefresh={load} onRefreshRelationships={refreshContactRelationships} isDemoMode />
       )}
+      {!loading && tab === 'learn' && <LearnTab learning={learning} apps={apps} isDemoMode />}
     </AppShell>
   )
 }

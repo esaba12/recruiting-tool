@@ -52,3 +52,13 @@ export const GRAPH_SURFACE_DARK = '#101215'      // ink-900
 export const GRAPH_NODE_NEUTRAL_DARK = '#c7cbd0' // ink-200 — company/neutral nodes, 11.51:1
 export const GRAPH_TEXT_DARK = '#a2a7af'         // ink-300 — node labels, 7.76:1
 export const GRAPH_LINK_DARK = '#e1e3e6'         // ink-100 — "works-at" threads, used at low alpha
+
+// Learn tab difficulty donut — LeetCode's own green/amber/red convention mapped onto the
+// status tokens. Same three hues as the status palette above, so the same contrast WARN on
+// warning-500 applies; DifficultyWidget always renders DonutChart's visible count legend,
+// which is the required relief channel.
+export const DIFFICULTY_COLORS = {
+  Easy: '#2f8f3d',   // success-500
+  Medium: '#d99a12', // warning-500
+  Hard: '#b3312c',   // danger-500
+}

@@ -8,6 +8,9 @@
 // keys) — the demo branch in db.js returns these arrays directly with zero mapping, so any
 // component built against real data works unmodified against this data.
 
+import { instantiateTemplate } from './lib/learning/templates.js'
+import { PROBLEM_BY_SLUG } from './lib/learning/problemBank.js'
+
 function daysFromNow(n) {
   return new Date(Date.now() + n * 86400000).toISOString().split('T')[0]
 }
@@ -237,3 +240,48 @@ export const DEMO_INGEST_SOURCES = [
   { id: 'demo-is1', schoolId: 'demo-s1', kind: 'localist', ref: '1', label: 'Engineering Career Center', lastRunAt: hoursFromNow(0, 6), lastSuccessAt: hoursFromNow(0, 6), lastCount: 4, degradedAt: null, degradedReason: null },
   { id: 'demo-is2', schoolId: 'demo-s1', kind: 'localist', ref: '9', label: 'Student Org Fairs (legacy mirror)', lastRunAt: hoursFromNow(0, 6), lastSuccessAt: hoursFromNow(-30, 6), lastCount: 0, degradedAt: hoursFromNow(0, 6), degradedReason: 'Feed returned events dated 2023 for a Fall 2026 query' },
 ]
+
+// ── Learn tab (interview prep) ────────────────────────────────────────────────
+// A seeded SWE track with ~5 weeks of plausible practice, built from the real template +
+// problem bank so the demo exercises the same mastery/gap/goal code the real app does.
+
+export function buildDemoLearning() {
+  const { track, topics } = instantiateTemplate('swe')
+  const trackRow = { id: 'demo-lt1', ...track, sort: 0, archivedAt: null }
+  trackRow.config.leetcodeUsername = ''
+  const topicRows = topics.map((t, i) => ({ id: `demo-lp${i}`, trackId: trackRow.id, hidden: false, selfRating: null, ...t }))
+  const byName = n => topicRows.find(t => t.name === n)?.id
+
+  const solves = [
+    ['two-sum', 34, 'solved'], ['valid-anagram', 33, 'solved'], ['group-anagrams', 31, 'solved'], ['top-k-frequent-elements', 30, 'hinted'],
+    ['valid-palindrome', 27, 'solved'], ['3sum', 26, 'failed'], ['container-with-most-water', 24, 'solved'],
+    ['longest-substring-without-repeating-characters', 20, 'hinted'], ['minimum-window-substring', 19, 'failed'],
+    ['valid-parentheses', 16, 'solved'], ['daily-temperatures', 15, 'hinted'], ['binary-search', 13, 'solved'],
+    ['invert-binary-tree', 9, 'solved'], ['maximum-depth-of-binary-tree', 8, 'solved'], ['binary-tree-level-order-traversal', 6, 'solved'],
+    ['validate-binary-search-tree', 5, 'hinted'], ['number-of-islands', 3, 'solved'], ['course-schedule', 2, 'failed'],
+    ['3sum', 1, 'solved'], ['coin-change', 1, 'failed'],
+  ]
+  const items = []
+  const logs = []
+  for (const [slug, d, outcome] of solves) {
+    const p = PROBLEM_BY_SLUG.get(slug)
+    let item = items.find(i => i.externalRef === slug)
+    if (!item) {
+      item = { id: `demo-li${items.length}`, source: 'leetcode', externalRef: slug, title: p.title, url: p.url, difficulty: p.difficulty, tags: p.tags, srs: null, dueAt: null }
+      items.push(item)
+    }
+    if (outcome !== 'solved') item.dueAt = new Date(Date.now() + (d - 2) * 86400000).toISOString()
+    logs.push({ id: nextDemoId(), trackId: trackRow.id, topicIds: [], itemId: item.id, applicationId: null, kind: 'problem', source: 'manual', externalRef: null,
+      title: p.title, difficulty: p.difficulty, outcome, minutes: 25 + (d % 4) * 10, confidence: outcome === 'solved' ? 4 : 2, score: null, notes: '',
+      occurredAt: new Date(Date.now() - d * 86400000).toISOString() })
+  }
+  const sessions = [
+    ['Caching', 'session', 12, null, 45], ['Scaling fundamentals', 'explain_back', 10, 3, null], ['Joins', 'session', 7, null, 30],
+    ['Window functions', 'explain_back', 4, 2, null], ['What happens when you type a URL', 'explain_back', 2, 4, null], ['Design case studies', 'mock', 1, 3, 60],
+  ]
+  for (const [name, kind, d, score, minutes] of sessions) {
+    logs.push({ id: nextDemoId(), trackId: trackRow.id, topicIds: [byName(name)], itemId: null, applicationId: null, kind, source: 'manual', externalRef: null,
+      title: name, difficulty: null, outcome: null, minutes, confidence: score, score, notes: '', occurredAt: new Date(Date.now() - d * 86400000).toISOString() })
+  }
+  return { tracks: [trackRow], topics: topicRows, items, logs }
+}
