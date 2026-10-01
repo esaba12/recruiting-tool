@@ -56,11 +56,19 @@
 // Sonnet call/day (a few cents) if generateDailyRecap()'s trigger is enabled.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const DONE_LABEL      = 'recruiting-done' // visual marker in Gmail only — no longer used to gate processing, since threads can grow replies after being marked done
+const DONE_LABEL      = 'recruiting-done'
 const RECRUITING_LABEL = 'recruiting'
+// Every discovery search excludes threads already marked done, unless they had activity in the
+// last day (a done thread can grow a reply — msgcount_<threadId> still decides whether there's
+// anything new). Without this, every run re-fetched up to 3×SEARCH_CAP already-processed threads
+// (getMessages() is a Gmail read, and UNRELATED threads never get the 'recruiting' label so they
+// matched INBOX_SCAN_QUERY forever) — ~65k Gmail reads/day at a 10-minute trigger, which blew
+// through the consumer daily Gmail quota ("Service invoked too many times for one day: gmail",
+// 2026-09-29). 1d is generous against a 10-minute trigger, so a missed run or two can't drop a reply.
+const NOT_DONE_CLAUSE = `(-label:${DONE_LABEL} OR newer_than:1d)`
 // Recent Sent-folder threads not yet labeled — catches brand-new cold outreach the user
 // sends that never went through an already-labeled thread. 30d bounds the first-run backfill.
-const SENT_SCAN_QUERY = `in:sent -label:${RECRUITING_LABEL} newer_than:30d`
+const SENT_SCAN_QUERY = `in:sent -label:${RECRUITING_LABEL} ${NOT_DONE_CLAUSE} newer_than:30d`
 
 // ATS platforms and recruiting-shaped subject phrasing. These USED to gate which inbound
 // emails were even discovered (see INBOX_SCAN_QUERY's old form, git history) — that was a
@@ -86,12 +94,19 @@ const RECRUITING_SUBJECT_KEYWORDS = [
 // UNRELATED vs. not. At ~$0.001/email this is not a real cost concern for one personal
 // inbox, and it closes the exact gap the old keyword gate left open. 45d bounds the regular
 // 10-minute job's window — see runBackfillChunk() below for historical mail older than this.
-const INBOX_SCAN_QUERY = `in:inbox -label:${RECRUITING_LABEL} newer_than:45d`
+const INBOX_SCAN_QUERY = `in:inbox -label:${RECRUITING_LABEL} ${NOT_DONE_CLAUSE} newer_than:45d`
+const LABELED_SCAN_QUERY = `label:${RECRUITING_LABEL} ${NOT_DONE_CLAUSE}`
 
 // Per-search result cap for the regular 10-minute job. Was 25 back when INBOX_SCAN_QUERY was
 // keyword-gated to a small subset of inbox mail; raised now that it scans everything in the
 // window. Bump further if the log ever reports a search hitting this cap.
 const SEARCH_CAP = 150
+
+// Apps Script kills a consumer-account execution at 6 minutes ("Exceeded maximum execution
+// time"). processThreadList() stops starting new threads past this budget; whatever's left is
+// still un-done and gets picked up by the next run.
+const RUN_BUDGET_MS = 4.5 * 60 * 1000
+const QUOTA_ERROR_RE = /too many times|quota|rate limit/i
 
 function recruitingShapeHint(fromHeader, subject, body) {
   const addr = parseAddress(fromHeader)
@@ -420,7 +435,7 @@ function processRecruitingEmails() {
   // threads not yet labeled, which catches brand-new cold outreach the user sends, and
   // (3) recent Inbox threads not yet labeled (see INBOX_SCAN_QUERY above — ungated, every
   // inbox thread in the window).
-  const labeledThreads = GmailApp.search(`label:${RECRUITING_LABEL}`, 0, SEARCH_CAP)
+  const labeledThreads = GmailApp.search(LABELED_SCAN_QUERY, 0, SEARCH_CAP)
   const sentThreads     = GmailApp.search(SENT_SCAN_QUERY, 0, SEARCH_CAP)
   const inboxThreads    = GmailApp.search(INBOX_SCAN_QUERY, 0, SEARCH_CAP)
   const threadsById     = new Map()
@@ -432,25 +447,39 @@ function processRecruitingEmails() {
     return
   }
 
-  console.log(`Scanning ${threads.length} thread(s)`)
+  const capped = [labeledThreads, sentThreads, inboxThreads].some(list => list.length >= SEARCH_CAP)
+  console.log(`Scanning ${threads.length} thread(s)` + (capped ? ' — a search hit SEARCH_CAP, the rest will come up on later runs' : ''))
   processThreadList(threads, keys, props, myEmail)
 }
 
 // Core per-thread processing loop, shared by the regular 10-minute job above and
 // runBackfillChunk() below — the only difference between them is which threads get handed
 // in and over what date window they were discovered.
+// Returns true if every thread was attempted, false if it stopped early (time budget or a
+// daily-quota error) — callers that track progress (runBackfillChunk) must not advance past it.
 function processThreadList(threads, keys, props, myEmail) {
+  const startedAt       = Date.now()
   const doneLabel       = getOrCreateLabel(DONE_LABEL)
   const recruitingLabel = getOrCreateLabel(RECRUITING_LABEL)
 
-  threads.forEach(thread => {
+  for (let idx = 0; idx < threads.length; idx++) {
+    if (Date.now() - startedAt > RUN_BUDGET_MS) {
+      console.log(`Time budget reached — ${threads.length - idx} thread(s) left for the next run`)
+      return false
+    }
+    const thread   = threads[idx]
     const threadId = thread.getId()
     const seenKey  = `msgcount_${threadId}`
     try {
       const messages = thread.getMessages()
       const seen     = Number(props.getProperty(seenKey) || 0)
 
-      if (messages.length <= seen) return // nothing new since last run
+      if (messages.length <= seen) {
+        // Nothing new — make sure it's marked done so discovery stops returning it (threads
+        // processed before NOT_DONE_CLAUSE existed may only carry msgcount_, not the label).
+        thread.addLabel(doneLabel)
+        continue
+      }
 
       const msg      = messages[messages.length - 1]
       const subject  = msg.getSubject()
@@ -503,7 +532,7 @@ function processThreadList(threads, keys, props, myEmail) {
         console.log('  Skipped — UNRELATED')
         thread.addLabel(doneLabel)
         props.setProperty(seenKey, String(messages.length))
-        return
+        continue
       }
 
       // Claude's own meeting_link guess (from prompt JSON) is only a fallback for cases the
@@ -591,9 +620,15 @@ function processThreadList(threads, keys, props, myEmail) {
 
     } catch (e) {
       console.error(`  ✗ ${e.message}`)
-      // Don't update seenKey — will retry next run
+      // Don't update seenKey — will retry next run. A daily-quota error will fail every
+      // remaining thread the same way, so stop instead of hammering the service.
+      if (QUOTA_ERROR_RE.test(e.message || '')) {
+        console.error('Quota exhausted — stopping this run')
+        return false
+      }
     }
-  })
+  }
+  return true
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -633,8 +668,8 @@ function runBackfillChunk() {
   const olderThanDays = Math.max(Math.ceil((todayMs - cursorMs) / 86400000), 0)
   const dateClause    = `newer_than:${newerThanDays}d` + (olderThanDays > 0 ? ` older_than:${olderThanDays}d` : '')
 
-  const inboxThreads = GmailApp.search(`in:inbox -label:${RECRUITING_LABEL} ${dateClause}`, 0, BACKFILL_SEARCH_CAP)
-  const sentThreads  = GmailApp.search(`in:sent -label:${RECRUITING_LABEL} ${dateClause}`, 0, BACKFILL_SEARCH_CAP)
+  const inboxThreads = GmailApp.search(`in:inbox -label:${RECRUITING_LABEL} -label:${DONE_LABEL} ${dateClause}`, 0, BACKFILL_SEARCH_CAP)
+  const sentThreads  = GmailApp.search(`in:sent -label:${RECRUITING_LABEL} -label:${DONE_LABEL} ${dateClause}`, 0, BACKFILL_SEARCH_CAP)
   const threadsById  = new Map()
   ;[...inboxThreads, ...sentThreads].forEach(t => threadsById.set(t.getId(), t))
   const threads = [...threadsById.values()]
@@ -642,7 +677,10 @@ function runBackfillChunk() {
   console.log(`Backfill chunk (${dateClause}): ${threads.length} thread(s)`
     + ((inboxThreads.length >= BACKFILL_SEARCH_CAP || sentThreads.length >= BACKFILL_SEARCH_CAP) ? ' — capped, consider raising BACKFILL_SEARCH_CAP' : ''))
 
-  if (threads.length) processThreadList(threads, keys, props, myEmail)
+  if (threads.length && !processThreadList(threads, keys, props, myEmail)) {
+    console.log('Chunk not finished — cursor left in place, run runBackfillChunk() again to continue this chunk.')
+    return
+  }
 
   props.setProperty('backfill_cursor_ms', String(chunkStartMs))
   const doneDays = Math.ceil((todayMs - chunkStartMs) / 86400000)
