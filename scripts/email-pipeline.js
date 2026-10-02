@@ -58,17 +58,19 @@
 
 const DONE_LABEL      = 'recruiting-done'
 const RECRUITING_LABEL = 'recruiting'
-// Every discovery search excludes threads already marked done, unless they had activity in the
-// last day (a done thread can grow a reply — msgcount_<threadId> still decides whether there's
-// anything new). Without this, every run re-fetched up to 3×SEARCH_CAP already-processed threads
-// (getMessages() is a Gmail read, and UNRELATED threads never get the 'recruiting' label so they
-// matched INBOX_SCAN_QUERY forever) — ~65k Gmail reads/day at a 10-minute trigger, which blew
-// through the consumer daily Gmail quota ("Service invoked too many times for one day: gmail",
-// 2026-09-29). 1d is generous against a 10-minute trigger, so a missed run or two can't drop a reply.
-const NOT_DONE_CLAUSE = `(-label:${DONE_LABEL} OR newer_than:1d)`
+// Discovery is cursor-based: each run only searches mail newer than the last completed scan
+// (SCAN_CURSOR_PROP, epoch seconds, minus SCAN_OVERLAP_SEC for Gmail indexing lag), so it only
+// ever touches threads that actually got a new message. The old rolling windows (newer_than:30d/
+// 45d, plus an unbounded label:recruiting search) re-read up to 450 already-processed threads
+// every 10 minutes — getMessages() is a Gmail read — and exhausted the consumer daily Gmail
+// quota ("Service invoked too many times for one day: gmail", 2026-09-29). Older mail is
+// runBackfillChunk()'s job. msgcount_<threadId> still guards against reprocessing the overlap.
+const SCAN_CURSOR_PROP    = 'scan_cursor_sec'
+const SCAN_OVERLAP_SEC    = 15 * 60
+const SCAN_FIRST_RUN_SEC  = 2 * 86400 // how far back the very first cursor-based run looks
 // Recent Sent-folder threads not yet labeled — catches brand-new cold outreach the user
 // sends that never went through an already-labeled thread. 30d bounds the first-run backfill.
-const SENT_SCAN_QUERY = `in:sent -label:${RECRUITING_LABEL} ${NOT_DONE_CLAUSE} newer_than:30d`
+const SENT_SCAN_QUERY = `in:sent -label:${RECRUITING_LABEL}`
 
 // ATS platforms and recruiting-shaped subject phrasing. These USED to gate which inbound
 // emails were even discovered (see INBOX_SCAN_QUERY's old form, git history) — that was a
@@ -94,8 +96,8 @@ const RECRUITING_SUBJECT_KEYWORDS = [
 // UNRELATED vs. not. At ~$0.001/email this is not a real cost concern for one personal
 // inbox, and it closes the exact gap the old keyword gate left open. 45d bounds the regular
 // 10-minute job's window — see runBackfillChunk() below for historical mail older than this.
-const INBOX_SCAN_QUERY = `in:inbox -label:${RECRUITING_LABEL} ${NOT_DONE_CLAUSE} newer_than:45d`
-const LABELED_SCAN_QUERY = `label:${RECRUITING_LABEL} ${NOT_DONE_CLAUSE}`
+const INBOX_SCAN_QUERY = `in:inbox -label:${RECRUITING_LABEL}`
+const LABELED_SCAN_QUERY = `label:${RECRUITING_LABEL}`
 
 // Per-search result cap for the regular 10-minute job. Was 25 back when INBOX_SCAN_QUERY was
 // keyword-gated to a small subset of inbox mail; raised now that it scans everything in the
@@ -435,21 +437,30 @@ function processRecruitingEmails() {
   // threads not yet labeled, which catches brand-new cold outreach the user sends, and
   // (3) recent Inbox threads not yet labeled (see INBOX_SCAN_QUERY above — ungated, every
   // inbox thread in the window).
-  const labeledThreads = GmailApp.search(LABELED_SCAN_QUERY, 0, SEARCH_CAP)
-  const sentThreads     = GmailApp.search(SENT_SCAN_QUERY, 0, SEARCH_CAP)
-  const inboxThreads    = GmailApp.search(INBOX_SCAN_QUERY, 0, SEARCH_CAP)
+  const runStartSec    = Math.floor(Date.now() / 1000)
+  const cursorSec      = Number(props.getProperty(SCAN_CURSOR_PROP) || (runStartSec - SCAN_FIRST_RUN_SEC))
+  const afterClause    = ` after:${cursorSec - SCAN_OVERLAP_SEC}`
+  const labeledThreads = GmailApp.search(LABELED_SCAN_QUERY + afterClause, 0, SEARCH_CAP)
+  const sentThreads    = GmailApp.search(SENT_SCAN_QUERY + afterClause, 0, SEARCH_CAP)
+  const inboxThreads   = GmailApp.search(INBOX_SCAN_QUERY + afterClause, 0, SEARCH_CAP)
   const threadsById     = new Map()
   ;[...labeledThreads, ...sentThreads, ...inboxThreads].forEach(t => threadsById.set(t.getId(), t))
   const threads = [...threadsById.values()]
 
   if (!threads.length) {
-    console.log('No recruiting threads found.')
+    props.setProperty(SCAN_CURSOR_PROP, String(runStartSec))
+    console.log('No new threads.')
     return
   }
 
+  // Only advance the cursor when this run got through everything it found — one cut short by
+  // the time budget/quota re-searches the same window next time (threads it already finished
+  // are skipped via msgcount_). A capped search still advances (otherwise the same newest
+  // SEARCH_CAP threads would come back forever); the overflow is runBackfillChunk()'s job.
   const capped = [labeledThreads, sentThreads, inboxThreads].some(list => list.length >= SEARCH_CAP)
-  console.log(`Scanning ${threads.length} thread(s)` + (capped ? ' — a search hit SEARCH_CAP, the rest will come up on later runs' : ''))
-  processThreadList(threads, keys, props, myEmail)
+  console.log(`Scanning ${threads.length} thread(s) since ${new Date(cursorSec * 1000).toISOString()}`
+    + (capped ? ' — a search hit SEARCH_CAP, older overflow skipped (run runBackfillChunk() to catch it)' : ''))
+  if (processThreadList(threads, keys, props, myEmail)) props.setProperty(SCAN_CURSOR_PROP, String(runStartSec))
 }
 
 // Core per-thread processing loop, shared by the regular 10-minute job above and
@@ -474,12 +485,7 @@ function processThreadList(threads, keys, props, myEmail) {
       const messages = thread.getMessages()
       const seen     = Number(props.getProperty(seenKey) || 0)
 
-      if (messages.length <= seen) {
-        // Nothing new — make sure it's marked done so discovery stops returning it (threads
-        // processed before NOT_DONE_CLAUSE existed may only carry msgcount_, not the label).
-        thread.addLabel(doneLabel)
-        continue
-      }
+      if (messages.length <= seen) continue // nothing new since last run
 
       const msg      = messages[messages.length - 1]
       const subject  = msg.getSubject()
@@ -632,8 +638,8 @@ function processThreadList(threads, keys, props, myEmail) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BACKFILL — one-time historical catch-up beyond the regular job's rolling windows
-// (newer_than:30d/45d above). Resumable and chunked: Apps Script caps a single execution at
+// BACKFILL — one-time historical catch-up for mail older than the regular job's scan cursor
+// (SCAN_CURSOR_PROP above). Resumable and chunked: Apps Script caps a single execution at
 // ~6 minutes on a consumer Google account, which a year of mail plus one Haiku call per
 // thread will not fit inside. Each call processes one BACKFILL_CHUNK_DAYS-day slice working
 // backward from "today" (or from wherever the last call left off) and stores its progress in
