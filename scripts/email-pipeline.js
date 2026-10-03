@@ -37,7 +37,7 @@
 //     3. Set NTFY_TOPIC to that same string in Script Properties above.
 //   Once set, this script pushes immediately when a thread is classified as OA_INVITE,
 //   INTERVIEW_INVITE, OFFER, or REJECTION (see notifyStatusChange()), and once a day
-//   (via the checkOaDeadlines trigger above) digests any OA due within 3 days or overdue —
+//   (via the checkOaDeadlines trigger above) digests every OA not yet marked completed —
 //   see checkOaDeadlines() below. Deliberately not email: the whole point is a notification
 //   that doesn't get lost in an inbox that's already full of the emails this script reads.
 //
@@ -287,27 +287,29 @@ function checkOaDeadlines() {
     ...a,
     daysUntil: Math.round((new Date(a.oa_due_date).getTime() - todayMs) / 86400000),
   }))
-  const dueSoon = withDays.filter(a => a.daysUntil <= 3)
+  // Every open OA, every morning — a 3-day window used to mean an OA due in two weeks got no
+  // reminder at all until the last few days. Urgency now lives in the priority instead.
+  const openOas = withDays
 
-  if (!dueSoon.length) {
-    console.log('No OA deadlines due within 3 days.')
+  if (!openOas.length) {
+    console.log('No open OAs.')
     return
   }
 
-  const lines = dueSoon.map(a => {
+  const lines = openOas.map(a => {
     const label = a.daysUntil < 0 ? `overdue by ${Math.abs(a.daysUntil)}d`
       : a.daysUntil === 0 ? 'due today' : `due in ${a.daysUntil}d`
     return `${a.company}${a.role ? ` (${a.role})` : ''} — ${label}`
   })
-  const urgent = dueSoon.some(a => a.daysUntil <= 1)
+  const soonest = Math.min(...openOas.map(a => a.daysUntil))
 
   sendPush(keys, {
-    title: `⏰ ${dueSoon.length} OA deadline${dueSoon.length > 1 ? 's' : ''} coming up`,
+    title: `⏰ ${openOas.length} open OA${openOas.length > 1 ? 's' : ''}`,
     message: lines.join('\n'),
-    priority: urgent ? 'urgent' : 'high',
+    priority: soonest <= 1 ? 'urgent' : soonest <= 3 ? 'high' : 'default',
     tags: ['stopwatch'],
   })
-  console.log(`Pushed OA deadline digest: ${dueSoon.length} item(s)`)
+  console.log(`Pushed OA deadline digest: ${openOas.length} item(s)`)
 }
 
 // "Who did I send the last message to, that never wrote back?" — same rule
