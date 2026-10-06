@@ -8,6 +8,7 @@ import { localToIso, parseCompactLocal, isValidTimeZone } from './ingest/tz.js'
 import { dedupKey } from './ingest/dedup.js'
 import { classifyKind, extractEmployer } from './ingest/adapters/localist.js'
 import { REQUIREMENT_KINDS } from './eventRequirements.js'
+import { splitCsvLine } from './csv.js'
 
 // ── ICS ─────────────────────────────────────────────────────────────────────
 function unfold(text) {
@@ -68,19 +69,6 @@ export function parseIcs(text, { timezone = 'UTC' } = {}) {
 }
 
 // ── CSV ─────────────────────────────────────────────────────────────────────
-function splitCsvLine(line) {
-  const out = []; let cur = ''; let q = false
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i]
-    if (q) { if (c === '"' && line[i + 1] === '"') { cur += '"'; i++ } else if (c === '"') q = false; else cur += c }
-    else if (c === '"') q = true
-    else if (c === ',' || c === '\t') { out.push(cur); cur = '' }
-    else cur += c
-  }
-  out.push(cur)
-  return out.map(s => s.trim())
-}
-
 const HEADER_ALIASES = {
   title: ['title', 'name', 'event', 'event name', 'summary', 'subject'],
   start: ['start', 'start time', 'starts', 'date', 'datetime', 'start date', 'when', 'begins'],

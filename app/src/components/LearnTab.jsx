@@ -5,11 +5,12 @@ import Mono from './ui/Mono.jsx'
 import EmptyState from './ui/EmptyState.jsx'
 import Modal from './ui/Modal.jsx'
 import { TEMPLATES, defaultTemplateKeys } from '../lib/learning/templates.js'
-import { useTrackView } from '../lib/learning/useLearning.js'
+import { useTrackView, activeTrack } from '../lib/learning/useLearning.js'
+import useCompanyPrep from '../lib/learning/useCompanyPrep.js'
 import { lsGet, lsSet } from '../lib/scopedStorage.js'
 import {
   SummaryWidget, GoalsWidget, GapsWidget, PlanWidget, MasteryWidget, ReviewWidget, ActivityWidget,
-  DifficultyWidget, RecentWidget, FULL_WIDTH,
+  DifficultyWidget, RecentWidget, CompanyPrepWidget, LanguagesWidget, FULL_WIDTH,
 } from './learning/widgets.jsx'
 import CustomizePanel, { mergeWidgets } from './learning/CustomizePanel.jsx'
 import LogModal from './learning/LogModal.jsx'
@@ -27,7 +28,11 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
   const [logInitial, setLogInitial] = useState(null)
   const [explainTopic, setExplainTopic] = useState(undefined) // undefined = closed, null = open w/o preset
   const [addingTrack, setAddingTrack] = useState(false)
-  const view = useTrackView(learning, trackId, apps)
+  const track = activeTrack(learning, trackId)
+  // Company problem lists only matter for tracks that practice on LeetCode.
+  const lcTrack = !!track && learning.topics.some(t => t.trackId === track.id && t.lcTags?.length)
+  const companyPrep = useCompanyPrep(track, apps, { enabled: learning.loaded && lcTrack && !isDemoMode })
+  const view = useTrackView(learning, trackId, apps, companyPrep.sets)
 
   useEffect(() => { if (view?.track && view.track.id !== trackId) setTrackId(view.track.id) }, [view?.track, trackId])
   useEffect(() => { if (trackId) { try { lsSet(ACTIVE_TRACK_KEY, trackId) } catch { /* private mode */ } } }, [trackId])
@@ -41,8 +46,10 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
   if (learning.error) return <EmptyState msg={`Couldn't load Learn: ${learning.error}`} />
   if (!learning.tracks.length) return <Onboarding learning={learning} focus={profile?.focus} />
 
-  const widgets = mergeWidgets(view.track.config?.widgets).filter(w => w.visible)
+  const widgets = mergeWidgets(view.track.config?.widgets, { lcTrack }).filter(w => w.visible)
   const openLog = (initial = {}) => setLogInitial(initial)
+  const lcUser = view.track.config?.leetcodeUsername
+  const trackSnapshot = lcUser && learning.snapshot?.username?.toLowerCase() === lcUser.toLowerCase() ? learning.snapshot : null
 
   function renderWidget(type) {
     switch (type) {
@@ -54,7 +61,10 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
       case 'review': return <ReviewWidget view={view} onLog={openLog} onDismiss={id => learning.dismissReview(id)} />
       case 'activity': return <ActivityWidget view={view} />
       case 'difficulty': return <DifficultyWidget view={view} snapshot={view.track.config?.leetcodeUsername ? learning.snapshot : null} />
+      case 'languages': return <LanguagesWidget snapshot={trackSnapshot} onCustomize={() => setCustomizing(true)} />
       case 'recent': return <RecentWidget view={view} onDelete={id => learning.removeLog(id)} />
+      case 'company': return <CompanyPrepWidget view={view} prep={companyPrep} onLog={openLog} isDemoMode={isDemoMode}
+        onPin={names => learning.saveTrack(view.track.id, { config: { ...view.track.config, prepCompanies: names } })} />
       default: return null
     }
   }

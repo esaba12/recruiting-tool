@@ -65,7 +65,13 @@ export function topicMastery(topic, logs, { now = Date.now(), itemsById, baselin
     const t = ms(log.occurredAt)
     if (lastAt == null || t > lastAt) lastAt = t
     const mult = DIFFICULTY_MULT[log.difficulty] ?? 1
-    const d = decay(log.occurredAt, now)
+    // An accepted solve never fades below the undated-baseline weight: a problem solved a
+    // year ago (imported from LeetCode history) is still the same old, partly-remembered
+    // evidence the tag-count baseline counts it as — the baseline subtracts dated logs, so
+    // without this floor importing history would *lower* a topic's level.
+    const d = log.kind === 'problem' && log.outcome === 'solved'
+      ? Math.max(decay(log.occurredAt, now), BASELINE_WEIGHT)
+      : decay(log.occurredAt, now)
     S += d * mult * logQuality(log)
     N += d * mult
   }
@@ -90,12 +96,16 @@ export function topicMastery(topic, logs, { now = Date.now(), itemsById, baselin
 
 // LeetCode snapshot { tagSlug: solvedCount } → per-topic baseline. Takes the max over the
 // topic's tags (not the sum — one problem is usually tagged array AND hash-table), minus
-// the solves already present as dated logs so imports aren't double-counted.
+// the accepted problems already present as dated logs so imports aren't double-counted.
 export function baselineForTopic(topic, snapshot, logs, itemsById) {
   if (!snapshot || !topic.lcTags?.length) return 0
   const lifetime = Math.max(0, ...topic.lcTags.map(t => snapshot[t] || 0))
   if (!lifetime) return 0
-  const dated = logs.filter(l => l.source === 'leetcode' && logMatchesTopic(l, topic, itemsById)).length
+  // Lifetime counts are distinct problems accepted — so subtract distinct accepted problems,
+  // not every log (failed attempts and re-solves aren't in the lifetime number).
+  const dated = new Set(logs
+    .filter(l => l.source === 'leetcode' && (l.outcome === 'solved' || l.outcome === 'hinted') && logMatchesTopic(l, topic, itemsById))
+    .map(l => l.itemId || l.externalRef)).size
   return Math.max(0, lifetime - dated)
 }
 
@@ -137,11 +147,17 @@ export function trackDemand(track, apps, { now = Date.now(), withinDays = 21 } =
   return { interviews, oas }
 }
 
+// How hard a company's asked-problem mix leans on a topic turns into extra demand:
+// a topic carrying 40% of a company's frequency mass gets +0.6.
+const COMPANY_SHARE_BOOST = 1.5
+
 function demandMultiplier(topic, demand) {
   if (!demand) return 1
   let m = 1
-  if (demand.interviews.length) m += 0.5 * Math.min(2, demand.interviews.length)
-  if (demand.oas.length && OA_CATEGORIES.has(topic.category)) m += 0.75
+  if (demand.interviews?.length) m += 0.5 * Math.min(2, demand.interviews.length)
+  if (demand.oas?.length && OA_CATEGORIES.has(topic.category)) m += 0.75
+  const co = demand.companyTopics?.get(topic.id)
+  if (co) m += COMPANY_SHARE_BOOST * co.share
   return m
 }
 
@@ -173,8 +189,10 @@ export function gapReason(topic, m, demand, dm = 1) {
     if (days > 21) parts.push(`last practiced ${days}d ago`)
   }
   if (dm > 1 && demand) {
-    if (demand.oas.length && OA_CATEGORIES.has(topic.category)) parts.push(`OA due for ${demand.oas[0].company}`)
-    else if (demand.interviews.length) parts.push(`interviewing at ${demand.interviews[0].company}`)
+    const co = demand.companyTopics?.get(topic.id)
+    if (co && co.share >= 0.1) parts.push(`${Math.round(co.share * 100)}% of ${co.company}'s asked problems`)
+    else if (demand.oas?.length && OA_CATEGORIES.has(topic.category)) parts.push(`OA due for ${demand.oas[0].company}`)
+    else if (demand.interviews?.length) parts.push(`interviewing at ${demand.interviews[0].company}`)
   }
   if ((topic.weight ?? 1) >= 1.2) parts.push('high interview frequency')
   return parts.join(' · ') || 'below your target'

@@ -10,7 +10,7 @@
 import { requireUser } from './_lib/supabaseAdmin.js'
 import { getUserKey } from './_lib/keys.js'
 import { checkRateLimit, sendRateLimited } from './_lib/rateLimit.js'
-import { buildLeetcodeRequest, LEETCODE_GRAPHQL } from './_lib/leetcode.js'
+import { buildLeetcodeRequest, leetcodeHeaders, LEETCODE_GRAPHQL } from './_lib/leetcode.js'
 
 function extraQuery(query) {
   const { path, upstream, ...rest } = query
@@ -43,10 +43,11 @@ export default async function handler(req, res) {
     try { gql = buildLeetcodeRequest(req.body) } catch (e) {
       return res.status(e.status || 400).json({ error: { message: e.message } })
     }
+    // `session` (history op only) goes into the Cookie header, never into the body or a log.
     const upstream = await fetch(LEETCODE_GRAPHQL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Referer': 'https://leetcode.com', 'User-Agent': 'recruiting-os-dashboard' },
-      body: JSON.stringify(gql),
+      headers: await leetcodeHeaders(gql),
+      body: JSON.stringify({ query: gql.query, variables: gql.variables }),
     })
     const data = await upstream.text()
     res.status(upstream.status)

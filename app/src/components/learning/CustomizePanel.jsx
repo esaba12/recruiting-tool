@@ -224,7 +224,7 @@ function TopicRow({ topic, mastery, categories, learning, onDrop }) {
 
 function WidgetsEditor({ view, learning }) {
   const config = view.track.config || {}
-  const widgets = mergeWidgets(config.widgets)
+  const widgets = mergeWidgets(config.widgets, { lcTrack: view.visible.some(t => t.lcTags?.length) })
   const [order, setOrder] = useState(widgets.map(w => w.type))
   const orderRef = useRef(order)
   const visible = new Map(widgets.map(w => [w.type, w.visible]))
@@ -271,10 +271,19 @@ function WidgetRow({ type, meta, on, onToggle, onDrop }) {
 }
 
 // Stored widget list + any catalog types added since the track was created (appended, hidden).
-export function mergeWidgets(stored = []) {
+// Stored widget list + any widget types added since it was saved. New `lcOnly` types land
+// visible on LeetCode tracks, right after their `after` widget; everything else arrives
+// hidden at the end.
+export function mergeWidgets(stored = [], { lcTrack = false } = {}) {
   const known = new Set(WIDGET_TYPES.map(w => w.type))
   const list = stored.filter(w => known.has(w.type))
-  for (const w of WIDGET_TYPES) if (!list.some(x => x.type === w.type)) list.push({ type: w.type, visible: false })
+  for (const w of WIDGET_TYPES) {
+    if (list.some(x => x.type === w.type)) continue
+    if (w.lcOnly && lcTrack && stored.length) {
+      const at = list.findIndex(x => x.type === w.after)
+      list.splice(at < 0 ? list.length : at + 1, 0, { type: w.type, visible: true })
+    } else list.push({ type: w.type, visible: false })
+  }
   return list
 }
 
@@ -377,6 +386,59 @@ function Field({ label, children }) {
 
 // ── Track settings ──
 
+// One-off import of every problem ever solved/attempted. The public profile only shows the
+// last 20 submissions, so this needs the user's LEETCODE_SESSION cookie — sent through the
+// proxy for these requests and never saved (the field clears when the import finishes).
+function HistoryImport({ view, learning, snap }) {
+  const [open, setOpen] = useState(false)
+  const [session, setSession] = useState('')
+  const [progress, setProgress] = useState(null)
+  const [result, setResult] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  async function run() {
+    setBusy(true); setResult(null); setProgress(null)
+    try {
+      const res = await learning.importHistory(view.track, session.trim(), setProgress)
+      setResult({ ok: `Imported ${res.imported} problem${res.imported === 1 ? '' : 's'} (${res.solved} solved, ${res.attempted} attempted${res.skipped ? `, ${res.skipped} already logged` : ''}).` })
+      setOpen(false)
+    } catch (e) { setResult({ err: e.message }) }
+    finally { setSession(''); setBusy(false) }
+  }
+
+  return (
+    <div className="border-t border-ink-100 pt-2 mt-1 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-ink-600">
+          <b>Older solves</b>{snap?.historyImportedAt
+            ? <span className="text-ink-400 font-mono"> · imported {new Date(snap.historyImportedAt).toLocaleDateString()}{snap.historySolved != null ? ` · ${snap.historySolved} solved` : ''}</span>
+            : <span className="text-ink-400">: the public profile only shows your last 20 submissions.</span>}
+        </p>
+        {!open && <button onClick={() => setOpen(true)} className="text-xs font-medium text-accent-700 hover:underline whitespace-nowrap">{snap?.historyImportedAt ? 'Re-import' : 'Import full history'}</button>}
+      </div>
+      {open && (
+        <div className="space-y-2">
+          <ol className="text-[11px] text-ink-500 list-decimal pl-4 space-y-0.5">
+            <li>Open leetcode.com while signed in.</li>
+            <li>DevTools → Application → Cookies → https://leetcode.com.</li>
+            <li>Copy the value of <Mono>LEETCODE_SESSION</Mono> and paste it here.</li>
+          </ol>
+          <div className="flex gap-2">
+            <input type="password" autoComplete="off" spellCheck={false} value={session} onChange={e => setSession(e.target.value)} placeholder="LEETCODE_SESSION value"
+              className="flex-1 min-w-0 px-2.5 py-1.5 border border-ink-200 text-sm font-mono focus:outline-none focus:border-accent-500" />
+            <Button size="sm" onClick={run} disabled={busy || session.trim().length < 20}>{busy ? 'Importing…' : 'Import'}</Button>
+            <Button size="sm" variant="secondary" onClick={() => { setOpen(false); setSession('') }} disabled={busy}>Cancel</Button>
+          </div>
+          {progress && busy && <p className="text-[11px] text-ink-400 font-mono">{progress.loaded} / {progress.total || '?'} problems read</p>}
+          <p className="text-[11px] text-ink-400">Used once, only to read your solved/attempted list. It isn't saved anywhere, and it's a login cookie, so don't share it elsewhere. Each problem is logged at its last submission date. Problems you already have logged are skipped.</p>
+        </div>
+      )}
+      {result?.ok && <p className="text-xs text-success-700">{result.ok}</p>}
+      {result?.err && <p className="text-xs text-danger-600">{result.err}</p>}
+    </div>
+  )
+}
+
 function TrackEditor({ view, learning, onArchived }) {
   const config = view.track.config || {}
   const [name, setName] = useState(view.track.name)
@@ -408,7 +470,7 @@ function TrackEditor({ view, learning, onArchived }) {
 
       <div className="border border-ink-200 p-3 space-y-2">
         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-400">LeetCode import</p>
-        <p className="text-xs text-ink-500">Reads your <b>public</b> LeetCode profile once a day: solved counts per tag (seeds your DSA levels) and your 20 most recent accepted submissions (logged with dates). Nothing is posted to LeetCode.</p>
+        <p className="text-xs text-ink-500">Reads your <b>public</b> LeetCode profile once a day: solved counts per tag and per language (these seed your DSA levels), plus your 20 most recent submissions. Those are logged with dates, and failed tries count as struggles. Nothing is posted to LeetCode.</p>
         <div className="flex gap-2">
           <Input placeholder="LeetCode username" value={username} onChange={e => setUsername(e.target.value)} onBlur={saveUsername} className="font-mono" />
           <Button size="sm" variant="secondary" onClick={sync} disabled={!username.trim() || syncing}>
@@ -418,6 +480,7 @@ function TrackEditor({ view, learning, onArchived }) {
         {snap && <p className="text-[11px] text-ink-400 font-mono">last sync {new Date(snap.syncedAt).toLocaleString()} · {snap.difficulty?.All ?? 0} solved lifetime</p>}
         {status?.ok && <p className="text-xs text-success-700">{status.ok}</p>}
         {status?.err && <p className="text-xs text-danger-600">{status.err}</p>}
+        {config.leetcodeUsername && <HistoryImport view={view} learning={learning} snap={snap} />}
         <p className="text-[11px] text-ink-400">CodeSignal, HackerRank and other OAs have no public API. Log them with <b>+ Log → OA</b>, or from an application when you mark its OA done.</p>
       </div>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
+  setUserSetting,
   fetchLearning, createTrackWithTopics, updateTrack, addTopics as dbAddTopics, updateTopic as dbUpdateTopic,
   reorderTopics as dbReorderTopics, deleteTopic as dbDeleteTopic, upsertLearningItems, updateLearningItem,
   addLearningLog, deleteLearningLog, getUserSetting,
@@ -7,7 +8,7 @@ import {
 import { lsGet, lsSet } from '../scopedStorage.js'
 import { todayStr } from '../ingest/scheduler.js'
 import { instantiateTemplate } from './templates.js'
-import { syncLeetcode, SNAPSHOT_KEY } from './leetcodeImport.js'
+import { syncLeetcode, resolveQuestionMeta, importLeetcodeHistory, SNAPSHOT_KEY } from './leetcodeImport.js'
 import { PROBLEM_BY_SLUG, slugFromLeetcodeUrl, titleFromSlug } from './problemBank.js'
 import { scheduleAttempt } from './review.js'
 import { deriveTrack } from './derive.js'
@@ -90,13 +91,16 @@ export default function useLearning({ enabled = true } = {}) {
       const slug = slugFromLeetcodeUrl(log.problem)
       const bank = slug ? PROBLEM_BY_SLUG.get(slug) : null
       const ref = slug || `manual:${log.problem.trim().toLowerCase().slice(0, 100)}`
+      // Off-bank LeetCode problems (company lists, anything pasted) get their real tags so
+      // they count toward topic mastery — fail-soft to an untagged item.
+      const meta = slug && !bank && !window.location.pathname.startsWith('/demo') ? (await resolveQuestionMeta([slug]).catch(() => null))?.get(slug) : null
       const [saved] = await upsertLearningItems([{
         source: slug ? 'leetcode' : 'manual',
         externalRef: ref,
-        title: bank?.title || (slug ? titleFromSlug(slug) : log.problem.trim()),
+        title: bank?.title || meta?.title || (slug ? titleFromSlug(slug) : log.problem.trim()),
         url: bank?.url || (slug ? `https://leetcode.com/problems/${slug}/` : null),
-        difficulty: log.difficulty || bank?.difficulty || null,
-        tags: bank?.tags || [],
+        difficulty: log.difficulty || bank?.difficulty || meta?.difficulty || null,
+        tags: bank?.tags || meta?.tags || [],
       }])
       item = data.items.find(i => i.id === saved.id) || saved
       const sched = scheduleAttempt(item, log)
@@ -140,9 +144,26 @@ export default function useLearning({ enabled = true } = {}) {
     if (!username) return null
     setSyncing(track.id)
     try {
-      const res = await syncLeetcode({ username, trackId: track.id })
+      const res = await syncLeetcode({ username, trackId: track.id, prev: snapshot })
       const meta = lsGet(SYNC_META_KEY) || {}
       lsSet(SYNC_META_KEY, { ...meta, [track.id]: todayStr() })
+      await load()
+      return res
+    } finally { setSyncing(null) }
+  }
+
+  // One-off full history import with a pasted LEETCODE_SESSION (never stored). Problems that
+  // already have a LeetCode solve logged are skipped so recent solves aren't double-counted.
+  async function importHistory(track, session, onProgress) {
+    const slugById = new Map(data.items.filter(i => i.source === 'leetcode').map(i => [i.id, i.externalRef]))
+    const skipSlugs = new Set(data.logs.filter(l => l.source === 'leetcode' && l.outcome === 'solved').map(l => slugById.get(l.itemId)).filter(Boolean))
+    setSyncing(track.id)
+    try {
+      const res = await importLeetcodeHistory({ session, trackId: track.id, expectUsername: track.config?.leetcodeUsername, skipSlugs, onProgress })
+      if (snapshot && snapshot.username?.toLowerCase() === res.username.toLowerCase()) {
+        const next = { ...snapshot, historyImportedAt: new Date().toISOString(), historySolved: res.solved }
+        await setUserSetting(SNAPSHOT_KEY, next).catch(() => {})
+      }
       await load()
       return res
     } finally { setSyncing(null) }
@@ -162,15 +183,19 @@ export default function useLearning({ enabled = true } = {}) {
     ...data, snapshot, loaded, error, syncing, reload: load,
     createTrack, saveTrack, archiveTrack,
     addTopics, updateTopic, reorderTopics, deleteTopic,
-    logAttempt, removeLog, dismissReview, runLeetcodeSync,
+    logAttempt, removeLog, dismissReview, runLeetcodeSync, importHistory,
   }
 }
 
-export function useTrackView(learning, trackId, apps) {
-  const track = learning.tracks.find(t => t.id === trackId) || learning.tracks[0] || null
+export function activeTrack(learning, trackId) {
+  return learning.tracks.find(t => t.id === trackId) || learning.tracks[0] || null
+}
+
+export function useTrackView(learning, trackId, apps, companySets) {
+  const track = activeTrack(learning, trackId)
   return useMemo(
-    () => deriveTrack(learning, track, apps),
+    () => deriveTrack(learning, track, apps, Date.now(), { companySets }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [learning.tracks, learning.topics, learning.items, learning.logs, learning.snapshot, track, apps],
+    [learning.tracks, learning.topics, learning.items, learning.logs, learning.snapshot, track, apps, companySets],
   )
 }

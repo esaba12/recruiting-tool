@@ -9,6 +9,7 @@ import { GOAL_METRICS } from '../../lib/learning/templates.js'
 import { weeklyActivity, difficultySplit, startOfWeek } from '../../lib/learning/mastery.js'
 import { reviewQueue } from '../../lib/learning/review.js'
 import { candidateProblems, buildStudyPlan } from '../../lib/learning/coach.js'
+import { companyCoverage, practicedSlugs, COMPANY_REPO } from '../../lib/learning/companyProblems.js'
 import { getUserSetting, setUserSetting } from '../../db.js'
 import { AI_PROVIDER_LABEL } from '../../lib/ai.js'
 
@@ -359,4 +360,186 @@ export function RecentWidget({ view, onDelete }) {
 }
 
 // Which widgets span the full row on desktop.
-export const FULL_WIDTH = new Set(['summary', 'plan', 'mastery'])
+// ── Company prep: what the companies you're interviewing with ask on LeetCode ──
+const WHY_LABEL = { oa: 'OA due', interview: 'interviewing', pinned: 'pinned' }
+const DIFF_TEXT = { Easy: 'text-success-700', Medium: 'text-warning-700', Hard: 'text-danger-700' }
+
+export function CompanyPrepWidget({ view, prep, onLog, onPin, isDemoMode = false }) {
+  const [active, setActive] = useState(null)
+  const [adding, setAdding] = useState('')
+  const pinned = view.track.config?.prepCompanies || []
+  const sets = view.companySets || []
+  const set = sets.find(x => x.company === active) || sets[0]
+  const { solved, attempted } = practicedSlugs(view.items, view.logs)
+  const cov = set ? companyCoverage(set.problems, { solvedSlugs: solved, attemptedSlugs: attempted, topics: view.visible }) : null
+
+  function pin(e) {
+    e.preventDefault()
+    const name = adding.trim()
+    if (!name || pinned.some(p => p.toLowerCase() === name.toLowerCase())) return
+    onPin([...pinned, name]); setAdding(''); setActive(name)
+  }
+
+  const meta = prep.loading ? 'loading…' : set ? `${set.problems.length} tagged problems` : null
+  return (
+    <Panel title="Company prep" meta={meta}>
+      {isDemoMode && <p className="text-sm text-ink-400">Company problem lists load for signed-in accounts.</p>}
+      {!isDemoMode && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {sets.map(x => (
+              <span key={x.company} className={`inline-flex items-center border text-xs ${x === set ? 'bg-ink-900 border-ink-900 text-white' : 'bg-white border-ink-200 text-ink-600 hover:border-ink-400'}`}>
+                <button onClick={() => setActive(x.company)} className="px-2.5 py-1 font-semibold">
+                  {x.company} <span className={x === set ? 'text-accent-300' : 'text-ink-400'}>· {WHY_LABEL[x.why]}</span>
+                </button>
+                {x.why === 'pinned' && (
+                  <button onClick={() => onPin(pinned.filter(p => p !== x.company))} className="pr-1.5 opacity-60 hover:opacity-100" title="Unpin"><X size={11} /></button>
+                )}
+              </span>
+            ))}
+            <form onSubmit={pin} className="inline-flex">
+              <input value={adding} onChange={e => setAdding(e.target.value)} list="lc-company-folders" placeholder="+ pin a company"
+                className="w-36 px-2 py-1 text-xs border border-dashed border-ink-300 focus:outline-none focus:border-accent-500 bg-white" />
+              <datalist id="lc-company-folders">{prep.folders.map(f => <option key={f} value={f} />)}</datalist>
+            </form>
+          </div>
+
+          {prep.error && <p className="text-xs text-danger-600">{prep.error}</p>}
+          {!!prep.unmatched.length && <p className="text-[11px] text-ink-400">No LeetCode data for {prep.unmatched.join(', ')}.</p>}
+          {!set && !prep.loading && (
+            <p className="text-sm text-ink-400">No interviews or OAs in your Pipeline for this track right now. Pin a company to see what it asks.</p>
+          )}
+
+          {set && cov && (
+            <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-x-6 gap-y-4">
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <Mono className="text-3xl font-semibold text-ink-900">{Math.round(cov.solvedFrequencyPct * 100)}%</Mono>
+                    <span className="text-xs text-ink-500">of how often {set.company} asks, solved</span>
+                  </div>
+                  <div className="h-1.5 bg-ink-100 mt-2"><div className="h-full bg-accent-500 transition-all" style={{ width: `${cov.solvedFrequencyPct * 100}%` }} /></div>
+                  <Mono className="block text-[11px] text-ink-400 mt-1">{cov.solved}/{cov.total} problems{cov.attempted ? ` · ${cov.attempted} attempted` : ''}</Mono>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-400 mb-1.5">Leans on</p>
+                  <ul className="space-y-1.5">
+                    {cov.topicShares.slice(0, 5).map(({ topic, share }) => {
+                      const m = view.mastery.get(topic.id)
+                      return (
+                        <li key={topic.id} className="flex items-center gap-2">
+                          <Mono className="w-9 text-right text-[11px] text-ink-500">{Math.round(share * 100)}%</Mono>
+                          <span className="flex-1 text-sm text-ink-800 truncate">{topic.name}</span>
+                          {m && <LevelMeter level={m.level} target={topic.targetLevel} verified={m.verified} compact />}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-400 mb-1.5">Most asked · not solved yet</p>
+                {!cov.next.length && <p className="text-sm text-ink-400">You've solved every problem on {set.company}'s list.</p>}
+                <ol className="divide-y divide-ink-100">
+                  {cov.next.map((p, i) => (
+                    <li key={p.slug} className="py-1.5 flex items-center gap-2.5">
+                      <Mono className="text-ink-300 w-4">{String(i + 1).padStart(2, '0')}</Mono>
+                      <div className="flex-1 min-w-0">
+                        <a href={`https://leetcode.com/problems/${p.slug}/`} target="_blank" rel="noreferrer" className="text-sm text-ink-900 hover:underline truncate block">{p.title}</a>
+                        <p className="text-[11px] text-ink-400">
+                          <span className={DIFF_TEXT[p.difficulty] || ''}>{p.difficulty || '—'}</span>
+                          {attempted.has(p.slug) && <span className="text-danger-600"> · attempted, not accepted</span>}
+                        </p>
+                      </div>
+                      <div className="w-12 h-1 bg-ink-100" title={`Frequency ${p.frequency}`}><div className="h-full bg-ink-700" style={{ width: `${Math.min(100, p.frequency)}%` }} /></div>
+                      <button onClick={() => onLog({ kind: 'problem', problem: `https://leetcode.com/problems/${p.slug}/` })} className="text-xs text-ink-500 hover:text-ink-800">+ Log</button>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+          )}
+
+          <p className="text-[11px] text-ink-400 border-t border-ink-100 pt-2">
+            From the public <a href={`https://github.com/${COMPANY_REPO}`} target="_blank" rel="noreferrer" className="underline">{COMPANY_REPO}</a> list of LeetCode company tags.
+            "Solved" counts problems logged here or synced from LeetCode since you connected it, because LeetCode only exposes your last 20 submissions.
+          </p>
+        </div>
+      )}
+    </Panel>
+  )
+}
+
+// ── Languages: lifetime solves per language + first-try accept rate since tracking began ──
+const SQL_LANGS = new Set(['MySQL', 'MS SQL Server', 'Oracle', 'PostgreSQL', 'Pandas'])
+
+export function LanguagesWidget({ snapshot, onCustomize }) {
+  if (!snapshot?.languages?.length) {
+    return (
+      <Panel title="Languages">
+        <p className="text-sm text-ink-400">Add your LeetCode username in <button onClick={onCustomize} className="underline">Customize → Track</button> to see which languages you solve in.</p>
+      </Panel>
+    )
+  }
+  const code = snapshot.languages.filter(l => !SQL_LANGS.has(l.name) && l.solved > 0)
+  const sql = snapshot.languages.filter(l => SQL_LANGS.has(l.name) && l.solved > 0)
+  // Per-language counts overlap (one problem solved in two languages counts in both), so
+  // shares are of accepted solutions, not of distinct problems.
+  const total = code.reduce((s, l) => s + l.solved, 0) || 1
+  const max = code[0]?.solved || 1
+  const stats = snapshot.languageStats?.byLang || {}
+  const tracked = Object.entries(stats).map(([name, r]) => ({ name, ...r })).filter(r => r.solves + r.failed > 0).sort((a, b) => b.solves - a.solves)
+  const primary = code[0]
+  const p = primary && stats[primary.name]
+  const firstTry = r => (r.solves ? r.firstTry / r.solves : null)
+  const since = snapshot.languageStats?.since
+
+  return (
+    <Panel title="Languages" meta="LeetCode lifetime · per language">
+      {primary && (
+        <p className="text-sm text-ink-700 mb-3">
+          <b>{primary.name}</b> is your main language, with {Math.round((primary.solved / total) * 100)}% of your accepted solutions
+          {p?.solves >= 3 ? <>. First-try accept rate there: <Mono className="text-ink-900">{Math.round(firstTry(p) * 100)}%</Mono>.</> : '.'}
+        </p>
+      )}
+      <ul className="space-y-1.5">
+        {code.slice(0, 6).map((l, i) => (
+          <li key={l.name} className="flex items-center gap-2">
+            <span className={`w-24 text-sm truncate ${i === 0 ? 'font-semibold text-ink-900' : 'text-ink-600'}`}>{l.name}</span>
+            <div className="flex-1 h-2 bg-ink-100"><div className={`h-full ${i === 0 ? 'bg-accent-500' : 'bg-ink-700'}`} style={{ width: `${(l.solved / max) * 100}%` }} /></div>
+            <Mono className="w-12 text-right text-[11px] text-ink-500">{l.solved}</Mono>
+          </li>
+        ))}
+      </ul>
+      {!!sql.length && <p className="text-[11px] text-ink-400 mt-2">SQL: {sql.map(l => `${l.name} ${l.solved}`).join(' · ')}</p>}
+
+      <div className="mt-4 border-t border-ink-100 pt-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-400 mb-1.5">
+          Since {since ? new Date(since).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'tracking began'}
+        </p>
+        {!tracked.length && <p className="text-xs text-ink-400">First-try rates build up as you practice. Each daily sync adds your latest submissions.</p>}
+        {!!tracked.length && (
+          <table className="w-full text-xs">
+            <thead><tr className="text-ink-400 text-left"><th className="font-normal pb-1">Lang</th><th className="font-normal pb-1 text-right">Solves</th><th className="font-normal pb-1 text-right">1st try</th><th className="font-normal pb-1 text-right">Gave up</th><th className="font-normal pb-1 text-right">Last</th></tr></thead>
+            <tbody className="font-mono text-ink-700">
+              {tracked.slice(0, 5).map(r => {
+                const ft = firstTry(r)
+                return (
+                  <tr key={r.name} className="border-t border-ink-100">
+                    <td className="py-1 font-sans">{r.name}</td>
+                    <td className="py-1 text-right">{r.solves}</td>
+                    <td className={`py-1 text-right ${ft == null ? 'text-ink-300' : ft < 0.5 ? 'text-danger-700' : ft >= 0.75 ? 'text-success-700' : ''}`}>{ft == null ? '—' : `${Math.round(ft * 100)}%`}</td>
+                    <td className="py-1 text-right">{r.failed || '—'}</td>
+                    <td className="py-1 text-right text-ink-400">{r.lastAt ? `${Math.max(0, Math.floor((Date.now() - r.lastAt) / 86400000))}d` : '—'}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </Panel>
+  )
+}
+
+export const FULL_WIDTH = new Set(['summary', 'plan', 'mastery', 'company'])

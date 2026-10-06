@@ -848,20 +848,33 @@ function logToRow(l) {
   }
 }
 
+// PostgREST caps a response at 1,000 rows — page through with .range() so an imported
+// LeetCode history (often several hundred problems) is read in full. Capped at 20k rows.
+const PAGE_ROWS = 1000
+async function fetchAllPages(build, label, maxRows = 20000) {
+  const out = []
+  for (let from = 0; from < maxRows; from += PAGE_ROWS) {
+    const { data, error } = await build().range(from, from + PAGE_ROWS - 1)
+    throwIfError(error, label)
+    out.push(...data)
+    if (data.length < PAGE_ROWS) break
+  }
+  return out
+}
+
 export async function fetchLearning() {
   if (isDemoMode()) {
     const d = demoLearn()
     return { tracks: d.tracks.map(t => ({ ...t })), topics: d.topics.map(t => ({ ...t })), items: d.items.map(i => ({ ...i })), logs: d.logs.map(l => ({ ...l })) }
   }
-  const [tr, tp, it, lg] = await Promise.all([
+  const [tr, tp, items, logs] = await Promise.all([
     supabase.from('learning_tracks').select('*').is('archived_at', null).order('sort'),
     supabase.from('learning_topics').select('*').order('sort'),
-    supabase.from('learning_items').select('*'),
-    supabase.from('learning_logs').select('*').order('occurred_at', { ascending: false }).limit(2000),
+    fetchAllPages(() => supabase.from('learning_items').select('*').order('id'), 'fetchLearning(items)'),
+    fetchAllPages(() => supabase.from('learning_logs').select('*').order('occurred_at', { ascending: false }).order('id'), 'fetchLearning(logs)'),
   ])
   throwIfError(tr.error, 'fetchLearning(tracks)'); throwIfError(tp.error, 'fetchLearning(topics)')
-  throwIfError(it.error, 'fetchLearning(items)'); throwIfError(lg.error, 'fetchLearning(logs)')
-  return { tracks: tr.data.map(mapTrackRow), topics: tp.data.map(mapTopicRow), items: it.data.map(mapItemRow), logs: lg.data.map(mapLogRow) }
+  return { tracks: tr.data.map(mapTrackRow), topics: tp.data.map(mapTopicRow), items: items.map(mapItemRow), logs: logs.map(mapLogRow) }
 }
 
 // { track: { kind, name, config }, topics: [...] } → inserts both, returns mapped rows.

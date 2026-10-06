@@ -12,11 +12,15 @@ export const WIDGET_TYPES = [
   { type: 'summary',    label: 'Summary strip',      desc: 'This week, streak, readiness vs. target, next interview' },
   { type: 'goals',      label: 'Goals',              desc: 'Progress toward your weekly and deadline goals' },
   { type: 'gaps',       label: 'Gaps',               desc: 'Topics furthest below target, weighted by upcoming interviews' },
+  // lcOnly: added (visible) to existing tracks that practice on LeetCode the first time this
+  // widget type ships, instead of arriving hidden like other new widget types.
+  { type: 'company',    label: 'Company prep', lcOnly: true, after: 'gaps',       desc: 'What each company you\'re interviewing with asks on LeetCode, and how much you\'ve covered' },
   { type: 'plan',       label: 'Study plan',         desc: 'AI-prioritized actions for this week' },
   { type: 'mastery',    label: 'Mastery grid',       desc: 'Every topic, current level vs. target' },
   { type: 'review',     label: 'Re-solve queue',     desc: 'Problems you struggled on, scheduled by spaced repetition' },
   { type: 'activity',   label: 'Activity',           desc: 'Practice volume over the last 10 weeks' },
   { type: 'difficulty', label: 'Difficulty split',   desc: 'Solved problems by difficulty' },
+  { type: 'languages',  label: 'Languages', lcOnly: true, after: 'difficulty', desc: 'LeetCode solves per language, and first-try accept rate in each' },
   { type: 'recent',     label: 'Recent log',         desc: 'Your latest attempts and sessions' },
 ]
 
@@ -152,7 +156,7 @@ export const TEMPLATES = {
   swe: {
     kind: 'swe', name: 'SWE', blurb: 'LeetCode patterns, system design, SQL, HTTP & networking',
     topics: SWE_TOPICS,
-    widgets: hiddenRest(['summary', 'goals', 'gaps', 'plan', 'mastery', 'review', 'activity', 'difficulty', 'recent']),
+    widgets: hiddenRest(['summary', 'goals', 'gaps', 'company', 'plan', 'mastery', 'review', 'activity', 'difficulty', 'languages', 'recent']),
     goals: [
       { id: 'g-problems', metric: 'problems', period: 'week', target: 10 },
       { id: 'g-sd', metric: 'sessions', period: 'week', target: 2, category: 'System Design' },

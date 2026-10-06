@@ -73,11 +73,31 @@ describe('topicMastery', () => {
   })
 })
 
+describe('old accepted solves', () => {
+  it('never weigh less than the undated baseline, so importing history cannot lower a level', () => {
+    const snapshot = { tree: 6 }
+    const baselineOnly = topicMastery(trees, [], { now: NOW, itemsById: items, baselineCount: baselineForTopic(trees, snapshot, [], items) })
+    const history = Array.from({ length: 6 }, (_, i) => ({ source: 'leetcode', itemId: `h${i}`, kind: 'problem', outcome: 'solved', occurredAt: ago(400) }))
+    const histItems = new Map([...items, ...history.map(h => [h.itemId, { id: h.itemId, tags: ['tree'] }])])
+    const withHistory = topicMastery(trees, history, { now: NOW, itemsById: histItems, baselineCount: baselineForTopic(trees, snapshot, history, histItems) })
+    expect(withHistory.level).toBeGreaterThanOrEqual(baselineOnly.level)
+  })
+
+  it('old failures still fade', () => {
+    const fail = [{ itemId: 'i1', kind: 'problem', outcome: 'failed', occurredAt: ago(400) }]
+    expect(topicMastery(trees, fail, { now: NOW, itemsById: items }).evidence).toBeLessThan(0.01)
+  })
+})
+
 describe('LeetCode baseline', () => {
-  it('uses the max tag count (not the sum) minus already-dated leetcode logs', () => {
+  it('uses the max tag count (not the sum) minus distinct accepted problems already logged', () => {
     const snapshot = { tree: 12, 'binary-tree': 10 }
-    const logs = [{ source: 'leetcode', itemId: 'i1', occurredAt: ago(1) }, { source: 'leetcode', itemId: 'i1', occurredAt: ago(2) }]
-    expect(baselineForTopic(trees, snapshot, logs, items)).toBe(10)
+    const logs = [
+      { source: 'leetcode', itemId: 'i1', outcome: 'solved', occurredAt: ago(1) },
+      { source: 'leetcode', itemId: 'i1', outcome: 'solved', occurredAt: ago(2) }, // re-solve: same lifetime problem
+      { source: 'leetcode', itemId: 'i1', outcome: 'failed', occurredAt: ago(3) }, // failures aren't in lifetime counts
+    ]
+    expect(baselineForTopic(trees, snapshot, logs, items)).toBe(11)
     expect(baselineForTopic(caching, snapshot, logs, items)).toBe(0)
   })
 
