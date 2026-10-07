@@ -17,12 +17,10 @@
 //   4. Triggers (clock icon) → Add Trigger:
 //        Function: processRecruitingEmails
 //        Event: Time-driven → Every 10 minutes
-//   5. (optional, for reminders) Triggers → Add Trigger:
-//        Function: checkOaDeadlines
-//        Event: Time-driven → Day timer → pick an hour (e.g. 9am–10am)
-//   6. (optional, for the daily recap) Triggers → Add Trigger:
-//        Function: generateDailyRecap
-//        Event: Time-driven → Day timer → pick an hour (e.g. 7am–8am, before your day starts)
+//   5./6. No extra triggers needed for the digest — the 10-minute job sends it itself at
+//        11am and midnight (see sendScheduledDigest()). Old checkOaDeadlines/generateDailyRecap
+//        Day-timer triggers can be deleted; if left in place they're harmless no-ops outside
+//        those two slots.
 //   7. (one-time, to catch up on mail older than the regular job's 30/45-day windows) run
 //      runBackfillChunk() manually, repeatedly, until its log says "✓ Backfill complete." —
 //      see the BACKFILL section below for how it chunks/resumes across Apps Script's
@@ -35,10 +33,10 @@
 //     2. Pick a long, hard-to-guess topic name (it's the only thing gating who can push to
 //        it — treat it like a secret) and subscribe to it in the app.
 //     3. Set NTFY_TOPIC to that same string in Script Properties above.
-//   Once set, this script pushes immediately when a thread is classified as OA_INVITE,
-//   INTERVIEW_INVITE, OFFER, or REJECTION (see notifyStatusChange()), and once a day
-//   (via the checkOaDeadlines trigger above) digests every OA not yet marked completed —
-//   see checkOaDeadlines() below. Deliberately not email: the whole point is a notification
+//   Once set, this script pushes when a thread is classified as OA_INVITE, INTERVIEW_INVITE,
+//   OFFER, or REJECTION (batched into one push per run, held during quiet hours — see
+//   flushUpdatePushes()), plus exactly two scheduled digests a day, 11am and midnight (open
+//   OAs + the AI recap — see sendScheduledDigest()). Deliberately not email: the whole point is a notification
 //   that doesn't get lost in an inbox that's already full of the emails this script reads.
 //
 // This writes directly to this app's Supabase Postgres tables (contacts, applications,
@@ -53,7 +51,7 @@
 //
 // COST: ~$0.001/email with Haiku (discovery is now ungated — see INBOX_SCAN_QUERY — so this
 // scales with total inbox volume in the window, not just recruiting-shaped mail). Plus one
-// Sonnet call/day (a few cents) if generateDailyRecap()'s trigger is enabled.
+// Sonnet calls/day (a few cents) for the 11am + midnight digest recap (sendScheduledDigest()).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const DONE_LABEL      = 'recruiting-done'
@@ -155,7 +153,7 @@ const APPLICATION_CONFIRMATION_RE = /\b(thank(?:s| you) for (?:your interest|app
 const OA_INVITE_RE = /\b(online assessment|coding assessment|coding challenge|skills assessment|hackerrank|codesignal|codility|hackerearth|complete (?:your|the) assessment|assessment invit)/i
 // Submission confirmations from the same ATS/OA platforms — the counterpart to OA_INVITE_RE,
 // used to auto-clear oa_completed instead of relying on the candidate to remember to click
-// "Mark completed" in the app (see checkOaDeadlines()'s daily nag, which this stops).
+// "Mark completed" in the app (see buildOaDigest()'s twice-daily nag, which this stops).
 const OA_COMPLETED_RE = /\b(assessment (?:has been |was )?(?:submitted|completed)|(?:submitted|completed) (?:your|the) assessment|thank(?:s| you) for completing|test (?:has been |was )?(?:submitted|completed)|your (?:hackerrank|codesignal|codility|hackerearth) (?:test|assessment) (?:is complete|has been received))\b/i
 
 function getKeys() {
@@ -186,13 +184,13 @@ function getKeys() {
 // a second when hit from anywhere else. A short retry clears it almost every time.
 const PUSH_RETRY_ATTEMPTS = 3
 const PUSH_RETRY_DELAY_MS = 1500
-// notifyStatusChange() only fires for a message this fresh — see the isFreshEnoughToPush
+// buildStatusPush() is only queued for a message this fresh — see the isFreshEnoughToPush
 // comment at its call site for why. 2 days covers the 10-min job's own normal latency plus
 // weekend/offline gaps without ever treating real catch-up mail as "new."
 const PUSH_STALE_THRESHOLD_MS = 2 * 86400000
 
 function sendPush(keys, { title, message, priority = 'default', tags = [], click }) {
-  if (!keys.ntfyTopic) return
+  if (!keys.ntfyTopic) return false
   for (let attempt = 1; attempt <= PUSH_RETRY_ATTEMPTS; attempt++) {
     try {
       const headers = {
@@ -201,7 +199,7 @@ function sendPush(keys, { title, message, priority = 'default', tags = [], click
         Tags:     tags.join(','),
       }
       // ntfy opens this URL when the notification itself is tapped — the literal
-      // "recap I can click" mechanism for generateDailyRecap() below.
+      // "recap I can click" mechanism for sendScheduledDigest() above.
       if (click) headers.Click = click
       const resp = UrlFetchApp.fetch(`https://ntfy.sh/${keys.ntfyTopic}`, {
         method:             'post',
@@ -212,72 +210,182 @@ function sendPush(keys, { title, message, priority = 'default', tags = [], click
       if (resp.getResponseCode() >= 400) {
         throw new Error(`ntfy ${resp.getResponseCode()}: ${resp.getContentText().slice(0, 200)}`)
       }
-      return // success
+      return true
     } catch (e) {
       const lastAttempt = attempt === PUSH_RETRY_ATTEMPTS
       console.error(`  ✗ push attempt ${attempt}/${PUSH_RETRY_ATTEMPTS} failed: ${e.message}${lastAttempt ? ' — giving up' : ' — retrying'}`)
       if (!lastAttempt) Utilities.sleep(PUSH_RETRY_DELAY_MS)
     }
   }
+  return false
 }
 
-// One push per classified thread for the status changes worth interrupting you for — not
+// ── Push schedule ────────────────────────────────────────────────────────────
+// Exactly three kinds of push, nothing else:
+//   1. 11am digest and 2. midnight digest (sendScheduledDigest) — each slot fires at most once
+//      per day, guarded by a Script Property, so a duplicate/misconfigured trigger can't
+//      re-send it.
+//   3. Updates (OA invite / interview / offer / rejection) — queued durably as threads are
+//      processed and sent as ONE push at the end of the run (flushUpdatePushes), so a backlog
+//      clearing or an ATS mass-mailing becomes one notification, not one per email. During
+//      quiet hours they're held: whatever's queued rides along in the midnight digest, and
+//      anything after that waits for the first run past QUIET_END_HOUR.
+// All hours are in the script's time zone (appsscript.json: America/New_York).
+const DIGEST_HOURS      = { 11: 'am', 0: 'midnight' }
+const QUIET_START_HOUR  = 22
+const QUIET_END_HOUR    = 8
+const PUSH_QUEUE_PROP   = 'push_queue'
+const PUSH_QUEUE_MAX    = 40 // keeps the JSON well under Script Properties' 9KB/value cap
+const PRIORITY_RANK     = { min: 0, low: 1, default: 2, high: 3, urgent: 4 }
+
+function localNow() {
+  const tz  = Session.getScriptTimeZone()
+  const now = new Date()
+  return { hour: Number(Utilities.formatDate(now, tz, 'H')), date: Utilities.formatDate(now, tz, 'yyyy-MM-dd') }
+}
+
+function isQuietHours(hour) {
+  return hour >= QUIET_START_HOUR || hour < QUIET_END_HOUR
+}
+
+function readPushQueue(props) {
+  try { return JSON.parse(props.getProperty(PUSH_QUEUE_PROP) || '[]') } catch (e) { return [] }
+}
+
+function enqueuePush(props, push) {
+  if (!push) return
+  const queue = readPushQueue(props)
+  queue.push({ title: push.title, message: push.message, priority: push.priority, tags: push.tags })
+  props.setProperty(PUSH_QUEUE_PROP, JSON.stringify(queue.slice(-PUSH_QUEUE_MAX)))
+}
+
+function maxPriority(items) {
+  const top = items.reduce((max, p) => Math.max(max, PRIORITY_RANK[p.priority] ?? 2), 0)
+  return Object.keys(PRIORITY_RANK).find(k => PRIORITY_RANK[k] === top)
+}
+
+function flushUpdatePushes(keys, props) {
+  if (!keys.ntfyTopic) return
+  const queue = readPushQueue(props)
+  if (!queue.length) return
+  if (isQuietHours(localNow().hour)) {
+    console.log(`Quiet hours — holding ${queue.length} update push(es)`)
+    return
+  }
+  const push = queue.length === 1 ? queue[0] : {
+    title:    `📬 ${queue.length} recruiting updates`,
+    message:  queue.map(p => p.title).join('\n'),
+    priority: maxPriority(queue),
+    tags:     ['mailbox_with_mail'],
+  }
+  if (sendPush(keys, push)) {
+    props.deleteProperty(PUSH_QUEUE_PROP)
+    console.log(`Pushed ${queue.length} update(s) as one notification`)
+  }
+}
+
+// Called at the end of every 10-minute run (and by the legacy checkOaDeadlines/
+// generateDailyRecap entry points, so leftover Day-timer triggers stay harmless). Only does
+// anything during an 11am or midnight hour whose slot hasn't been sent yet today; `force`
+// (manual runs from the editor) skips both checks.
+function sendScheduledDigest(force) {
+  const keys  = getKeys()
+  const props = PropertiesService.getScriptProperties()
+  if (!keys.ntfyTopic) return false
+  const { hour, date } = localNow()
+  const slot    = DIGEST_HOURS[hour]
+  const slotKey = `digest_sent_${date}_${slot}`
+  if (!force && (!slot || props.getProperty(slotKey))) return false
+
+  const oa      = buildOaDigest(keys)
+  let recap     = null
+  try { recap = buildDailyRecap(keys) } catch (e) { console.error(`  ✗ recap failed: ${e.message}`) }
+  const updates = readPushQueue(props)
+
+  const sections = []
+  if (recap) sections.push([recap.summary, ...recap.todos.map(t => `• ${t}`)].join('\n'))
+  if (oa) sections.push(`⏰ Open OAs\n${oa.lines.join('\n')}`)
+  if (updates.length) sections.push(`📬 Updates\n${updates.map(p => p.title).join('\n')}`)
+
+  if (sections.length) {
+    const priority = maxPriority([
+      { priority: oa ? oa.priority : 'default' },
+      ...updates,
+    ])
+    const sent = sendPush(keys, {
+      title:    slot === 'midnight' ? '🌙 Nightly recruiting digest' : '📋 Your recruiting digest',
+      message:  sections.join('\n\n'),
+      priority,
+      tags:     ['clipboard'],
+      click:    keys.dashboardUrl || undefined,
+    })
+    if (!sent) return false // slot stays open — the next 10-minute run in this hour retries
+    if (updates.length) props.deleteProperty(PUSH_QUEUE_PROP)
+    console.log(`Pushed ${slot || 'manual'} digest`)
+  } else {
+    console.log('Nothing to digest.')
+  }
+  if (!force) props.setProperty(slotKey, '1')
+  return true
+}
+
+// The update push for a classified thread worth telling you about — not
 // APPLICATION_CONFIRMATION or REPLY, which are routine enough to just show up in the app.
-function notifyStatusChange(keys, data) {
+// Returns null for anything else. Queued, not sent — see flushUpdatePushes().
+function buildStatusPush(data) {
   const company = data.company || 'Unknown company'
   const role    = data.role ? ` — ${data.role}` : ''
 
   if (data.type === 'OA_INVITE') {
     const due = data.oa_due_date ? `\nDue ${data.oa_due_date}` : '\nNo stated deadline — check the assessment page.'
-    sendPush(keys, {
+    return {
       title: `🧪 OA received — ${company}`,
       message: `${role.slice(3) || 'Online Assessment'}${due}${data.oa_link ? `\n${data.oa_link}` : ''}`,
       priority: 'high',
       tags: ['test_tube'],
-    })
+    }
   } else if (data.type === 'OA_COMPLETED') {
     // Deliberately low priority/default, unlike OA_INVITE — this is a quiet confirmation that
-    // the daily checkOaDeadlines() digest will stop nagging about this one, not urgent news.
-    sendPush(keys, {
+    // the digest will stop nagging about this one, not urgent news.
+    return {
       title: `✅ OA marked complete — ${company}`,
       message: `${role.slice(3) || 'Online Assessment'}\nNo more deadline reminders for this one.`,
       priority: 'default',
       tags: ['white_check_mark'],
-    })
+    }
   } else if (data.type === 'INTERVIEW_INVITE') {
-    sendPush(keys, {
+    return {
       title: `📞 Interview invite — ${company}`,
       message: `${role.slice(3) || ''}${data.interview_date ? `\nScheduled ${data.interview_date}` : ''}`.trim(),
       priority: 'high',
       tags: ['phone'],
-    })
+    }
   } else if (data.type === 'OFFER') {
-    sendPush(keys, {
+    return {
       title: `🎉 Offer — ${company}!`,
       message: role.slice(3) || 'Offer received',
       priority: 'urgent',
       tags: ['tada'],
-    })
+    }
   } else if (data.type === 'REJECTION') {
-    sendPush(keys, {
+    return {
       title: `❌ Rejected — ${company}`,
       message: role.slice(3) || 'Rejection received',
       priority: 'default',
       tags: ['x'],
-    })
+    }
   }
+  return null
 }
 
-// Daily digest of Online Assessments due soon or overdue — run via its own time-driven
-// trigger (see setup comment above), separate from the every-10-minutes email scan, since
-// this reads current application state rather than new email.
-function checkOaDeadlines() {
-  const keys = getKeys()
-  if (!keys.ntfyTopic) {
-    console.log('NTFY_TOPIC not set — skipping OA deadline check (see setup comment for how to enable).')
-    return
-  }
+// Legacy trigger entry points — kept so old Day-timer triggers pointing at these names don't
+// error. Both just defer to the slot-gated digest, so they can't push outside 11am/midnight.
+function checkOaDeadlines()   { sendScheduledDigest(false) }
+function generateDailyRecap() { sendScheduledDigest(false) }
 
+// The OA section of the digest: every open OA, with urgency carried in the priority.
+// Returns null when there are none.
+function buildOaDigest(keys) {
   const apps = supabaseReq(keys, 'get',
     `/applications?user_id=eq.${keys.userId}&oa_due_date=not.is.null&oa_completed=eq.false&archived=eq.false`
     + `&select=company,role,oa_due_date,oa_link&order=oa_due_date.asc`)
@@ -291,10 +399,7 @@ function checkOaDeadlines() {
   // reminder at all until the last few days. Urgency now lives in the priority instead.
   const openOas = withDays
 
-  if (!openOas.length) {
-    console.log('No open OAs.')
-    return
-  }
+  if (!openOas.length) return null
 
   const lines = openOas.map(a => {
     const label = a.daysUntil < 0 ? `overdue by ${Math.abs(a.daysUntil)}d`
@@ -303,13 +408,7 @@ function checkOaDeadlines() {
   })
   const soonest = Math.min(...openOas.map(a => a.daysUntil))
 
-  sendPush(keys, {
-    title: `⏰ ${openOas.length} open OA${openOas.length > 1 ? 's' : ''}`,
-    message: lines.join('\n'),
-    priority: soonest <= 1 ? 'urgent' : soonest <= 3 ? 'high' : 'default',
-    tags: ['stopwatch'],
-  })
-  console.log(`Pushed OA deadline digest: ${openOas.length} item(s)`)
+  return { lines, priority: soonest <= 1 ? 'urgent' : soonest <= 3 ? 'high' : 'default' }
 }
 
 // "Who did I send the last message to, that never wrote back?" — same rule
@@ -372,13 +471,11 @@ ${JSON.stringify(bundle)}`
   return JSON.parse(match[0])
 }
 
-// Daily AI recap — its own time-driven trigger (same pattern as checkOaDeadlines, added
-// alongside it not instead of it). Gathers a day's worth of raw facts via direct
-// PostgREST queries (Apps Script can't import lib/attention.js's client-side derivations),
-// feeds them to one Sonnet call, writes the result to daily_recaps for TodayTab's in-app
-// card, and pushes it via ntfy with a tap-to-open link — the literal "recap I can click".
-function generateDailyRecap() {
-  const keys = getKeys()
+// AI recap section of the digest. Gathers a day's worth of raw facts via direct PostgREST
+// queries (Apps Script can't import lib/attention.js's client-side derivations), feeds them
+// to one Sonnet call, and writes the result to daily_recaps for TodayTab's in-app card.
+// Returns { summary, todos }, or null when there's nothing to recap.
+function buildDailyRecap(keys) {
   const todayStr = Utilities.formatDate(new Date(), 'UTC', 'yyyy-MM-dd')
   const sinceStr = Utilities.formatDate(new Date(Date.now() - 86400000), 'UTC', 'yyyy-MM-dd')
 
@@ -400,10 +497,7 @@ function generateDailyRecap() {
 
   const bundle = { newContacts, newApplications, openActionItems, oaDueSoon: oaApps, overdueFollowUps, awaitingReply }
   const hasAnything = Object.values(bundle).some(arr => arr.length > 0)
-  if (!hasAnything) {
-    console.log('Nothing to recap today.')
-    return
-  }
+  if (!hasAnything) return null
 
   const { summary, todos } = generateRecapWithClaude(keys.anthropic, bundle)
 
@@ -414,14 +508,7 @@ function generateDailyRecap() {
     todo_json:    todos,
   }, 'resolution=merge-duplicates,return=representation')
 
-  sendPush(keys, {
-    title:    '📋 Your daily recap',
-    message:  [summary, ...todos.map(t => `• ${t}`)].join('\n'),
-    priority: 'default',
-    tags:     ['clipboard'],
-    click:    keys.dashboardUrl || undefined,
-  })
-  console.log(`Daily recap generated and pushed: ${todos.length} todo(s)`)
+  return { summary, todos }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -452,6 +539,7 @@ function processRecruitingEmails() {
   if (!threads.length) {
     props.setProperty(SCAN_CURSOR_PROP, String(runStartSec))
     console.log('No new threads.')
+    runPushSchedule(keys, props)
     return
   }
 
@@ -463,6 +551,17 @@ function processRecruitingEmails() {
   console.log(`Scanning ${threads.length} thread(s) since ${new Date(cursorSec * 1000).toISOString()}`
     + (capped ? ' — a search hit SEARCH_CAP, older overflow skipped (run runBackfillChunk() to catch it)' : ''))
   if (processThreadList(threads, keys, props, myEmail)) props.setProperty(SCAN_CURSOR_PROP, String(runStartSec))
+  runPushSchedule(keys, props)
+}
+
+// Digest first (it absorbs any queued updates), otherwise flush updates on their own.
+// Fail-soft: a push problem must never fail the email scan.
+function runPushSchedule(keys, props) {
+  try {
+    if (!sendScheduledDigest(false)) flushUpdatePushes(keys, props)
+  } catch (e) {
+    console.error(`  ✗ push schedule failed: ${e.message}`)
+  }
 }
 
 // Core per-thread processing loop, shared by the regular 10-minute job above and
@@ -621,10 +720,10 @@ function processThreadList(threads, keys, props, myEmail) {
       props.setProperty(seenKey, String(messages.length))
       console.log('  ✓ Written to Supabase')
 
-      // Pushed only after seenKey is durably saved — if anything above throws, we land in the
+      // Queued only after seenKey is durably saved — if anything above throws, we land in the
       // catch below and never reach here, so a retry (which reprocesses the same message since
-      // seenKey wasn't advanced) can never fire a second push for a message already pushed once.
-      if (shouldPush) notifyStatusChange(keys, data)
+      // seenKey wasn't advanced) can never queue a second push for a message already queued.
+      if (shouldPush) enqueuePush(props, buildStatusPush(data))
 
     } catch (e) {
       console.error(`  ✗ ${e.message}`)
@@ -1077,7 +1176,7 @@ function upsertApplication(keys, data) {
     ...(data.type === 'OA_INVITE' && !existing?.oa_completed
       ? { oa_due_date: data.oa_due_date || null, oa_link: data.oa_link || null, oa_research_checked_at: null }
       : {}),
-    // The whole point of OA_COMPLETED: flips the flag checkOaDeadlines() filters on, so the
+    // The whole point of OA_COMPLETED: flips the flag buildOaDigest() filters on, so the
     // daily digest stops nagging about this one starting from its next run.
     ...(data.type === 'OA_COMPLETED' ? { oa_completed: true } : {}),
   }
@@ -1274,8 +1373,7 @@ function setup() {
   }
   console.log('')
   console.log('Next: Triggers (clock icon) → Add Trigger → processRecruitingEmails → Time-driven → Every 10 minutes')
-  console.log('Optional: Triggers → Add Trigger → checkOaDeadlines → Time-driven → Day timer, for daily OA-deadline pushes')
-  console.log('Optional: Triggers → Add Trigger → generateDailyRecap → Time-driven → Day timer, for the daily AI recap')
+  console.log('Push digests (11am + midnight) are sent by the 10-minute trigger — no extra triggers needed.')
   console.log('One-time: run runBackfillChunk() repeatedly (or via a temporary frequent Trigger) to catch up on older mail')
 }
 
@@ -1284,14 +1382,13 @@ function runNow() {
   processRecruitingEmails()
 }
 
-// Manually trigger the OA-deadline digest push (normally runs once/day via its own trigger)
+// Manually send the digest now (normally sent at 11am + midnight by the 10-minute job)
 function runOaCheckNow() {
-  checkOaDeadlines()
+  sendScheduledDigest(true)
 }
 
-// Manually trigger the daily recap (normally runs once/day via its own trigger)
 function runDailyRecapNow() {
-  generateDailyRecap()
+  sendScheduledDigest(true)
 }
 
 // Sends one test push to confirm NTFY_TOPIC is wired up correctly
