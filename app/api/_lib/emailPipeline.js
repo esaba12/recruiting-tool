@@ -365,7 +365,7 @@ async function upsertActionItem(db, userId, { gmailMessageId, threadId, contactI
   }, { onConflict: 'user_id,gmail_message_id' })
 }
 
-async function logMessageInteraction(db, userId, message, contactId, threadId, myEmail, meetingLink) {
+async function logMessageInteraction(db, userId, message, contactId, threadId, myEmail, meetingLink, category) {
   const from = parseAddress(message.from)
   const direction = (from && from.email === myEmail) ? 'Outbound' : 'Inbound'
   const summary = meetingLink ? `📅 Meeting link: ${meetingLink}\n\n${message.plainBody}` : message.plainBody
@@ -379,6 +379,14 @@ async function logMessageInteraction(db, userId, message, contactId, threadId, m
     channel_ref: threadId,
     summary: summary.slice(0, 300),
     body: message.plainBody.slice(0, 2000),
+    // Inbox fields (supabase/migrations/20261007000000_inbox.sql) — own sent mail is born read.
+    subject: (message.subject || '').slice(0, 300),
+    from_address: from ? from.email : null,
+    from_name: from ? from.displayName || null : null,
+    sent_at: message.date.toISOString(),
+    mailbox: myEmail,
+    email_category: category || null,
+    read_at: direction === 'Outbound' ? new Date().toISOString() : null,
   })
 }
 
@@ -461,7 +469,7 @@ export async function scanGmailConnection(connection) {
 
       for (let i = seen; i < messages.length; i++) {
         const isNewest = i === messages.length - 1
-        await logMessageInteraction(db, userId, messages[i], contactId, threadId, myEmail, isNewest ? data.meeting_link : null)
+        await logMessageInteraction(db, userId, messages[i], contactId, threadId, myEmail, isNewest ? data.meeting_link : null, data.type)
       }
 
       threadProgress[threadId] = messages.length

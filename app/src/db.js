@@ -9,7 +9,7 @@
 // needed zero changes beyond the import path.
 import { supabase } from './lib/supabaseClient.js'
 import {
-  DEMO_CONTACTS, DEMO_APPLICATIONS, DEMO_INTERACTIONS, DEMO_CALLS, DEMO_CONTACT_RELATIONSHIPS, nextDemoId,
+  DEMO_CONTACTS, DEMO_APPLICATIONS, DEMO_INTERACTIONS, DEMO_EMAILS, DEMO_CALLS, DEMO_CONTACT_RELATIONSHIPS, nextDemoId,
   DEMO_SCHOOLS, DEMO_EMPLOYERS, DEMO_EVENTS, DEMO_USER_EVENTS, DEMO_EVENT_RELEVANCE, DEMO_REQUIREMENT_COMPLETIONS, DEMO_INGEST_SOURCES,
   buildDemoLearning,
 } from './demoData.js'
@@ -41,7 +41,7 @@ function demoStore() {
     demo = {
       contacts: DEMO_CONTACTS.map(c => ({ ...c })),
       applications: DEMO_APPLICATIONS.map(a => ({ ...a })),
-      interactions: DEMO_INTERACTIONS.map(i => ({ ...i })),
+      interactions: [...DEMO_INTERACTIONS, ...DEMO_EMAILS].map(i => ({ ...i })),
       calls: DEMO_CALLS.map(c => ({ ...c })),
       contactRelationships: DEMO_CONTACT_RELATIONSHIPS.map(r => ({ ...r })),
       schools: DEMO_SCHOOLS.map(s => ({ ...s })),
@@ -407,8 +407,34 @@ export async function fetchInteractions() {
       channelRef: r.channel_ref || '',
       summary: r.summary || '',
       body: r.body || '',
+      // Inbox fields (supabase/migrations/20261007000000_inbox.sql) — email rows only.
+      subject: r.subject ?? null,
+      fromAddress: r.from_address || null,
+      fromName: r.from_name || null,
+      sentAt: r.sent_at || null,
+      mailbox: r.mailbox || null,
+      emailCategory: r.email_category || null,
+      readAt: r.read_at || null,
     }))
     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+}
+
+// Marks every message in one email thread read (or unread again) — the Inbox tab's
+// read state is per message, but the UI toggles a whole thread at once.
+export async function setThreadRead(threadId, read) {
+  const readAt = read ? new Date().toISOString() : null
+  if (isDemoMode()) {
+    demoStore().interactions.forEach(i => {
+      if (i.channelRef === threadId && (read || i.direction === 'Inbound')) i.readAt = readAt
+    })
+    return
+  }
+  let q = supabase.from('interactions').update({ read_at: readAt })
+    .eq('type', 'Email').eq('channel_ref', threadId)
+  // "Mark unread" only flips inbound messages — your own sent mail is never unread.
+  if (!read) q = q.eq('direction', 'Inbound')
+  const { error } = await q
+  throwIfError(error, 'setThreadRead')
 }
 
 // ── Contact Relationships ───────────────────────────────────────────────────

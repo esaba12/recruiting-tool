@@ -102,6 +102,56 @@ export const DEMO_INTERACTIONS = [
   { id: 'demo-i7', contactId: 'demo-c7', type: 'Meeting', direction: 'Outbound', date: daysFromNow(-60), channelRef: '', summary: 'Intro call through the alumni network.', body: '' },
 ]
 
+// Inbox threads (see lib/inbox.js) — same rows the email pipeline writes: one per message,
+// grouped by channelRef (the Gmail thread id). A mix of every inbox filter: an interview
+// invite and a coffee-chat reply that need answers, a coding test, an offer, a rejection,
+// an automated confirmation, and a sent cold email still waiting on a reply.
+function hoursAgo(h) {
+  return new Date(Date.now() - h * 3600000).toISOString()
+}
+const ME = 'you@school.edu'
+function demoEmail(id, thread, hrs, over) {
+  const sentAt = hoursAgo(hrs)
+  return {
+    id, type: 'Email', channelRef: thread, date: sentAt.slice(0, 10), sentAt, mailbox: ME,
+    direction: 'Inbound', readAt: null, summary: (over.body || '').slice(0, 300), ...over,
+  }
+}
+export const DEMO_EMAILS = [
+  demoEmail('demo-e1', 'demo-t-anthropic', 3, {
+    contactId: 'demo-c4', fromName: 'Deepak Nair', fromAddress: 'deepak.nair@anthropic.com', emailCategory: 'INTERVIEW_INVITE',
+    subject: 'Next round — final interviews', body: `Hi!\n\nGreat news — the team loved your technical round and we'd like to move you to final interviews. They're two 45-minute sessions (one coding, one project deep-dive), all on Zoom.\n\nCould you send me 3–4 times that work next Tuesday through Thursday?\n\nBest,\nDeepak`,
+  }),
+  demoEmail('demo-e2', 'demo-t-figma', 30, {
+    contactId: 'demo-c3', direction: 'Outbound', fromAddress: ME, readAt: hoursAgo(30), emailCategory: 'NEW_CONTACT',
+    subject: 'Quick question about the PM internship', body: `Hi Emma,\n\nI'm a sophomore studying CS and I really enjoyed your talk on Figma's design-to-dev handoff. I'm applying to the PM internship and would love 15 minutes to hear what the rotation is actually like.\n\nThanks so much,\nAlex`,
+  }),
+  demoEmail('demo-e3', 'demo-t-figma', 6, {
+    contactId: 'demo-c3', fromName: 'Emma Whitfield', fromAddress: 'emma.whitfield@figma.com', emailCategory: 'REPLY',
+    subject: 'Re: Quick question about the PM internship', body: `Hey Alex — happy to chat! I'm free Thursday afternoon or Friday morning. Grab whichever works on my calendar and we'll do a quick video call.\n\nAttaching the rotation doc I mentioned too.\n\nEmma`,
+  }),
+  demoEmail('demo-e4', 'demo-t-rippling', 20, {
+    fromName: 'Rippling Recruiting', fromAddress: 'no-reply@hackerrank.com', emailCategory: 'OA_INVITE',
+    subject: 'Rippling — complete your coding assessment', body: `Hello,\n\nThank you for applying to the Software Engineer Intern role at Rippling. As the next step, please complete a 70-minute online coding assessment on HackerRank.\n\nThe assessment must be completed within 4 days of receiving this email.\n\nGood luck!\nRippling Recruiting`,
+  }),
+  demoEmail('demo-e5', 'demo-t-ramp', 5 * 24, {
+    contactId: 'demo-c5', fromName: 'Ramp Recruiting', fromAddress: 'recruiting@ramp.com', emailCategory: 'OFFER', readAt: hoursAgo(100),
+    subject: 'Your offer from Ramp 🎉', body: `Hi Alex,\n\nWe're thrilled to offer you a Software Engineering Internship on our New York team for Summer 2027! Your offer letter is attached — please review it and let us know your decision by the end of the month.\n\nCongratulations,\nThe Ramp Recruiting Team`,
+  }),
+  demoEmail('demo-e6', 'demo-t-notion', 10 * 24, {
+    contactId: 'demo-c2', fromName: 'Notion Careers', fromAddress: 'no-reply@greenhouse.io', emailCategory: 'REJECTION', readAt: hoursAgo(230),
+    subject: 'Update on your Notion application', body: `Hi Alex,\n\nThank you for your interest in Notion and for the time you spent interviewing with us. After careful consideration, we've decided not to move forward with your application at this time.\n\nWe'd encourage you to apply again in the future.\n\nNotion Recruiting`,
+  }),
+  demoEmail('demo-e7', 'demo-t-figma-app', 6 * 24, {
+    fromName: 'Figma', fromAddress: 'no-reply@greenhouse-mail.io', emailCategory: 'APPLICATION_CONFIRMATION', readAt: hoursAgo(140),
+    subject: 'Thanks for applying to Figma!', body: `Hi Alex,\n\nThanks for applying to the Product Manager Intern role. We've received your application and our team is reviewing it now. We'll be in touch if your background is a fit.\n\nFigma Recruiting`,
+  }),
+  demoEmail('demo-e8', 'demo-t-vercel', 4 * 24, {
+    contactId: 'demo-c6', direction: 'Outbound', fromAddress: ME, readAt: hoursAgo(96), emailCategory: 'FOLLOW_UP_NEEDED',
+    subject: 'Following up — Vercel SWE internship', body: `Hi Amara,\n\nThanks again for walking me through the interview loop last week! I just submitted my application for the SWE internship — if you're comfortable, I'd really appreciate a referral.\n\nBest,\nAlex`,
+  }),
+]
+
 export const DEMO_CONTACT_RELATIONSHIPS = [
   { id: 'demo-r1', fromContactId: 'demo-c2', toContactId: 'demo-c5', relationshipType: 'Introduced To', note: '' },
   { id: 'demo-r2', fromContactId: 'demo-c6', toContactId: 'demo-c2', relationshipType: 'College Friend Of', note: '' },

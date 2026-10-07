@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships, fetchActionItems, fetchDailyRecap } from './db.js'
 import { researchOaDeadlines } from './lib/oaResearch.js'
 import { useAuth } from './lib/AuthContext.jsx'
@@ -26,6 +26,8 @@ import AddToCalendarModal from './components/AddToCalendarModal.jsx'
 import QuickScheduleModal from './components/QuickScheduleModal.jsx'
 import QuickCaptureModal from './components/QuickCaptureModal.jsx'
 import OutboxTab from './components/OutboxTab.jsx'
+import InboxTab from './components/InboxTab.jsx'
+import { buildThreads } from './lib/inbox.js'
 import GrowTab from './components/GrowTab.jsx'
 import LearnTab from './components/LearnTab.jsx'
 import useLearning from './lib/learning/useLearning.js'
@@ -315,7 +317,11 @@ function AppInner() {
   const openActionItemCount = actionItems.filter(i => !i.completedAt && !i.dismissedAt).length
   const todayCount = overdueFollowUps(contacts).length + staleApplications(apps).length + highUrgencyContacts(contacts).length + wantToSchedule(contacts).length + oaDue(apps).length + oaNeedsCheck(apps).length + keepInTouchDue(contacts, interactions).length + needsReviewApps(apps).length + openActionItemCount
 
+  const inboxUnread = useMemo(
+    () => buildThreads({ interactions }).filter(t => t.unread).length, [interactions])
+
   const counts = {
+    inbox: inboxUnread > 0 ? inboxUnread : null,
     network: contacts.length,
     pipeline: activeApps.length,
     today: todayCount > 0 ? todayCount : null,
@@ -349,6 +355,9 @@ function AppInner() {
           onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} />
       )}
       {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} actionItems={actionItems} dailyRecap={dailyRecap} learning={learning} onOpenLearn={() => setTab('learn')} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} />}
+      {!loading && tab === 'inbox'    && (
+        <InboxTab contacts={contacts} apps={apps} interactions={interactions} actionItems={actionItems} onRefresh={load} />
+      )}
       {!loading && tab === 'learn'    && <LearnTab learning={learning} apps={apps} profile={profile} logRequest={learnLogRequest} onLogRequestHandled={() => setLearnLogRequest(null)} />}
       {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} eventPool={eventPool} eventCalendarSync={eventCalendarSync} />}
       {tab === 'settings' && <SettingsTab />}
@@ -385,7 +394,7 @@ function AppInner() {
 // Boards/Calendar/Settings all call Claude/OpenAI/Exa/GitHub/Google proxies that
 // `requireUser()`-gate on a real signed-in session and would just 401 for an anonymous
 // visitor, so they're left out rather than shown half-broken.
-const DEMO_NAV_ITEMS = NAV_ITEMS.filter(item => ['today', 'network', 'pipeline', 'learn'].includes(item.id))
+const DEMO_NAV_ITEMS = NAV_ITEMS.filter(item => ['today', 'inbox', 'network', 'pipeline', 'learn'].includes(item.id))
 
 function DemoApp() {
   const [tab, setTab] = useState('today')
@@ -414,7 +423,8 @@ function DemoApp() {
 
   const activeApps = apps.filter(a => !['Rejected', 'Accepted'].includes(a.stage))
   const todayCount = overdueFollowUps(contacts).length + staleApplications(apps).length + highUrgencyContacts(contacts).length + wantToSchedule(contacts).length + oaDue(apps).length + oaNeedsCheck(apps).length + keepInTouchDue(contacts, interactions).length + needsReviewApps(apps).length
-  const counts = { network: contacts.length, pipeline: activeApps.length, today: todayCount > 0 ? todayCount : null }
+  const inboxUnread = buildThreads({ interactions }).filter(t => t.unread).length
+  const counts = { inbox: inboxUnread || null, network: contacts.length, pipeline: activeApps.length, today: todayCount > 0 ? todayCount : null }
 
   return (
     <AppShell
@@ -438,6 +448,9 @@ function DemoApp() {
         <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships}
           learning={learning} onOpenLearn={() => setTab('learn')}
           onRefresh={load} onRefreshRelationships={refreshContactRelationships} isDemoMode />
+      )}
+      {!loading && tab === 'inbox' && (
+        <InboxTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} demoMode />
       )}
       {!loading && tab === 'learn' && <LearnTab learning={learning} apps={apps} isDemoMode />}
     </AppShell>

@@ -84,3 +84,9 @@ h1, h2, h3 {
 @media (prefers-reduced-motion: reduce) {
   .learn-rise { animation: none; }
 }
+
+/* Inbox — thread rows and the reading pane rise in on open (staggered via inline delay). */
+.inbox-rise { animation: learn-rise 0.3s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .inbox-rise { animation: none; }
+}

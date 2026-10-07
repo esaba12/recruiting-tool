@@ -2,6 +2,7 @@ import { NAV_ICON, REFRESH_ICON, CALENDAR_ICON, SCHEDULE_ICON, QUICK_CAPTURE_ICO
 
 const NAV_ITEMS = [
   { id: 'today', label: 'Today' },
+  { id: 'inbox', label: 'Inbox' },
   { id: 'network',  label: 'Network' },
   { id: 'grow',     label: 'Grow' },
   { id: 'learn',    label: 'Learn' },

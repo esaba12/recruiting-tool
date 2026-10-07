@@ -35,6 +35,7 @@ export const BUCKET_ICON = {
 // Sidebar nav
 export const NAV_ICON = {
   today: Gauge,
+  inbox: Inbox,
   overview: LayoutDashboard,
   network: Users,
   grow: Sprout,

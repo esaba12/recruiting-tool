@@ -707,7 +707,7 @@ function processThreadList(threads, keys, props, myEmail) {
       // even if a second person is CC'd on some messages.
       for (let i = seen; i < messages.length; i++) {
         const isNewest = i === messages.length - 1
-        logMessageInteraction(keys, messages[i], contactId, threadId, myEmail, isNewest ? data.meeting_link : null)
+        logMessageInteraction(keys, messages[i], contactId, threadId, myEmail, isNewest ? data.meeting_link : null, data.type)
       }
 
       // A thread discovered via the Sent-folder or Inbox keyword search (not already labeled)
@@ -1094,7 +1094,7 @@ function upsertContact(keys, data) {
   }
 }
 
-function logMessageInteraction(keys, message, contactId, threadId, myEmail, meetingLink) {
+function logMessageInteraction(keys, message, contactId, threadId, myEmail, meetingLink, category) {
   const from      = parseAddress(message.getFrom())
   const direction = (from && from.email === myEmail) ? 'Outbound' : 'Inbound'
   const date      = Utilities.formatDate(message.getDate(), 'UTC', 'yyyy-MM-dd')
@@ -1112,7 +1112,56 @@ function logMessageInteraction(keys, message, contactId, threadId, myEmail, meet
     channel_ref: threadId,
     summary:     summary.slice(0, 300),
     body:        plainBody.slice(0, 2000),
+    ...inboxFields(message, from, myEmail, category, direction),
   })
+}
+
+// The Inbox tab's per-message fields (see supabase/migrations/20261007000000_inbox.sql).
+// Your own sent mail is born read; everything inbound starts unread.
+function inboxFields(message, from, myEmail, category, direction) {
+  return {
+    subject:        (message.getSubject() || '').slice(0, 300),
+    from_address:   from ? from.email : null,
+    from_name:      from ? from.displayName || null : null,
+    sent_at:        message.getDate().toISOString(),
+    mailbox:        myEmail,
+    email_category: category || null,
+    read_at:        direction === 'Outbound' ? new Date().toISOString() : null,
+  }
+}
+
+// One-time: fills subject/sender/timestamp on email rows logged before the inbox existed.
+// No Claude calls — just re-reads each thread from Gmail and matches rows to messages by
+// body text. Resumable like runBackfillChunk(): run it repeatedly until the log says done.
+function backfillInboxFields() {
+  const keys      = getKeys()
+  const myEmail   = Session.getActiveUser().getEmail().toLowerCase()
+  const startedAt = Date.now()
+  const rows = supabaseReq(keys, 'get',
+    `/interactions?user_id=eq.${keys.userId}&type=eq.Email&subject=is.null&channel_ref=not.is.null`
+    + `&select=id,channel_ref,body,direction&order=created_at.asc&limit=500`) || []
+  if (!rows.length) { console.log('✓ Inbox backfill complete.'); return }
+
+  const byThread = new Map()
+  rows.forEach(r => { if (!byThread.has(r.channel_ref)) byThread.set(r.channel_ref, []); byThread.get(r.channel_ref).push(r) })
+  let filled = 0
+  for (const [threadId, threadRows] of byThread) {
+    if (Date.now() - startedAt > RUN_BUDGET_MS) break
+    let messages = []
+    try { messages = GmailApp.getThreadById(threadId).getMessages() } catch (e) { /* thread gone */ }
+    threadRows.forEach((row, i) => {
+      // Body match first; fall back to position for rows whose body was empty.
+      const msg = messages.find(m => (m.getPlainBody() || '').slice(0, 2000) === (row.body || ''))
+        || messages[i]
+      // A thread deleted from Gmail still gets a non-null subject so it isn't retried forever.
+      const patch = msg ? inboxFields(msg, parseAddress(msg.getFrom()), myEmail, null, row.direction) : { subject: '' }
+      delete patch.email_category
+      delete patch.read_at // the migration already marked pre-inbox rows read
+      supabaseReq(keys, 'patch', `/interactions?id=eq.${row.id}`, patch)
+      filled++
+    })
+  }
+  console.log(`Filled ${filled} row(s) — run again until it reports complete.`)
 }
 
 // Ordinal ranking used to stop a later, unrelated signal from *regressing* an application's
