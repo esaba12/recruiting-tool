@@ -4,13 +4,11 @@
 // after one. Call refreshKeyStatus() after any key save/remove.
 import { useEffect, useSyncExternalStore } from 'react'
 import { authHeader } from './supabaseClient.js'
-import { AI_PROVIDER } from './ai.js'
+import { resolveProvider, keyProviderFor } from './aiProvider.js'
 import { keyStatus } from './keyStatus.js'
 import { getKeyState, setKeyState, subscribeKeyState } from './keyStore.js'
 import { useAuth } from './AuthContext.jsx'
 
-// lib/ai.js's provider is chosen at build time, so that's the key AI calls actually use.
-export const AI_KEY_PROVIDER = AI_PROVIDER === 'openai' ? 'openai' : 'anthropic'
 const isDemoMode = () => typeof window !== 'undefined' && window.location.pathname.startsWith('/demo')
 
 let inflight = null
@@ -44,6 +42,10 @@ export async function refreshKeyStatus(userId = getKeyState().userId) {
 export default function useKeyStatus(userId) {
   const s = useSyncExternalStore(subscribeKeyState, getKeyState)
   const demo = isDemoMode()
+  // Same resolution as AuthContext -> setAiProvider, read from the profile so a Settings save
+  // (refreshProfile) re-renders this hook with the new provider's key slot.
+  const { profile } = useAuth()
+  const AI_KEY_PROVIDER = keyProviderFor(resolveProvider(profile?.ai_provider))
   useEffect(() => {
     if (demo || !userId) return
     if (getKeyState().userId !== userId) refreshKeyStatus(userId)

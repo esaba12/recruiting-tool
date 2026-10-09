@@ -5,7 +5,7 @@ import Button from './ui/Button.jsx'
 import Tabs from './ui/Tabs.jsx'
 import Mono from './ui/Mono.jsx'
 import { Badge } from '../shared.jsx'
-import { AI_PROVIDER_LABEL } from '../lib/ai.js'
+import { aiProviderLabel } from '../lib/ai.js'
 import { extractFromPaste, parseCsv, parseIcs, manualDraft, contributeDrafts } from '../lib/eventImport.js'
 import { annotateDuplicates, gateVisibility, SHARE_CONFIDENCE, EVENT_KINDS } from '../lib/ingest/contribute.js'
 import { wallClock, localToIso, parseCompactLocal } from '../lib/ingest/tz.js'
@@ -111,7 +111,7 @@ export default function EventImportModal({ school, poolEvents = [], onClose, onC
             <textarea value={text} onChange={e => setText(e.target.value)} rows={7} placeholder="Paste a listing, an email, or a copied table…"
               className="w-full px-3 py-2 border border-ink-100 rounded-md text-sm font-mono focus:outline-none focus:border-accent-400" />
             <NeedsKey kind="ai"><Button size="sm" onClick={extract} disabled={busy || !text.trim()}>
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Extract with {AI_PROVIDER_LABEL}
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Extract with {aiProviderLabel()}
             </Button></NeedsKey>
           </div>
         )}

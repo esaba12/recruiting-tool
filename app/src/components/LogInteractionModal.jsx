@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Phone, MessageCircle, Users, Mail, MoreHorizontal } from 'lucide-react'
 import { searchContactByName, addContact, addCallEntry, addInteraction, updateContact } from '../db.js'
-import { aiJSON, AI_MODELS, AI_PROVIDER_LABEL } from '../lib/ai.js'
+import { aiJSON, AI_MODELS, aiProviderLabel } from '../lib/ai.js'
 import { ROLE_OPTIONS, affinityOptionsFor } from '../shared.jsx'
 import { personaClause, isPersonalContact } from '../lib/drafting.js'
 import { useAuth } from '../lib/AuthContext.jsx'
@@ -189,15 +189,15 @@ export default function LogInteractionModal({ contacts = [], contact = null, onC
               </p>
               <p className="text-xs text-ink-400 mb-3">
                 {channel === 'call'
-                  ? `After a call ends, copy the summary from Granola and paste it here. ${AI_PROVIDER_LABEL} extracts the contact, key insights, and writes a follow-up draft.`
-                  : `Copy the message thread from LinkedIn and paste it here. ${AI_PROVIDER_LABEL} extracts the contact and a summary — no LinkedIn automation or account risk involved.`}
+                  ? `After a call ends, copy the summary from Granola and paste it here. ${aiProviderLabel()} extracts the contact, key insights, and writes a follow-up draft.`
+                  : `Copy the message thread from LinkedIn and paste it here. ${aiProviderLabel()} extracts the contact and a summary — no LinkedIn automation or account risk involved.`}
               </p>
               <textarea value={text} onChange={e => setText(e.target.value)}
                 placeholder={channel === 'call' ? 'Paste your Granola call notes or summary here...' : 'Paste the LinkedIn conversation here...'}
                 rows={7}
                 className="w-full px-4 py-3 border border-ink-200 rounded-xl text-sm focus:outline-none focus:border-accent-400 resize-none font-mono bg-ink-50" />
               <NeedsKey kind="ai"><Button onClick={extract} disabled={extracting || !text.trim()} className="mt-2">
-                {extracting ? 'Extracting...' : `Extract with ${AI_PROVIDER_LABEL} →`}
+                {extracting ? 'Extracting...' : `Extract with ${aiProviderLabel()} →`}
               </Button></NeedsKey>
             </div>
 

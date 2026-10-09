@@ -278,6 +278,11 @@ export default function SettingsTab() {
                 <option value="claude">Claude (Anthropic)</option>
                 <option value="openai">GPT (OpenAI)</option>
               </select>
+              {!keys.find(k => k.provider === (profileForm.ai_provider === 'openai' ? 'openai' : 'anthropic'))?.hasKey && (
+                <p className="text-[11px] text-warning-700 mt-1">
+                  {profileForm.ai_provider === 'openai' ? 'Add an OpenAI key below to use GPT.' : 'Add an Anthropic key below to use Claude.'}
+                </p>
+              )}
             </div>
             <div className="col-span-2">
               <label className="block text-xs text-ink-400 mb-1">Recruiting for</label>

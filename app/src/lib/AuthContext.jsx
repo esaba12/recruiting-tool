@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { supabase } from './supabaseClient.js'
 import { setStorageUserId } from './scopedStorage.js'
 import { setSentryUser } from './sentry.js'
+import { setAiProvider } from './ai.js'
 
 const AuthContext = createContext(null)
 
@@ -14,8 +15,9 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   const loadProfile = useCallback(async (userId) => {
-    if (!userId) { setProfile(null); setProfileUserId(null); return }
+    if (!userId) { setAiProvider(null); setProfile(null); setProfileUserId(null); return }
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+    setAiProvider(data?.ai_provider)   // null/missing -> env default
     setProfile(data || null)
     setProfileUserId(userId)
   }, [])
