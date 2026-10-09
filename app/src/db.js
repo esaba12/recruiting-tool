@@ -78,7 +78,7 @@ function mapContactRow(r) {
     followUpDraft: r.follow_up_draft || '',
     followUpDraftTier: r.follow_up_draft_tier,
     followUpDraftKind: r.follow_up_draft_kind || '',
-    isUMichAlum: !!r.is_school_alum,
+    isUMichAlum: !!r.is_school_alum,   // means "alum of the user's own school" — the name predates multi-tenant
     affinity: r.affinity || [],
     lifeDomain: r.life_domain || [],
     wantsToSchedule: !!r.wants_to_schedule,

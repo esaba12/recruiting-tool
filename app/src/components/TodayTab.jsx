@@ -25,6 +25,8 @@ import StatTileRow from './StatTileRow.jsx'
 import Mono from './ui/Mono.jsx'
 import { Section, RowCap, HEADING_COLOR } from './ui/Section.jsx'
 import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity, MailQuestion, ListTodo, Sparkles, GraduationCap } from 'lucide-react'
+import GettingStarted from './onboarding/GettingStarted.jsx'
+import { isFreshAccount } from '../lib/onboarding.js'
 
 // Matches KeepInTouchTab.jsx:8 exactly — private to that component there, ported verbatim
 // here since it isn't exported.
@@ -635,7 +637,9 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
         </motion.div>
       )}
 
-      {allEmpty && <EmptyState msg="✓ Nothing needs your attention. You're on top of it." />}
+      {allEmpty && (!isDemoMode && isFreshAccount({ contacts, apps })
+        ? <GettingStarted hasApps={apps.length > 0} hasContacts={contacts.length > 0} />
+        : <EmptyState msg="✓ Nothing needs your attention. You're on top of it." />)}
 
       {openItems.length > 0 && (
         <motion.div variants={rise}>

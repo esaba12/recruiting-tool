@@ -1,5 +1,6 @@
 import { aiJSON, AI_MODELS } from './ai.js'
 import { authHeader } from './supabaseClient.js'
+import { assertKey } from './keyStore.js'
 
 // Real application-deadline extraction. The GitHub board repos this app pulls from
 // (SimplifyJobs, speedyapply, vanshb03, ...) never carry a real deadline — only "days
@@ -18,6 +19,7 @@ const CONTENTS_CHUNK = 6  // apply URLs per Exa /contents + GPT extraction pass
 const CONCURRENCY    = 3  // parallel chunk pipelines
 
 async function fetchContents(urls) {
+  assertKey('exa')
   const res = await fetch('/exa/contents', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },

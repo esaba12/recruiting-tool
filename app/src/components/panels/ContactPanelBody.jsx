@@ -14,7 +14,7 @@ import { useSuppressSidePanelEscape } from '../ui/SidePanel.jsx'
 
 export default function ContactPanelBody({ contact, contacts, interactions, contactRelationships = [], onClose, onSaved, onRefreshRelationships, initial = {}, onBack }) {
   const { profile } = useAuth()
-  const schoolLabel = profile?.school ? `${profile.school} alum` : 'UMich'
+  const schoolLabel = profile?.school ? `${profile.school} alum` : 'Same School'
   const isNew = !contact
   const [form, setForm] = useState(() => ({
     name:        contact?.name || initial.name || '',

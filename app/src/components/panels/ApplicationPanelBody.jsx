@@ -10,6 +10,9 @@ import { companyCoverage } from '../../lib/networkCoverage.js'
 import { warmPathsToCompany, pathLabel } from '../../lib/warmIntro.js'
 import { tieStrengthBucket } from '../../lib/affinity.js'
 import ContactPanelBody from './ContactPanelBody.jsx'
+import NeedsKey from '../onboarding/NeedsKey.jsx'
+import { useAuth } from '../../lib/AuthContext.jsx'
+import { stageLabel } from '../../lib/tracks.js'
 
 const COVERAGE_BADGE = {
   gap:    { color: 'bg-danger-100 text-danger-700',   label: () => 'No network here yet' },
@@ -100,6 +103,7 @@ function NetworkAtCompany({ company, contacts, interactions, relationships, onFi
 }
 
 export default function ApplicationPanelBody({ app, contacts = [], apps = [], interactions = [], relationships = [], onStatusChange, onClose, onDelete, onSaved, onFindPeople, onRefresh, onRefreshRelationships }) {
+  const { profile } = useAuth()
   const isNew = !app
   const [form, setForm] = useState(() => ({
     company:     app?.company     || '',
@@ -331,7 +335,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
               <label className="block text-xs text-ink-400 mb-0.5">Stage</label>
               <select value={dates.stage} onChange={e => changeStage(e.target.value)}
                 className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
-                {STAGE_ORDER.map(s => <option key={s} value={s}>{s}</option>)}
+                {STAGE_ORDER.map(s => <option key={s} value={s}>{stageLabel(s, profile)}</option>)}
               </select>
             </div>
             <div>
@@ -469,10 +473,10 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-semibold text-ink-400 uppercase tracking-wide">Fit Analysis</p>
               {!analysis && !aiLoading && (
-                <button onClick={doAnalysis}
+                <NeedsKey kind="ai"><button onClick={doAnalysis}
                   className="px-3 py-1.5 bg-accent-50 text-accent-600 text-xs rounded-lg hover:bg-accent-100 font-medium">
                   Analyze →
-                </button>
+                </button></NeedsKey>
               )}
             </div>
 

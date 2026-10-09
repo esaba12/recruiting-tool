@@ -9,6 +9,7 @@ import { AI_PROVIDER_LABEL } from '../lib/ai.js'
 import { extractFromPaste, parseCsv, parseIcs, manualDraft, contributeDrafts } from '../lib/eventImport.js'
 import { annotateDuplicates, gateVisibility, SHARE_CONFIDENCE, EVENT_KINDS } from '../lib/ingest/contribute.js'
 import { wallClock, localToIso, parseCompactLocal } from '../lib/ingest/tz.js'
+import NeedsKey from './onboarding/NeedsKey.jsx'
 
 // Paste / upload / manual → staged, editable drafts → explicit commit. Same
 // "AI drafts, human confirms" shape as QuickCaptureModal: nothing is written
@@ -109,9 +110,9 @@ export default function EventImportModal({ school, poolEvents = [], onClose, onC
           <div className="space-y-2">
             <textarea value={text} onChange={e => setText(e.target.value)} rows={7} placeholder="Paste a listing, an email, or a copied table…"
               className="w-full px-3 py-2 border border-ink-100 rounded-md text-sm font-mono focus:outline-none focus:border-accent-400" />
-            <Button size="sm" onClick={extract} disabled={busy || !text.trim()}>
+            <NeedsKey kind="ai"><Button size="sm" onClick={extract} disabled={busy || !text.trim()}>
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Extract with {AI_PROVIDER_LABEL}
-            </Button>
+            </Button></NeedsKey>
           </div>
         )}
         {mode === 'upload' && (

@@ -1,5 +1,6 @@
 import { parseJSONLoose } from './claude.js'
 import { authHeader } from './supabaseClient.js'
+import { assertKey } from './keyStore.js'
 
 // Shared client for the /openai-api proxy (see api/openai.js + vite.config.js).
 // Mirrors lib/claude.js's shape (openaiText/openaiJSON, same {model,content,maxTokens}
@@ -26,6 +27,7 @@ export const OPENAI_MODELS = {
 // JSON mode — the prompt itself must still ask for JSON (already true of every prompt
 // this proxies, carried over verbatim from the Claude call sites).
 async function callOpenAI({ model, content, maxTokens = 1000, json = false }) {
+  assertKey('openai')
   const res = await fetch('/openai-api/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },

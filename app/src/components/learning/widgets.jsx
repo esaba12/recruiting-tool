@@ -12,6 +12,7 @@ import { candidateProblems, buildStudyPlan } from '../../lib/learning/coach.js'
 import { companyCoverage, practicedSlugs, COMPANY_REPO } from '../../lib/learning/companyProblems.js'
 import { getUserSetting, setUserSetting } from '../../db.js'
 import { AI_PROVIDER_LABEL } from '../../lib/ai.js'
+import NeedsKey from '../onboarding/NeedsKey.jsx'
 
 // Industrial "instrument panel" widget shell — hard 1px ink border, mono readouts, a
 // squared-off label bar. Every widget renders inside this so the page reads as one panel.
@@ -211,7 +212,7 @@ export function PlanWidget({ view, onLog, onExplain }) {
       {!cached && (
         <div className="flex flex-col md:flex-row md:items-center gap-3">
           <p className="text-sm text-ink-500 flex-1">Turn your gaps, goals and upcoming interviews into 5–8 concrete actions for this week. Problem picks come only from a curated list, and no solutions are included.</p>
-          <Button size="sm" onClick={generate} disabled={busy}><Sparkles size={13} className="inline -mt-0.5 mr-1" />{busy ? 'Planning…' : 'Build my plan'}</Button>
+          <NeedsKey kind="ai"><Button size="sm" onClick={generate} disabled={busy}><Sparkles size={13} className="inline -mt-0.5 mr-1" />{busy ? 'Planning…' : 'Build my plan'}</Button></NeedsKey>
         </div>
       )}
       {cached && (

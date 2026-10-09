@@ -8,6 +8,7 @@ import { TEMPLATES, defaultTemplateKeys } from '../lib/learning/templates.js'
 import { useTrackView, activeTrack } from '../lib/learning/useLearning.js'
 import useCompanyPrep from '../lib/learning/useCompanyPrep.js'
 import { lsGet, lsSet } from '../lib/scopedStorage.js'
+import { profileTracks } from '../lib/tracks.js'
 import {
   SummaryWidget, GoalsWidget, GapsWidget, PlanWidget, MasteryWidget, ReviewWidget, ActivityWidget,
   DifficultyWidget, RecentWidget, CompanyPrepWidget, LanguagesWidget, FULL_WIDTH,
@@ -44,7 +45,7 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
 
   if (!learning.loaded) return <EmptyState msg="Loading your prep…" />
   if (learning.error) return <EmptyState msg={`Couldn't load Learn: ${learning.error}`} />
-  if (!learning.tracks.length) return <Onboarding learning={learning} focus={profile?.focus} />
+  if (!learning.tracks.length) return <Onboarding learning={learning} tracks={profileTracks(profile)} />
 
   const widgets = mergeWidgets(view.track.config?.widgets, { lcTrack }).filter(w => w.visible)
   const openLog = (initial = {}) => setLogInitial(initial)
@@ -127,8 +128,8 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
 }
 
 // ── First run: pick what you're recruiting for ──
-function Onboarding({ learning, focus }) {
-  const [picked, setPicked] = useState(() => new Set(defaultTemplateKeys(focus)))
+function Onboarding({ learning, tracks }) {
+  const [picked, setPicked] = useState(() => new Set(defaultTemplateKeys(tracks)))
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
   async function start() {

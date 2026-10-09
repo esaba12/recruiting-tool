@@ -9,6 +9,8 @@ import { useAuth } from '../lib/AuthContext.jsx'
 import { Badge, EmptyState } from '../shared.jsx'
 import CompanyOnboarding from './CompanyOnboarding.jsx'
 import { RowCap } from './ui/Section.jsx'
+import { useKeysReady } from '../lib/useKeyStatus.js'
+import NeedsKey from './onboarding/NeedsKey.jsx'
 
 const PREFS_KEY     = 'rec_company_prefs'
 const RESULTS_KEY   = 'rec_company_results'
@@ -64,12 +66,13 @@ export default function ExploreTab({ apps = [], onFindPeople, onTargetAdded, tar
   // Hands-off daily gate (mirrors Discover): refresh once/day in the background on open.
   // Waits on targetsLoaded so the very first run doesn't skip excluding companies you've
   // already targeted just because Supabase hasn't answered yet.
+  const keysReady = useKeysReady('ai', 'exa')
   useEffect(() => {
-    if (ranRef.current || !targetsLoaded) return
+    if (ranRef.current || !targetsLoaded || !keysReady) return
     ranRef.current = true
     if (prefs?.saved && meta.lastCheck !== todayStr()) runFind({ force: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetsLoaded])
+  }, [targetsLoaded, keysReady])
 
   function saveOnboarding(next) {
     setPrefs(next); lsSet(PREFS_KEY, next); setEditing(false)
@@ -108,7 +111,7 @@ export default function ExploreTab({ apps = [], onFindPeople, onTargetAdded, tar
   }
 
   if (editing || !prefs?.saved) {
-    return <CompanyOnboarding initial={prefs || prefsFromRecPrefs(lsGet('rec_prefs') || {})} onSave={saveOnboarding} onCancel={prefs?.saved ? () => setEditing(false) : null} />
+    return <CompanyOnboarding initial={prefs || prefsFromRecPrefs(lsGet('rec_prefs') || {})} onSave={saveOnboarding} onCancel={prefs?.saved ? () => setEditing(false) : null} profile={studentProfile} />
   }
 
   const shown = companies.filter(c => !dismissed.has(c.name))
@@ -120,8 +123,8 @@ export default function ExploreTab({ apps = [], onFindPeople, onTargetAdded, tar
           <span className="text-[11px] text-ink-400">
             {running ? 'Searching…' : meta.lastRun ? `Updated ${timeAgo(new Date(meta.lastRun).toISOString())}` : 'Not run yet'}
           </span>
-          <button onClick={() => runFind({ force: true })} disabled={running}
-            className="px-3 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 disabled:opacity-40">↻ Refresh</button>
+          <NeedsKey kind={['ai', 'exa']}><button onClick={() => runFind({ force: true })} disabled={running}
+            className="px-3 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 disabled:opacity-40">↻ Refresh</button></NeedsKey>
           <button onClick={() => setEditing(true)}
             className="px-3 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300">Edit interests</button>
         </div>

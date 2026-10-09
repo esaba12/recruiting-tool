@@ -24,7 +24,7 @@ function FacetFilter({ column, options }) {
 
 export default function ContactsTable({ contacts, onEdit, onMet }) {
   const { profile } = useAuth()
-  const schoolLabel = profile?.school ? `${profile.school} alum` : 'UMich alum'
+  const schoolLabel = profile?.school ? `${profile.school} alum` : 'Same school'
   const [sorting, setSorting] = useState([{ id: 'urgency', desc: false }])
   const [columnFilters, setColumnFilters] = useState([])
 

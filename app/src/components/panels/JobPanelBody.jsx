@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { BUCKET_CONFIG, BUCKET_ACTIVE, generateJobAnalysis, jobAgeDays, isGhostJob, urgencyTier, daysUntilDeadline } from '../jobBoards/helpers.js'
 import { AI_PROVIDER_LABEL } from '../../lib/ai.js'
 import Mono from '../ui/Mono.jsx'
+import NeedsKey from '../onboarding/NeedsKey.jsx'
 
 const DEADLINE_TEXT = {
   urgent: 'text-danger-600 bg-danger-50',
@@ -104,10 +105,10 @@ export default function JobPanelBody({ job, status, blurb, deadline, onRecheckDe
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-semibold text-ink-400 uppercase tracking-wide">Fit Analysis</p>
           {!analysis && !aiLoading && (
-            <button onClick={doAnalysis}
+            <NeedsKey kind="ai"><button onClick={doAnalysis}
               className="px-3 py-1.5 bg-accent-50 text-accent-600 text-xs rounded-lg hover:bg-accent-100 font-medium">
               Analyze →
-            </button>
+            </button></NeedsKey>
           )}
         </div>
 

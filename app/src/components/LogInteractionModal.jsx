@@ -8,6 +8,7 @@ import { useAuth } from '../lib/AuthContext.jsx'
 import Modal from './ui/Modal.jsx'
 import Button from './ui/Button.jsx'
 import Tabs from './ui/Tabs.jsx'
+import NeedsKey from './onboarding/NeedsKey.jsx'
 
 const CHANNELS = [
   { key: 'call',     label: 'Call',     icon: Phone },
@@ -63,7 +64,7 @@ ${text}`
 
 export default function LogInteractionModal({ contacts = [], contact = null, onClose, onSaved }) {
   const { profile } = useAuth()
-  const schoolLabel = profile?.school ? `${profile.school} alum` : 'UMich'
+  const schoolLabel = profile?.school ? `${profile.school} alum` : 'Same School'
   const [channel, setChannel] = useState('call')
 
   // Transcript channels (Call / LinkedIn)
@@ -195,9 +196,9 @@ export default function LogInteractionModal({ contacts = [], contact = null, onC
                 placeholder={channel === 'call' ? 'Paste your Granola call notes or summary here...' : 'Paste the LinkedIn conversation here...'}
                 rows={7}
                 className="w-full px-4 py-3 border border-ink-200 rounded-xl text-sm focus:outline-none focus:border-accent-400 resize-none font-mono bg-ink-50" />
-              <Button onClick={extract} disabled={extracting || !text.trim()} className="mt-2">
+              <NeedsKey kind="ai"><Button onClick={extract} disabled={extracting || !text.trim()} className="mt-2">
                 {extracting ? 'Extracting...' : `Extract with ${AI_PROVIDER_LABEL} →`}
-              </Button>
+              </Button></NeedsKey>
             </div>
 
             {extracted && (

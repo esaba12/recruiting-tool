@@ -1,5 +1,6 @@
 import { aiJSON, AI_MODELS } from './ai.js'
 import { authHeader } from './supabaseClient.js'
+import { assertKey } from './keyStore.js'
 import { updateApplication } from '../db.js'
 
 // Cloud-agent research fallback for Online Assessment due dates. The email pipeline
@@ -22,6 +23,7 @@ const CONCURRENCY = 3
 const RECHECK_COOLDOWN_DAYS = 3
 
 async function fetchContents(urls) {
+  assertKey('exa')
   const res = await fetch('/exa/contents', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },

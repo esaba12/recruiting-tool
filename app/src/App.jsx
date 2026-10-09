@@ -19,7 +19,7 @@ import LogInteractionModal from './components/LogInteractionModal.jsx'
 import MetButton from './components/MetButton.jsx'
 import { logMetWithContact } from './lib/quickLog.js'
 import NetworkGraphTab from './components/NetworkGraphTab.jsx'
-import PipelineTab, { DEMO_PIPELINE_VIEWS } from './components/PipelineTab.jsx'
+import PipelineTab, { DEMO_PIPELINE_VIEWS, pipelineViewsFor } from './components/PipelineTab.jsx'
 import TodayTab from './components/TodayTab.jsx'
 import CalendarTab from './components/CalendarTab.jsx'
 import AddToCalendarModal from './components/AddToCalendarModal.jsx'
@@ -32,6 +32,10 @@ import GrowTab from './components/GrowTab.jsx'
 import LearnTab from './components/LearnTab.jsx'
 import useLearning from './lib/learning/useLearning.js'
 import NotFoundPage from './components/NotFoundPage.jsx'
+import OnboardingWizard from './components/onboarding/OnboardingWizard.jsx'
+import FeedbackHost from './components/onboarding/FeedbackHost.jsx'
+import { needsOnboarding } from './lib/onboarding.js'
+import { useKeysReady } from './lib/useKeyStatus.js'
 import { NAV_ITEMS } from './components/layout/Sidebar.jsx'
 import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, keepInTouchDue, needsReviewApps } from './lib/attention.js'
 import { Table2, LayoutGrid, Share2, Send } from 'lucide-react'
@@ -216,8 +220,8 @@ function NetworkTab({ contacts, apps, interactions, contactRelationships = [], o
 // ── Root ──────────────────────────────────────────────────────────────────────
 
 function AuthGate({ children }) {
-  const { user, loading } = useAuth()
-  if (loading) {
+  const { user, profile, loading, profileLoading } = useAuth()
+  if (loading || profileLoading) {
     return (
       <div className="min-h-screen bg-canvas flex items-center justify-center">
         <p className="text-sm text-ink-400">Loading...</p>
@@ -225,11 +229,18 @@ function AuthGate({ children }) {
     )
   }
   if (!user) return <LoginPage />
+  if (needsOnboarding(profile)) return <OnboardingWizard />
   return children
 }
 
 function AppInner() {
   const [tab, setTab]           = useState('today')
+  // Deep links from outside the tab tree (e.g. NeedsKey's "add a key in Settings").
+  useEffect(() => {
+    const onNavigate = e => { if (e.detail?.tab) setTab(e.detail.tab) }
+    window.addEventListener('rec:navigate', onNavigate)
+    return () => window.removeEventListener('rec:navigate', onNavigate)
+  }, [])
   const [networkInitialView, setNetworkInitialView] = useState('table')
   const [growFocusCompany, setGrowFocusCompany] = useState(null)
   // Deep-link into Grow's People section, pre-searching one company — shared by Pipeline's
@@ -296,15 +307,16 @@ function AppInner() {
   // completed pass stamps oaDueDate/oaResearchCheckedAt on every app it touched, so the next
   // pass's filter no longer matches them.
   const oaResearchRunningRef = useRef(false)
+  const oaKeysReady = useKeysReady('ai', 'exa')
   useEffect(() => {
-    if (loading || oaResearchRunningRef.current) return
+    if (loading || !oaKeysReady || oaResearchRunningRef.current) return
     oaResearchRunningRef.current = true
     researchOaDeadlines(apps)
       .then(count => { if (count > 0) load() })
       .catch(() => { /* fail-soft — OA due dates just stay unresolved until next load */ })
       .finally(() => { oaResearchRunningRef.current = false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apps])
+  }, [apps, oaKeysReady])
 
   // Narrower than load() on purpose: doesn't touch `loading`, which gates whether
   // NetworkTab (and the open record panel it may have open) is even mounted —
@@ -352,7 +364,7 @@ function AppInner() {
       )}
       {!loading && tab === 'pipeline' && (
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
-          onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} />
+          onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} views={pipelineViewsFor(profile)} />
       )}
       {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} actionItems={actionItems} dailyRecap={dailyRecap} learning={learning} onOpenLearn={() => setTab('learn')} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} />}
       {!loading && tab === 'inbox'    && (
@@ -362,6 +374,7 @@ function AppInner() {
       {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} eventPool={eventPool} eventCalendarSync={eventCalendarSync} />}
       {tab === 'settings' && <SettingsTab />}
 
+      <FeedbackHost />
       {addEventOpen && <AddToCalendarModal onClose={() => setAddEventOpen(false)} />}
       {addScheduleOpen && (
         <QuickScheduleModal

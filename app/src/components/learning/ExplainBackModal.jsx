@@ -5,6 +5,7 @@ import Button from '../ui/Button.jsx'
 import Mono from '../ui/Mono.jsx'
 import { explainBackQuestion, gradeExplainBack } from '../../lib/learning/coach.js'
 import { AI_PROVIDER_LABEL } from '../../lib/ai.js'
+import NeedsKey from '../onboarding/NeedsKey.jsx'
 
 // Explain-back: answer an interview-style prompt in your own words, get graded against the
 // topic's rubric. The grader names what you covered/missed and asks ONE Socratic question —
@@ -63,7 +64,7 @@ export default function ExplainBackModal({ view, topic: initialTopic, onLog, onC
               <Mono className="text-ink-400">{answer.trim().split(/\s+/).filter(Boolean).length} words</Mono>
               <div className="flex gap-2">
                 <Button variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
-                <Button size="sm" onClick={submit} disabled={busy}>{busy ? `Grading with ${AI_PROVIDER_LABEL}…` : 'Grade my answer'}</Button>
+                <NeedsKey kind="ai"><Button size="sm" onClick={submit} disabled={busy}>{busy ? `Grading with ${AI_PROVIDER_LABEL}…` : 'Grade my answer'}</Button></NeedsKey>
               </div>
             </div>
           </>

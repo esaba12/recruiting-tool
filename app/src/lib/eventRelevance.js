@@ -1,5 +1,5 @@
 // Per-user relevance for shared events — a PRE-attendance scorer over signals
-// the app already has: the user's profile (focus), target companies, active
+// the app already has: the user's profile (tracks), target companies, active
 // applications, contacts, and the event's shared attributes. Pure + testable;
 // the React layer persists results via db.upsertEventRelevanceMany keyed by an
 // input hash so an unchanged (profile, targets, event) never re-writes a row.
@@ -9,12 +9,18 @@
 import { hashText } from './ingest/hashGate.js'
 import { isStale } from './ingest/freshness.js'
 import { normalizeCompanyName } from './networkGraph.js'
+import { profileTracks } from './tracks.js'
 
 export const TIER_ORDER = { high: 3, medium: 2, low: 1 }
 const DAY = 86400000
 
 const KIND_BASE = { career_fair: 2, coffee_chat: 1.5, info_session: 1, networking: 1, workshop: 0.5, other: 0 }
-const FOCUS_ROLES = { SWE: ['SWE'], PM: ['PM'], Both: ['SWE', 'PM'] }
+// Recruiting track (lib/tracks.js) → the role families eventEnrichment.js extracts.
+const TRACK_ROLES = { swe: ['SWE', 'Data'], pm: ['PM'], ib: ['Finance'], quant: ['Quant'], consulting: ['Consulting'] }
+
+function wantedRoles(profile) {
+  return [...new Set(profileTracks(profile).flatMap(t => TRACK_ROLES[t] || []))]
+}
 
 export function tierFor(score) {
   if (score >= 6) return 'high'
@@ -22,7 +28,7 @@ export function tierFor(score) {
   return 'low'
 }
 
-// ctx: { profile: { focus }, targets: string[], contacts, apps, employers, now }
+// ctx: { profile: { tracks }, targets: string[], contacts, apps, employers, now }
 export function scoreEvent(event, ctx = {}) {
   const now = ctx.now ?? Date.now()
   const start = Date.parse(event.startsAt)
@@ -58,9 +64,10 @@ export function scoreEvent(event, ctx = {}) {
 
   // Role fit.
   const roles = event.attributes?.roles || []
-  const wanted = FOCUS_ROLES[ctx.profile?.focus] || FOCUS_ROLES.Both
+  const wanted = wantedRoles(ctx.profile)
   if (roles.length) {
-    if (roles.some(r => wanted.includes(r))) { score += 2; reasons.push(`${wanted.join('/')} roles`) }
+    const fitRoles = roles.filter(r => wanted.includes(r))
+    if (fitRoles.length) { score += 2; reasons.push(`${fitRoles.join('/')} roles`) }
     else { score -= 2; reasons.push('other role families') }
   }
 
@@ -85,7 +92,7 @@ export function scoreEvent(event, ctx = {}) {
 export function relevanceInputHash(event, ctx = {}) {
   return hashText(JSON.stringify({
     e: [event.id, event.kind, event.startsAt, event.employerId, event.registrationDeadline, event.sourceLastVerifiedAt?.slice(0, 10), event.attributes?.roles, event.attributes?.employerIds, event.attributes?.employer],
-    p: ctx.profile?.focus || null,
+    p: [...profileTracks(ctx.profile)].sort(),
     t: [...(ctx.targets || [])].map(normalizeCompanyName).sort(),
     a: [...new Set((ctx.apps || []).map(a => normalizeCompanyName(a.company || '')))].sort(),
     c: [...new Set((ctx.contacts || []).map(c => normalizeCompanyName(c.company || '')))].sort(),

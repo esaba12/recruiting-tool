@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   parseAddress, parseAddressList, findCounterpartAddress, guessCompanyHint,
   recruitingShapeHint, networkingShapeHint, extractMeetingLink, extractPlainBody,
-  parseGmailMessage, findHeader,
+  parseGmailMessage, findHeader, candidateFraming, trackGuidance, interviewStage,
 } from '../api/_lib/emailPipeline.js'
 
 describe('parseAddress', () => {
@@ -179,5 +179,28 @@ describe('parseGmailMessage', () => {
     expect(parsed.cc).toBe('')
     expect(parsed.date.toISOString()).toBe('2026-09-20T12:00:00.000Z')
     expect(parsed.plainBody).toBe('It was great meeting you at the career fair!')
+  })
+})
+
+describe('track-aware classification', () => {
+  it('frames the candidate by their tracks, not as a CS student', () => {
+    expect(candidateFraming({ tracks: ['ib'] })).toBe('a student recruiting for IB / Finance roles')
+    expect(candidateFraming({ tracks: ['swe', 'pm'] })).toBe('a student recruiting for SWE + PM roles')
+  })
+  it('adds finance stage guidance only for users with a non-tech track', () => {
+    expect(trackGuidance({ tracks: ['swe'] })).toBe('')
+    expect(trackGuidance({ tracks: ['swe', 'ib'] })).toMatch(/Superday/)
+    expect(trackGuidance({ tracks: ['consulting'] })).toMatch(/insight days/i)
+  })
+  it('maps an interview round to a pipeline stage', () => {
+    expect(interviewStage('final')).toBe('Onsite')
+    expect(interviewStage('second')).toBe('Technical')
+    expect(interviewStage('first')).toBe('Phone Screen')
+    expect(interviewStage(null)).toBe('Phone Screen')
+  })
+  it('treats finance recruiting vendors and superday subjects as recruiting-shaped', () => {
+    expect(recruitingShapeHint('HireVue <noreply@hirevue.com>', 'Your video interview', '')).not.toBe('')
+    expect(recruitingShapeHint('Jane <jane@bigbank.com>', 'Superday invitation', '')).not.toBe('')
+    expect(guessCompanyHint('Talent <talent@avature.net>')).toBe('')
   })
 })

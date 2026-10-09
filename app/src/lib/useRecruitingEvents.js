@@ -8,6 +8,7 @@ import { todayStr } from './ingest/scheduler.js'
 import { needsAttributes, needsDeadlineCheck, runEventEnrichment } from './eventEnrichment.js'
 import { computeRelevance, effectiveTier, sortByRelevance } from './eventRelevance.js'
 import { canSetStatus } from './eventRequirements.js'
+import { useKeysReady } from './useKeyStatus.js'
 
 const ENRICH_META_KEY = 'rec_events_enrich_meta'   // { lastCheck } — per-browser daily gate for the enrichment pass
 
@@ -46,8 +47,9 @@ export default function useRecruitingEvents({ enabled = true, profile, targets =
   useEffect(() => { load() }, [load, refreshKey])
 
   // Enrichment pass: once per browser per day, and only if something actually needs it.
+  const keysReady = useKeysReady('ai')
   useEffect(() => {
-    if (!enabled || isDemo || loading || enrichedRef.current) return
+    if (!enabled || isDemo || loading || enrichedRef.current || !keysReady) return
     if (!events.some(e => needsAttributes(e) || needsDeadlineCheck(e))) return
     const meta = lsGet(ENRICH_META_KEY) || {}
     if (meta.lastCheck === todayStr()) return
@@ -58,12 +60,12 @@ export default function useRecruitingEvents({ enabled = true, profile, targets =
       .catch(e => setError(e.message))
       .finally(() => setEnriching(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, isDemo, loading, events])
+  }, [enabled, isDemo, loading, events, keysReady])
 
   // Relevance: pure recompute; persist only changed rows.
   const ctx = useMemo(() => ({ profile, targets, contacts, apps, employers, now: Date.now() }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [profile?.focus, targets, contacts, apps, employers])
+    [profile?.tracks?.join(), profile?.focus, targets, contacts, apps, employers])
   const { view: relevanceView, writes } = useMemo(() => computeRelevance(events, ctx, myState.relevance), [events, ctx, myState.relevance])
   useEffect(() => {
     if (!enabled || !writes.length) return
