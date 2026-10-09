@@ -27,6 +27,7 @@ import { Section, RowCap, HEADING_COLOR } from './ui/Section.jsx'
 import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity, MailQuestion, ListTodo, Sparkles, GraduationCap } from 'lucide-react'
 import GettingStarted from './onboarding/GettingStarted.jsx'
 import { isFreshAccount } from '../lib/onboarding.js'
+import { addDaysLocal, todayLocal } from '../lib/dates.js'
 
 // Matches KeepInTouchTab.jsx:8 exactly — private to that component there, ported verbatim
 // here since it isn't exported.
@@ -52,8 +53,8 @@ function OverdueRow({ contact: c, interactions, onRefresh, onOpen }) {
   async function markFollowedUp() {
     setMarking(true)
     try {
-      const nextFollowUp = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
-      await updateContact(c.id, { followUpDate: nextFollowUp, lastInteraction: new Date().toISOString().split('T')[0] })
+      const nextFollowUp = addDaysLocal(7)
+      await updateContact(c.id, { followUpDate: nextFollowUp, lastInteraction: todayLocal() })
       await addInteraction({ contactId: c.id, contactName: c.name, type: 'Other', direction: 'Outbound', summary: 'Followed up (marked via Actions)' })
       onRefresh?.()
     } catch {

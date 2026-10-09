@@ -13,6 +13,7 @@ import ContactPanelBody from './ContactPanelBody.jsx'
 import NeedsKey from '../onboarding/NeedsKey.jsx'
 import { useAuth } from '../../lib/AuthContext.jsx'
 import { stageLabel } from '../../lib/tracks.js'
+import { todayLocal } from '../../lib/dates.js'
 
 const COVERAGE_BADGE = {
   gap:    { color: 'bg-danger-100 text-danger-700',   label: () => 'No network here yet' },
@@ -149,7 +150,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
   function changeStage(stage) {
     setDates(d => ({
       ...d, stage,
-      closedDate: TERMINAL_STAGES.includes(stage) ? (d.closedDate || new Date().toISOString().split('T')[0]) : '',
+      closedDate: TERMINAL_STAGES.includes(stage) ? (d.closedDate || todayLocal()) : '',
     }))
   }
 

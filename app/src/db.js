@@ -14,9 +14,11 @@ import {
   buildDemoLearning,
 } from './demoData.js'
 import { ROLE_OPTIONS } from './shared.jsx'
+import { parseDay, todayLocal, addDaysLocal } from './lib/dates.js'
 
-function todayStr() { return new Date().toISOString().split('T')[0] }
-function plusDays(n) { return new Date(Date.now() + n * 86400000).toISOString().split('T')[0] }
+// Local calendar day, not UTC (toISOString flips to tomorrow after ~8pm Eastern).
+function todayStr() { return todayLocal() }
+function plusDays(n) { return addDaysLocal(n) }
 function daysBetween(a, b) { return Math.floor((a.getTime() - b.getTime()) / 86400000) }
 
 function throwIfError(error, action) {
@@ -345,7 +347,7 @@ export async function fetchApplications() {
     appliedDate: r.applied_date,
     closedDate: r.closed_date,
     lastActivity: r.last_activity,
-    daysInStage: r.applied_date ? daysBetween(now, new Date(r.applied_date)) : null,
+    daysInStage: r.applied_date ? daysBetween(now, parseDay(r.applied_date)) : null,
     jdLink: r.jd_link,
     notes: r.notes || '',
     createdTime: r.created_at,
@@ -372,7 +374,7 @@ export async function archiveApplication(id) {
 
 export async function addInteraction({ contactId, contactName, type, direction, date: interactionDate, channelRef, summary, body }) {
   const date = interactionDate || todayStr()
-  const title = `${type} — ${contactName || '?'} — ${new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+  const title = `${type} — ${contactName || '?'} — ${parseDay(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
   if (isDemoMode()) {
     const id = nextDemoId()
     demoStore().interactions.push({ id, contactId: contactId || null, type: type || '', direction: direction || '', date, channelRef: channelRef || '', summary: summary || '', body: body ? body.slice(0, 2000) : '' })

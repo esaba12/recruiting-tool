@@ -3,11 +3,12 @@ import { lsGet, lsSet } from '../components/jobBoards/helpers.js'
 import { findTimelineEvents } from './timelineFinder.js'
 import { createEvent, addOneHour } from '../googleCalendar.js'
 import { useKeysReady } from './useKeyStatus.js'
+import { todayLocal } from './dates.js'
 
 const META_KEY    = 'rec_timeline_meta'    // { lastCheck, hashes: { [recordKey]: contentHash } }
 const PENDING_KEY = 'rec_timeline_pending' // found-but-not-yet-actioned events, keyed by event.key
 
-const todayStr = () => new Date().toISOString().slice(0, 10)
+const todayStr = () => todayLocal()
 
 // This hook must be called unconditionally by its caller, above any early-return gate —
 // otherwise its daily-scan effect can get stuck behind a JSX-level "nothing to show"

@@ -73,25 +73,10 @@ export const LIFE_DOMAIN_OPTIONS = ['Professional', 'Recruiting', 'Friend', 'Fam
 // me to this contact" field.
 export const RELATIONSHIP_TYPES = ['Mentor Of', 'Introduced To', 'Referred To', 'College Friend Of', 'Coworker Of', 'Family Of', 'Other']
 
-export function daysSince(d) {
-  if (!d) return null
-  return Math.floor((Date.now() - new Date(d)) / 86400000)
-}
-
-export function daysUntil(d) {
-  if (!d) return null
-  return Math.floor((new Date(d) - Date.now()) / 86400000)
-}
-
-export function daysBetween(a, b) {
-  if (!a || !b) return null
-  return Math.round((new Date(b) - new Date(a)) / 86400000)
-}
-
-export function fmt(d) {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
+// Thin re-exports: date-only strings must parse as local days (see lib/dates.js).
+import { daysSince, daysUntil, daysBetween, formatDay } from './lib/dates.js'
+export { daysSince, daysUntil, daysBetween }
+export const fmt = formatDay
 
 // A contact whose Follow-Up Date has passed with no newer touch recorded — the single
 // source of truth for "needs a follow-up," used by Actions, Overview, the sidebar badge,

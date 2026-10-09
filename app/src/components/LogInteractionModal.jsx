@@ -9,6 +9,7 @@ import Modal from './ui/Modal.jsx'
 import Button from './ui/Button.jsx'
 import Tabs from './ui/Tabs.jsx'
 import NeedsKey from './onboarding/NeedsKey.jsx'
+import { todayLocal } from '../lib/dates.js'
 
 const CHANNELS = [
   { key: 'call',     label: 'Call',     icon: Phone },
@@ -75,7 +76,7 @@ export default function LogInteractionModal({ contacts = [], contact = null, onC
 
   // Manual channels (Meeting / Email / Other)
   const [name, setName] = useState(contact?.name || '')
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(todayLocal())
   const [duration, setDuration] = useState('')
   const [notes, setNotes] = useState('')
 

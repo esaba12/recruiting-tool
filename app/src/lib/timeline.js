@@ -7,6 +7,7 @@ import { jobId, lsGet } from '../components/jobBoards/helpers.js'
 import { keepInTouchQueue } from './keepInTouch.js'
 import { TERMINAL_STAGES, isUntriaged } from '../shared.jsx'
 import { CALENDAR_SLOTS } from '../googleCalendar.js'
+import { parseDay } from './dates.js'
 
 const EVENT_BADGE_COLOR = { personal: 'bg-accent-100 text-accent-700', school: 'bg-purple-100 text-purple-700' }
 
@@ -53,7 +54,7 @@ export function buildTimelineItems({ contacts = [], apps = [], interactions = []
     if (!c.followUpDate || c.status === '✅ Closed') continue
     const days = daysUntil(c.followUpDate)
     items.push({
-      id: `followup-${c.id}`, type: 'followup', date: new Date(c.followUpDate), days, tier: tierFor(days),
+      id: `followup-${c.id}`, type: 'followup', date: parseDay(c.followUpDate), days, tier: tierFor(days),
       title: c.name, subtitle: [c.company, c.role].filter(Boolean).join(' · ') || 'Follow-up',
       badgeLabel: 'Follow-up', badgeColor: 'bg-accent-100 text-accent-700', refType: 'contact', ref: c,
     })

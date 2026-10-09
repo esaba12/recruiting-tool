@@ -10,9 +10,10 @@
 
 import { instantiateTemplate } from './lib/learning/templates.js'
 import { PROBLEM_BY_SLUG } from './lib/learning/problemBank.js'
+import { addDaysLocal } from './lib/dates.js'
 
 function daysFromNow(n) {
-  return new Date(Date.now() + n * 86400000).toISOString().split('T')[0]
+  return addDaysLocal(n)
 }
 
 let idCounter = 1000

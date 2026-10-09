@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { searchContactByName, addContact, updateContact } from '../db.js'
 import Modal from './ui/Modal.jsx'
 import Button from './ui/Button.jsx'
+import { addDaysLocal } from '../lib/dates.js'
 
 function defaultScheduleBy() {
-  return new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
+  return addDaysLocal(7)
 }
 
 // Fast-add entry point for "I know I want to talk to this person and need to get

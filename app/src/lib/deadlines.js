@@ -1,6 +1,7 @@
 import { aiJSON, AI_MODELS } from './ai.js'
 import { authHeader } from './supabaseClient.js'
 import { assertKey } from './keyStore.js'
+import { todayLocal } from './dates.js'
 
 // Real application-deadline extraction. The GitHub board repos this app pulls from
 // (SimplifyJobs, speedyapply, vanshb03, ...) never carry a real deadline — only "days
@@ -62,7 +63,7 @@ function promptHeader(subject) {
 Rules:
 - Only report a deadline if the page actually states one (e.g. ${s.example}). Many are rolling/open until the event — do NOT invent or estimate a date for those.
 - "id" in your output must be the exact bracketed ID from the page's label.
-- Resolve relative dates using today's date: ${new Date().toISOString().slice(0, 10)}.
+- Resolve relative dates using today's date: ${todayLocal()}.
 - ${s.fallback}, set rolling:false, deadline:null, confidence:"none".
 
 Return ONLY valid JSON, no markdown, no explanation:
