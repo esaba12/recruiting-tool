@@ -25,6 +25,36 @@ async function leetcodeCall(payload) {
   return json
 }
 
+// ── Username field ──
+
+// Same rule as api/_lib/leetcode.js's USERNAME_RE (the proxy re-validates).
+const USERNAME_RE = /^[A-Za-z0-9_-]{1,40}$/
+const RESERVED_PATHS = new Set(['u', 'problems', 'problemset', 'contest', 'discuss', 'explore', 'study-plan', 'accounts'])
+
+// Field input → username, '' for blank, or null when it isn't one. People paste their
+// profile URL (leetcode.com/u/<name>/) as often as the bare name, so accept both.
+export function parseLeetcodeUsername(input) {
+  let s = String(input ?? '').trim()
+  if (!s) return ''
+  const url = s.match(/^(?:https?:\/\/)?(?:www\.)?leetcode\.(?:com|cn)\/(.*)$/i)
+  if (url) {
+    const parts = url[1].split(/[/?#]/).filter(Boolean)
+    s = parts[0] === 'u' ? parts[1] || '' : RESERVED_PATHS.has(parts[0]) ? '' : parts[0] || ''
+  }
+  s = s.replace(/^@/, '')
+  return USERNAME_RE.test(s) ? s : null
+}
+
+// Field input vs. the saved username → what committing it should do. The panel commits on
+// blur, Enter, and when it closes (Escape / ✕ unmount it without a blur), so it must be a
+// no-op when nothing changed.
+export function planUsernameCommit(input, saved) {
+  const u = parseLeetcodeUsername(input)
+  if (u === null) return { action: 'invalid' }
+  if (u === (saved || '')) return { action: 'none' }
+  return { action: 'save', username: u }
+}
+
 // Raw GraphQL profile response → normalized shape. Throws on an unknown user.
 export function parseProfile(json) {
   const d = json?.data
@@ -202,29 +232,63 @@ export function buildImport({ recent, meta, trackId }) {
 // Full sync: fetch → resolve → upsert items → import logs (idempotent) → store snapshot.
 // `prev` is the stored snapshot; fields that accumulate (language stats, history import
 // marker) carry over when it's for the same username. Returns { imported, snapshot }.
+//
+// Storage model: LeetCode only shows the last 20 submissions, so every attempt is written
+// as one learning_logs row the first time a sync sees it (one learning_items row per
+// problem) and kept for good. That grows with real practice only — a few KB per hundred
+// solves. Syncs are frequent (SYNC_INTERVAL_MS) so the window rarely overflows between
+// them, which makes the no-change case the common one: `snapshot.syncedIds` remembers what
+// was already stored, and a sync with nothing new does no question lookups and no Supabase
+// writes at all (`unchanged: true`).
+export const SYNCED_IDS_CAP = 200
+const stableJson = v => JSON.stringify(v, (_, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) : x)) // ≫ the 40 ids one profile response can show
 export async function syncLeetcode({ username, trackId, prev = null }, call = leetcodeCall) {
   const profile = parseProfile(await call({ op: 'profile', username }))
-  const attempts = summarizeAttempts(profile.recent, profile.submissions)
-  const meta = await resolveQuestionMeta(attempts.map(r => r.slug), call)
-  const { items, logs } = buildImport({ recent: attempts, meta, trackId })
-  const saved = await upsertLearningItems(items)
-  const idBySlug = new Map(saved.map(i => [i.externalRef, i.id]))
-  const rows = logs.map(({ _slug, ...l }) => ({ ...l, itemId: idBySlug.get(_slug) || null }))
-  const imported = await importLearningLogs(rows)
-  // Only freshly inserted logs touch the re-solve queue, so a re-sync never re-schedules.
-  for (const [itemId, srs] of reviewUpdates(imported, saved)) {
-    try { await updateLearningItem(itemId, srs) } catch { /* queue catches up next attempt */ }
-  }
   const same = prev && prev.username?.toLowerCase() === profile.username.toLowerCase()
+  const known = new Set(same ? prev.syncedIds || [] : [])
+  const attempts = summarizeAttempts(profile.recent, profile.submissions)
+  const fresh = attempts.filter(a => !known.has(a.id))
+
+  let imported = []
+  if (fresh.length) {
+    const meta = await resolveQuestionMeta(fresh.map(r => r.slug), call)
+    const { items, logs } = buildImport({ recent: fresh, meta, trackId })
+    const saved = await upsertLearningItems(items)
+    const idBySlug = new Map(saved.map(i => [i.externalRef, i.id]))
+    const rows = logs.map(({ _slug, ...l }) => ({ ...l, itemId: idBySlug.get(_slug) || null }))
+    imported = await importLearningLogs(rows)
+    // Only freshly inserted logs touch the re-solve queue, so a re-sync never re-schedules.
+    for (const [itemId, srs] of reviewUpdates(imported, saved)) {
+      try { await updateLearningItem(itemId, srs) } catch { /* queue catches up next attempt */ }
+    }
+  }
+
+  const stats = { tagCounts: profile.tagCounts, difficulty: profile.difficulty, languages: profile.languages }
+  // Key-order-insensitive: a snapshot read back from jsonb doesn't keep insertion order.
+  const statsSame = same && stableJson(stats) === stableJson({ tagCounts: prev.tagCounts, difficulty: prev.difficulty, languages: prev.languages })
+  if (!fresh.length && statsSame) {
+    return { imported: 0, unchanged: true, snapshot: prev }
+  }
   const snapshot = {
     ...(same ? prev : {}),
-    username: profile.username, tagCounts: profile.tagCounts, difficulty: profile.difficulty,
-    languages: profile.languages,
+    username: profile.username, ...stats,
     languageStats: mergeLanguageStats(same ? prev.languageStats : null, attempts),
+    syncedIds: [...known, ...fresh.map(a => a.id)].slice(-SYNCED_IDS_CAP),
     syncedAt: new Date().toISOString(),
   }
   await setUserSetting(SNAPSHOT_KEY, snapshot)
-  return { imported: imported.length, snapshot }
+  return { imported: imported.length, unchanged: false, snapshot }
+}
+
+// How often a browser re-syncs. LeetCode shows only the last 20 submissions, so the gap
+// between syncs is what bounds how many solves can scroll away unseen. A no-change sync is
+// one GraphQL read and zero DB writes, so this can be short.
+export const SYNC_INTERVAL_MS = 3 * 3600000
+
+// lastAt: epoch ms of the last sync on this browser (older builds stored 'YYYY-MM-DD').
+export function syncDue(lastAt, now = Date.now()) {
+  if (typeof lastAt !== 'number' || !Number.isFinite(lastAt)) return true
+  return now - lastAt >= SYNC_INTERVAL_MS
 }
 
 // Pure: newly imported logs (any order) + their items → Map(itemId → { srs, dueAt }).

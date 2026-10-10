@@ -25,7 +25,7 @@ const ACTIVE_TRACK_KEY = 'rec_learn_active_track'
 // tab is where it gets logged, measured against targets, and turned into what to do next.
 export default function LearnTab({ learning, apps, profile, logRequest, onLogRequestHandled, isDemoMode = false }) {
   const [trackId, setTrackId] = useState(() => lsGet(ACTIVE_TRACK_KEY))
-  const [customizing, setCustomizing] = useState(false)
+  const [customizing, setCustomizing] = useState(false) // false | section key
   const [logInitial, setLogInitial] = useState(null)
   const [explainTopic, setExplainTopic] = useState(undefined) // undefined = closed, null = open w/o preset
   const [addingTrack, setAddingTrack] = useState(false)
@@ -55,14 +55,14 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
   function renderWidget(type) {
     switch (type) {
       case 'summary': return <SummaryWidget view={view} />
-      case 'goals': return <GoalsWidget view={view} onCustomize={() => setCustomizing(true)} />
+      case 'goals': return <GoalsWidget view={view} onCustomize={() => setCustomizing('goals')} />
       case 'gaps': return <GapsWidget view={view} onExplain={t => setExplainTopic(t)} onLog={openLog} />
       case 'plan': return <PlanWidget view={view} onLog={openLog} onExplain={t => setExplainTopic(t)} />
       case 'mastery': return <MasteryWidget view={view} />
       case 'review': return <ReviewWidget view={view} onLog={openLog} onDismiss={id => learning.dismissReview(id)} />
       case 'activity': return <ActivityWidget view={view} />
       case 'difficulty': return <DifficultyWidget view={view} snapshot={view.track.config?.leetcodeUsername ? learning.snapshot : null} />
-      case 'languages': return <LanguagesWidget snapshot={trackSnapshot} onCustomize={() => setCustomizing(true)} />
+      case 'languages': return <LanguagesWidget snapshot={trackSnapshot} onCustomize={() => setCustomizing('track')} />
       case 'recent': return <RecentWidget view={view} onDelete={id => learning.removeLog(id)} />
       case 'company': return <CompanyPrepWidget view={view} prep={companyPrep} onLog={openLog} isDemoMode={isDemoMode}
         onPin={names => learning.saveTrack(view.track.id, { config: { ...view.track.config, prepCompanies: names } })} />
@@ -90,6 +90,12 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {lcTrack && !lcUser && !isDemoMode && (
+            <button onClick={() => setCustomizing('track')}
+              className="text-xs text-accent-700 hover:text-accent-800 font-medium inline-flex items-center gap-1 mr-1" title="Add your LeetCode username to import solves">
+              <RefreshCw size={12} /> Connect LeetCode
+            </button>
+          )}
           {view.track.config?.leetcodeUsername && (
             <button onClick={() => learning.runLeetcodeSync(view.track).catch(() => {})} disabled={syncing}
               className="text-xs text-ink-500 hover:text-ink-800 inline-flex items-center gap-1 font-mono mr-1" title="Sync LeetCode now">
@@ -99,7 +105,7 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
           <Button variant="secondary" size="sm" onClick={() => setExplainTopic(null)} disabled={!view.visible.length}>
             <MessageSquareText size={13} className="inline -mt-0.5 mr-1" />Explain back
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => setCustomizing(true)}>
+          <Button variant="secondary" size="sm" onClick={() => setCustomizing('topics')}>
             <SlidersHorizontal size={13} className="inline -mt-0.5 mr-1" />Customize
           </Button>
           <Button size="sm" onClick={() => openLog()}>+ Log</Button>
@@ -119,7 +125,7 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
         ))}
       </div>
 
-      {customizing && <CustomizePanel view={view} learning={learning} onClose={() => setCustomizing(false)} />}
+      {customizing && <CustomizePanel view={view} learning={learning} initialSection={customizing} onClose={() => setCustomizing(false)} />}
       {logInitial && <LogModal view={view} apps={apps} initial={logInitial} onSave={learning.logAttempt} onClose={() => setLogInitial(null)} />}
       {explainTopic !== undefined && <ExplainBackModal view={view} topic={explainTopic} onLog={learning.logAttempt} onClose={() => setExplainTopic(undefined)} />}
       {addingTrack && <AddTrackModal learning={learning} onClose={() => setAddingTrack(false)} onCreated={t => { setTrackId(t.id); setAddingTrack(false) }} />}

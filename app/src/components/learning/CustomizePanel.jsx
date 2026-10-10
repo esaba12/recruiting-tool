@@ -9,6 +9,7 @@ import Mono from '../ui/Mono.jsx'
 import { WIDGET_TYPES, GOAL_METRICS } from '../../lib/learning/templates.js'
 import { suggestTopics } from '../../lib/learning/coach.js'
 import { goalLabel } from './widgets.jsx'
+import { planUsernameCommit } from '../../lib/learning/leetcodeImport.js'
 import NeedsKey from '../onboarding/NeedsKey.jsx'
 
 const SECTIONS = [
@@ -21,8 +22,8 @@ const SECTIONS = [
 // The Learn tab's customization editor: what to track (topics), which stats to show and in
 // what order (widgets), and goals. Every change saves immediately — there is no "Save" step
 // to forget; drag-reorders persist on drop.
-export default function CustomizePanel({ view, learning, onClose }) {
-  const [section, setSection] = useState('topics')
+export default function CustomizePanel({ view, learning, onClose, initialSection = 'topics' }) {
+  const [section, setSection] = useState(initialSection)
   return (
     <SidePanel onClose={onClose} className="md:w-[560px]">
       <div className="sticky top-0 bg-white z-10 border-b border-ink-200 px-5 pt-4 pb-3">
@@ -448,20 +449,55 @@ function TrackEditor({ view, learning, onArchived }) {
   const syncing = learning.syncing === view.track.id
   const snap = learning.snapshot && learning.snapshot.username?.toLowerCase() === (config.leetcodeUsername || '').toLowerCase() ? learning.snapshot : null
 
-  async function saveUsername() {
-    const u = username.trim()
-    if (u === (config.leetcodeUsername || '')) return
-    if (u && !/^[A-Za-z0-9_-]{1,40}$/.test(u)) { setStatus({ err: 'That doesn\'t look like a LeetCode username.' }); return }
-    await learning.saveTrack(view.track.id, { config: { ...config, leetcodeUsername: u } })
+  const syncedMsg = res => `Imported ${res.imported} new solve${res.imported === 1 ? '' : 's'} · ${res.snapshot.difficulty.All ?? 0} lifetime`
+
+  // The username used to save on blur only — Escape, ✕ and Enter don't blur, so it was
+  // silently dropped and the daily sync never ran. Commit on every exit path instead;
+  // refs keep the unmount commit pointed at the latest input and saved value.
+  const draftRef = useRef(username)
+  const savedRef = useRef(config.leetcodeUsername || '')
+  const learningRef = useRef(learning)
+  const pendingRef = useRef(null) // save+sync started by a blur that Sync now's click should reuse
+  draftRef.current = username
+  learningRef.current = learning
+  useEffect(() => { savedRef.current = config.leetcodeUsername || '' }, [config.leetcodeUsername])
+
+  // → the sync result when a new username was saved (it syncs straight away), else null.
+  async function commitUsername() {
+    const plan = planUsernameCommit(draftRef.current, savedRef.current)
+    if (plan.action === 'invalid') { setStatus({ err: 'That doesn\'t look like a LeetCode username (or profile link).' }); return null }
+    if (plan.action === 'none') return null
+    savedRef.current = plan.username // claim it so a blur racing a click doesn't save twice
+    setUsername(plan.username)
+    const p = learningRef.current.setLeetcodeUsername(view.track.id, plan.username)
+    pendingRef.current = p
+    p.finally(() => { if (pendingRef.current === p) pendingRef.current = null }).catch(() => {})
+    return p
   }
+
+  async function commitAndReport() {
+    setStatus(null)
+    try {
+      const res = await commitUsername()
+      if (res) setStatus({ ok: syncedMsg(res) })
+    } catch (e) { setStatus({ err: e.message }) }
+  }
+
+  // Closing the panel unmounts this without a blur. Fire-and-forget: the hook lives in
+  // AppInner, so the save + first sync finish after the panel is gone.
+  useEffect(() => () => {
+    const plan = planUsernameCommit(draftRef.current, savedRef.current)
+    if (plan.action === 'save') learningRef.current.setLeetcodeUsername(view.track.id, plan.username).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function sync() {
     setStatus(null)
     try {
-      await saveUsername()
-      const track = { ...view.track, config: { ...config, leetcodeUsername: username.trim() } }
-      const res = await learning.runLeetcodeSync(track)
-      if (res) setStatus({ ok: `Imported ${res.imported} new solve${res.imported === 1 ? '' : 's'} · ${res.snapshot.difficulty.All ?? 0} lifetime` })
+      const res = (await commitUsername()) ?? (pendingRef.current ? await pendingRef.current : null) ?? (savedRef.current
+        ? await learning.runLeetcodeSync({ ...view.track, config: { ...config, leetcodeUsername: savedRef.current } })
+        : null)
+      if (res) setStatus({ ok: syncedMsg(res) })
     } catch (e) { setStatus({ err: e.message }) }
   }
 
@@ -471,9 +507,10 @@ function TrackEditor({ view, learning, onArchived }) {
 
       <div className="border border-ink-200 p-3 space-y-2">
         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-400">LeetCode import</p>
-        <p className="text-xs text-ink-500">Reads your <b>public</b> LeetCode profile once a day: solved counts per tag and per language (these seed your DSA levels), plus your 20 most recent submissions. Those are logged with dates, and failed tries count as struggles. Nothing is posted to LeetCode.</p>
+        <p className="text-xs text-ink-500">Reads your <b>public</b> LeetCode profile every few hours while the app is open: solved counts per tag and per language (these seed your DSA levels), plus your 20 most recent submissions. LeetCode only ever shows those 20, so each one is saved here the first time it's seen and kept. Failed tries count as struggles. Nothing is posted to LeetCode.</p>
         <div className="flex gap-2">
-          <Input placeholder="LeetCode username" value={username} onChange={e => setUsername(e.target.value)} onBlur={saveUsername} className="font-mono" />
+          <Input placeholder="LeetCode username or profile link" value={username} onChange={e => setUsername(e.target.value)} onBlur={commitAndReport}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitAndReport() } }} className="font-mono" />
           <Button size="sm" variant="secondary" onClick={sync} disabled={!username.trim() || syncing}>
             <RefreshCw size={13} className={`inline -mt-0.5 mr-1 ${syncing ? 'animate-spin' : ''}`} />{syncing ? 'Syncing' : 'Sync now'}
           </Button>
