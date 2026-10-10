@@ -14,11 +14,14 @@ setup without help, and see something useful on day one.
 - Prod is up (`/` returns 200), and `main` is in sync with `origin/main`.
 - No server code falls back to a global `ANTHROPIC_API_KEY`/`EXA_API_KEY` (checked with grep), so a friend can't spend your keys.
 
-## Status (2026-10-09)
+## Status (2026-10-10)
 
-Specs 01–07 are **implemented locally, not committed or deployed**. Both migrations
-(`20261009000000_profile_tracks`, `20261009010000_feedback`) are pushed to the live project, and
-`npm test` passes (271 tests, including the live RLS suite). Rendered and checked in a browser:
+Specs 01–07 are **committed on branch `v1.2-friends-launch` and open as PR #6, not merged**. The
+preview deploy passed and was smoke-tested. Both migrations (`20261009000000_profile_tracks`,
+`20261009010000_feedback`) are pushed to the live project, and `npm test` passes (278 tests,
+including the live RLS suite; also passes under `TZ=America/New_York`). What's left before launch
+is in [08](08-ops-checklist.md) → "Ship the code": merge, `supabase config push`, `clasp push`, and
+the Vercel env cleanup. Rendered and checked in a browser:
 the wizard (desktop and 390px), Today's getting-started state, Settings, Pipeline and Grow for an
 IB-only account. Deviations from the specs:
 - 02: resume after OAuth uses the saved `onboarding_step` alone (callbacks already redirect to
@@ -29,8 +32,13 @@ IB-only account. Deviations from the specs:
 - 05: added `interview_round` to the classifier, so superday/final-round invites land on Onsite
   for every user. Apps Script mirror edited but **not `clasp push`ed**.
 - 07: Sentry stays inert until `VITE_SENTRY_DSN` is set (see 08).
-- Found along the way, not fixed: Settings' "AI provider" dropdown has no effect; `lib/ai.js` only
-  reads the build-time `VITE_AI_PROVIDER`.
+- Found along the way and fixed (`de19631`): Settings' "AI provider" dropdown now switches
+  providers at runtime (`lib/aiProvider.js`), not only through the build-time `VITE_AI_PROVIDER`.
+- Also fixed after review: date-only values now parse as local days (`lib/dates.js`); the demo
+  data got valid stages and finance samples; Today's mobile rows no longer overlap. Rows written
+  earlier with a UTC "today" were not migrated.
+- Known, separate: Learn's LeetCode prep isn't working right. It needs its own investigation and
+  isn't part of v1.2.
 
 ## Order: code first, then managerial work
 
