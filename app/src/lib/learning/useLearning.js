@@ -6,16 +6,15 @@ import {
   addLearningLog, deleteLearningLog, getUserSetting,
 } from '../../db.js'
 import { lsGet, lsSet } from '../scopedStorage.js'
-import { todayStr } from '../ingest/scheduler.js'
 import { instantiateTemplate } from './templates.js'
-import { syncLeetcode, resolveQuestionMeta, importLeetcodeHistory, SNAPSHOT_KEY } from './leetcodeImport.js'
+import { syncLeetcode, syncDue, resolveQuestionMeta, importLeetcodeHistory, SNAPSHOT_KEY } from './leetcodeImport.js'
 import { PROBLEM_BY_SLUG, slugFromLeetcodeUrl, titleFromSlug } from './problemBank.js'
 import { scheduleAttempt } from './review.js'
 import { deriveTrack } from './derive.js'
 
 export { deriveTrack }
 
-const SYNC_META_KEY = 'rec_leetcode_sync' // { [trackId]: 'YYYY-MM-DD' }
+const SYNC_META_KEY = 'rec_leetcode_sync' // { [trackId]: epoch ms of the last sync on this browser }
 
 // Everything the Learn tab (and Today's learning attention items) reads. Mounted once in
 // AppInner, same shape as useRecruitingEvents: loads rows, exposes mutation actions that
@@ -27,7 +26,11 @@ export default function useLearning({ enabled = true } = {}) {
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState(null)
   const [syncing, setSyncing] = useState(null) // trackId while a LeetCode sync runs
-  const syncRanRef = useRef(false)
+  const syncInFlightRef = useRef(false)
+  const snapshotRef = useRef(snapshot)
+  snapshotRef.current = snapshot
+  const dataRef = useRef(data)
+  dataRef.current = data
 
   const load = useCallback(async () => {
     try {
@@ -144,12 +147,27 @@ export default function useLearning({ enabled = true } = {}) {
     if (!username) return null
     setSyncing(track.id)
     try {
-      const res = await syncLeetcode({ username, trackId: track.id, prev: snapshot })
+      const res = await syncLeetcode({ username, trackId: track.id, prev: snapshotRef.current })
       const meta = lsGet(SYNC_META_KEY) || {}
-      lsSet(SYNC_META_KEY, { ...meta, [track.id]: todayStr() })
-      await load()
+      lsSet(SYNC_META_KEY, { ...meta, [track.id]: Date.now() })
+      snapshotRef.current = res.snapshot
+      // Nothing new → nothing was written, so there's nothing to re-read either.
+      if (!res.unchanged) await load()
       return res
     } finally { setSyncing(null) }
+  }
+
+  // Save a track's LeetCode username and sync it right away, instead of waiting for the next
+  // browser-day. Merges into the *current* config (the panel may call this while unmounting,
+  // with a stale render's config). Returns the sync result; a sync failure is rethrown so the
+  // caller can show it, but the username is already saved.
+  async function setLeetcodeUsername(trackId, username) {
+    const track = dataRef.current.tracks.find(t => t.id === trackId)
+    if (!track) return null
+    const config = { ...(track.config || {}), leetcodeUsername: username }
+    await saveTrack(trackId, { config })
+    if (!username) return null
+    return runLeetcodeSync({ ...track, config })
   }
 
   // One-off full history import with a pasted LEETCODE_SESSION (never stored). Problems that
@@ -169,13 +187,24 @@ export default function useLearning({ enabled = true } = {}) {
     } finally { setSyncing(null) }
   }
 
-  // Once per browser-day per track with a username — fail-soft (the manual ↻ surfaces errors).
+  // Every SYNC_INTERVAL_MS per track with a username: on load, and again when the tab comes
+  // back into view (a long-open tab would otherwise let the 20-submission window overflow).
+  // Fail-soft — the manual ↻ surfaces errors.
   useEffect(() => {
-    if (!enabled || !loaded || syncRanRef.current) return
-    syncRanRef.current = true
-    const meta = lsGet(SYNC_META_KEY) || {}
-    const due = data.tracks.filter(t => t.config?.leetcodeUsername && meta[t.id] !== todayStr())
-    ;(async () => { for (const t of due) { try { await runLeetcodeSync(t) } catch { /* retry tomorrow or via ↻ */ } } })()
+    if (!enabled || !loaded) return
+    async function syncDueTracks() {
+      if (syncInFlightRef.current) return
+      const meta = lsGet(SYNC_META_KEY) || {}
+      const due = dataRef.current.tracks.filter(t => t.config?.leetcodeUsername && syncDue(meta[t.id]))
+      if (!due.length) return
+      syncInFlightRef.current = true
+      try { for (const t of due) { try { await runLeetcodeSync(t) } catch { /* retry next interval or via ↻ */ } } }
+      finally { syncInFlightRef.current = false }
+    }
+    syncDueTracks()
+    const onVisible = () => { if (document.visibilityState === 'visible') syncDueTracks() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, loaded])
 
@@ -183,7 +212,7 @@ export default function useLearning({ enabled = true } = {}) {
     ...data, snapshot, loaded, error, syncing, reload: load,
     createTrack, saveTrack, archiveTrack,
     addTopics, updateTopic, reorderTopics, deleteTopic,
-    logAttempt, removeLog, dismissReview, runLeetcodeSync, importHistory,
+    logAttempt, removeLog, dismissReview, runLeetcodeSync, setLeetcodeUsername, importHistory,
   }
 }
 
