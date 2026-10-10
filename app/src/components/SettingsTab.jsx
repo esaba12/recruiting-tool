@@ -24,7 +24,7 @@ const PROVIDERS = [
 
 const SCHOOLS_HINT = 'e.g. University of Michigan'
 
-export default function SettingsTab() {
+export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
   const { profile, refreshProfile, signOut, user } = useAuth()
   const [keys, setKeys] = useState([])
   const [keysLoading, setKeysLoading] = useState(true)
@@ -80,6 +80,7 @@ export default function SettingsTab() {
   async function saveKey(provider) {
     const apiKey = (drafts[provider] || '').trim()
     if (!apiKey) return
+    let saved = false
     setSavingProvider(provider); setError(null)
     try {
       const res = await fetch('/api/keys', {
@@ -91,8 +92,10 @@ export default function SettingsTab() {
       setDrafts(d => ({ ...d, [provider]: '' }))
       await loadKeys()
       refreshKeyStatus()
+      saved = true
     } catch (e) { setError(e.message) }
     finally { setSavingProvider(null) }
+    if (saved) onDone?.()
   }
 
   async function removeKey(provider) {
@@ -116,6 +119,7 @@ export default function SettingsTab() {
   }
 
   async function saveProfile() {
+    let saved = false
     setSavingProfile(true); setError(null)
     try {
       const { error } = await supabase.from('profiles').update({
@@ -130,8 +134,11 @@ export default function SettingsTab() {
       }).eq('id', user.id)
       if (error) throw error
       await refreshProfile()
+      saved = true
     } catch (e) { setError(e.message) }
     finally { setSavingProfile(false) }
+    // Back to whichever tab Settings was opened from.
+    if (saved) onDone?.()
   }
 
   // Password-only on purpose — this project's auth config has double_confirm_changes
@@ -203,6 +210,11 @@ export default function SettingsTab() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
+        {onDone && (
+          <button onClick={onDone} className="text-xs text-ink-400 hover:text-accent-600 mb-1">
+            ← Back to {returnLabel}
+          </button>
+        )}
         <h2 className="font-heading text-lg font-semibold text-ink-900">Settings</h2>
         <p className="text-sm text-ink-400 mt-0.5">Signed in as {user?.email}</p>
       </div>

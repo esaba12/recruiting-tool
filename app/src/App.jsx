@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships, fetchActionItems, fetchDailyRecap } from './db.js'
 import { researchOaDeadlines } from './lib/oaResearch.js'
 import { useAuth } from './lib/AuthContext.jsx'
@@ -233,8 +233,46 @@ function AuthGate({ children }) {
   return children
 }
 
+// The active tab lives in the URL hash (#pipeline) and sessionStorage, so a reload, a
+// remount, or an OAuth round trip (Connect Calendar/Gmail redirect back to `/`) lands you
+// on the tab you were on instead of Today. Opening Settings remembers the tab you came
+// from; saving in Settings (or its Back link) returns you there.
+const TAB_IDS = new Set([...NAV_ITEMS.map(i => i.id), 'settings'])
+const TAB_KEY = 'rec_tab'
+const RETURN_TAB_KEY = 'rec_settings_return_tab'
+function storedTab(key) {
+  try { const v = sessionStorage.getItem(key); return TAB_IDS.has(v) ? v : null } catch { return null }
+}
+function storeTab(key, value) {
+  try { sessionStorage.setItem(key, value) } catch { /* private mode etc. — URL hash still works */ }
+}
+function hashTab() {
+  const h = window.location.hash.slice(1)
+  return TAB_IDS.has(h) ? h : null
+}
+
 function AppInner() {
-  const [tab, setTab]           = useState('today')
+  const [tab, setTabState]      = useState(() => hashTab() || storedTab(TAB_KEY) || 'today')
+  const [settingsReturnTab, setSettingsReturnTab] = useState(() => storedTab(RETURN_TAB_KEY) || 'today')
+  const tabRef = useRef(tab)
+  tabRef.current = tab
+  const setTab = useCallback(next => {
+    const prev = tabRef.current
+    if (!TAB_IDS.has(next) || next === prev) return
+    if (next === 'settings') setSettingsReturnTab(prev)
+    setTabState(next)
+    window.history.pushState(null, '', `#${next}`)
+  }, [])
+  useEffect(() => { storeTab(TAB_KEY, tab) }, [tab])
+  useEffect(() => { storeTab(RETURN_TAB_KEY, settingsReturnTab) }, [settingsReturnTab])
+  // Reflect a restored tab in the URL, and follow browser back/forward between tabs.
+  useEffect(() => {
+    if (hashTab() !== tabRef.current) window.history.replaceState(null, '', `#${tabRef.current}`)
+    const onPop = () => { const h = hashTab(); if (h) setTabState(h) }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+  const leaveSettings = useCallback(() => setTab(settingsReturnTab), [setTab, settingsReturnTab])
   // Deep links from outside the tab tree (e.g. NeedsKey's "add a key in Settings").
   useEffect(() => {
     const onNavigate = e => { if (e.detail?.tab) setTab(e.detail.tab) }
@@ -372,7 +410,10 @@ function AppInner() {
       )}
       {!loading && tab === 'learn'    && <LearnTab learning={learning} apps={apps} profile={profile} logRequest={learnLogRequest} onLogRequestHandled={() => setLearnLogRequest(null)} />}
       {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} eventPool={eventPool} eventCalendarSync={eventCalendarSync} />}
-      {tab === 'settings' && <SettingsTab />}
+      {tab === 'settings' && (
+        <SettingsTab onDone={leaveSettings}
+          returnLabel={NAV_ITEMS.find(i => i.id === settingsReturnTab)?.label || 'Today'} />
+      )}
 
       <FeedbackHost />
       {addEventOpen && <AddToCalendarModal onClose={() => setAddEventOpen(false)} />}
