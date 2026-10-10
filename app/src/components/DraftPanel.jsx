@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { draftMessage, escalationTier } from '../lib/drafting.js'
 import { updateContact } from '../db.js'
 import { useAuth } from '../lib/AuthContext.jsx'
+import NeedsKey from './onboarding/NeedsKey.jsx'
 
 const KIND_LABEL = { cold_open: 'Cold Open', follow_up: 'Follow-Up' }
 
@@ -75,7 +76,7 @@ export default function DraftPanel({ contact, kind, daysOverdue, onSaved }) {
             Why reach out to them specifically? (shared connection, mutual interest, something about their role/company) — required, this drives most of the response-rate difference
           </label>
           <input value={personalization} onChange={e => setPersonalization(e.target.value)}
-            placeholder="e.g. Both UMich CS, they posted about their team's infra rewrite..."
+            placeholder="e.g. Same school and major, they posted about their team's recent launch..."
             className="w-full px-2.5 py-1.5 border border-accent-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white" />
         </div>
       )}
@@ -84,19 +85,19 @@ export default function DraftPanel({ contact, kind, daysOverdue, onSaved }) {
         <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={4}
           className="w-full px-2.5 py-1.5 border border-accent-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 resize-none bg-white" />
       ) : (
-        <button onClick={generate} disabled={generating || needsPersonalization}
+        <NeedsKey kind="ai"><button onClick={generate} disabled={generating || needsPersonalization}
           title={needsPersonalization ? 'Add a personalization detail above first' : undefined}
           className="w-full py-2 bg-accent-600 text-white text-xs rounded-lg hover:bg-accent-700 disabled:opacity-40 font-medium">
           {generating ? 'Drafting...' : 'Generate draft →'}
-        </button>
+        </button></NeedsKey>
       )}
 
       {draft && (
         <div className="flex items-center gap-2 mt-2">
-          <button onClick={generate} disabled={generating || needsPersonalization}
+          <NeedsKey kind="ai"><button onClick={generate} disabled={generating || needsPersonalization}
             className="px-3 py-1.5 bg-white border border-accent-200 rounded-lg text-xs font-medium text-accent-700 hover:border-accent-400 disabled:opacity-40">
             {generating ? 'Regenerating...' : 'Regenerate'}
-          </button>
+          </button></NeedsKey>
           <button onClick={save} disabled={saving}
             className="px-3 py-1.5 bg-accent-600 text-white rounded-lg text-xs font-medium hover:bg-accent-700 disabled:opacity-40">
             {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save to Notion'}

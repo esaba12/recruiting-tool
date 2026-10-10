@@ -9,6 +9,7 @@ import Mono from '../ui/Mono.jsx'
 import { WIDGET_TYPES, GOAL_METRICS } from '../../lib/learning/templates.js'
 import { suggestTopics } from '../../lib/learning/coach.js'
 import { goalLabel } from './widgets.jsx'
+import NeedsKey from '../onboarding/NeedsKey.jsx'
 
 const SECTIONS = [
   { key: 'topics', label: 'Topics' },
@@ -119,7 +120,7 @@ function TopicsEditor({ view, learning }) {
         {!suggested && (
           <>
             <Input placeholder="Optional: what you're prepping for (e.g. 'consulting case interviews at MBB')" value={describe} onChange={e => setDescribe(e.target.value)} />
-            <Button size="sm" onClick={suggest} disabled={busy}><Sparkles size={13} className="inline -mt-0.5 mr-1" />{busy ? 'Thinking…' : 'Suggest missing topics'}</Button>
+            <NeedsKey kind="ai"><Button size="sm" onClick={suggest} disabled={busy}><Sparkles size={13} className="inline -mt-0.5 mr-1" />{busy ? 'Thinking…' : 'Suggest missing topics'}</Button></NeedsKey>
           </>
         )}
         {suggested && (

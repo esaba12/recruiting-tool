@@ -1,8 +1,9 @@
 import { CalendarSearch } from 'lucide-react'
 import { timeAgo } from './jobBoards/helpers.js'
 import { Badge, EmptyState } from '../shared.jsx'
-import { AI_PROVIDER_LABEL } from '../lib/ai.js'
+import { aiProviderLabel } from '../lib/ai.js'
 import Mono from './ui/Mono.jsx'
+import NeedsKey from './onboarding/NeedsKey.jsx'
 
 const SOURCE_LABEL = { application: 'Application notes', call: 'Call', interaction: 'Interaction' }
 
@@ -18,14 +19,14 @@ export default function TimelineFindsPanel({ pending, running, error, meta, onSc
           <CalendarSearch size={16} strokeWidth={2} />
           Timeline Finds ({pending.length}){running ? ' · scanning…' : ''}
         </h2>
-        <button onClick={() => onScan({ force: true })} disabled={running}
+        <NeedsKey kind="ai"><button onClick={() => onScan({ force: true })} disabled={running}
           className="shrink-0 ml-3 px-2.5 py-1 bg-white border border-accent-200 rounded-full text-xs font-medium text-accent-700 hover:border-accent-400 disabled:opacity-40">
           ↻ Rescan
-        </button>
+        </button></NeedsKey>
       </div>
 
       <p className="text-xs text-ink-400 mb-3">
-        Daily {AI_PROVIDER_LABEL} pass over Application notes, Calls, and Interactions for dates that aren't on your calendar yet. Nothing is created until you approve it below.
+        Daily {aiProviderLabel()} pass over Application notes, Calls, and Interactions for dates that aren't on your calendar yet. Nothing is created until you approve it below.
         {meta.lastRun && <> · Last scan <Mono>{timeAgo(new Date(meta.lastRun).toISOString())}</Mono></>}
       </p>
 

@@ -187,6 +187,31 @@ describe.skipIf(!configured)('shared-pool RLS isolation', () => {
     const { data: upd } = await clients.B.from('learning_logs').update({ notes: 'tampered' }).eq('track_id', track.id).select('id')
     expect(upd || []).toHaveLength(0)
   })
+
+  it('profile tracks/onboarding are private, owner-writable, and constrained to known tracks', async () => {
+    // New signups start un-onboarded with no tracks (the wizard's gate).
+    const own = await must(clients.A.from('profiles').select('tracks, onboarded_at').eq('id', users.A.id).single(), 'A profile')
+    expect(own).toEqual({ tracks: [], onboarded_at: null })
+    await must(clients.A.from('profiles').update({ tracks: ['ib', 'quant'] }).eq('id', users.A.id), 'A sets tracks')
+    expect((await must(clients.B.from('profiles').select('id').eq('id', users.A.id), 'B reads A')).length).toBe(0)
+    const { data: forged } = await clients.B.from('profiles').update({ tracks: ['swe'], onboarded_at: new Date().toISOString() }).eq('id', users.A.id).select('id')
+    expect(forged || []).toHaveLength(0)
+    expect((await must(admin.from('profiles').select('tracks').eq('id', users.A.id).single(), 'A after')).tracks).toEqual(['ib', 'quant'])
+    const { error } = await clients.A.from('profiles').update({ tracks: ['astronaut'] }).eq('id', users.A.id)
+    expect(error).toBeTruthy()
+  })
+
+  it('feedback is insert-own only: nobody reads it back, nobody forges another user\'s row', async () => {
+    await must(clients.A.from('feedback').insert({ message: 'A secret feedback', page: 'today' }), 'A feedback')
+    expect((await must(clients.A.from('feedback').select('*'), 'A reads')).length).toBe(0)
+    expect((await must(clients.B.from('feedback').select('*'), 'B reads')).length).toBe(0)
+    const { error: forged } = await clients.B.from('feedback').insert({ user_id: users.A.id, message: 'forged' })
+    expect(forged).toBeTruthy()
+    const { error: empty } = await clients.A.from('feedback').insert({ message: '' })
+    expect(empty).toBeTruthy()
+    const rows = await must(admin.from('feedback').select('user_id, message').in('user_id', [users.A.id, users.B.id]), 'admin reads')
+    expect(rows).toEqual([{ user_id: users.A.id, message: 'A secret feedback' }])
+  })
 })
 
 if (!configured) {

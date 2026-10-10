@@ -10,9 +10,10 @@
 
 import { instantiateTemplate } from './lib/learning/templates.js'
 import { PROBLEM_BY_SLUG } from './lib/learning/problemBank.js'
+import { addDaysLocal } from './lib/dates.js'
 
 function daysFromNow(n) {
-  return new Date(Date.now() + n * 86400000).toISOString().split('T')[0]
+  return addDaysLocal(n)
 }
 
 let idCounter = 1000
@@ -48,7 +49,7 @@ export const DEMO_CONTACTS = [
   {
     id: 'demo-c4', name: 'Deepak Nair', company: 'Anthropic', role: 'SWE', email: 'deepak.nair@anthropic.com',
     linkedin: '', source: 'Career Fair', status: '⭐ Champion', urgency: 'HIGH',
-    lastInteraction: daysFromNow(-1), followUpDate: daysFromNow(2), notes: 'Championing my app internally, said she\'d ping the hiring manager.',
+    lastInteraction: daysFromNow(-1), followUpDate: daysFromNow(2), notes: 'Championing my app internally, said he\'d ping the hiring manager.',
     whatTheyDid: 'SWE on model behavior — met at the fall career fair.', referredById: null, followUpDraft: '',
     followUpDraftTier: null, followUpDraftKind: '', isUMichAlum: false, affinity: [], wantsToSchedule: false, scheduleBy: null,
     scheduleNote: '', referralStatus: 'Yes', referredByName: null,
@@ -77,11 +78,19 @@ export const DEMO_CONTACTS = [
     followUpDraftKind: '', isUMichAlum: true, affinity: ['Shared university'], wantsToSchedule: false, scheduleBy: null,
     scheduleNote: '', referralStatus: 'Not Asked', referredByName: null,
   },
+  {
+    id: 'demo-c8', name: 'Naomi Patel', company: 'Morgan Stanley', role: 'Analyst', email: 'naomi.patel@example.com',
+    linkedin: '', source: 'Coffee chat', status: '🟢 Warm', urgency: 'HIGH',
+    lastInteraction: daysFromNow(-3), followUpDate: daysFromNow(4), notes: 'Walked me through the Superday format and what the MDs care about.',
+    whatTheyDid: 'First-year analyst in the M&A group, alum of the same program.', referredById: null, followUpDraft: '', followUpDraftTier: null,
+    followUpDraftKind: '', isUMichAlum: true, affinity: ['Shared university'], wantsToSchedule: false, scheduleBy: null, scheduleNote: '',
+    referralStatus: 'Yes', referredByName: null,
+  },
 ]
 
 export const DEMO_APPLICATIONS = [
-  { id: 'demo-a1', company: 'Stripe', role: 'SWE Intern, Infrastructure', stage: 'Phone Screen', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: '', appliedDate: daysFromNow(-14), closedDate: null, lastActivity: daysFromNow(-2), daysInStage: 14, jdLink: 'https://stripe.com/jobs', notes: 'Recruiter screen scheduled via Priya.', createdTime: daysFromNow(-20), referredById: null },
-  { id: 'demo-a2', company: 'Anthropic', role: 'SWE Intern', stage: 'Interview', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: '', appliedDate: daysFromNow(-21), closedDate: null, lastActivity: daysFromNow(-1), daysInStage: 6, jdLink: 'https://anthropic.com/careers', notes: 'First technical round went well.', createdTime: daysFromNow(-25), referredById: null },
+  { id: 'demo-a1', company: 'Stripe', role: 'SWE Intern, Infrastructure', stage: 'Phone Screen', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: '', appliedDate: daysFromNow(-14), closedDate: null, lastActivity: daysFromNow(-2), daysInStage: 14, jdLink: 'https://stripe.com/jobs', notes: 'Recruiter screen scheduled via Kelly.', createdTime: daysFromNow(-20), referredById: null },
+  { id: 'demo-a2', company: 'Anthropic', role: 'SWE Intern', stage: 'Technical', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: '', appliedDate: daysFromNow(-21), closedDate: null, lastActivity: daysFromNow(-1), daysInStage: 6, jdLink: 'https://anthropic.com/careers', notes: 'First technical round went well.', createdTime: daysFromNow(-25), referredById: null },
   { id: 'demo-a3', company: 'Figma', role: 'PM Intern', stage: 'Applied', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: '', appliedDate: daysFromNow(-6), closedDate: null, lastActivity: daysFromNow(-4), daysInStage: 6, jdLink: 'https://figma.com/careers', notes: '', createdTime: daysFromNow(-6), referredById: null, oaDueDate: null, oaLink: 'https://codesignal.com/test/figma-pm-intern', oaCompleted: false, oaResearchCheckedAt: daysFromNow(-1) },
   { id: 'demo-a4', company: 'Vercel', role: 'SWE Intern', stage: 'Applied', triage: 'Applied', location: 'Remote', sourceRepo: 'SimplifyJobs/Summer2027-Internships', appliedDate: daysFromNow(-18), closedDate: null, lastActivity: daysFromNow(-18), daysInStage: 18, jdLink: 'https://vercel.com/careers', notes: '', createdTime: daysFromNow(-18), referredById: null },
   { id: 'demo-a5', company: 'Ramp', role: 'SWE Intern', stage: 'Offer', triage: 'Applied', location: 'New York, NY', sourceRepo: '', appliedDate: daysFromNow(-40), closedDate: null, lastActivity: daysFromNow(-5), daysInStage: 5, jdLink: 'https://ramp.com/careers', notes: 'Offer received, deciding by end of month.', createdTime: daysFromNow(-45), referredById: 'demo-c5' },
@@ -90,16 +99,18 @@ export const DEMO_APPLICATIONS = [
   { id: 'demo-a8', company: 'Discord', role: 'SWE Intern', stage: 'Wishlist', triage: 'Needs Review', location: 'San Francisco, CA', sourceRepo: 'speedyapply/2027-SWE-College-Jobs', appliedDate: null, closedDate: null, lastActivity: daysFromNow(-1), daysInStage: null, jdLink: 'https://discord.com/careers', notes: '', createdTime: daysFromNow(-1), referredById: null },
   { id: 'demo-a9', company: 'Rippling', role: 'SWE Intern', stage: 'Applied', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: 'speedyapply/2027-SWE-College-Jobs', appliedDate: daysFromNow(-3), closedDate: null, lastActivity: daysFromNow(-3), daysInStage: 3, jdLink: '', notes: '', createdTime: daysFromNow(-3), referredById: null, oaDueDate: daysFromNow(4), oaLink: 'https://hackerrank.com/test/rippling-swe-intern', oaCompleted: false, oaResearchCheckedAt: null },
   { id: 'demo-a10', company: 'Linear', role: 'SWE Intern', stage: 'Wishlist', triage: 'Maybe', location: 'Remote', sourceRepo: 'speedyapply/2027-SWE-College-Jobs', appliedDate: null, closedDate: null, lastActivity: daysFromNow(-2), daysInStage: null, jdLink: '', notes: 'Small team, not sure about internship structure yet.', createdTime: daysFromNow(-2), referredById: null },
+  { id: 'demo-a11', company: 'Morgan Stanley', role: 'Investment Banking Summer Analyst', stage: 'Onsite', triage: 'Applied', location: 'New York, NY', sourceRepo: '', appliedDate: daysFromNow(-30), closedDate: null, lastActivity: daysFromNow(-3), daysInStage: 3, jdLink: 'https://example.com/careers', notes: 'Superday Friday — four back-to-back 30-min interviews (technicals + fit).', createdTime: daysFromNow(-35), referredById: 'demo-c8' },
 ]
 
 export const DEMO_INTERACTIONS = [
-  { id: 'demo-i1', contactId: 'demo-c1', type: 'Email', direction: 'Inbound', date: daysFromNow(-2), channelRef: '', summary: 'Priya confirmed the recruiter screen is being scheduled.', body: '' },
-  { id: 'demo-i2', contactId: 'demo-c4', type: 'Call', direction: 'Outbound', date: daysFromNow(-1), channelRef: '', summary: 'Great 20-min call — Sofia is championing my application internally.', body: '' },
-  { id: 'demo-i3', contactId: 'demo-c2', type: 'Call', direction: 'Outbound', date: daysFromNow(-9), channelRef: '', summary: 'Marcus walked me through the infra team\'s interview loop and offered a referral.', body: '' },
+  { id: 'demo-i1', contactId: 'demo-c1', type: 'Email', direction: 'Inbound', date: daysFromNow(-2), channelRef: '', summary: 'Kelly confirmed the recruiter screen is being scheduled.', body: '' },
+  { id: 'demo-i2', contactId: 'demo-c4', type: 'Call', direction: 'Outbound', date: daysFromNow(-1), channelRef: '', summary: 'Great 20-min call — Deepak is championing my application internally.', body: '' },
+  { id: 'demo-i3', contactId: 'demo-c2', type: 'Call', direction: 'Outbound', date: daysFromNow(-9), channelRef: '', summary: 'Ryan walked me through the infra team\'s interview loop and offered a referral.', body: '' },
   { id: 'demo-i4', contactId: 'demo-c3', type: 'LinkedIn', direction: 'Inbound', date: daysFromNow(-4), channelRef: '', summary: 'Emma sent over a doc on Figma\'s PM rotation program.', body: '' },
   { id: 'demo-i5', contactId: 'demo-c6', type: 'LinkedIn', direction: 'Outbound', date: daysFromNow(-11), channelRef: '', summary: 'Asked Amara a few questions about Vercel\'s interview process.', body: '' },
-  { id: 'demo-i6', contactId: 'demo-c5', type: 'Meeting', direction: 'Outbound', date: daysFromNow(-32), channelRef: '', summary: 'Coffee chat with Malik about the Ramp platform team.', body: '' },
+  { id: 'demo-i6', contactId: 'demo-c5', type: 'Meeting', direction: 'Outbound', date: daysFromNow(-32), channelRef: '', summary: 'Coffee chat with Brendan about the Ramp platform team.', body: '' },
   { id: 'demo-i7', contactId: 'demo-c7', type: 'Meeting', direction: 'Outbound', date: daysFromNow(-60), channelRef: '', summary: 'Intro call through the alumni network.', body: '' },
+  { id: 'demo-i8', contactId: 'demo-c8', type: 'Call', direction: 'Outbound', date: daysFromNow(-3), channelRef: '', summary: 'Naomi ran me through the Superday format and which technicals to drill (DCF, accretion/dilution).', body: '' },
 ]
 
 // Inbox threads (see lib/inbox.js) — same rows the email pipeline writes: one per message,
@@ -162,7 +173,7 @@ export const DEMO_CALLS = [
   {
     id: 'demo-cl1', title: 'Deepak Nair @ Anthropic', contactId: 'demo-c4', date: daysFromNow(-1),
     summary: 'Discussed the model behavior team\'s current projects and the internship interview loop.',
-    keyInsights: 'Team is growing fast; she\'ll flag my app to the hiring manager this week.',
+    keyInsights: 'Team is growing fast; he\'ll flag my app to the hiring manager this week.',
     fullTranscript: '',
   },
   {
@@ -333,5 +344,22 @@ export function buildDemoLearning() {
     logs.push({ id: nextDemoId(), trackId: trackRow.id, topicIds: [byName(name)], itemId: null, applicationId: null, kind, source: 'manual', externalRef: null,
       title: name, difficulty: null, outcome: null, minutes, confidence: score, score, notes: '', occurredAt: new Date(Date.now() - d * 86400000).toISOString() })
   }
-  return { tracks: [trackRow], topics: topicRows, items, logs }
+
+  // A second, finance-flavored track so IB/consulting friends see themselves — explain-backs
+  // and mocks are the evidence source there, since there's no problem bank.
+  const ib = instantiateTemplate('ib')
+  const ibTrack = { id: 'demo-lt2', ...ib.track, sort: 1, archivedAt: null }
+  const ibTopics = ib.topics.map((t, i) => ({ id: `demo-ibp${i}`, trackId: ibTrack.id, hidden: false, selfRating: null, ...t }))
+  const ibId = n => ibTopics.find(t => t.name === n)?.id
+  const ibSessions = [
+    ['Three financial statements', 'explain_back', 14, 4, null], ['Walk a change through the statements', 'explain_back', 11, 3, null],
+    ['Enterprise value vs equity value', 'explain_back', 8, 4, null], ['DCF', 'explain_back', 5, 3, null],
+    ['DCF', 'session', 4, null, 50], ['M&A: accretion / dilution', 'explain_back', 2, 2, null],
+    ['Behavioral / why banking', 'mock', 3, 4, 40], ['LBO', 'session', 1, null, 45],
+  ]
+  for (const [name, kind, d, score, minutes] of ibSessions) {
+    logs.push({ id: nextDemoId(), trackId: ibTrack.id, topicIds: [ibId(name)], itemId: null, applicationId: null, kind, source: 'manual', externalRef: null,
+      title: name, difficulty: null, outcome: null, minutes, confidence: score, score, notes: '', occurredAt: new Date(Date.now() - d * 86400000).toISOString() })
+  }
+  return { tracks: [trackRow, ibTrack], topics: [...topicRows, ...ibTopics], items, logs }
 }

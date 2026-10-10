@@ -7,7 +7,7 @@ import DonutChart from './charts/DonutChart.jsx'
 import TrendChart from './charts/TrendChart.jsx'
 import { STATUS_CHART_COLORS } from './charts/theme.js'
 import { logMetWithContact } from '../lib/quickLog.js'
-import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue, awaitingReply, openActionItems, learningAttention } from '../lib/attention.js'
+import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue, awaitingReply, openActionItems, learningAttention, funnelConversions } from '../lib/attention.js'
 import { lastPointOfContact } from '../lib/keepInTouch.js'
 import { tieStrengthBucket } from '../lib/affinity.js'
 import { statusIconFor } from '../lib/icons.js'
@@ -25,6 +25,9 @@ import StatTileRow from './StatTileRow.jsx'
 import Mono from './ui/Mono.jsx'
 import { Section, RowCap, HEADING_COLOR } from './ui/Section.jsx'
 import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity, MailQuestion, ListTodo, Sparkles, GraduationCap } from 'lucide-react'
+import GettingStarted from './onboarding/GettingStarted.jsx'
+import { isFreshAccount } from '../lib/onboarding.js'
+import { addDaysLocal, todayLocal } from '../lib/dates.js'
 
 // Matches KeepInTouchTab.jsx:8 exactly — private to that component there, ported verbatim
 // here since it isn't exported.
@@ -50,8 +53,8 @@ function OverdueRow({ contact: c, interactions, onRefresh, onOpen }) {
   async function markFollowedUp() {
     setMarking(true)
     try {
-      const nextFollowUp = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
-      await updateContact(c.id, { followUpDate: nextFollowUp, lastInteraction: new Date().toISOString().split('T')[0] })
+      const nextFollowUp = addDaysLocal(7)
+      await updateContact(c.id, { followUpDate: nextFollowUp, lastInteraction: todayLocal() })
       await addInteraction({ contactId: c.id, contactName: c.name, type: 'Other', direction: 'Outbound', summary: 'Followed up (marked via Actions)' })
       onRefresh?.()
     } catch {
@@ -61,18 +64,18 @@ function OverdueRow({ contact: c, interactions, onRefresh, onOpen }) {
 
   return (
     <div className="py-2.5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0 cursor-pointer" onClick={() => onOpen(c)}>
+      <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="min-w-0 max-w-full cursor-pointer" onClick={() => onOpen(c)}>
           <p className="text-sm font-medium text-ink-900">{c.name}</p>
           <p className="text-xs text-ink-500">{[c.company, c.role].filter(Boolean).join(' · ')}</p>
-          {c.email && <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="text-xs text-accent-500 hover:underline">{c.email}</a>}
+          {c.email && <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="block truncate text-xs text-accent-500 hover:underline">{c.email}</a>}
         </div>
-        <div className="text-right shrink-0 space-y-1">
+        <div className="sm:text-right sm:shrink-0 space-y-1">
           <Badge label={c.status} color={STATUS_COLOR[c.status]} />
           <p className="text-xs font-medium text-danger-600">
             Was due <Mono>{fmt(c.followUpDate)}</Mono> (<Mono className="text-danger-600 font-medium">{Math.abs(daysUntil(c.followUpDate))}d</Mono> ago)
           </p>
-          <div className="flex items-center gap-2 justify-end">
+          <div className="flex items-center gap-2 sm:justify-end">
             <button onClick={() => setPanel(p => p === 'draft' ? null : 'draft')} className="text-xs text-accent-500 hover:underline">
               {panel === 'draft' ? 'Hide' : alreadyTouched ? 'Details' : 'Draft follow-up'}
             </button>
@@ -123,17 +126,17 @@ function AwaitingReplyRow({ item, onRefresh, onOpen }) {
 
   return (
     <div className="py-2.5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0 cursor-pointer" onClick={() => onOpen(c)}>
+      <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="min-w-0 max-w-full cursor-pointer" onClick={() => onOpen(c)}>
           <p className="text-sm font-medium text-ink-900">{c.name}</p>
           <p className="text-xs text-ink-500">{[c.company, c.role].filter(Boolean).join(' · ')}</p>
         </div>
-        <div className="text-right shrink-0 space-y-1">
+        <div className="sm:text-right sm:shrink-0 space-y-1">
           <Badge label={lastInteraction.type} color={TYPE_COLOR[lastInteraction.type] || TYPE_COLOR.Other} />
           <p className="text-xs font-medium text-warning-700">
             No reply in <Mono className="text-warning-700 font-medium">{daysWaiting}d</Mono>
           </p>
-          <div className="flex items-center gap-2 justify-end">
+          <div className="flex items-center gap-2 sm:justify-end">
             <button onClick={() => setPanel(p => p === 'draft' ? null : 'draft')} className="text-xs text-accent-500 hover:underline">
               {panel === 'draft' ? 'Hide' : 'Draft nudge'}
             </button>
@@ -174,13 +177,13 @@ function ScheduleRow({ contact: c, onRefresh, onOpen }) {
 
   return (
     <div className="py-2.5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0 cursor-pointer" onClick={() => onOpen(c)}>
+      <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="min-w-0 max-w-full cursor-pointer" onClick={() => onOpen(c)}>
           <p className="text-sm font-medium text-ink-900">{c.name}</p>
           <p className="text-xs text-ink-500">{[c.company, c.role].filter(Boolean).join(' · ')}</p>
           {c.scheduleNote && <p className="text-xs text-ink-400 italic mt-0.5 line-clamp-1">"{c.scheduleNote}"</p>}
         </div>
-        <div className="text-right shrink-0 space-y-1">
+        <div className="sm:text-right sm:shrink-0 space-y-1">
           {c.scheduleBy && (
             <p className={`text-xs font-medium ${overdue ? 'text-danger-600' : 'text-ink-500'}`}>
               {overdue
@@ -188,7 +191,7 @@ function ScheduleRow({ contact: c, onRefresh, onOpen }) {
                 : <>Schedule by <Mono>{fmt(c.scheduleBy)}</Mono></>}
             </p>
           )}
-          <div className="flex items-center gap-2 justify-end">
+          <div className="flex items-center gap-2 sm:justify-end">
             <button onClick={() => setExpanded(e => !e)} className="text-xs text-accent-500 hover:underline">
               {expanded ? 'Hide' : 'Draft outreach'}
             </button>
@@ -211,13 +214,13 @@ function ScheduleRow({ contact: c, onRefresh, onOpen }) {
 function HighUrgencyRow({ contact: c, onOpen }) {
   return (
     <div className="py-2.5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0 cursor-pointer" onClick={() => onOpen(c)}>
+      <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="min-w-0 max-w-full cursor-pointer" onClick={() => onOpen(c)}>
           <p className="text-sm font-medium text-ink-900">{c.name}</p>
           <p className="text-xs text-ink-500">{[c.company, c.role].filter(Boolean).join(' · ')}</p>
-          {c.email && <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="text-xs text-accent-500 hover:underline">{c.email}</a>}
+          {c.email && <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="block truncate text-xs text-accent-500 hover:underline">{c.email}</a>}
         </div>
-        <div className="text-right shrink-0 space-y-1">
+        <div className="sm:text-right sm:shrink-0 space-y-1">
           <Badge label="HIGH" color={URGENCY_COLOR.HIGH} />
           <p className="text-xs font-medium text-ink-500">
             {c.followUpDate ? <>Due <Mono>{fmt(c.followUpDate)}</Mono></> : 'No follow-up date set'}
@@ -292,7 +295,7 @@ function KeepInTouchRow({ contact: c, status, interactions, onOpen, onLog, onMet
 // standalone component, not nested inside TodayTab's closure.
 function ApplicationRow({ app: a, showTriageChips, onOpen, changeAppTriage }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-2.5 cursor-pointer" onClick={() => onOpen(a)}>
+    <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 py-2.5 cursor-pointer" onClick={() => onOpen(a)}>
       <div className="min-w-0">
         <p className="text-sm font-medium text-ink-900">{a.company}</p>
         <p className="text-xs text-ink-500">{a.role || ''}</p>
@@ -301,13 +304,13 @@ function ApplicationRow({ app: a, showTriageChips, onOpen, changeAppTriage }) {
             className="text-xs text-accent-500 hover:underline">View JD ↗</a>
         )}
       </div>
-      <div className="text-right shrink-0 space-y-1">
+      <div className="sm:text-right sm:shrink-0 space-y-1">
         <Badge label={a.stage} color={STAGE_COLOR[a.stage]} />
         <p className="text-xs font-medium text-ink-500">
           <Mono>{a.daysInStage ?? daysSince(a.lastActivity)}d</Mono> in {a.stage}
         </p>
         {showTriageChips && (
-          <div className="flex flex-wrap gap-1 justify-end">
+          <div className="flex flex-wrap gap-1 sm:justify-end">
             {BUCKET_CONFIG.filter(b => !['all', 'review'].includes(b.key)).map(b => (
               <button key={b.key}
                 onClick={e => { e.stopPropagation(); changeAppTriage(a, b.key) }}
@@ -346,7 +349,7 @@ function OaRow({ app: a, needsCheck, onOpen, onRefresh, onLogOa }) {
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 py-2.5 cursor-pointer" onClick={() => onOpen(a)}>
+    <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 py-2.5 cursor-pointer" onClick={() => onOpen(a)}>
       <div className="min-w-0">
         <p className="text-sm font-medium text-ink-900">{a.company}</p>
         <p className="text-xs text-ink-500">{a.role || ''}</p>
@@ -357,7 +360,7 @@ function OaRow({ app: a, needsCheck, onOpen, onRefresh, onLogOa }) {
           </a>
         )}
       </div>
-      <div className="text-right shrink-0 space-y-1">
+      <div className="sm:text-right sm:shrink-0 space-y-1">
         {needsCheck
           ? <p className="text-xs font-medium text-ink-400">No stated deadline found — check manually</p>
           : (
@@ -404,19 +407,19 @@ function ActionItemRow({ item, contacts, onRefresh, onOpen }) {
 
   return (
     <div className="py-2.5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0 cursor-pointer" onClick={() => contact && onOpen(contact)}>
+      <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="min-w-0 max-w-full cursor-pointer" onClick={() => contact && onOpen(contact)}>
           <p className="text-sm font-medium text-ink-900">{item.summary}</p>
           {contact && <p className="text-xs text-ink-500">{[contact.name, contact.company].filter(Boolean).join(' · ')}</p>}
         </div>
-        <div className="text-right shrink-0 space-y-1">
+        <div className="sm:text-right sm:shrink-0 space-y-1">
           <Badge label={item.priority.toUpperCase()} color={priorityColor} />
           {item.dueDate && (
             <p className={`text-xs font-medium ${daysUntil(item.dueDate) <= 0 ? 'text-danger-600' : 'text-ink-500'}`}>
               Due <Mono>{fmt(item.dueDate)}</Mono>
             </p>
           )}
-          <div className="flex items-center gap-2 justify-end">
+          <div className="flex items-center gap-2 sm:justify-end">
             <button onClick={() => act(completeActionItem)} disabled={busy} className="text-xs text-accent-500 hover:underline disabled:opacity-40">
               {busy ? '...' : '✓ Done'}
             </button>
@@ -475,13 +478,8 @@ function ActivitySection({ contacts, apps, interactions }) {
   const funnelStages = ['Wishlist','Applied','Phone Screen','Technical','Onsite','Offer']
   const funnelData = funnelStages.map(stage => ({ label: stage, value: stageCounts[stage] || 0 }))
 
-  // Stage-to-stage conversion — new signal, cheap given stageCounts already exists.
-  const conversions = []
-  for (let i = 0; i < funnelStages.length - 1; i++) {
-    const from = stageCounts[funnelStages[i]] || 0
-    const to = stageCounts[funnelStages[i + 1]] || 0
-    if (from > 0) conversions.push({ from: funnelStages[i], to: funnelStages[i + 1], pct: Math.round((to / from) * 100) })
-  }
+  // Cumulative reached-stage conversion (see funnelConversions) — raw per-stage counts can exceed 100%.
+  const conversions = funnelConversions(triagedApps)
 
   const donutData = Object.keys(STATUS_COLOR)
     .map(status => ({ label: status, value: contacts.filter(c => c.status === status).length, color: STATUS_CHART_COLORS[status] }))
@@ -635,7 +633,9 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
         </motion.div>
       )}
 
-      {allEmpty && <EmptyState msg="✓ Nothing needs your attention. You're on top of it." />}
+      {allEmpty && (!isDemoMode && isFreshAccount({ contacts, apps })
+        ? <GettingStarted hasApps={apps.length > 0} hasContacts={contacts.length > 0} />
+        : <EmptyState msg="✓ Nothing needs your attention. You're on top of it." />)}
 
       {openItems.length > 0 && (
         <motion.div variants={rise}>

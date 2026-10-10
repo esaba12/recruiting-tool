@@ -1,4 +1,5 @@
 import { aiJSON, AI_MODELS } from '../../lib/ai.js'
+import { parseDay } from '../../lib/dates.js'
 export { lsGet, lsSet } from '../../lib/scopedStorage.js'
 
 export const LEVEL_COLOR = ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39']
@@ -67,7 +68,7 @@ const AGE_UNIT_MS = { h: 3600000, d: 86400000, w: 7 * 86400000, mo: 30 * 8640000
 
 export function parseJobDate(str) {
   if (!str || /^[-—\s]+$/.test(str)) return null
-  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str)
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return parseDay(str)
   // Relative-age strings some boards use instead of an absolute date (e.g. "5d", "17d",
   // "3w", "2mo") — approximate, but far better than treating every row as unparseable.
   const ageM = str.match(/^(\d+)\s*(mo|[hdwy])$/i)

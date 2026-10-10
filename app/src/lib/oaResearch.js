@@ -1,6 +1,8 @@
 import { aiJSON, AI_MODELS } from './ai.js'
 import { authHeader } from './supabaseClient.js'
+import { assertKey } from './keyStore.js'
 import { updateApplication } from '../db.js'
+import { todayLocal } from './dates.js'
 
 // Cloud-agent research fallback for Online Assessment due dates. The email pipeline
 // (scripts/email-pipeline.js) extracts oa_due_date straight from the invite email when it's
@@ -22,6 +24,7 @@ const CONCURRENCY = 3
 const RECHECK_COOLDOWN_DAYS = 3
 
 async function fetchContents(urls) {
+  assertKey('exa')
   const res = await fetch('/exa/contents', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
@@ -41,7 +44,7 @@ const PROMPT_HEADER = `Below are real Online Assessment (OA) pages — coding/sk
 Rules:
 - Only report a deadline if the page actually states one (e.g. "Complete by August 20", "This assessment expires in 7 days" — resolve relative windows using today's date below). Many assessment pages state no deadline at all — do NOT invent or estimate one for those.
 - "id" in your output must be the exact bracketed ID from the page's label.
-- Resolve relative dates using today's date: ${new Date().toISOString().slice(0, 10)}.
+- Resolve relative dates using today's date: ${todayLocal()}.
 - If the page failed to load, requires login, or has no real assessment content, set deadline:null, confidence:"none".
 
 Return ONLY valid JSON, no markdown, no explanation:

@@ -1,4 +1,8 @@
+import { MessageSquareText } from 'lucide-react'
 import { NAV_ICON, REFRESH_ICON, CALENDAR_ICON, SCHEDULE_ICON, QUICK_CAPTURE_ICON } from '../../lib/icons.js'
+import { useAuth } from '../../lib/AuthContext.jsx'
+import { tracksLabel } from '../../lib/tracks.js'
+import { openFeedback } from '../onboarding/FeedbackHost.jsx'
 
 const NAV_ITEMS = [
   { id: 'today', label: 'Today' },
@@ -13,6 +17,7 @@ const NAV_ITEMS = [
 export { NAV_ITEMS }
 
 export default function Sidebar({ activeTab, onTabChange, counts = {}, loading, lastLoaded, onRefresh, onAddEvent, onAddSchedule, onQuickCapture, navItems = NAV_ITEMS, hideQuickActions = false, demoMode = false }) {
+  const { profile } = useAuth()
   return (
     <>
       {/* Desktop sidebar */}
@@ -21,7 +26,7 @@ export default function Sidebar({ activeTab, onTabChange, counts = {}, loading, 
           <h1 className="font-heading text-lg font-semibold text-white">Recruiting OS</h1>
           {demoMode
             ? <p className="text-xs text-accent-400 mt-0.5 font-medium">Live demo · sample data</p>
-            : <p className="text-xs text-ink-400 mt-0.5">Fall 2026</p>}
+            : profile && <p className="text-xs text-ink-400 mt-0.5">{tracksLabel(profile)} recruiting</p>}
         </div>
 
         <nav className="flex-1 px-3 space-y-1">
@@ -69,6 +74,11 @@ export default function Sidebar({ activeTab, onTabChange, counts = {}, loading, 
                   ${activeTab === 'settings' ? 'bg-accent-500 text-white' : 'bg-ink-800 text-ink-100 hover:bg-ink-700'}`}>
                 <NAV_ICON.settings size={13} />
                 Settings
+              </button>
+              <button onClick={() => openFeedback(activeTab)}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-ink-300 hover:text-white hover:bg-ink-800 transition-colors">
+                <MessageSquareText size={13} />
+                Feedback
               </button>
             </>
           )}

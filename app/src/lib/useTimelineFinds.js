@@ -2,11 +2,13 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { lsGet, lsSet } from '../components/jobBoards/helpers.js'
 import { findTimelineEvents } from './timelineFinder.js'
 import { createEvent, addOneHour } from '../googleCalendar.js'
+import { useKeysReady } from './useKeyStatus.js'
+import { todayLocal } from './dates.js'
 
 const META_KEY    = 'rec_timeline_meta'    // { lastCheck, hashes: { [recordKey]: contentHash } }
 const PENDING_KEY = 'rec_timeline_pending' // found-but-not-yet-actioned events, keyed by event.key
 
-const todayStr = () => new Date().toISOString().slice(0, 10)
+const todayStr = () => todayLocal()
 
 // This hook must be called unconditionally by its caller, above any early-return gate —
 // otherwise its daily-scan effect can get stuck behind a JSX-level "nothing to show"
@@ -63,13 +65,14 @@ export default function useTimelineFinds({ apps, calls, interactions, contacts, 
   // Hands-off daily gate — mirrors Discover/Explore's once-per-mount background kick, now
   // additionally gated on `enabled` so callers (e.g. demo mode) can no-op the effect while
   // still calling this hook unconditionally, per the Rules of Hooks.
+  const keysReady = useKeysReady('ai')
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled || !keysReady) return
     if (ranRef.current) return
     ranRef.current = true
     if (meta.lastCheck !== todayStr()) scan({ force: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled])
+  }, [enabled, keysReady])
 
   function dismiss(key) {
     setPending(prev => { const next = prev.filter(p => p.key !== key); lsSet(PENDING_KEY, next); return next })

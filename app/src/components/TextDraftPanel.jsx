@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { draftMessage, escalationTier } from '../lib/drafting.js'
 import { useAuth } from '../lib/AuthContext.jsx'
+import NeedsKey from './onboarding/NeedsKey.jsx'
 
 // Sibling to DraftPanel.jsx, scoped to text-message follow-ups: shorter/casual generation
 // (kind: 'text_follow_up', see lib/drafting.js), and instead of "Save to Notion"
@@ -42,18 +43,18 @@ export default function TextDraftPanel({ contact, daysOverdue = 0 }) {
         <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={2}
           className="w-full px-2.5 py-1.5 border border-accent-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 resize-none bg-white" />
       ) : (
-        <button onClick={generate} disabled={generating}
+        <NeedsKey kind="ai"><button onClick={generate} disabled={generating}
           className="w-full py-2 bg-accent-600 text-white text-xs rounded-lg hover:bg-accent-700 disabled:opacity-40 font-medium">
           {generating ? 'Drafting...' : 'Generate draft →'}
-        </button>
+        </button></NeedsKey>
       )}
 
       {draft && (
         <div className="flex items-center gap-2 mt-2">
-          <button onClick={generate} disabled={generating}
+          <NeedsKey kind="ai"><button onClick={generate} disabled={generating}
             className="px-3 py-1.5 bg-white border border-accent-200 rounded-lg text-xs font-medium text-accent-700 hover:border-accent-400 disabled:opacity-40">
             {generating ? 'Regenerating...' : 'Regenerate'}
-          </button>
+          </button></NeedsKey>
           <a href={`sms:${contact.phone}?&body=${encodeURIComponent(draft)}`}
             className="px-3 py-1.5 bg-accent-600 text-white rounded-lg text-xs font-medium hover:bg-accent-700">
             Open in Messages →

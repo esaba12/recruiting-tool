@@ -83,11 +83,15 @@ const ATS_DOMAINS = [
   'ashbyhq.com', 'jobvite.com', 'taleo.net', 'workable.com', 'breezy.hr', 'jazz.co',
   'bamboohr.com', 'successfactors.com', 'ultipro.com', 'wellfound.com', 'ripplematch.com',
   'paradox.ai', 'gem.com', 'hire.withgoogle.com',
+  // Common in finance/consulting recruiting (video interviews, games-based assessments,
+  // enterprise ATSes) — mirrors app/api/_lib/emailPipeline.js.
+  'hirevue.com', 'avature.net', 'brassring.com', 'pymetrics.ai',
 ]
 const RECRUITING_SUBJECT_KEYWORDS = [
   'application', 'applying', 'applied', 'interview', 'recruiter', 'recruiting',
   'internship', 'offer', '"next steps"', 'assessment', '"phone screen"', 'onsite',
   'candidacy', '"thank you for your interest"', '"hiring team"', 'oa', '"coding challenge"',
+  'superday', 'hirevue', '"first round"', '"final round"', '"assessment centre"', '"assessment center"',
 ]
 // Recent Inbox threads not yet labeled — ungated (no from:/subject: filter): every inbox
 // thread in the window gets one Haiku classification call, and Claude alone decides
