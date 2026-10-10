@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { SlidersHorizontal, Plus, MessageSquareText, RefreshCw, Check } from 'lucide-react'
+import { SlidersHorizontal, Plus, MessageSquareText, RefreshCw, Check, FileInput } from 'lucide-react'
 import Button from './ui/Button.jsx'
 import Mono from './ui/Mono.jsx'
 import EmptyState from './ui/EmptyState.jsx'
@@ -16,6 +16,7 @@ import {
 import CustomizePanel, { mergeWidgets } from './learning/CustomizePanel.jsx'
 import LogModal from './learning/LogModal.jsx'
 import ExplainBackModal from './learning/ExplainBackModal.jsx'
+import ImportPracticeModal from './learning/ImportPracticeModal.jsx'
 
 const ACTIVE_TRACK_KEY = 'rec_learn_active_track'
 
@@ -29,6 +30,7 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
   const [logInitial, setLogInitial] = useState(null)
   const [explainTopic, setExplainTopic] = useState(undefined) // undefined = closed, null = open w/o preset
   const [addingTrack, setAddingTrack] = useState(false)
+  const [importing, setImporting] = useState(false)
   const track = activeTrack(learning, trackId)
   // Company problem lists only matter for tracks that practice on LeetCode.
   const lcTrack = !!track && learning.topics.some(t => t.trackId === track.id && t.lcTags?.length)
@@ -108,6 +110,9 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
           <Button variant="secondary" size="sm" onClick={() => setCustomizing('topics')}>
             <SlidersHorizontal size={13} className="inline -mt-0.5 mr-1" />Customize
           </Button>
+          <Button variant="secondary" size="sm" onClick={() => setImporting(true)} title="Import practice from a sheet, pasted text or a screenshot">
+            <FileInput size={13} className="inline -mt-0.5 mr-1" />Import
+          </Button>
           <Button size="sm" onClick={() => openLog()}>+ Log</Button>
         </div>
       </div>
@@ -128,6 +133,7 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
       {customizing && <CustomizePanel view={view} learning={learning} initialSection={customizing} onClose={() => setCustomizing(false)} />}
       {logInitial && <LogModal view={view} apps={apps} initial={logInitial} onSave={learning.logAttempt} onClose={() => setLogInitial(null)} />}
       {explainTopic !== undefined && <ExplainBackModal view={view} topic={explainTopic} onLog={learning.logAttempt} onClose={() => setExplainTopic(undefined)} />}
+      {importing && <ImportPracticeModal view={view} learning={learning} isDemoMode={isDemoMode} onClose={() => setImporting(false)} />}
       {addingTrack && <AddTrackModal learning={learning} onClose={() => setAddingTrack(false)} onCreated={t => { setTrackId(t.id); setAddingTrack(false) }} />}
     </div>
   )

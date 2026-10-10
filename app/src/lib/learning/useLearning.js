@@ -3,7 +3,7 @@ import {
   setUserSetting,
   fetchLearning, createTrackWithTopics, updateTrack, addTopics as dbAddTopics, updateTopic as dbUpdateTopic,
   reorderTopics as dbReorderTopics, deleteTopic as dbDeleteTopic, upsertLearningItems, updateLearningItem,
-  addLearningLog, deleteLearningLog, getUserSetting,
+  addLearningLog, deleteLearningLog, getUserSetting, importLearningLogs,
 } from '../../db.js'
 import { lsGet, lsSet } from '../scopedStorage.js'
 import { instantiateTemplate } from './templates.js'
@@ -11,6 +11,7 @@ import { syncLeetcode, syncDue, resolveQuestionMeta, importLeetcodeHistory, SNAP
 import { PROBLEM_BY_SLUG, slugFromLeetcodeUrl, titleFromSlug } from './problemBank.js'
 import { scheduleAttempt } from './review.js'
 import { deriveTrack } from './derive.js'
+import { draftsToLogs } from './practiceImport.js'
 
 export { deriveTrack }
 
@@ -130,6 +131,19 @@ export default function useLearning({ enabled = true } = {}) {
     return row
   }
 
+  // Bulk import (ImportPracticeModal): reviewed drafts → logs, 200 per request. Rows whose
+  // fingerprint already exists are skipped by the DB, so re-importing is a no-op and only
+  // genuinely new rows come back to be merged into local state (no full reload).
+  async function importPractice(trackId, drafts) {
+    const rows = draftsToLogs(drafts, trackId)
+    const added = []
+    for (let i = 0; i < rows.length; i += 200) added.push(...await importLearningLogs(rows.slice(i, i + 200)))
+    if (added.length) {
+      setData(d => ({ ...d, logs: [...added, ...d.logs].sort((a, b) => new Date(b.occurredAt) - new Date(a.occurredAt)) }))
+    }
+    return { imported: added.length, duplicates: rows.length - added.length }
+  }
+
   async function removeLog(id) {
     await deleteLearningLog(id)
     setData(d => ({ ...d, logs: d.logs.filter(l => l.id !== id) }))
@@ -212,7 +226,7 @@ export default function useLearning({ enabled = true } = {}) {
     ...data, snapshot, loaded, error, syncing, reload: load,
     createTrack, saveTrack, archiveTrack,
     addTopics, updateTopic, reorderTopics, deleteTopic,
-    logAttempt, removeLog, dismissReview, runLeetcodeSync, setLeetcodeUsername, importHistory,
+    logAttempt, importPractice, removeLog, dismissReview, runLeetcodeSync, setLeetcodeUsername, importHistory,
   }
 }
 
