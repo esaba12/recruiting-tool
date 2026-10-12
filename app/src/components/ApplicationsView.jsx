@@ -134,7 +134,7 @@ export default function ApplicationsView({ apps, contacts = [], interactions = [
         </p>
       )}
 
-      <div className="flex gap-2 mb-4 items-center">
+      <div className="flex gap-2 mb-4 items-center flex-wrap">
         {[['active','Active'],['review','Needs Review'],['all','All incl. rejected']].map(([val, label]) => (
           <button key={val} onClick={() => setFilter(val)}
             className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${filter === val
@@ -147,7 +147,7 @@ export default function ApplicationsView({ apps, contacts = [], interactions = [
           placeholder="Search company, role..."
           className="px-3 py-1 border border-ink-200 rounded-full text-xs focus:outline-none focus:border-accent-400 w-44" />
         <button onClick={() => setAddingNew(true)}
-          className="ml-auto px-3 py-1 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700">
+          className="ml-auto px-3 py-1 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700 whitespace-nowrap">
           + Add Application
         </button>
       </div>

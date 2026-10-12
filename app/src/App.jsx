@@ -101,22 +101,22 @@ function NetworkTab({ contacts, apps, interactions, contactRelationships = [], o
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search..."
           className="px-3 py-1 border border-ink-200 rounded-full text-xs focus:outline-none focus:border-accent-400 w-44" />
-        <div className="ml-auto flex items-center gap-2">
-          <div className="flex border border-ink-200 rounded-full overflow-hidden text-xs font-medium">
+        <div className="ml-auto flex items-center gap-2 flex-wrap justify-end min-w-0 max-w-full">
+          <div className="flex max-w-full overflow-x-auto border border-ink-200 rounded-full text-xs font-medium">
             {views.map(v => (
               <button key={v.key} onClick={() => setView(v.key)}
-                className={`px-3 py-1 flex items-center gap-1.5 transition-colors ${view === v.key ? 'bg-ink-900 text-on-fill' : 'bg-surface text-ink-500 hover:bg-ink-50'}`}>
+                className={`shrink-0 whitespace-nowrap px-3 py-1 flex items-center gap-1.5 transition-colors ${view === v.key ? 'bg-ink-900 text-on-fill' : 'bg-surface text-ink-500 hover:bg-ink-50'}`}>
                 <v.icon size={13} strokeWidth={2.25} />
                 {v.label}
               </button>
             ))}
           </div>
           <button onClick={() => setLogOpen(true)}
-            className="px-3 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300">
+            className="px-3 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 whitespace-nowrap">
             + Log Interaction
           </button>
           <button onClick={() => setQuickAddOpen(true)}
-            className="px-3 py-1 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700">
+            className="px-3 py-1 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700 whitespace-nowrap">
             + Contact
           </button>
         </div>
