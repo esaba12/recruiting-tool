@@ -5,7 +5,7 @@ import { updateContact, addInteraction, updateApplicationTriage, archiveApplicat
 import BarChartWrapper from './charts/BarChart.jsx'
 import DonutChart from './charts/DonutChart.jsx'
 import TrendChart from './charts/TrendChart.jsx'
-import { STATUS_CHART_COLORS } from './charts/theme.js'
+import { useChartTheme } from './charts/theme.js'
 import { logMetWithContact } from '../lib/quickLog.js'
 import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue, awaitingReply, openActionItems, learningAttention, funnelConversions } from '../lib/attention.js'
 import { lastPointOfContact } from '../lib/keepInTouch.js'
@@ -68,7 +68,7 @@ function OverdueRow({ contact: c, interactions, onRefresh, onOpen }) {
         <div className="min-w-0 max-w-full cursor-pointer" onClick={() => onOpen(c)}>
           <p className="text-sm font-medium text-ink-900">{c.name}</p>
           <p className="text-xs text-ink-500">{[c.company, c.role].filter(Boolean).join(' · ')}</p>
-          {c.email && <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="block truncate text-xs text-accent-500 hover:underline">{c.email}</a>}
+          {c.email && <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="block truncate text-xs text-link hover:underline">{c.email}</a>}
         </div>
         <div className="sm:text-right sm:shrink-0 space-y-1">
           <Badge label={c.status} color={STATUS_COLOR[c.status]} />
@@ -76,11 +76,11 @@ function OverdueRow({ contact: c, interactions, onRefresh, onOpen }) {
             Was due <Mono>{fmt(c.followUpDate)}</Mono> (<Mono className="text-danger-600 font-medium">{Math.abs(daysUntil(c.followUpDate))}d</Mono> ago)
           </p>
           <div className="flex items-center gap-2 sm:justify-end">
-            <button onClick={() => setPanel(p => p === 'draft' ? null : 'draft')} className="text-xs text-accent-500 hover:underline">
+            <button onClick={() => setPanel(p => p === 'draft' ? null : 'draft')} className="text-xs text-link hover:underline">
               {panel === 'draft' ? 'Hide' : alreadyTouched ? 'Details' : 'Draft follow-up'}
             </button>
             {c.phone && (
-              <button onClick={() => setPanel(p => p === 'text' ? null : 'text')} className="text-xs text-accent-500 hover:underline">
+              <button onClick={() => setPanel(p => p === 'text' ? null : 'text')} className="text-xs text-link hover:underline">
                 {panel === 'text' ? 'Hide' : 'Text'}
               </button>
             )}
@@ -137,11 +137,11 @@ function AwaitingReplyRow({ item, onRefresh, onOpen }) {
             No reply in <Mono className="text-warning-700 font-medium">{daysWaiting}d</Mono>
           </p>
           <div className="flex items-center gap-2 sm:justify-end">
-            <button onClick={() => setPanel(p => p === 'draft' ? null : 'draft')} className="text-xs text-accent-500 hover:underline">
+            <button onClick={() => setPanel(p => p === 'draft' ? null : 'draft')} className="text-xs text-link hover:underline">
               {panel === 'draft' ? 'Hide' : 'Draft nudge'}
             </button>
             {c.phone && (
-              <button onClick={() => setPanel(p => p === 'text' ? null : 'text')} className="text-xs text-accent-500 hover:underline">
+              <button onClick={() => setPanel(p => p === 'text' ? null : 'text')} className="text-xs text-link hover:underline">
                 {panel === 'text' ? 'Hide' : 'Text'}
               </button>
             )}
@@ -192,7 +192,7 @@ function ScheduleRow({ contact: c, onRefresh, onOpen }) {
             </p>
           )}
           <div className="flex items-center gap-2 sm:justify-end">
-            <button onClick={() => setExpanded(e => !e)} className="text-xs text-accent-500 hover:underline">
+            <button onClick={() => setExpanded(e => !e)} className="text-xs text-link hover:underline">
               {expanded ? 'Hide' : 'Draft outreach'}
             </button>
             <button onClick={markScheduled} disabled={marking} className="text-xs text-ink-400 hover:text-ink-600 hover:underline disabled:opacity-40">
@@ -218,7 +218,7 @@ function HighUrgencyRow({ contact: c, onOpen }) {
         <div className="min-w-0 max-w-full cursor-pointer" onClick={() => onOpen(c)}>
           <p className="text-sm font-medium text-ink-900">{c.name}</p>
           <p className="text-xs text-ink-500">{[c.company, c.role].filter(Boolean).join(' · ')}</p>
-          {c.email && <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="block truncate text-xs text-accent-500 hover:underline">{c.email}</a>}
+          {c.email && <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="block truncate text-xs text-link hover:underline">{c.email}</a>}
         </div>
         <div className="sm:text-right sm:shrink-0 space-y-1">
           <Badge label="HIGH" color={URGENCY_COLOR.HIGH} />
@@ -240,7 +240,7 @@ function KeepInTouchRow({ contact: c, status, interactions, onOpen, onLog, onMet
   const bucket = tieStrengthBucket(c, interactions)
   const overdue = !status.never && status.overdueDays > 0
   return (
-    <div className={`bg-white rounded-md px-4 py-3 border transition-shadow hover:shadow-md ${overdue ? 'border-warning-300' : 'border-ink-300'}`}>
+    <div className={`bg-surface rounded-md px-4 py-3 border transition-shadow hover:shadow-md ${overdue ? 'border-warning-300' : 'border-ink-300'}`}>
       <div className="flex items-start gap-3">
         <button onClick={() => onOpen(c)} className="flex-1 min-w-0 text-left">
           <div className="flex items-center gap-2 flex-wrap">
@@ -278,7 +278,7 @@ function KeepInTouchRow({ contact: c, status, interactions, onOpen, onLog, onMet
           <div className="flex items-center gap-1.5">
             <MetButton contact={c} onMet={onMet} />
             <button onClick={() => onLog(c)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 bg-accent-600 text-white rounded-full text-xs font-medium hover:bg-accent-700">
+              className="inline-flex items-center gap-1 px-2.5 py-1 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700">
               <MessageSquarePlus size={12} /> Log
             </button>
           </div>
@@ -301,7 +301,7 @@ function ApplicationRow({ app: a, showTriageChips, onOpen, changeAppTriage }) {
         <p className="text-xs text-ink-500">{a.role || ''}</p>
         {a.jdLink && (
           <a href={a.jdLink} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-            className="text-xs text-accent-500 hover:underline">View JD ↗</a>
+            className="text-xs text-link hover:underline">View JD ↗</a>
         )}
       </div>
       <div className="sm:text-right sm:shrink-0 space-y-1">
@@ -355,7 +355,7 @@ function OaRow({ app: a, needsCheck, onOpen, onRefresh, onLogOa }) {
         <p className="text-xs text-ink-500">{a.role || ''}</p>
         {a.oaLink && (
           <a href={a.oaLink} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-            className="text-xs text-accent-500 hover:underline">
+            className="text-xs text-link hover:underline">
             Open assessment ↗
           </a>
         )}
@@ -420,7 +420,7 @@ function ActionItemRow({ item, contacts, onRefresh, onOpen }) {
             </p>
           )}
           <div className="flex items-center gap-2 sm:justify-end">
-            <button onClick={() => act(completeActionItem)} disabled={busy} className="text-xs text-accent-500 hover:underline disabled:opacity-40">
+            <button onClick={() => act(completeActionItem)} disabled={busy} className="text-xs text-link hover:underline disabled:opacity-40">
               {busy ? '...' : '✓ Done'}
             </button>
             <button onClick={() => act(dismissActionItem)} disabled={busy} className="text-xs text-ink-400 hover:text-ink-600 hover:underline disabled:opacity-40">
@@ -449,7 +449,7 @@ function DailyRecapCard({ recap }) {
           <ul className="space-y-1.5">
             {recap.todos.map((t, i) => (
               <li key={i} className="text-sm text-ink-700 flex items-start gap-2">
-                <span className="text-accent-500 mt-0.5">•</span>
+                <span className="text-link mt-0.5">•</span>
                 <span>{typeof t === 'string' ? t : t.text}</span>
               </li>
             ))}
@@ -470,6 +470,7 @@ function weekStart(d) {
 }
 
 function ActivitySection({ contacts, apps, interactions }) {
+  const chartTheme = useChartTheme()
   const triagedApps  = apps.filter(a => !isUntriaged(a))
   const hasRecruitingActivity = apps.length > 0
 
@@ -482,7 +483,7 @@ function ActivitySection({ contacts, apps, interactions }) {
   const conversions = funnelConversions(triagedApps)
 
   const donutData = Object.keys(STATUS_COLOR)
-    .map(status => ({ label: status, value: contacts.filter(c => c.status === status).length, color: STATUS_CHART_COLORS[status] }))
+    .map(status => ({ label: status, value: contacts.filter(c => c.status === status).length, color: chartTheme.status[status] }))
     .filter(d => d.value > 0)
 
   // Interactions over the trailing 10 weeks — a signal not visualized anywhere else today.

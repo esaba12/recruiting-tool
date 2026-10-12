@@ -12,8 +12,8 @@ export const STATUS_COLOR = {
 }
 
 export const URGENCY_COLOR = {
-  HIGH: 'bg-danger-500 text-white',
-  MED:  'bg-warning-600 text-white',
+  HIGH: 'bg-danger-500 text-on-fill',
+  MED:  'bg-warning-600 text-on-fill',
   LOW:  'bg-ink-100 text-ink-500',
 }
 
@@ -41,7 +41,7 @@ export const STAGE_COLOR = {
   Applied:        'bg-accent-100 text-accent-700',
   'Phone Screen': 'bg-warning-100 text-warning-800',
   Technical:      'bg-warning-200 text-warning-800',
-  Onsite:         'bg-warning-600 text-white',
+  Onsite:         'bg-warning-600 text-on-fill',
   Offer:          'bg-success-100 text-success-800',
   Accepted:       'bg-success-200 text-success-900 font-semibold',
   Rejected:       'bg-danger-100 text-danger-600',

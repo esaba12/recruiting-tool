@@ -107,7 +107,7 @@ export default function AddToCalendarModal({ onClose }) {
 
   return (
     <Modal onClose={onClose} size="md">
-      <div className="sticky top-0 bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between">
+      <div className="sticky top-0 bg-surface border-b border-ink-100 px-5 py-4 flex items-center justify-between">
         <h2 className="text-base font-heading font-semibold text-ink-900">Add to Calendar</h2>
         <button onClick={onClose} className="w-7 h-7 rounded-full bg-ink-100 hover:bg-ink-200 flex items-center justify-center text-ink-500 text-sm">✕</button>
       </div>
@@ -125,13 +125,13 @@ export default function AddToCalendarModal({ onClose }) {
             <div className="relative mb-2 inline-block">
               <img src={imagePreview} alt="Pasted screenshot" className="max-h-40 rounded-xl border border-ink-200" />
               <button onClick={() => { setImagePreview(null); setImageBase64(null) }}
-                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-ink-900 text-white flex items-center justify-center hover:bg-ink-700">
+                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-ink-900 text-on-fill flex items-center justify-center hover:bg-ink-700">
                 <X size={13} />
               </button>
             </div>
           ) : (
             <button onClick={() => fileInputRef.current?.click()}
-              className="w-full mb-2 py-3 border border-dashed border-ink-200 rounded-xl text-xs text-ink-400 hover:border-accent-300 hover:text-accent-600 flex items-center justify-center gap-1.5">
+              className="w-full mb-2 py-3 border border-dashed border-ink-200 rounded-xl text-xs text-ink-400 hover:border-accent-300 hover:text-link flex items-center justify-center gap-1.5">
               <ImageIcon size={14} /> Click to upload a screenshot (or paste one into the text box below)
             </button>
           )}
@@ -147,7 +147,7 @@ export default function AddToCalendarModal({ onClose }) {
         </div>
 
         {extracted && (
-          <div className="space-y-3 bg-white rounded-md p-4 border border-ink-300">
+          <div className="space-y-3 bg-surface rounded-md p-4 border border-ink-300">
             <p className="text-xs font-semibold text-ink-400 uppercase tracking-wide">Review & edit before creating</p>
             <div>
               <label className="block text-xs text-ink-400 mb-0.5">Title</label>
@@ -159,7 +159,7 @@ export default function AddToCalendarModal({ onClose }) {
               <div className="flex border border-ink-200 rounded-lg overflow-hidden text-xs font-medium w-fit">
                 {Object.entries(CALENDAR_SLOTS).map(([key, label]) => (
                   <button key={key} type="button" onClick={() => setSlot(key)}
-                    className={`px-3 py-1.5 transition-colors ${slot === key ? 'bg-ink-900 text-white' : 'bg-white text-ink-500 hover:bg-ink-50'}`}>
+                    className={`px-3 py-1.5 transition-colors ${slot === key ? 'bg-ink-900 text-on-fill' : 'bg-surface text-ink-500 hover:bg-ink-50'}`}>
                     {label}
                   </button>
                 ))}

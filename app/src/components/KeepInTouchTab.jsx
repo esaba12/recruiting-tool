@@ -16,9 +16,9 @@ export default function KeepInTouchTab({ contacts, interactions, onEdit, onLog, 
 
   return (
     <div>
-      <div className="flex items-start gap-3 mb-4 rounded-xl border border-ink-100 bg-white px-4 py-3">
+      <div className="flex items-start gap-3 mb-4 rounded-xl border border-ink-100 bg-surface px-4 py-3">
         <div className="w-8 h-8 rounded-lg bg-accent-50 flex items-center justify-center shrink-0">
-          <HeartHandshake size={17} className="text-accent-600" />
+          <HeartHandshake size={17} className="text-link" />
         </div>
         <div className="text-xs text-ink-500 leading-relaxed">
           <span className="font-semibold text-ink-700">Reconnect before ties go cold.</span>{' '}
@@ -38,7 +38,7 @@ export default function KeepInTouchTab({ contacts, interactions, onEdit, onLog, 
             const overdue = !status.never && status.overdueDays > 0
             return (
               <div key={c.id}
-                className={`bg-white rounded-md px-4 py-3 border transition-shadow hover:shadow-md ${overdue ? 'border-accent-200' : 'border-ink-300'}`}>
+                className={`bg-surface rounded-md px-4 py-3 border transition-shadow hover:shadow-md ${overdue ? 'border-accent-200' : 'border-ink-300'}`}>
                 <div className="flex items-start gap-3">
                   <button onClick={() => onEdit(c)} className="flex-1 min-w-0 text-left">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -77,7 +77,7 @@ export default function KeepInTouchTab({ contacts, interactions, onEdit, onLog, 
                     <div className="flex items-center gap-1.5">
                       <MetButton contact={c} onMet={onMet} />
                       <button onClick={() => onLog(c)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-accent-600 text-white rounded-full text-xs font-medium hover:bg-accent-700">
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700">
                         <MessageSquarePlus size={12} /> Log
                       </button>
                     </div>

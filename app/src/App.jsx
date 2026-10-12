@@ -93,30 +93,30 @@ function NetworkTab({ contacts, apps, interactions, contactRelationships = [], o
         {statuses.map(s => (
           <button key={s} onClick={() => setFilter(s)}
             className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${filter === s
-              ? 'bg-accent-600 text-white border-accent-600'
-              : 'bg-white text-ink-600 border-ink-200 hover:border-accent-300'}`}>
+              ? 'bg-accent-600 text-on-accent border-accent-600'
+              : 'bg-surface text-ink-600 border-ink-200 hover:border-accent-300'}`}>
             {s === 'ALL' ? `All (${contacts.length})` : s}
           </button>
         ))}
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search..."
           className="px-3 py-1 border border-ink-200 rounded-full text-xs focus:outline-none focus:border-accent-400 w-44" />
-        <div className="ml-auto flex items-center gap-2">
-          <div className="flex border border-ink-200 rounded-full overflow-hidden text-xs font-medium">
+        <div className="ml-auto flex items-center gap-2 flex-wrap justify-end min-w-0 max-w-full">
+          <div className="flex max-w-full overflow-x-auto border border-ink-200 rounded-full text-xs font-medium">
             {views.map(v => (
               <button key={v.key} onClick={() => setView(v.key)}
-                className={`px-3 py-1 flex items-center gap-1.5 transition-colors ${view === v.key ? 'bg-ink-900 text-white' : 'bg-white text-ink-500 hover:bg-ink-50'}`}>
+                className={`shrink-0 whitespace-nowrap px-3 py-1 flex items-center gap-1.5 transition-colors ${view === v.key ? 'bg-ink-900 text-on-fill' : 'bg-surface text-ink-500 hover:bg-ink-50'}`}>
                 <v.icon size={13} strokeWidth={2.25} />
                 {v.label}
               </button>
             ))}
           </div>
           <button onClick={() => setLogOpen(true)}
-            className="px-3 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300">
+            className="px-3 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 whitespace-nowrap">
             + Log Interaction
           </button>
           <button onClick={() => setQuickAddOpen(true)}
-            className="px-3 py-1 bg-accent-600 text-white rounded-full text-xs font-medium hover:bg-accent-700">
+            className="px-3 py-1 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700 whitespace-nowrap">
             + Contact
           </button>
         </div>
@@ -137,7 +137,7 @@ function NetworkTab({ contacts, apps, interactions, contactRelationships = [], o
               const lastSeen = daysSince(c.lastInteraction)
               return (
                 <div key={c.id} onClick={() => setEditing(c)}
-                  className={`bg-white rounded-xl px-4 py-3 shadow-sm border transition-shadow hover:shadow-md cursor-pointer ${overdue ? 'border-danger-200' : 'border-ink-100'}`}>
+                  className={`bg-surface rounded-xl px-4 py-3 shadow-sm border transition-shadow hover:shadow-md cursor-pointer ${overdue ? 'border-danger-200' : 'border-ink-100'}`}>
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -151,10 +151,10 @@ function NetworkTab({ contacts, apps, interactions, contactRelationships = [], o
                         {c.referredByName && <Badge label={`↩ ${c.referredByName}`} color="bg-indigo-50 text-indigo-600" />}
                         {c.referralStatus && c.referralStatus !== 'Not Asked' && <Badge label={c.referralStatus} color={REFERRAL_STATUS_COLOR[c.referralStatus]} />}
                         {c.email && (
-                          <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="text-xs text-accent-500 hover:underline">{c.email}</a>
+                          <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="text-xs text-link hover:underline">{c.email}</a>
                         )}
                         {c.linkedin && (
-                          <a href={c.linkedin} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-xs text-accent-500 hover:underline">LinkedIn ↗</a>
+                          <a href={c.linkedin} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-xs text-link hover:underline">LinkedIn ↗</a>
                         )}
                       </div>
                       {c.whatTheyDid && (

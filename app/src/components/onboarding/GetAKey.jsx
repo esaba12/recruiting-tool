@@ -68,8 +68,8 @@ export default function GetAKey({ provider = 'anthropic', hasKey = false, onSave
     <div className="space-y-4">
       <ol className="border-t border-l border-ink-200">
         {p.steps.map((s, i) => (
-          <li key={i} className="flex items-center gap-3 border-r border-b border-ink-200 px-3 py-2.5 bg-white">
-            <Mono className="text-accent-600 text-xs w-5">{String(i + 1).padStart(2, '0')}</Mono>
+          <li key={i} className="flex items-center gap-3 border-r border-b border-ink-200 px-3 py-2.5 bg-surface">
+            <Mono className="text-link text-xs w-5">{String(i + 1).padStart(2, '0')}</Mono>
             <a href={s.href} target="_blank" rel="noreferrer"
               className="flex-1 text-sm text-ink-700 hover:text-accent-700 inline-flex items-center gap-1.5">
               {s.text} <ExternalLink size={12} className="text-ink-300" />
@@ -80,7 +80,7 @@ export default function GetAKey({ provider = 'anthropic', hasKey = false, onSave
       {!stepsOnly && <>
       <form onSubmit={save} className="flex gap-2">
         <Input type="password" value={key} onChange={e => setKey(e.target.value)} placeholder={p.placeholder}
-          className="font-mono text-xs bg-white" autoComplete="off" aria-label={`${p.label} API key`} />
+          className="font-mono text-xs bg-surface" autoComplete="off" aria-label={`${p.label} API key`} />
         <Button type="submit" size="sm" disabled={busy || !key.trim()} className="whitespace-nowrap inline-flex items-center gap-1.5">
           <KeyRound size={13} /> {busy ? 'Saving…' : 'Save key'}
         </Button>

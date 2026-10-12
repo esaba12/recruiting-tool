@@ -6,7 +6,7 @@ function OutboxRow({ msg, contactName, contactCompany }) {
   const text = expanded && msg.body ? msg.body : msg.summary
 
   return (
-    <div className="bg-white rounded-md px-4 py-3 border border-ink-300">
+    <div className="bg-surface rounded-md px-4 py-3 border border-ink-300">
       <div className="flex items-center gap-2 flex-wrap">
         <Badge label={msg.type} color={TYPE_COLOR[msg.type] || TYPE_COLOR.Other} />
         <span className="font-medium text-ink-900">{contactName}</span>
@@ -16,7 +16,7 @@ function OutboxRow({ msg, contactName, contactCompany }) {
       {text && <p className="text-xs text-ink-600 mt-1.5 whitespace-pre-wrap">{text}</p>}
       {msg.body && msg.body !== msg.summary && (
         <button onClick={() => setExpanded(e => !e)}
-          className="text-xs text-accent-500 hover:underline mt-1">
+          className="text-xs text-link hover:underline mt-1">
           {expanded ? 'Show less' : 'Show full message'}
         </button>
       )}

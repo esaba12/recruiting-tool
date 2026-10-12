@@ -174,7 +174,7 @@ export default function ContactPanelBody({ contact, contacts, interactions, cont
     <div>
       <label className="block text-xs text-ink-400 mb-0.5">{label}</label>
       <select value={form[key]} onChange={e => set(key, e.target.value)}
-        className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+        className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-surface">
         <option value="">—</option>
         {options.map(o => <option key={o} value={o}>{o}</option>)}
       </select>
@@ -183,7 +183,7 @@ export default function ContactPanelBody({ contact, contacts, interactions, cont
 
   return (
     <>
-        <div className="sticky top-0 bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between">
+        <div className="sticky top-0 bg-surface border-b border-ink-100 px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
             {onBack && (
               <button onClick={onBack} aria-label="Back"
@@ -221,7 +221,7 @@ export default function ContactPanelBody({ contact, contacts, interactions, cont
               <div>
                 <label className="block text-xs text-ink-400 mb-0.5">Referred By</label>
                 <select value={form.referredById} onChange={e => set('referredById', e.target.value)}
-                  className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+                  className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-surface">
                   <option value="">—</option>
                   {referralOptions.map(c => <option key={c.id} value={c.id}>{c.name}{c.company ? ` @ ${c.company}` : ''}</option>)}
                 </select>
@@ -254,16 +254,16 @@ export default function ContactPanelBody({ contact, contacts, interactions, cont
               })}
               <div className="flex items-center gap-1.5 pt-1">
                 <select value={relType} onChange={e => setRelType(e.target.value)}
-                  className="px-2 py-1.5 border border-ink-200 rounded-lg text-xs focus:outline-none focus:border-accent-400 bg-white">
+                  className="px-2 py-1.5 border border-ink-200 rounded-lg text-xs focus:outline-none focus:border-accent-400 bg-surface">
                   {RELATIONSHIP_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <select value={relTarget} onChange={e => setRelTarget(e.target.value)}
-                  className="flex-1 px-2 py-1.5 border border-ink-200 rounded-lg text-xs focus:outline-none focus:border-accent-400 bg-white">
+                  className="flex-1 px-2 py-1.5 border border-ink-200 rounded-lg text-xs focus:outline-none focus:border-accent-400 bg-surface">
                   <option value="">— choose contact —</option>
                   {referralOptions.map(c => <option key={c.id} value={c.id}>{c.name}{c.company ? ` @ ${c.company}` : ''}</option>)}
                 </select>
                 <button onClick={addRelationship} disabled={!relTarget || addingRel}
-                  className="px-2.5 py-1.5 bg-white border border-ink-200 rounded-lg text-xs font-medium text-ink-600 hover:border-accent-300 disabled:opacity-40 shrink-0">
+                  className="px-2.5 py-1.5 bg-surface border border-ink-200 rounded-lg text-xs font-medium text-ink-600 hover:border-accent-300 disabled:opacity-40 shrink-0">
                   {addingRel ? 'Adding…' : '+ Add'}
                 </button>
               </div>
@@ -324,11 +324,11 @@ export default function ContactPanelBody({ contact, contacts, interactions, cont
               <div className="flex items-center gap-1.5">
                 <button onClick={met} disabled={metLogging}
                   title="Quick-log that you met with them and set a follow-up reminder — no notes required"
-                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 disabled:opacity-50">
+                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 disabled:opacity-50">
                   <Handshake size={12} /> {metLogging ? 'Logging…' : 'Met'}
                 </button>
                 <button onClick={() => setLogOpen(true)}
-                  className="px-2.5 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300">
+                  className="px-2.5 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300">
                   + Log
                 </button>
               </div>
@@ -358,7 +358,7 @@ export default function ContactPanelBody({ contact, contacts, interactions, cont
                 <DraftPanel contact={contact} kind="cold_open" />
               ) : (
                 <button onClick={() => setDraftOpen(true)}
-                  className="w-full py-2 bg-white border border-accent-200 rounded-md text-xs font-medium text-accent-700 hover:border-accent-400">
+                  className="w-full py-2 bg-surface border border-accent-200 rounded-md text-xs font-medium text-accent-700 hover:border-accent-400">
                   ✎ Draft outreach — little or no interaction history with this contact yet
                 </button>
               )}
@@ -366,7 +366,7 @@ export default function ContactPanelBody({ contact, contacts, interactions, cont
           )}
 
           <button onClick={save} disabled={saving}
-            className="w-full py-3 bg-accent-600 text-white text-sm rounded-md hover:bg-accent-700 disabled:opacity-50 font-medium transition-colors">
+            className="w-full py-3 bg-accent-600 text-on-accent text-sm rounded-md hover:bg-accent-700 disabled:opacity-50 font-medium transition-colors">
             {saving ? 'Saving...' : isNew ? '+ Add Contact' : 'Save Changes'}
           </button>
 

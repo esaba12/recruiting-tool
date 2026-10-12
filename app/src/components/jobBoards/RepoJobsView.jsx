@@ -162,7 +162,7 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
   return (
     <div className="space-y-4">
       {/* Header — single repo, or aggregated across every tracked board */}
-      <div className="bg-white rounded-md p-4 border border-ink-300 flex items-center gap-3">
+      <div className="bg-surface rounded-md p-4 border border-ink-300 flex items-center gap-3">
         <div className="flex-1 min-w-0">
           {data.mode === 'boards' ? (
             <>
@@ -174,7 +174,7 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
                 {(data.sources || []).map(s => (
                   <a key={`${s.owner}/${s.repo}`} href={`https://github.com/${s.owner}/${s.repo}`} target="_blank" rel="noreferrer"
                     title={s.error || `${s.jobCount} listings`}
-                    className={`text-xs px-2 py-0.5 rounded-full border ${s.error ? 'border-danger-200 text-danger-500 bg-danger-50' : 'border-ink-200 text-ink-500 bg-ink-50 hover:border-accent-300 hover:text-accent-600'}`}>
+                    className={`text-xs px-2 py-0.5 rounded-full border ${s.error ? 'border-danger-200 text-danger-500 bg-danger-50' : 'border-ink-200 text-ink-500 bg-ink-50 hover:border-accent-300 hover:text-link'}`}>
                     {s.owner}/{s.repo}{s.error ? ' ⚠' : ` · ${s.jobCount}`}
                   </a>
                 ))}
@@ -187,7 +187,7 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
             <>
               <div className="flex items-center gap-2 flex-wrap">
                 <a href={data.repoUrl} target="_blank" rel="noreferrer"
-                  className="font-semibold text-ink-900 hover:text-accent-600 text-sm">{data.repoName}</a>
+                  className="font-semibold text-ink-900 hover:text-link text-sm">{data.repoName}</a>
                 <span className="text-xs text-ink-400">★ {data.stars?.toLocaleString()}</span>
               </div>
               {data.description && <p className="text-xs text-ink-500 mt-0.5">{data.description}</p>}
@@ -219,8 +219,8 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
           <button key={b.key} onClick={() => setBucket(b.key)}
             className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors
               ${bucket === b.key
-                ? (b.key === 'all' ? 'bg-ink-800 text-white border-ink-800' : BUCKET_ACTIVE[b.key] || 'bg-ink-800 text-white border-ink-800')
-                : 'bg-white text-ink-600 border-ink-200 hover:bg-ink-50'}`}>
+                ? (b.key === 'all' ? 'bg-ink-800 text-on-fill border-ink-800' : BUCKET_ACTIVE[b.key] || 'bg-ink-800 text-on-fill border-ink-800')
+                : 'bg-surface text-ink-600 border-ink-200 hover:bg-ink-50'}`}>
             {b.icon} {b.label}
             {bucketCounts[b.key] > 0 &&
               <span className="ml-1 opacity-70">{bucketCounts[b.key]}</span>}
@@ -230,7 +230,7 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
           {[['list','☰'],['calendar','📅']].map(([v, icon]) => (
             <button key={v} onClick={() => setView(v)}
               className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors
-                ${view === v ? 'bg-ink-800 text-white border-ink-800' : 'bg-white text-ink-500 border-ink-200 hover:bg-ink-50'}`}>
+                ${view === v ? 'bg-ink-800 text-on-fill border-ink-800' : 'bg-surface text-ink-500 border-ink-200 hover:bg-ink-50'}`}>
               {icon}
             </button>
           ))}
@@ -243,7 +243,7 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
           <div className="relative flex-1 min-w-48">
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search company, role, or location..."
-              className="w-full pl-8 pr-3 py-2 border border-ink-200 rounded-xl text-xs focus:outline-none focus:border-accent-400 bg-white" />
+              className="w-full pl-8 pr-3 py-2 border border-ink-200 rounded-xl text-xs focus:outline-none focus:border-accent-400 bg-surface" />
             <span className="absolute left-2.5 top-2 text-ink-300 text-sm">🔍</span>
             {search && (
               <button onClick={() => setSearch('')} className="absolute right-2.5 top-2 text-ink-300 hover:text-ink-500 text-xs">✕</button>
@@ -252,7 +252,7 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
           <div className="relative">
             <input value={locFilter} onChange={e => setLocFilter(e.target.value)}
               placeholder="Filter location..."
-              className="pl-8 pr-3 py-2 border border-ink-200 rounded-xl text-xs focus:outline-none focus:border-accent-400 bg-white w-44" />
+              className="pl-8 pr-3 py-2 border border-ink-200 rounded-xl text-xs focus:outline-none focus:border-accent-400 bg-surface w-44" />
             <span className="absolute left-2.5 top-2 text-ink-300 text-sm">📍</span>
             {locFilter && (
               <button onClick={() => setLocFilter('')} className="absolute right-2.5 top-2 text-ink-300 hover:text-ink-500 text-xs">✕</button>
@@ -269,8 +269,8 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
               onClick={() => setLocFilter(locFilter === loc ? '' : loc)}
               className={`px-2.5 py-1 rounded-full text-xs border transition-colors
                 ${locFilter === loc
-                  ? 'bg-accent-600 text-white border-accent-600'
-                  : 'bg-white text-ink-500 border-ink-200 hover:border-accent-300 hover:text-accent-600'}`}>
+                  ? 'bg-accent-600 text-on-accent border-accent-600'
+                  : 'bg-surface text-ink-500 border-ink-200 hover:border-accent-300 hover:text-link'}`}>
               {loc}
             </button>
           ))}
@@ -278,16 +278,16 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
             title="Only listings with a confirmed deadline within 10 days"
             className={`px-2.5 py-1 rounded-full text-xs border transition-colors ml-auto
               ${urgentOnly
-                ? 'bg-danger-500 text-white border-danger-500'
-                : 'bg-white text-ink-500 border-ink-200 hover:border-danger-300 hover:text-danger-600'}`}>
+                ? 'bg-danger-500 text-on-fill border-danger-500'
+                : 'bg-surface text-ink-500 border-ink-200 hover:border-danger-300 hover:text-danger-600'}`}>
             ⏰ Closing soon {urgentCount > 0 && <span className="opacity-80">({urgentCount})</span>}
           </button>
           <button onClick={() => setHideStale(h => !h)}
             title="Hide listings with no detected update in 45+ days"
             className={`px-2.5 py-1 rounded-full text-xs border transition-colors
               ${hideStale
-                ? 'bg-warning-600 text-white border-warning-600'
-                : 'bg-white text-ink-500 border-ink-200 hover:border-warning-300 hover:text-warning-700'}`}>
+                ? 'bg-warning-600 text-on-fill border-warning-600'
+                : 'bg-surface text-ink-500 border-ink-200 hover:border-warning-300 hover:text-warning-700'}`}>
             👻 Hide stale
           </button>
           <button
@@ -320,7 +320,7 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
 
       {paginated.length < filtered.length && (
         <button onClick={() => setPage(p => p + 1)}
-          className="w-full py-2.5 text-sm text-ink-500 hover:text-ink-700 border border-ink-200 rounded-xl bg-white hover:bg-ink-50">
+          className="w-full py-2.5 text-sm text-ink-500 hover:text-ink-700 border border-ink-200 rounded-xl bg-surface hover:bg-ink-50">
           Show more ({filtered.length - paginated.length} remaining)
         </button>
       )}

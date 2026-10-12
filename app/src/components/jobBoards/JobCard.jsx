@@ -3,8 +3,8 @@ import { BUCKET_ICON, LOCATION_ICON } from '../../lib/icons.js'
 import Mono from '../ui/Mono.jsx'
 
 const DEADLINE_BADGE = {
-  urgent: 'bg-danger-500 text-white',
-  soon:   'bg-warning-600 text-white',
+  urgent: 'bg-danger-500 text-on-fill',
+  soon:   'bg-warning-600 text-on-fill',
   known:  'bg-ink-100 text-ink-600',
 }
 
@@ -30,7 +30,7 @@ export default function JobCard({ job, status, blurb, deadline, onStatusChange, 
 
   return (
     <div onClick={() => !isClosed && onClick()}
-      className={`bg-white rounded-md border p-4 transition-all group
+      className={`bg-surface rounded-md border p-4 transition-all group
         ${isClosed ? 'opacity-40 cursor-default border-ink-300' :
           stale ? 'opacity-70 cursor-pointer border-ink-300 hover:border-accent-200 hover:shadow-md hover:-translate-y-0.5' :
           'cursor-pointer border-ink-300 hover:border-accent-200 hover:shadow-md hover:-translate-y-0.5'}`}>
@@ -49,7 +49,7 @@ export default function JobCard({ job, status, blurb, deadline, onStatusChange, 
             {/* Heart = Applying quick-action */}
             <button onClick={e => toggleStatus(e, 'applying')}
               className={`shrink-0 text-base leading-none transition-transform active:scale-125
-                ${status === 'applying' ? 'text-accent-500' : 'text-ink-200 hover:text-accent-400'}`}>
+                ${status === 'applying' ? 'text-link' : 'text-ink-200 hover:text-accent-400'}`}>
               {status === 'applying' ? '♥' : '♡'}
             </button>
           </div>

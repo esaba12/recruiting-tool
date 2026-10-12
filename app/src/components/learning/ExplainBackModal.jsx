@@ -45,7 +45,7 @@ export default function ExplainBackModal({ view, topic: initialTopic, onLog, onC
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold text-ink-900">Explain it back</h2>
           <select value={topicId} onChange={e => { setTopicId(e.target.value); setGrade(null) }}
-            className="px-2 py-1 border border-ink-200 rounded-sm text-xs bg-white max-w-[55%]">
+            className="px-2 py-1 border border-ink-200 rounded-sm text-xs bg-surface max-w-[55%]">
             {view.visible.map(t => <option key={t.id} value={t.id}>{t.category} — {t.name}</option>)}
           </select>
         </div>

@@ -13,9 +13,9 @@ import AddEventModal from './AddEventModal.jsx'
 import EventImportModal from './EventImportModal.jsx'
 
 const OVERLAYS = [
-  { key: 'events',       label: 'Events',       dot: 'bg-accent-600',  chipActive: 'bg-accent-600 text-white border-accent-600' },
-  { key: 'followups',    label: 'Follow-ups',   dot: 'bg-accent-500',  chipActive: 'bg-accent-600 text-white border-accent-600' },
-  { key: 'applications', label: 'Applications', dot: 'bg-success-500', chipActive: 'bg-success-500 text-white border-success-500' },
+  { key: 'events',       label: 'Events',       dot: 'bg-accent-600',  chipActive: 'bg-accent-600 text-on-accent border-accent-600' },
+  { key: 'followups',    label: 'Follow-ups',   dot: 'bg-accent-500',  chipActive: 'bg-accent-600 text-on-accent border-accent-600' },
+  { key: 'applications', label: 'Applications', dot: 'bg-success-500', chipActive: 'bg-success-500 text-on-fill border-success-500' },
 ]
 
 // How far ahead/behind "today" the Feed view's Google Calendar window covers — wide
@@ -165,17 +165,17 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
       <div className="flex gap-2 flex-wrap items-center">
         <div className="flex border border-ink-200 rounded-full overflow-hidden text-xs font-medium shrink-0">
           <button onClick={() => setViewMode('grid')}
-            className={`px-3 py-1 flex items-center gap-1.5 transition-colors ${viewMode === 'grid' ? 'bg-ink-900 text-white' : 'bg-white text-ink-500 hover:bg-ink-50'}`}>
+            className={`px-3 py-1 flex items-center gap-1.5 transition-colors ${viewMode === 'grid' ? 'bg-ink-900 text-on-fill' : 'bg-surface text-ink-500 hover:bg-ink-50'}`}>
             <CalendarDays size={13} strokeWidth={2.25} /> Grid
           </button>
           <button onClick={() => setViewMode('feed')}
-            className={`px-3 py-1 flex items-center gap-1.5 transition-colors ${viewMode === 'feed' ? 'bg-ink-900 text-white' : 'bg-white text-ink-500 hover:bg-ink-50'}`}>
+            className={`px-3 py-1 flex items-center gap-1.5 transition-colors ${viewMode === 'feed' ? 'bg-ink-900 text-on-fill' : 'bg-surface text-ink-500 hover:bg-ink-50'}`}>
             <ListTodo size={13} strokeWidth={2.25} /> Feed
           </button>
         </div>
         {eventPool?.school && (
           <button onClick={() => setImportOpen(true)}
-            className="px-3 py-1 rounded-full text-xs font-medium border border-ink-200 bg-white text-ink-500 hover:bg-ink-50 flex items-center gap-1.5">
+            className="px-3 py-1 rounded-full text-xs font-medium border border-ink-200 bg-surface text-ink-500 hover:bg-ink-50 flex items-center gap-1.5">
             <Upload size={13} strokeWidth={2.25} /> Import events
           </button>
         )}
@@ -184,13 +184,13 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
           <button key={o.key} onClick={() => toggle(o.key)}
             className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors flex items-center gap-1.5 ${visible[o.key]
               ? o.chipActive
-              : 'bg-white text-ink-600 border-ink-200 hover:border-accent-300'}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${visible[o.key] ? 'bg-white' : o.dot}`} />
+              : 'bg-surface text-ink-600 border-ink-200 hover:border-accent-300'}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${visible[o.key] ? 'bg-surface' : o.dot}`} />
             {o.label}
           </button>
         ))}
         <button onClick={() => setAddEventOpen(true)}
-          className="ml-auto px-3 py-1 bg-accent-600 text-white rounded-full text-xs font-medium hover:bg-accent-700">
+          className="ml-auto px-3 py-1 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700">
           + Add Event
         </button>
       </div>
@@ -204,7 +204,7 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
       {viewMode === 'grid' && (
       <>
       {/* Month grid */}
-      <div className="bg-white rounded-md p-5 border border-ink-300">
+      <div className="bg-surface rounded-md p-5 border border-ink-300">
         <div className="flex items-center justify-between mb-4">
           <button onClick={() => { setViewDate(new Date(year, mo - 1, 1)); setSelectedDay(null) }}
             className="p-1.5 hover:bg-ink-100 rounded-lg text-ink-500 text-sm">←</button>
@@ -231,7 +231,7 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
               <button key={d} onClick={() => setSelectedDay(isSel ? null : key)}
                 className={`aspect-square rounded-lg flex flex-col items-center justify-center gap-1 text-xs font-medium transition-all cursor-pointer hover:bg-ink-50
                   ${isSel ? 'ring-2 ring-accent-500 ring-offset-1' : ''}
-                  ${isTod ? 'bg-accent-50 text-accent-600' : 'text-ink-600'}`}>
+                  ${isTod ? 'bg-accent-50 text-link' : 'text-ink-600'}`}>
                 <span>{d}</span>
                 {dots.length > 0 && (
                   <span className="flex items-center gap-0.5">
@@ -249,15 +249,15 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
         <div className="space-y-2">
           {visible.events && selectedItems.events.map(ev => (
             <button key={`${ev.slot}-${ev.id}`} onClick={() => setSelectedEvent(ev)}
-              className="w-full text-left bg-white rounded-md px-4 py-3 border border-ink-300 hover:shadow-md hover:border-accent-200 transition-all flex items-center gap-3">
-              <Badge label={CALENDAR_SLOTS[ev.slot] || 'Event'} color={ev.slot === 'school' ? 'bg-purple-100 text-purple-700' : 'bg-accent-100 text-accent-700'} />
+              className="w-full text-left bg-surface rounded-md px-4 py-3 border border-ink-300 hover:shadow-md hover:border-accent-200 transition-all flex items-center gap-3">
+              <Badge label={CALENDAR_SLOTS[ev.slot] || 'Event'} color={ev.slot === 'school' ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' : 'bg-accent-100 text-accent-700'} />
               <span className="text-sm font-medium text-ink-900 truncate">{ev.title}</span>
               {!ev.allDay && <span className="text-xs text-ink-400 ml-auto shrink-0">{new Date(ev.start).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>}
             </button>
           ))}
           {visible.followups && selectedItems.followups.map(c => (
             <button key={c.id} onClick={() => setSelectedContact(c)}
-              className="w-full text-left bg-white rounded-md px-4 py-3 border border-ink-300 hover:shadow-md hover:border-accent-200 transition-all flex items-center gap-3">
+              className="w-full text-left bg-surface rounded-md px-4 py-3 border border-ink-300 hover:shadow-md hover:border-accent-200 transition-all flex items-center gap-3">
               <Badge label="Follow-up" color="bg-accent-100 text-accent-700" />
               <span className="text-sm font-medium text-ink-900 truncate">{c.name}</span>
               {c.company && <span className="text-xs text-ink-500 truncate">@ {c.company}</span>}
@@ -265,7 +265,7 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
           ))}
           {visible.applications && selectedItems.applications.map(a => (
             <button key={a.id} onClick={() => setSelectedApp(a)}
-              className="w-full text-left bg-white rounded-md px-4 py-3 border border-ink-300 hover:shadow-md hover:border-accent-200 transition-all flex items-center gap-3">
+              className="w-full text-left bg-surface rounded-md px-4 py-3 border border-ink-300 hover:shadow-md hover:border-accent-200 transition-all flex items-center gap-3">
               <Badge label="Applied" color="bg-success-50 text-success-700" />
               <span className="text-sm font-medium text-ink-900 truncate">{a.company}</span>
               {a.role && <span className="text-xs text-ink-500 truncate">· {a.role}</span>}
@@ -365,7 +365,7 @@ function TimelineFeed({ groups, loading, error, onOpen }) {
       )}
 
       {total === 0 && !loading && (
-        <div className="bg-white rounded-md p-8 border border-ink-300 text-center">
+        <div className="bg-surface rounded-md p-8 border border-ink-300 text-center">
           <p className="text-sm text-ink-400">✓ Nothing on the horizon — deadlines, events, follow-ups, and reconnects will show up here.</p>
         </div>
       )}
@@ -375,7 +375,7 @@ function TimelineFeed({ groups, loading, error, onOpen }) {
         if (items.length === 0) return null
         const shown = section.key === 'later' ? items.slice(0, FEED_LATER_CAP) : items
         return (
-          <div key={section.key} className={`bg-white rounded-md p-5 border ${section.border}`}>
+          <div key={section.key} className={`bg-surface rounded-md p-5 border ${section.border}`}>
             <h2 className={`text-sm font-semibold ${section.heading} mb-3`}>{section.title} ({items.length})</h2>
             <div className="divide-y divide-ink-100">
               {shown.map(item => (

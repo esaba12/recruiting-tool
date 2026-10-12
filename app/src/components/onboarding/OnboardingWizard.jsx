@@ -59,13 +59,13 @@ export default function OnboardingWizard() {
   return (
     <div className="min-h-screen bg-canvas md:flex">
       {/* Step rail — desktop */}
-      <aside className="hidden md:flex md:w-64 shrink-0 bg-ink-900 text-ink-100 flex-col p-6">
+      <aside className="hidden md:flex md:w-64 shrink-0 bg-ink-900 text-ink-100 flex-col p-6 theme-fixed">
         <p className="font-heading text-lg font-semibold text-white">Recruiting OS</p>
         <Mono className="text-ink-400 mt-1">SETUP · {String(idx + 1).padStart(2, '0')}/{String(STEPS.length).padStart(2, '0')}</Mono>
         <ol className="mt-8 space-y-1">
           {STEPS.map((s, i) => (
             <li key={s.id} className={`flex items-center gap-3 px-2 py-2 text-sm border-l-2 ${
-              i === idx ? 'border-accent-500 text-white bg-ink-800' : i < idx ? 'border-ink-600 text-ink-300' : 'border-transparent text-ink-500'}`}>
+              i === idx ? 'border-accent-500 text-on-fill bg-ink-800' : i < idx ? 'border-ink-600 text-ink-300' : 'border-transparent text-ink-500'}`}>
               <Mono className={i === idx ? 'text-accent-400' : ''}>{String(i + 1).padStart(2, '0')}</Mono>
               {s.title}
             </li>
@@ -81,7 +81,7 @@ export default function OnboardingWizard() {
 
       <main className="flex-1 px-4 py-8 md:px-12 md:py-14">
         <div key={step.id} className="max-w-xl">
-          <Mono className="text-accent-600 learn-rise">STEP {String(idx + 1).padStart(2, '0')}</Mono>
+          <Mono className="text-link learn-rise">STEP {String(idx + 1).padStart(2, '0')}</Mono>
           <h1 className="font-heading text-2xl md:text-3xl font-semibold text-ink-900 mt-1 learn-rise" style={{ animationDelay: '40ms' }}>
             {step.id === 'done' ? 'You\'re set up.' : step.title}
           </h1>
@@ -151,7 +151,7 @@ function AboutStep({ user, profile, refreshProfile, onNext }) {
             const on = form.tracks.includes(t.id)
             return (
               <button key={t.id} type="button" onClick={() => toggle(t.id)} aria-pressed={on}
-                className={`flex items-center justify-between text-left px-4 py-3 border-r border-b border-ink-300 transition-colors ${on ? 'bg-ink-900 text-white' : 'bg-white hover:bg-ink-50 text-ink-800'}`}>
+                className={`flex items-center justify-between text-left px-4 py-3 border-r border-b border-ink-300 transition-colors ${on ? 'bg-ink-900 text-on-fill' : 'bg-surface hover:bg-ink-50 text-ink-800'}`}>
                 <span className="text-sm font-medium">{t.label}</span>
                 <span className={`w-4 h-4 border flex items-center justify-center ${on ? 'bg-accent-500 border-accent-500' : 'border-ink-300'}`}>
                   {on && <Check size={11} strokeWidth={3} />}
@@ -163,10 +163,10 @@ function AboutStep({ user, profile, refreshProfile, onNext }) {
         <p className="text-[11px] text-ink-400 mt-1.5">Pick as many as apply. You can change this later in Settings.</p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input className="bg-white" label="Name" value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} />
-        <Input className="bg-white" label="Grad year" type="number" placeholder="2028" value={form.grad_year} onChange={e => setForm(f => ({ ...f, grad_year: e.target.value }))} />
+        <Input className="bg-surface" label="Name" value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} />
+        <Input className="bg-surface" label="Grad year" type="number" placeholder="2028" value={form.grad_year} onChange={e => setForm(f => ({ ...f, grad_year: e.target.value }))} />
         <div className="sm:col-span-2">
-          <Input className="bg-white" label="School" list="onboarding-schools" value={form.school} placeholder="University of …"
+          <Input className="bg-surface" label="School" list="onboarding-schools" value={form.school} placeholder="University of …"
             onChange={e => {
               const school = e.target.value
               const match = schools.find(s => s.name.toLowerCase() === school.trim().toLowerCase() || s.slug === school.trim().toLowerCase())
@@ -288,14 +288,14 @@ function SeedStep({ profile, onNext, onBack }) {
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-500 mb-2">Target companies</p>
         <div className="flex gap-2">
-          <Input className="bg-white" value={draft} onChange={e => setDraft(e.target.value)} placeholder={hint ? `e.g. ${hint}` : 'Company names, comma-separated'}
+          <Input className="bg-surface" value={draft} onChange={e => setDraft(e.target.value)} placeholder={hint ? `e.g. ${hint}` : 'Company names, comma-separated'}
             onKeyDown={e => { if (e.key === 'Enter' && draft.trim()) { e.preventDefault(); addTargets(draft) } }} />
           <Button variant="secondary" size="sm" onClick={() => addTargets(draft)} disabled={!draft.trim()}>Add</Button>
         </div>
         {targets.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
             {targets.map(t => (
-              <span key={t} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-ink-900 text-white rounded-sm">
+              <span key={t} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-ink-900 text-on-fill rounded-sm">
                 {t}
                 <button onClick={() => setTargets(ts => ts.filter(x => x !== t))} aria-label={`Remove ${t}`} className="text-ink-300 hover:text-white"><X size={11} /></button>
               </span>
@@ -309,8 +309,8 @@ function SeedStep({ profile, onNext, onBack }) {
         <div className="space-y-2">
           {people.map((p, i) => (
             <div key={i} className="grid grid-cols-2 gap-2">
-              <Input className="bg-white" placeholder="Name" value={p.name} onChange={e => setPeople(ps => ps.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
-              <Input className="bg-white" placeholder="Company" value={p.company} onChange={e => setPeople(ps => ps.map((x, j) => j === i ? { ...x, company: e.target.value } : x))} />
+              <Input className="bg-surface" placeholder="Name" value={p.name} onChange={e => setPeople(ps => ps.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
+              <Input className="bg-surface" placeholder="Company" value={p.company} onChange={e => setPeople(ps => ps.map((x, j) => j === i ? { ...x, company: e.target.value } : x))} />
             </div>
           ))}
         </div>
@@ -342,7 +342,7 @@ function DoneStep({ user, onFinish, onBack }) {
     <div>
       <div className="border-t border-l border-ink-200">
         {rows.map(r => (
-          <div key={r.label} className="flex items-center justify-between px-4 py-3 border-r border-b border-ink-200 bg-white text-sm">
+          <div key={r.label} className="flex items-center justify-between px-4 py-3 border-r border-b border-ink-200 bg-surface text-sm">
             <span className="text-ink-800">{r.label}</span>
             {r.on == null ? <Mono className="text-ink-300">…</Mono>
               : r.on ? <Mono className="text-success-700">ON</Mono>

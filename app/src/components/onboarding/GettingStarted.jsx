@@ -25,8 +25,8 @@ export default function GettingStarted({ hasApps = false, hasContacts = false })
   ]
 
   return (
-    <div className="bg-white rounded-md border border-accent-200 p-5">
-      <Mono className="text-accent-600">GETTING STARTED</Mono>
+    <div className="bg-surface rounded-md border border-accent-200 p-5">
+      <Mono className="text-link">GETTING STARTED</Mono>
       <h2 className="font-heading text-lg font-semibold text-ink-900 mt-0.5">Not much here yet. Start with any of these.</h2>
       <div className="mt-4 border-t border-l border-ink-200">
         {rows.map((r, i) => (
@@ -38,7 +38,7 @@ export default function GettingStarted({ hasApps = false, hasContacts = false })
               <span className={`block text-sm font-medium ${r.done ? 'text-ink-400 line-through' : 'text-ink-900'}`}>{r.title}</span>
               <span className="block text-xs text-ink-400">{r.sub}</span>
             </span>
-            <ArrowRight size={14} className="text-ink-300 group-hover:text-accent-600 transition-colors" />
+            <ArrowRight size={14} className="text-ink-300 group-hover:text-link transition-colors" />
           </button>
         ))}
       </div>

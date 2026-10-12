@@ -2,7 +2,7 @@ import { aiJSON, AI_MODELS } from '../../lib/ai.js'
 import { parseDay } from '../../lib/dates.js'
 export { lsGet, lsSet } from '../../lib/scopedStorage.js'
 
-export const LEVEL_COLOR = ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39']
+export const LEVEL_COLOR = ['var(--t-ink-100)', '#9be9a8', '#40c463', '#30a14e', '#216e39']
 export const LANG_COLOR  = ['bg-blue-500','bg-purple-500','bg-yellow-500','bg-green-500','bg-red-500','bg-orange-500']
 
 export const EVENT_LABELS = {
@@ -39,11 +39,11 @@ export const BUCKET_CONFIG = [
 ]
 
 export const BUCKET_ACTIVE = {
-  review:   'bg-ink-600 text-white border-ink-600',
-  applying: 'bg-accent-600 text-white border-accent-600',
-  maybe:    'bg-warning-600 text-white border-warning-600',
-  applied:  'bg-success-600 text-white border-success-600',
-  pass:     'bg-danger-600 text-white border-danger-600',
+  review:   'bg-ink-600 text-on-fill border-ink-600',
+  applying: 'bg-accent-600 text-on-accent border-accent-600',
+  maybe:    'bg-warning-600 text-on-fill border-warning-600',
+  applied:  'bg-success-600 text-on-fill border-success-600',
+  pass:     'bg-danger-600 text-on-fill border-danger-600',
 }
 
 export const BUCKET_TAG = {

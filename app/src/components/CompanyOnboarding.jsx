@@ -8,14 +8,14 @@ import { usesTechSources, hasTrack } from '../lib/tracks.js'
 // revealed preference beats interrogating each dimension. Styled to match the app's
 // accent-gradient panel look (see PreferencesPanel / DiscoverTab's ProfilePanel).
 
-const inputCls = 'w-full px-3 py-2 border border-accent-200 rounded-lg text-sm bg-white focus:outline-none focus:border-accent-400'
+const inputCls = 'w-full px-3 py-2 border border-accent-200 rounded-lg text-sm bg-surface focus:outline-none focus:border-accent-400'
 
 function Chip({ label, active, onClick }) {
   return (
     <button type="button" onClick={onClick}
       className={`px-3 py-1 rounded-sm text-xs font-medium border transition-colors ${active
-        ? 'bg-accent-600 text-white border-accent-600'
-        : 'bg-white text-ink-600 border-ink-200 hover:border-accent-300'}`}>
+        ? 'bg-accent-600 text-on-accent border-accent-600'
+        : 'bg-surface text-ink-600 border-ink-200 hover:border-accent-300'}`}>
       {label}
     </button>
   )
@@ -25,7 +25,7 @@ function Section({ n, title, hint, children }) {
   return (
     <div>
       <label className="block text-sm font-medium text-ink-800">
-        <span className="text-accent-500 mr-1.5">{n}</span>{title}
+        <span className="text-link mr-1.5">{n}</span>{title}
       </label>
       {hint && <p className="text-[11px] text-ink-400 mb-1.5 mt-0.5">{hint}</p>}
       <div className={hint ? '' : 'mt-1.5'}>{children}</div>
@@ -104,9 +104,9 @@ export default function CompanyOnboarding({ initial, onSave, onCancel, profile =
       </Section>
 
       <div className="flex justify-end gap-2 pt-1">
-        {onCancel && <button onClick={onCancel} className="px-4 py-2 bg-white border border-ink-200 rounded-lg text-xs font-medium text-ink-600 hover:border-accent-300">Cancel</button>}
+        {onCancel && <button onClick={onCancel} className="px-4 py-2 bg-surface border border-ink-200 rounded-lg text-xs font-medium text-ink-600 hover:border-accent-300">Cancel</button>}
         <button onClick={() => onSave({ ...prefs, saved: true })}
-          className="px-5 py-2 bg-accent-600 text-white text-sm rounded-lg hover:bg-accent-700 font-medium">
+          className="px-5 py-2 bg-accent-600 text-on-accent text-sm rounded-lg hover:bg-accent-700 font-medium">
           Find my companies →
         </button>
       </div>
@@ -153,7 +153,7 @@ function SeedCompanyPicker({ value, onChange, autocomplete = true }) {
           onKeyDown={e => { if (e.key === 'Enter' && q.trim()) { e.preventDefault(); add(q) } }}
           placeholder={autocomplete ? 'Search companies, or type any name + Enter' : 'Type a company name + Enter'} className={inputCls} />
         {suggestions.length > 0 && (
-          <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-ink-200 rounded-lg shadow-lg overflow-hidden">
+          <div className="absolute z-10 left-0 right-0 mt-1 bg-surface border border-ink-200 rounded-lg shadow-lg overflow-hidden">
             {suggestions.map(name => (
               <button key={name} onClick={() => add(name)}
                 className="w-full text-left px-3 py-1.5 text-xs text-ink-700 hover:bg-accent-50">{name}</button>

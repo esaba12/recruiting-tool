@@ -82,7 +82,7 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
           <div className="flex items-center gap-1 mt-1 overflow-x-auto">
             {learning.tracks.map(t => (
               <button key={t.id} onClick={() => setTrackId(t.id)}
-                className={`px-3 py-1.5 text-sm font-semibold border whitespace-nowrap transition-colors ${t.id === view.track.id ? 'bg-ink-900 text-white border-ink-900' : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'}`}>
+                className={`px-3 py-1.5 text-sm font-semibold border whitespace-nowrap transition-colors ${t.id === view.track.id ? 'bg-ink-900 text-on-fill border-ink-900' : 'bg-surface text-ink-500 border-ink-200 hover:border-ink-400'}`}>
                 {t.name}
               </button>
             ))}
@@ -118,7 +118,7 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
       </div>
 
       {isDemoMode && (
-        <p className="text-xs text-ink-500 border border-ink-200 bg-white px-3 py-2">Sample prep data. AI study plans and explain-back grading need a signed-in account with an API key.</p>
+        <p className="text-xs text-ink-500 border border-ink-200 bg-surface px-3 py-2">Sample prep data. AI study plans and explain-back grading need a signed-in account with an API key.</p>
       )}
 
       {!widgets.length && <EmptyState msg="Every panel is hidden — turn some on in Customize → Stats." />}
@@ -170,7 +170,7 @@ function TemplateGrid({ picked, onToggle }) {
         const cats = [...new Set(t.topics.map(x => x.category))]
         return (
           <button key={key} onClick={() => onToggle(key)}
-            className={`text-left p-4 border-r border-b border-ink-300 transition-colors learn-rise ${on ? 'bg-ink-900 text-white' : 'bg-white hover:bg-ink-50'}`}
+            className={`text-left p-4 border-r border-b border-ink-300 transition-colors learn-rise ${on ? 'bg-ink-900 text-on-fill' : 'bg-surface hover:bg-ink-50'}`}
             style={{ animationDelay: `${180 + i * 60}ms` }}>
             <div className="flex items-center justify-between">
               <span className="font-heading font-semibold">{t.name}</span>

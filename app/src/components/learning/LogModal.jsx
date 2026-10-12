@@ -13,9 +13,9 @@ const KINDS = [
   { key: 'assessment', label: 'OA' },
 ]
 const OUTCOMES = [
-  { key: 'solved', label: 'Solved', cls: 'bg-success-500 text-white border-success-500' },
-  { key: 'hinted', label: 'Needed hints', cls: 'bg-warning-500 text-white border-warning-500' },
-  { key: 'failed', label: "Couldn't solve", cls: 'bg-danger-500 text-white border-danger-500' },
+  { key: 'solved', label: 'Solved', cls: 'bg-success-500 text-on-fill border-success-500' },
+  { key: 'hinted', label: 'Needed hints', cls: 'bg-warning-500 text-on-fill border-warning-500' },
+  { key: 'failed', label: "Couldn't solve", cls: 'bg-danger-500 text-on-fill border-danger-500' },
 ]
 function localDate(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -103,7 +103,7 @@ export default function LogModal({ view, apps = [], initial = {}, onSave, onClos
               <div className="flex gap-1.5">
                 {['Easy', 'Medium', 'Hard'].map(d => (
                   <button key={d} type="button" onClick={() => setDifficulty(d)}
-                    className={`px-2.5 py-1 rounded-sm text-xs font-medium border ${difficulty === d ? 'bg-ink-900 text-white border-ink-900' : 'bg-white text-ink-500 border-ink-200'}`}>{d}</button>
+                    className={`px-2.5 py-1 rounded-sm text-xs font-medium border ${difficulty === d ? 'bg-ink-900 text-on-fill border-ink-900' : 'bg-surface text-ink-500 border-ink-200'}`}>{d}</button>
                 ))}
               </div>
             )}
@@ -117,14 +117,14 @@ export default function LogModal({ view, apps = [], initial = {}, onSave, onClos
               <div className="flex flex-wrap gap-1.5">
                 {PLATFORMS.map(p => (
                   <button key={p} type="button" onClick={() => setPlatform(p)}
-                    className={`px-2.5 py-1 rounded-sm text-xs font-medium border ${platform === p ? 'bg-ink-900 text-white border-ink-900' : 'bg-white text-ink-500 border-ink-200'}`}>{p}</button>
+                    className={`px-2.5 py-1 rounded-sm text-xs font-medium border ${platform === p ? 'bg-ink-900 text-on-fill border-ink-900' : 'bg-surface text-ink-500 border-ink-200'}`}>{p}</button>
                 ))}
               </div>
             </div>
             <div>
               <label className="block text-xs text-ink-400 mb-0.5">For application</label>
               <select value={applicationId} onChange={e => setApplicationId(e.target.value)}
-                className="w-full px-2.5 py-1.5 border border-ink-100 rounded-lg text-sm bg-white focus:outline-none focus:border-accent-400">
+                className="w-full px-2.5 py-1.5 border border-ink-100 rounded-lg text-sm bg-surface focus:outline-none focus:border-accent-400">
                 <option value="">—</option>
                 {openApps.map(a => <option key={a.id} value={a.id}>{a.company} — {a.role}</option>)}
               </select>
@@ -143,7 +143,7 @@ export default function LogModal({ view, apps = [], initial = {}, onSave, onClos
             <div className="flex flex-wrap gap-1.5">
               {OUTCOMES.map(o => (
                 <button key={o.key} type="button" onClick={() => setOutcome(o.key)}
-                  className={`px-3 py-1.5 rounded-sm text-xs font-semibold border transition-colors ${outcome === o.key ? o.cls : 'bg-white text-ink-500 border-ink-200 hover:border-ink-300'}`}>{o.label}</button>
+                  className={`px-3 py-1.5 rounded-sm text-xs font-semibold border transition-colors ${outcome === o.key ? o.cls : 'bg-surface text-ink-500 border-ink-200 hover:border-ink-300'}`}>{o.label}</button>
               ))}
             </div>
             {kind === 'problem' && outcome !== 'solved' && <p className="text-[11px] text-ink-400 mt-1">Goes into your re-solve queue — it'll come back when it's due.</p>}
@@ -159,7 +159,7 @@ export default function LogModal({ view, apps = [], initial = {}, onSave, onClos
                 <div className="flex flex-wrap gap-1.5">
                   {view.visible.filter(t => t.category === cat).map(t => (
                     <button key={t.id} type="button" onClick={() => toggleTopic(t.id)}
-                      className={`px-2 py-0.5 rounded-sm text-xs border transition-colors ${topicIds.includes(t.id) ? 'bg-accent-600 text-white border-accent-600' : 'bg-white text-ink-500 border-ink-200 hover:border-accent-300'}`}>
+                      className={`px-2 py-0.5 rounded-sm text-xs border transition-colors ${topicIds.includes(t.id) ? 'bg-accent-600 text-on-accent border-accent-600' : 'bg-surface text-ink-500 border-ink-200 hover:border-accent-300'}`}>
                       {t.name}
                     </button>
                   ))}
@@ -177,7 +177,7 @@ export default function LogModal({ view, apps = [], initial = {}, onSave, onClos
             <div className="flex gap-1">
               {[1, 2, 3, 4, 5].map(n => (
                 <button key={n} type="button" onClick={() => setConfidence(n)}
-                  className={`w-7 h-7 rounded-sm text-xs font-mono border ${confidence === n ? 'bg-ink-900 text-white border-ink-900' : 'bg-white text-ink-500 border-ink-200'}`}>{n}</button>
+                  className={`w-7 h-7 rounded-sm text-xs font-mono border ${confidence === n ? 'bg-ink-900 text-on-fill border-ink-900' : 'bg-surface text-ink-500 border-ink-200'}`}>{n}</button>
               ))}
             </div>
           </div>

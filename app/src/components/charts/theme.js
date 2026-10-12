@@ -1,3 +1,6 @@
+import { useMemo } from 'react'
+import { useAppearance, cssColor } from '../../lib/theme.js'
+
 // Real color values for Recharts (which needs hex strings, not Tailwind classes),
 // translated from the @theme tokens in app/src/index.css. This is the one place
 // that translation happens — chart components should import from here, never
@@ -61,4 +64,37 @@ export const DIFFICULTY_COLORS = {
   Easy: '#2f8f3d',   // success-500
   Medium: '#d99a12', // warning-500
   Hard: '#b3312c',   // danger-500
+}
+
+// ── Live, theme-aware values ──
+// The constants above are the Safety Orange / light-mode values the validator runs were
+// done against. Charts render from useChartTheme() instead, which reads the same roles
+// off the live CSS tokens (index.css), so scheme and dark-mode switches reach Recharts
+// and canvas too. Status hues are shared by every scheme; in dark mode they're the
+// lifted 500s (index.css's dark mapping), and "Champion" follows the scheme's accent.
+
+export function readChartTheme() {
+  const t = name => cssColor(`--t-${name}`)
+  return {
+    series: t('accent-600'),
+    grid: t('ink-100'),
+    axisText: t('ink-500'),
+    surface: t('surface'),
+    status: {
+      '🟢 Warm': t('success-500'),
+      '🟡 Cooling': t('warning-500'),
+      '🔴 Cold': t('danger-500'),
+      '⭐ Champion': t('accent-500'),
+      '✅ Closed': t('ink-400'),
+    },
+    difficulty: { Easy: t('success-500'), Medium: t('warning-500'), Hard: t('danger-500') },
+    // The Network Graph is a dark island in both modes, so it takes the scheme's raw accent
+    // rather than the mode-mapped one.
+    graphAccent: cssColor('--p-accent-500'),
+  }
+}
+
+export function useChartTheme() {
+  const { scheme, resolved } = useAppearance()
+  return useMemo(readChartTheme, [scheme, resolved])
 }

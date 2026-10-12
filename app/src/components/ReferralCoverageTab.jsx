@@ -102,10 +102,10 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
           <div className="px-5 pb-5">
             <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={6}
               placeholder={'One company per line, e.g.\nStripe\nDatadog\nRipple'}
-              className="w-full px-3 py-2 border border-accent-200 rounded-lg text-sm bg-white focus:outline-none focus:border-accent-400 resize-none font-mono" />
+              className="w-full px-3 py-2 border border-accent-200 rounded-lg text-sm bg-surface focus:outline-none focus:border-accent-400 resize-none font-mono" />
             <div className="flex justify-end mt-2">
               <button onClick={saveTargets}
-                className="px-4 py-1.5 bg-accent-600 text-white text-xs rounded-lg hover:bg-accent-700 font-medium">
+                className="px-4 py-1.5 bg-accent-600 text-on-accent text-xs rounded-lg hover:bg-accent-700 font-medium">
                 Save target list
               </button>
             </div>
@@ -127,7 +127,7 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
           <div className="space-y-2">
             <RowCap items={rows} cap={ROW_CAP} tier="ink" renderItem={r => (
               <div key={r.company} ref={el => { if (el) rowRefs.current.set(normalizeCompanyName(r.company), el) }}
-                className={`bg-white rounded-md p-4 border flex items-start justify-between gap-3 ${focus && normalizeCompanyName(focus.company) === normalizeCompanyName(r.company) ? 'ring-2 ring-accent-300' : ''} ${r.status === 'gap' ? 'border-danger-200' : r.status === 'weak' ? 'border-warning-200' : 'border-ink-300'}`}>
+                className={`bg-surface rounded-md p-4 border flex items-start justify-between gap-3 ${focus && normalizeCompanyName(focus.company) === normalizeCompanyName(r.company) ? 'ring-2 ring-accent-300' : ''} ${r.status === 'gap' ? 'border-danger-200' : r.status === 'weak' ? 'border-warning-200' : 'border-ink-300'}`}>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-ink-900">{r.company}</span>
@@ -144,7 +144,7 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
                     </p>
                   )}
                   {r.bestPath && (
-                    <p className="text-[11px] text-accent-600 mt-0.5 truncate" title="Referral chain that led to this contact">
+                    <p className="text-[11px] text-link mt-0.5 truncate" title="Referral chain that led to this contact">
                       ↩ Path: {pathLabel(r.bestPath)}
                     </p>
                   )}
@@ -154,17 +154,17 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
                 </div>
                 <div className="shrink-0 flex flex-col items-end gap-1.5">
                   <button onClick={() => onFindPeople(r.company)}
-                    className="px-3 py-1.5 bg-accent-600 text-white rounded-full text-xs font-medium hover:bg-accent-700">
+                    className="px-3 py-1.5 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700">
                     🔍 Find people
                   </button>
                   {r.status === 'gap' ? (
                     <button onClick={() => setAddingFor(r.company)}
-                      className="px-3 py-1.5 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300">
+                      className="px-3 py-1.5 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300">
                       + Add contact
                     </button>
                   ) : (
                     <button onClick={() => setDraftingCompany(c => c === r.company ? null : r.company)}
-                      className="px-3 py-1.5 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300">
+                      className="px-3 py-1.5 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300">
                       {draftingCompany === r.company ? 'Hide' : '✎ Draft outreach'}
                     </button>
                   )}

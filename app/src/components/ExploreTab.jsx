@@ -124,9 +124,9 @@ export default function ExploreTab({ apps = [], onFindPeople, onTargetAdded, tar
             {running ? 'Searching…' : meta.lastRun ? `Updated ${timeAgo(new Date(meta.lastRun).toISOString())}` : 'Not run yet'}
           </span>
           <NeedsKey kind={['ai', 'exa']}><button onClick={() => runFind({ force: true })} disabled={running}
-            className="px-3 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 disabled:opacity-40">↻ Refresh</button></NeedsKey>
+            className="px-3 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 disabled:opacity-40">↻ Refresh</button></NeedsKey>
           <button onClick={() => setEditing(true)}
-            className="px-3 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300">Edit interests</button>
+            className="px-3 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300">Edit interests</button>
         </div>
       </div>
 
@@ -165,39 +165,39 @@ function CompanyCard({ company: c, index, isAdded, onAdd, onDismiss, onExpand, e
   const stop = (fn) => (e) => { e.stopPropagation(); fn?.(e) }
   return (
     <div onClick={c.website ? openSite : undefined}
-      className={`bg-white rounded-md p-4 border border-ink-300 transition-colors ${c.website ? 'cursor-pointer hover:border-accent-300 hover:shadow-md' : ''}`}>
+      className={`bg-surface rounded-md p-4 border border-ink-300 transition-colors ${c.website ? 'cursor-pointer hover:border-accent-300 hover:shadow-md' : ''}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             {c.website
               ? <a href={withProtocol(c.website)} target="_blank" rel="noreferrer" onClick={stop()}
-                  className="font-semibold text-ink-900 hover:text-accent-600 hover:underline">{c.name}</a>
+                  className="font-semibold text-ink-900 hover:text-link hover:underline">{c.name}</a>
               : <span className="font-semibold text-ink-900">{c.name}</span>}
             {Number.isFinite(c.fitScore) && <Badge label={`fit ${c.fitScore}/10`} color={scoreColor} />}
             {isAdded && <Badge label="✓ In targets" color="bg-success-100 text-success-800" />}
           </div>
           {c.oneLiner && <p className="text-xs text-ink-500 mt-0.5">{c.oneLiner}</p>}
-          {c.whyFit && <p className="text-xs text-ink-700 mt-1.5"><span className="text-accent-600 font-medium">Why you: </span>{c.whyFit}</p>}
+          {c.whyFit && <p className="text-xs text-ink-700 mt-1.5"><span className="text-link font-medium">Why you: </span>{c.whyFit}</p>}
           <div className="flex flex-wrap items-center gap-1 mt-2">
             {c.domain && <Badge label={c.domain} color="bg-accent-100 text-accent-700" />}
             {c.stage && <Badge label={c.stage} color="bg-ink-100 text-ink-600" />}
             {(c.badges || []).slice(0, 3).map((b, k) => <Badge key={k} label={b} color="bg-accent-50 text-accent-700" />)}
             <VelocityBadge company={c.name} />
             {index < 6 && <span onClick={stop()}><GhBadge website={c.website} name={c.name} /></span>}
-            {c.website && <a href={withProtocol(c.website)} target="_blank" rel="noreferrer" onClick={stop()} className="text-[11px] text-accent-500 hover:underline">Site ↗</a>}
+            {c.website && <a href={withProtocol(c.website)} target="_blank" rel="noreferrer" onClick={stop()} className="text-[11px] text-link hover:underline">Site ↗</a>}
           </div>
         </div>
         <div className="shrink-0 flex flex-col items-end gap-1.5" onClick={stop()}>
           {isAdded
-            ? <button onClick={() => onFindPeople(c.name)} className="px-2.5 py-1 bg-accent-600 text-white rounded-full text-xs font-medium hover:bg-accent-700">Find people →</button>
-            : <button onClick={onAdd} className="px-2.5 py-1 bg-accent-600 text-white rounded-full text-xs font-medium hover:bg-accent-700">❤ Add to targets</button>}
+            ? <button onClick={() => onFindPeople(c.name)} className="px-2.5 py-1 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700">Find people →</button>
+            : <button onClick={onAdd} className="px-2.5 py-1 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700">❤ Add to targets</button>}
           <div className="flex gap-1.5">
             <button onClick={onExpand} disabled={expanding || !c.website}
-              className="px-2.5 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 disabled:opacity-40">
+              className="px-2.5 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 disabled:opacity-40">
               {expanding ? '…' : '🔎 More like this'}
             </button>
             <button onClick={onDismiss}
-              className="px-2 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-400 hover:border-danger-300 hover:text-danger-600">✕</button>
+              className="px-2 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-400 hover:border-danger-300 hover:text-danger-600">✕</button>
           </div>
         </div>
       </div>

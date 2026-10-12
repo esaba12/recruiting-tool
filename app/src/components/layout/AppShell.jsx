@@ -20,11 +20,11 @@ export default function AppShell({ activeTab, onTabChange, counts, loading, last
         demoMode={demoMode}
       />
 
-      <main className="flex-1 px-6 md:px-10 py-8 pb-24 md:pb-8 max-w-7xl mx-auto w-full">
+      <main className="flex-1 min-w-0 px-6 md:px-10 py-8 pb-24 md:pb-8 max-w-7xl mx-auto w-full">
         {demoMode && (
           <div className="mb-4 p-4 bg-accent-50 border border-accent-200 rounded-xl text-sm text-accent-800 flex items-center justify-between gap-3 flex-wrap">
             <span>👋 You're viewing a <strong>live demo</strong> with sample data — nothing here is real, and nothing you do here is saved.</span>
-            <a href="/" className="shrink-0 px-3 py-1.5 bg-accent-600 text-white rounded-full text-xs font-medium hover:bg-accent-700 transition-colors">
+            <a href="/" className="shrink-0 px-3 py-1.5 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700 transition-colors">
               Sign up free →
             </a>
           </div>

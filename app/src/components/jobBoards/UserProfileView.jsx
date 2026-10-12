@@ -16,7 +16,7 @@ export default function UserProfileView({ data, onClear }) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-md p-5 border border-ink-300">
+      <div className="bg-surface rounded-md p-5 border border-ink-300">
         <div className="flex items-start gap-4">
           <img src={profile.avatar_url} alt={profile.login}
             className="w-16 h-16 rounded-full border border-ink-200 flex-shrink-0" />
@@ -24,7 +24,7 @@ export default function UserProfileView({ data, onClear }) {
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-bold text-ink-900">{profile.name || profile.login}</h2>
               <a href={profile.html_url} target="_blank" rel="noreferrer"
-                className="text-xs text-accent-500 hover:underline">@{profile.login} ↗</a>
+                className="text-xs text-link hover:underline">@{profile.login} ↗</a>
             </div>
             {profile.bio && <p className="text-sm text-ink-600 mt-0.5">{profile.bio}</p>}
             <div className="flex gap-4 mt-2 text-xs text-ink-500 flex-wrap">
@@ -39,20 +39,20 @@ export default function UserProfileView({ data, onClear }) {
       </div>
 
       {weeks.length > 0 && (
-        <div className="bg-white rounded-md p-5 border border-ink-300">
+        <div className="bg-surface rounded-md p-5 border border-ink-300">
           <h3 className="text-sm font-semibold text-ink-700 mb-3">Contribution Timeline</h3>
           <ContributionGrid weeks={weeks} total={data.contributions?.total} />
         </div>
       )}
 
       <div className="grid md:grid-cols-3 gap-4">
-        <div className="md:col-span-2 bg-white rounded-md p-5 border border-ink-300">
+        <div className="md:col-span-2 bg-surface rounded-md p-5 border border-ink-300">
           <h3 className="text-sm font-semibold text-ink-700 mb-3">Recent Repos</h3>
           <div className="space-y-3">
             {(data.repos || []).filter(r => !r.fork).slice(0, 6).map(r => (
               <div key={r.id}>
                 <a href={r.html_url} target="_blank" rel="noreferrer"
-                  className="text-sm font-medium text-accent-600 hover:underline">{r.name}</a>
+                  className="text-sm font-medium text-link hover:underline">{r.name}</a>
                 {r.description && <p className="text-xs text-ink-500 mt-0.5 line-clamp-1">{r.description}</p>}
                 <div className="flex gap-3 mt-1 text-xs text-ink-400">
                   {r.language && <span>{r.language}</span>}
@@ -63,7 +63,7 @@ export default function UserProfileView({ data, onClear }) {
             ))}
           </div>
         </div>
-        <div className="bg-white rounded-md p-5 border border-ink-300">
+        <div className="bg-surface rounded-md p-5 border border-ink-300">
           <h3 className="text-sm font-semibold text-ink-700 mb-3">Languages</h3>
           <div className="space-y-2.5">
             {langs.map(([lang, count], i) => {
@@ -85,7 +85,7 @@ export default function UserProfileView({ data, onClear }) {
       </div>
 
       {recent.length > 0 && (
-        <div className="bg-white rounded-md p-5 border border-ink-300">
+        <div className="bg-surface rounded-md p-5 border border-ink-300">
           <h3 className="text-sm font-semibold text-ink-700 mb-3">Recent Activity</h3>
           <div className="space-y-2">
             {recent.map((e, i) => {
@@ -96,7 +96,7 @@ export default function UserProfileView({ data, onClear }) {
                   <span className="text-ink-400 text-xs w-16 shrink-0">{timeAgo(e.created_at)}</span>
                   <span className="text-ink-600 shrink-0 text-xs">{label}</span>
                   <a href={`https://github.com/${repo}`} target="_blank" rel="noreferrer"
-                    className="text-accent-500 hover:underline text-xs truncate">{repo}</a>
+                    className="text-link hover:underline text-xs truncate">{repo}</a>
                 </div>
               )
             })}

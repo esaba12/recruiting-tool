@@ -69,7 +69,7 @@ export default function JobBoardsView({ apps, onImported }) {
                 placeholder="github.com/speedyapply/2027-SWE-College-Jobs  or  github.com/username"
                 className="flex-1 px-4 py-2.5 border border-ink-200 rounded-xl text-sm focus:outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-200" />
               <button onClick={() => lookup()} disabled={loading || !input.trim()}
-                className="px-5 py-2.5 bg-ink-900 text-white text-sm rounded-xl hover:bg-ink-800 disabled:opacity-40 font-medium transition-colors">
+                className="px-5 py-2.5 bg-ink-900 text-on-fill text-sm rounded-xl hover:bg-ink-800 disabled:opacity-40 font-medium transition-colors">
                 {loading ? '...' : 'Pull'}
               </button>
             </div>

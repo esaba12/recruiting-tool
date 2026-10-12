@@ -16,7 +16,7 @@ const rise = {
 // path outside "/" and "/demo*" as unknown and renders this directly.
 export default function NotFoundPage({ path }) {
   return (
-    <div className="min-h-screen bg-ink-900 text-ink-50 relative overflow-hidden flex items-center justify-center px-6 py-20">
+    <div className="min-h-screen bg-ink-900 text-ink-50 relative theme-fixed overflow-hidden flex items-center justify-center px-6 py-20">
       <div
         className="absolute inset-0 opacity-[0.07]"
         style={{
@@ -87,14 +87,14 @@ export default function NotFoundPage({ path }) {
         <motion.div variants={rise} className="mt-10 flex items-center justify-center gap-3">
           <a
             href="/"
-            className="inline-flex items-center gap-2 rounded-xl bg-accent-500 text-white hover:bg-accent-600 transition-colors px-4 py-2.5 text-sm font-medium"
+            className="inline-flex items-center gap-2 rounded-xl bg-accent-500 text-on-accent hover:bg-accent-600 transition-colors px-4 py-2.5 text-sm font-medium"
           >
             <ArrowLeft size={15} strokeWidth={2.5} />
             Back to dashboard
           </a>
           <a
             href="/demo"
-            className="inline-flex items-center gap-2 rounded-xl bg-transparent text-ink-300 hover:bg-ink-800 hover:text-white border border-ink-700 transition-colors px-4 py-2.5 text-sm font-medium"
+            className="inline-flex items-center gap-2 rounded-xl bg-transparent text-ink-300 hover:bg-ink-800 hover:text-on-fill border border-ink-700 transition-colors px-4 py-2.5 text-sm font-medium"
           >
             <Compass size={15} strokeWidth={2.5} />
             View live demo

@@ -44,11 +44,11 @@ function ThreadRow({ thread, active, index, onOpen }) {
     <button onClick={() => onOpen(thread)}
       style={{ animationDelay: `${Math.min(index, 12) * 28}ms` }}
       className={`inbox-rise w-full text-left px-4 py-3 border-b border-ink-100 flex gap-3 transition-colors
-        ${active ? 'bg-ink-900 text-white' : 'bg-white hover:bg-ink-50'}`}>
+        ${active ? 'bg-ink-900 text-on-fill' : 'bg-surface hover:bg-ink-50'}`}>
       <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${thread.unread ? 'bg-accent-500' : 'bg-transparent'}`} />
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline gap-2">
-          <span className={`truncate text-sm ${thread.unread ? 'font-bold' : 'font-medium'} ${active ? 'text-white' : 'text-ink-900'}`}>
+          <span className={`truncate text-sm ${thread.unread ? 'font-bold' : 'font-medium'} ${active ? 'text-on-fill' : 'text-ink-900'}`}>
             {thread.counterpart}
           </span>
           {thread.company && <span className={`truncate text-xs ${active ? 'text-ink-300' : 'text-ink-400'}`}>{thread.company}</span>}
@@ -65,7 +65,7 @@ function ThreadRow({ thread, active, index, onOpen }) {
         <span className="flex items-center gap-2 mt-1.5">
           <CategoryTag category={thread.category} group={thread.group} />
           {thread.needsReply && (
-            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide ${active ? 'text-accent-300' : 'text-accent-600'}`}>
+            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide ${active ? 'text-accent-300' : 'text-link'}`}>
               <Reply size={11} strokeWidth={2.5} /> Needs a reply
             </span>
           )}
@@ -96,7 +96,7 @@ function Message({ m, contactName }) {
       </header>
       {meeting && (
         <a href={meeting} target="_blank" rel="noreferrer"
-          className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-accent-600 hover:underline">
+          className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-link hover:underline">
           📅 Join meeting <ExternalLink size={11} />
         </a>
       )}
@@ -110,7 +110,7 @@ function Message({ m, contactName }) {
 function Reader({ thread, onBack, onToggleRead, onCompleteItem }) {
   return (
     <div key={thread.id} className="inbox-rise h-full overflow-y-auto">
-      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-ink-100 px-6 py-3 flex items-center gap-2">
+      <div className="sticky top-0 z-10 bg-surface/95 backdrop-blur border-b border-ink-100 px-6 py-3 flex items-center gap-2">
         <button onClick={onBack} className="md:hidden -ml-2 p-1.5 rounded text-ink-500 hover:bg-ink-100" aria-label="Back to inbox">
           <ArrowLeft size={18} />
         </button>
@@ -119,7 +119,7 @@ function Reader({ thread, onBack, onToggleRead, onCompleteItem }) {
           {thread.unread ? <><MailOpen size={13} /> Mark read</> : <><Mail size={13} /> Mark unread</>}
         </button>
         <a href={gmailThreadUrl(thread)} target="_blank" rel="noreferrer"
-          className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold bg-accent-500 text-white hover:bg-accent-600">
+          className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold bg-accent-500 text-on-accent hover:bg-accent-600">
           <Reply size={13} /> Reply in Gmail
         </a>
       </div>
@@ -231,13 +231,13 @@ export default function InboxTab({ contacts, apps, interactions, actionItems = [
             <h1 className="text-2xl font-semibold text-ink-900">Inbox</h1>
             <p className="text-sm text-ink-500 mt-0.5">
               Only the emails about your job search — applications, interviews, and people you're talking to.
-              {unreadCount > 0 && <span className="font-mono text-accent-600 ml-2">{unreadCount} unread</span>}
+              {unreadCount > 0 && <span className="font-mono text-link ml-2">{unreadCount} unread</span>}
             </p>
           </div>
           <label className="ml-auto relative w-full sm:w-64">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search people, companies, text…"
-              className="w-full pl-8 pr-3 py-1.5 bg-white border border-ink-200 rounded text-sm focus:outline-none focus:border-accent-400" />
+              className="w-full pl-8 pr-3 py-1.5 bg-surface border border-ink-200 rounded text-sm focus:outline-none focus:border-accent-400" />
           </label>
         </div>
         <div className="flex gap-1 mt-4 overflow-x-auto">
@@ -246,21 +246,21 @@ export default function InboxTab({ contacts, apps, interactions, actionItems = [
               className={`shrink-0 px-3 py-2 text-xs font-semibold border-b-2 transition-colors
                 ${filter === f.key ? 'border-accent-500 text-ink-900' : 'border-transparent text-ink-400 hover:text-ink-700'}`}>
               {f.label}
-              <span className={`ml-1.5 font-mono ${filter === f.key ? 'text-accent-600' : 'text-ink-300'}`}>{counts[f.key]}</span>
+              <span className={`ml-1.5 font-mono ${filter === f.key ? 'text-link' : 'text-ink-300'}`}>{counts[f.key]}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <div className="mt-4 flex h-[calc(100vh-15rem)] min-h-[420px] border border-ink-200 rounded-md overflow-hidden bg-white">
-        <div className={`${open ? 'hidden md:block' : 'block'} w-full md:w-[380px] shrink-0 overflow-y-auto border-r border-ink-200 bg-white`}>
+      <div className="mt-4 flex h-[calc(100vh-15rem)] min-h-[420px] border border-ink-200 rounded-md overflow-hidden bg-surface">
+        <div className={`${open ? 'hidden md:block' : 'block'} w-full md:w-[380px] shrink-0 overflow-y-auto border-r border-ink-200 bg-surface`}>
           {visible.length === 0
             ? <p className="px-4 py-10 text-sm text-ink-400 text-center">Nothing here.</p>
             : visible.map((t, idx) => (
               <ThreadRow key={t.id} thread={t} index={idx} active={t.id === openId} onOpen={openThread} />
             ))}
         </div>
-        <div className={`${open ? 'block' : 'hidden md:block'} flex-1 min-w-0 bg-white`}>
+        <div className={`${open ? 'block' : 'hidden md:block'} flex-1 min-w-0 bg-surface`}>
           {open
             ? <Reader thread={open} onBack={() => setOpenId(null)} onToggleRead={toggleRead} onCompleteItem={completeItem} />
             : <p className="h-full flex items-center justify-center text-sm text-ink-400">Pick a conversation.</p>}

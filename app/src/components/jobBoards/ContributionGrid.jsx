@@ -28,7 +28,7 @@ export default function ContributionGrid({ weeks, total }) {
                   className="rounded-sm flex-shrink-0"
                   style={{
                     width: 11, height: 11,
-                    backgroundColor: day ? LEVEL_COLOR[day.level ?? 0] : '#ebedf0',
+                    backgroundColor: day ? LEVEL_COLOR[day.level ?? 0] : 'var(--t-ink-100)',
                   }}
                 />
               )

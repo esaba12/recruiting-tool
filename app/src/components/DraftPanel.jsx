@@ -64,7 +64,7 @@ export default function DraftPanel({ contact, kind, daysOverdue, onSaved }) {
           {kind === 'cold_open' ? 'Draft Outreach' : `Follow-Up Draft (tier ${tier}/3)`}
         </p>
         {draft && (
-          <button onClick={() => navigator.clipboard.writeText(draft)} className="text-xs text-accent-500 hover:underline">Copy</button>
+          <button onClick={() => navigator.clipboard.writeText(draft)} className="text-xs text-link hover:underline">Copy</button>
         )}
       </div>
 
@@ -72,22 +72,22 @@ export default function DraftPanel({ contact, kind, daysOverdue, onSaved }) {
 
       {kind === 'cold_open' && (
         <div className="mb-2">
-          <label className="block text-xs text-accent-600 mb-0.5">
+          <label className="block text-xs text-link mb-0.5">
             Why reach out to them specifically? (shared connection, mutual interest, something about their role/company) — required, this drives most of the response-rate difference
           </label>
           <input value={personalization} onChange={e => setPersonalization(e.target.value)}
             placeholder="e.g. Same school and major, they posted about their team's recent launch..."
-            className="w-full px-2.5 py-1.5 border border-accent-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white" />
+            className="w-full px-2.5 py-1.5 border border-accent-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-surface" />
         </div>
       )}
 
       {draft ? (
         <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={4}
-          className="w-full px-2.5 py-1.5 border border-accent-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 resize-none bg-white" />
+          className="w-full px-2.5 py-1.5 border border-accent-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 resize-none bg-surface" />
       ) : (
         <NeedsKey kind="ai"><button onClick={generate} disabled={generating || needsPersonalization}
           title={needsPersonalization ? 'Add a personalization detail above first' : undefined}
-          className="w-full py-2 bg-accent-600 text-white text-xs rounded-lg hover:bg-accent-700 disabled:opacity-40 font-medium">
+          className="w-full py-2 bg-accent-600 text-on-accent text-xs rounded-lg hover:bg-accent-700 disabled:opacity-40 font-medium">
           {generating ? 'Drafting...' : 'Generate draft →'}
         </button></NeedsKey>
       )}
@@ -95,11 +95,11 @@ export default function DraftPanel({ contact, kind, daysOverdue, onSaved }) {
       {draft && (
         <div className="flex items-center gap-2 mt-2">
           <NeedsKey kind="ai"><button onClick={generate} disabled={generating || needsPersonalization}
-            className="px-3 py-1.5 bg-white border border-accent-200 rounded-lg text-xs font-medium text-accent-700 hover:border-accent-400 disabled:opacity-40">
+            className="px-3 py-1.5 bg-surface border border-accent-200 rounded-lg text-xs font-medium text-accent-700 hover:border-accent-400 disabled:opacity-40">
             {generating ? 'Regenerating...' : 'Regenerate'}
           </button></NeedsKey>
           <button onClick={save} disabled={saving}
-            className="px-3 py-1.5 bg-accent-600 text-white rounded-lg text-xs font-medium hover:bg-accent-700 disabled:opacity-40">
+            className="px-3 py-1.5 bg-accent-600 text-on-accent rounded-lg text-xs font-medium hover:bg-accent-700 disabled:opacity-40">
             {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save to Notion'}
           </button>
         </div>

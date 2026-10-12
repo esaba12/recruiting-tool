@@ -56,7 +56,7 @@ function NetworkAtCompany({ company, contacts, interactions, relationships, onFi
         </div>
         {count > 0 && onFindPeople && (
           <button onClick={() => onFindPeople(company)}
-            className="text-xs text-accent-600 hover:text-accent-700 font-medium whitespace-nowrap">
+            className="text-xs text-link hover:text-accent-700 font-medium whitespace-nowrap">
             Find more people →
           </button>
         )}
@@ -67,7 +67,7 @@ function NetworkAtCompany({ company, contacts, interactions, relationships, onFi
           <p className="text-xs text-ink-500">Nobody in your network is tagged at {company} yet.</p>
           {onFindPeople && (
             <button onClick={() => onFindPeople(company)}
-              className="px-3 py-1.5 bg-ink-900 text-white text-xs rounded-md hover:bg-ink-800 font-medium whitespace-nowrap">
+              className="px-3 py-1.5 bg-ink-900 text-on-fill text-xs rounded-md hover:bg-ink-800 font-medium whitespace-nowrap">
               🔍 Find people to meet →
             </button>
           )}
@@ -78,8 +78,8 @@ function NetworkAtCompany({ company, contacts, interactions, relationships, onFi
             const tie = tieStrengthBucket(c, interactions)
             return (
               <button key={c.id} onClick={() => onOpenContact?.(c.id)}
-                className="w-full text-left flex items-center gap-2.5 px-2.5 py-2 rounded-md bg-white/70 hover:bg-white border border-transparent hover:border-ink-100 transition-colors">
-                <span className="w-7 h-7 rounded-full bg-ink-900 text-white text-[11px] font-semibold flex items-center justify-center shrink-0">
+                className="w-full text-left flex items-center gap-2.5 px-2.5 py-2 rounded-md bg-surface/70 hover:bg-surface border border-transparent hover:border-ink-100 transition-colors">
+                <span className="w-7 h-7 rounded-full bg-ink-900 text-on-fill text-[11px] font-semibold flex items-center justify-center shrink-0">
                   {c.name?.trim()?.[0]?.toUpperCase() || '?'}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -285,7 +285,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
     <>
 
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-ink-100 px-5 py-4 rounded-t-md md:rounded-none">
+        <div className="sticky top-0 bg-surface border-b border-ink-100 px-5 py-4 rounded-t-md md:rounded-none">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-base font-bold text-ink-900 truncate">{isNew ? 'New Application' : app.company}</h2>
@@ -303,7 +303,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
               <div className="flex items-center gap-2 mt-3 flex-wrap">
                 {app.jdLink && (
                   <a href={app.jdLink} target="_blank" rel="noreferrer"
-                    className="px-4 py-2 bg-ink-900 text-white text-xs rounded-md hover:bg-ink-800 font-medium">
+                    className="px-4 py-2 bg-ink-900 text-on-fill text-xs rounded-md hover:bg-ink-800 font-medium">
                     View Posting ↗
                   </a>
                 )}
@@ -335,7 +335,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
             <div>
               <label className="block text-xs text-ink-400 mb-0.5">Stage</label>
               <select value={dates.stage} onChange={e => changeStage(e.target.value)}
-                className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+                className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-surface">
                 {STAGE_ORDER.map(s => <option key={s} value={s}>{stageLabel(s, profile)}</option>)}
               </select>
             </div>
@@ -352,13 +352,13 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
             <div className="col-span-3">
               <label className="block text-xs text-ink-400 mb-0.5">Referred By</label>
               <select value={dates.referredById} onChange={e => setDates(d => ({ ...d, referredById: e.target.value }))}
-                className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+                className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-surface">
                 <option value="">—</option>
                 {contacts.map(c => <option key={c.id} value={c.id}>{c.name}{c.company ? ` @ ${c.company}` : ''}</option>)}
               </select>
             </div>
             <button onClick={saveDates} disabled={savingDates}
-              className="col-span-3 py-2 bg-ink-900 text-white text-xs rounded-md hover:bg-ink-800 disabled:opacity-50 font-medium transition-colors">
+              className="col-span-3 py-2 bg-ink-900 text-on-fill text-xs rounded-md hover:bg-ink-800 disabled:opacity-50 font-medium transition-colors">
               {savingDates ? 'Saving...' : 'Save Stage / Dates'}
             </button>
           </div>
@@ -390,7 +390,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
               </div>
             </div>
             <button onClick={saveOa} disabled={savingOa}
-              className="w-full mt-3 py-2 bg-ink-900 text-white text-xs rounded-md hover:bg-ink-800 disabled:opacity-50 font-medium transition-colors">
+              className="w-full mt-3 py-2 bg-ink-900 text-on-fill text-xs rounded-md hover:bg-ink-800 disabled:opacity-50 font-medium transition-colors">
               {savingOa ? 'Saving...' : 'Save Online Assessment'}
             </button>
           </div>
@@ -404,9 +404,9 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
                 <input value={pasteUrl} onChange={e => setPasteUrl(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), doImport())}
                   placeholder="https://jobs.company.com/..."
-                  className="flex-1 px-2.5 py-1.5 border border-accent-200 rounded-lg text-sm bg-white focus:outline-none focus:border-accent-400" />
+                  className="flex-1 px-2.5 py-1.5 border border-accent-200 rounded-lg text-sm bg-surface focus:outline-none focus:border-accent-400" />
                 <button onClick={doImport} disabled={!pasteUrl.trim() || importing}
-                  className="px-3 py-1.5 bg-accent-600 text-white text-xs rounded-lg hover:bg-accent-700 disabled:opacity-50 font-medium whitespace-nowrap">
+                  className="px-3 py-1.5 bg-accent-600 text-on-accent text-xs rounded-lg hover:bg-accent-700 disabled:opacity-50 font-medium whitespace-nowrap">
                   {importing ? 'Reading...' : '✨ Extract'}
                 </button>
               </div>
@@ -432,13 +432,13 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
             <div>
               <label className="block text-xs text-ink-400 mb-0.5">Referred By</label>
               <select value={form.referredById} onChange={e => set('referredById', e.target.value)}
-                className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+                className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-surface">
                 <option value="">—</option>
                 {contacts.map(c => <option key={c.id} value={c.id}>{c.name}{c.company ? ` @ ${c.company}` : ''}</option>)}
               </select>
             </div>
             <button onClick={save} disabled={saving}
-              className="w-full py-3 bg-accent-600 text-white text-sm rounded-md hover:bg-accent-700 disabled:opacity-50 font-medium transition-colors">
+              className="w-full py-3 bg-accent-600 text-on-accent text-sm rounded-md hover:bg-accent-700 disabled:opacity-50 font-medium transition-colors">
               {saving ? 'Adding...' : '+ Add Application'}
             </button>
           </div>
@@ -475,7 +475,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
               <p className="text-xs font-semibold text-ink-400 uppercase tracking-wide">Fit Analysis</p>
               {!analysis && !aiLoading && (
                 <NeedsKey kind="ai"><button onClick={doAnalysis}
-                  className="px-3 py-1.5 bg-accent-50 text-accent-600 text-xs rounded-lg hover:bg-accent-100 font-medium">
+                  className="px-3 py-1.5 bg-accent-50 text-link text-xs rounded-lg hover:bg-accent-100 font-medium">
                   Analyze →
                 </button></NeedsKey>
               )}
@@ -508,7 +508,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
                   </div>
                   <span className={`text-sm font-bold shrink-0 ${
                     analysis.fitScore >= 8 ? 'text-success-600' :
-                    analysis.fitScore >= 6 ? 'text-accent-600' :
+                    analysis.fitScore >= 6 ? 'text-link' :
                     analysis.fitScore >= 4 ? 'text-warning-600' : 'text-danger-500'}`}>
                     {analysis.fitScore}/10
                   </span>

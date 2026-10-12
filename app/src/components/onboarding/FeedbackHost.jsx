@@ -35,7 +35,7 @@ export default function FeedbackHost() {
   return (
     <Modal open={open} onClose={() => setOpen(false)} size="sm">
       <div className="p-5">
-        <Mono className="text-accent-600">FEEDBACK</Mono>
+        <Mono className="text-link">FEEDBACK</Mono>
         {state === 'sent' ? (
           <div className="mt-2">
             <p className="font-heading text-lg font-semibold text-ink-900 flex items-center gap-2"><Check size={18} className="text-success-600" /> Thanks, got it.</p>

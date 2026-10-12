@@ -9,7 +9,7 @@ import { TERMINAL_STAGES, isUntriaged } from '../shared.jsx'
 import { CALENDAR_SLOTS } from '../googleCalendar.js'
 import { parseDay } from './dates.js'
 
-const EVENT_BADGE_COLOR = { personal: 'bg-accent-100 text-accent-700', school: 'bg-purple-100 text-purple-700' }
+const EVENT_BADGE_COLOR = { personal: 'bg-accent-100 text-accent-700', school: 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' }
 
 // Same cache useJobDeadlines.js writes to — read-only here, never re-extracted, since
 // Job Boards already owns fetching/caching real deadlines.
