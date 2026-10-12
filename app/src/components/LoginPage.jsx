@@ -63,14 +63,14 @@ export default function LoginPage() {
           <p className="text-sm text-ink-400 mt-1">Your job search, on autopilot. Bring your own AI keys.</p>
         </div>
 
-        <div className="bg-white rounded-md border border-ink-300 p-6">
+        <div className="bg-surface rounded-md border border-ink-300 p-6">
           <div className="flex mb-5 rounded-full bg-ink-50 p-1 text-xs font-medium">
             <button type="button" onClick={() => setMode('signin')}
-              className={`flex-1 py-1.5 rounded-full transition-colors ${mode === 'signin' ? 'bg-white shadow-sm text-ink-900' : 'text-ink-400'}`}>
+              className={`flex-1 py-1.5 rounded-full transition-colors ${mode === 'signin' ? 'bg-surface shadow-sm text-ink-900' : 'text-ink-400'}`}>
               Sign in
             </button>
             <button type="button" onClick={() => setMode('signup')}
-              className={`flex-1 py-1.5 rounded-full transition-colors ${mode === 'signup' ? 'bg-white shadow-sm text-ink-900' : 'text-ink-400'}`}>
+              className={`flex-1 py-1.5 rounded-full transition-colors ${mode === 'signup' ? 'bg-surface shadow-sm text-ink-900' : 'text-ink-400'}`}>
               Create account
             </button>
           </div>
@@ -125,7 +125,7 @@ export default function LoginPage() {
             </form>
           ) : (
             <button type="button" onClick={() => setApiKeyMode(true)}
-              className="mt-3 w-full text-center text-xs font-medium text-ink-400 hover:text-accent-600 transition-colors py-1">
+              className="mt-3 w-full text-center text-xs font-medium text-ink-400 hover:text-link transition-colors py-1">
               🔑 Or sign in with your Anthropic API key
             </button>
           )}
@@ -143,8 +143,8 @@ export default function LoginPage() {
           Every user brings their own Anthropic/OpenAI/Exa API keys — nothing is shared. You'll add yours after signing in.
         </p>
         <p className="text-[11px] text-ink-400 text-center mt-3 space-x-3">
-          <a href="/privacy.html" className="underline underline-offset-2 hover:text-accent-600">Privacy Policy</a>
-          <a href="/terms.html" className="underline underline-offset-2 hover:text-accent-600">Terms of Service</a>
+          <a href="/privacy.html" className="underline underline-offset-2 hover:text-link">Privacy Policy</a>
+          <a href="/terms.html" className="underline underline-offset-2 hover:text-link">Terms of Service</a>
         </p>
       </div>
     </div>

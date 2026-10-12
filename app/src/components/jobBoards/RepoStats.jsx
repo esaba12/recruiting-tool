@@ -26,9 +26,9 @@ export default function RepoStats({ jobs }) {
           { label: 'Remote-Friendly', value: remote.length,        sub: `${Math.round((remote.length/jobs.length)*100)}% of listings` },
           { label: 'Cities',          value: Object.keys(locCounts).length, sub: 'unique locations' },
         ].map(s => (
-          <div key={s.label} className="bg-white rounded-md p-4 border border-ink-300">
+          <div key={s.label} className="bg-surface rounded-md p-4 border border-ink-300">
             <p className="text-xs font-medium text-ink-400 uppercase tracking-wide">{s.label}</p>
-            <p className={`text-2xl font-bold mt-1 ${s.accent ? 'text-accent-600' : 'text-ink-900'}`}>{s.value}</p>
+            <p className={`text-2xl font-bold mt-1 ${s.accent ? 'text-link' : 'text-ink-900'}`}>{s.value}</p>
             <p className="text-xs text-ink-400 mt-0.5">{s.sub}</p>
           </div>
         ))}
@@ -40,7 +40,7 @@ export default function RepoStats({ jobs }) {
           <p className="text-xs font-semibold text-accent-700 mb-2">🆕 Added this week</p>
           <div className="flex flex-wrap gap-1.5">
             {newThisWeek.slice(0, 16).map((j, i) => (
-              <span key={i} className="px-2.5 py-1 bg-white border border-accent-200 text-accent-800 text-xs rounded-sm font-medium">
+              <span key={i} className="px-2.5 py-1 bg-surface border border-accent-200 text-accent-800 text-xs rounded-sm font-medium">
                 {j.company}
               </span>
             ))}
@@ -51,7 +51,7 @@ export default function RepoStats({ jobs }) {
 
       {/* Top locations */}
       {topLocs.length > 0 && (
-        <div className="bg-white rounded-md p-4 border border-ink-300">
+        <div className="bg-surface rounded-md p-4 border border-ink-300">
           <p className="text-xs font-semibold text-ink-500 mb-3">Top Locations</p>
           <BarChart
             data={topLocs.map(([loc, count]) => ({ label: loc, value: count }))}
@@ -63,12 +63,12 @@ export default function RepoStats({ jobs }) {
 
       {/* Companies hiring for multiple roles */}
       {multiRole.length > 0 && (
-        <div className="bg-white rounded-md p-4 border border-ink-300">
+        <div className="bg-surface rounded-md p-4 border border-ink-300">
           <p className="text-xs font-semibold text-ink-500 mb-2">Hiring Most Roles</p>
           <div className="flex flex-wrap gap-2">
             {multiRole.map(([co, n]) => (
               <span key={co} className="px-2.5 py-1 bg-ink-100 text-ink-700 text-xs rounded-sm">
-                {co} <span className="font-bold text-accent-600">{n}</span>
+                {co} <span className="font-bold text-link">{n}</span>
               </span>
             ))}
           </div>

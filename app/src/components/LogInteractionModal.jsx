@@ -172,7 +172,7 @@ export default function LogInteractionModal({ contacts = [], contact = null, onC
 
   return (
     <Modal onClose={onClose} size="md">
-      <div className="sticky top-0 bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between">
+      <div className="sticky top-0 bg-surface border-b border-ink-100 px-5 py-4 flex items-center justify-between">
         <h2 className="text-base font-heading font-semibold text-ink-900">Log Interaction</h2>
         <button onClick={onClose} className="w-7 h-7 rounded-full bg-ink-100 hover:bg-ink-200 flex items-center justify-center text-ink-500 text-sm">✕</button>
       </div>
@@ -206,7 +206,7 @@ export default function LogInteractionModal({ contacts = [], contact = null, onC
               <div className="space-y-4">
                 <p className="text-sm font-semibold text-ink-700">Extracted — review & edit before saving</p>
 
-                <div className="bg-white rounded-md p-4 border border-ink-300">
+                <div className="bg-surface rounded-md p-4 border border-ink-300">
                   <p className="text-xs font-semibold text-ink-400 uppercase tracking-wide mb-3">Contact</p>
                   <div className="grid grid-cols-2 gap-3">
                     {[
@@ -228,8 +228,8 @@ export default function LogInteractionModal({ contacts = [], contact = null, onC
                       {affinityOptionsFor(profile).map(tag => (
                         <button key={tag} type="button" onClick={() => toggleAffinityTag(tag)}
                           className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${affinityTags.includes(tag)
-                            ? 'bg-accent-600 text-white border-accent-600'
-                            : 'bg-white text-ink-500 border-ink-200 hover:border-accent-300'}`}>
+                            ? 'bg-accent-600 text-on-accent border-accent-600'
+                            : 'bg-surface text-ink-500 border-ink-200 hover:border-accent-300'}`}>
                           {tag}
                         </button>
                       ))}
@@ -237,7 +237,7 @@ export default function LogInteractionModal({ contacts = [], contact = null, onC
                   </div>
                 </div>
 
-                <div className="bg-white rounded-md p-4 border border-ink-300 space-y-3">
+                <div className="bg-surface rounded-md p-4 border border-ink-300 space-y-3">
                   <p className="text-xs font-semibold text-ink-400 uppercase tracking-wide">Summary</p>
                   {(channel === 'call'
                     ? [{ key: 'summary', label: 'Summary', rows: 3 }, { key: 'key_insights', label: 'Key Insights', rows: 2 }, { key: 'my_commitments', label: 'My Commitments', rows: 2 }]
@@ -255,10 +255,10 @@ export default function LogInteractionModal({ contacts = [], contact = null, onC
                   <div className="bg-accent-50 border border-accent-100 rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-xs font-semibold text-accent-700">Follow-Up Draft</p>
-                      <button onClick={() => navigator.clipboard.writeText(field('follow_up_draft'))} className="text-xs text-accent-500 hover:underline">Copy</button>
+                      <button onClick={() => navigator.clipboard.writeText(field('follow_up_draft'))} className="text-xs text-link hover:underline">Copy</button>
                     </div>
                     <textarea value={field('follow_up_draft')} onChange={e => setField('follow_up_draft', e.target.value)} rows={4}
-                      className="w-full px-2.5 py-1.5 border border-accent-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 resize-none bg-white" />
+                      className="w-full px-2.5 py-1.5 border border-accent-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 resize-none bg-surface" />
                   </div>
                 )}
 
@@ -281,7 +281,7 @@ export default function LogInteractionModal({ contacts = [], contact = null, onC
               <input value={name} onChange={e => setName(e.target.value)} placeholder="Start typing a name..."
                 className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
               {nameMatches.length > 0 && !contacts.some(c => c.name === name) && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-ink-200 rounded-lg shadow-lg overflow-hidden">
+                <div className="absolute z-10 mt-1 w-full bg-surface border border-ink-200 rounded-lg shadow-lg overflow-hidden">
                   {nameMatches.map(c => (
                     <button key={c.id} onClick={() => setName(c.name)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-ink-50">
                       {c.name}{c.company ? ` @ ${c.company}` : ''}

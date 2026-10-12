@@ -26,7 +26,7 @@ export default function CustomizePanel({ view, learning, onClose, initialSection
   const [section, setSection] = useState(initialSection)
   return (
     <SidePanel onClose={onClose} className="md:w-[560px]">
-      <div className="sticky top-0 bg-white z-10 border-b border-ink-200 px-5 pt-4 pb-3">
+      <div className="sticky top-0 bg-surface z-10 border-b border-ink-200 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between mb-3">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-400">Customize</p>
@@ -159,7 +159,7 @@ function Scale({ value, onChange, label, allowClear }) {
       <span className="text-[10px] uppercase tracking-wider text-ink-400 w-12 text-right pr-1">{label}</span>
       {[1, 2, 3, 4, 5].map(n => (
         <button key={n} type="button" onClick={() => onChange(allowClear && value === n ? null : n)}
-          className={`w-5 h-5 text-[10px] font-mono border ${value === n ? 'bg-ink-900 text-white border-ink-900' : value && n < value ? 'bg-ink-200 border-ink-200 text-ink-600' : 'bg-white border-ink-200 text-ink-400'}`}>{n}</button>
+          className={`w-5 h-5 text-[10px] font-mono border ${value === n ? 'bg-ink-900 text-on-fill border-ink-900' : value && n < value ? 'bg-ink-200 border-ink-200 text-ink-600' : 'bg-surface border-ink-200 text-ink-400'}`}>{n}</button>
       ))}
     </div>
   )
@@ -174,7 +174,7 @@ function TopicRow({ topic, mastery, categories, learning, onDrop }) {
 
   return (
     <Reorder.Item value={topic.id} dragListener={false} dragControls={controls} onDragEnd={onDrop}
-      className={`bg-white ${topic.hidden ? 'opacity-50' : ''}`}>
+      className={`bg-surface ${topic.hidden ? 'opacity-50' : ''}`}>
       <div className="flex items-center gap-2 px-2 py-2">
         <button onPointerDown={e => controls.start(e)} className="text-ink-300 hover:text-ink-600 cursor-grab active:cursor-grabbing touch-none" aria-label="Drag to reorder">
           <GripVertical size={14} />
@@ -196,13 +196,13 @@ function TopicRow({ topic, mastery, categories, learning, onDrop }) {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block text-[10px] uppercase tracking-wider text-ink-400 mb-0.5">Category</label>
-              <select value={topic.category} onChange={e => save({ category: e.target.value })} className="w-full px-2 py-1 border border-ink-200 text-xs bg-white">
+              <select value={topic.category} onChange={e => save({ category: e.target.value })} className="w-full px-2 py-1 border border-ink-200 text-xs bg-surface">
                 {categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-[10px] uppercase tracking-wider text-ink-400 mb-0.5">Interview weight</label>
-              <select value={topic.weight} onChange={e => save({ weight: Number(e.target.value) })} className="w-full px-2 py-1 border border-ink-200 text-xs bg-white">
+              <select value={topic.weight} onChange={e => save({ weight: Number(e.target.value) })} className="w-full px-2 py-1 border border-ink-200 text-xs bg-surface">
                 {[0.5, 0.75, 1, 1.25, 1.5].map(w => <option key={w} value={w}>{w === 1 ? '1 (normal)' : w < 1 ? `${w} (rare)` : `${w} (common)`}</option>)}
                 {![0.5, 0.75, 1, 1.25, 1.5].includes(topic.weight) && <option value={topic.weight}>{topic.weight}</option>}
               </select>
@@ -258,7 +258,7 @@ function WidgetsEditor({ view, learning }) {
 function WidgetRow({ type, meta, on, onToggle, onDrop }) {
   const controls = useDragControls()
   return (
-    <Reorder.Item value={type} dragListener={false} dragControls={controls} onDragEnd={onDrop} className="bg-white flex items-center gap-3 px-2 py-2.5">
+    <Reorder.Item value={type} dragListener={false} dragControls={controls} onDragEnd={onDrop} className="bg-surface flex items-center gap-3 px-2 py-2.5">
       <button onPointerDown={e => controls.start(e)} className="text-ink-300 hover:text-ink-600 cursor-grab touch-none" aria-label="Drag to reorder"><GripVertical size={14} /></button>
       <div className="flex-1">
         <p className={`text-sm font-medium ${on ? 'text-ink-900' : 'text-ink-400'}`}>{meta?.label || type}</p>
@@ -266,7 +266,7 @@ function WidgetRow({ type, meta, on, onToggle, onDrop }) {
       </div>
       <button role="switch" aria-checked={on} onClick={onToggle}
         className={`w-9 h-5 border transition-colors relative ${on ? 'bg-accent-600 border-accent-600' : 'bg-ink-100 border-ink-200'}`}>
-        <span className={`absolute top-0.5 w-3.5 h-3.5 bg-white transition-all ${on ? 'left-[18px]' : 'left-0.5'}`} />
+        <span className={`absolute top-0.5 w-3.5 h-3.5 bg-surface transition-all ${on ? 'left-[18px]' : 'left-0.5'}`} />
       </button>
     </Reorder.Item>
   )
@@ -336,7 +336,7 @@ function GoalsEditor({ view, learning }) {
         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-400">New goal</p>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Measure">
-            <select value={draft.metric} onChange={e => setDraft(d => ({ ...d, metric: e.target.value }))} className="w-full px-2 py-1.5 border border-ink-200 text-sm bg-white">
+            <select value={draft.metric} onChange={e => setDraft(d => ({ ...d, metric: e.target.value }))} className="w-full px-2 py-1.5 border border-ink-200 text-sm bg-surface">
               {GOAL_METRICS.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
             </select>
           </Field>
@@ -344,7 +344,7 @@ function GoalsEditor({ view, learning }) {
             <input type="number" min="1" value={draft.target} onChange={e => setDraft(d => ({ ...d, target: e.target.value }))} className="w-full px-2 py-1.5 border border-ink-200 text-sm font-mono" />
           </Field>
           <Field label="Window">
-            <select value={draft.period} onChange={e => setDraft(d => ({ ...d, period: e.target.value }))} className="w-full px-2 py-1.5 border border-ink-200 text-sm bg-white">
+            <select value={draft.period} onChange={e => setDraft(d => ({ ...d, period: e.target.value }))} className="w-full px-2 py-1.5 border border-ink-200 text-sm bg-surface">
               <option value="week">Every week</option>
               <option value="deadline">By a date</option>
               <option value="total">All-time total</option>
@@ -356,21 +356,21 @@ function GoalsEditor({ view, learning }) {
             </Field>
           ) : <div />}
           <Field label="Only count (optional)">
-            <select value={draft.category} onChange={e => setDraft(d => ({ ...d, category: e.target.value }))} className="w-full px-2 py-1.5 border border-ink-200 text-sm bg-white">
+            <select value={draft.category} onChange={e => setDraft(d => ({ ...d, category: e.target.value }))} className="w-full px-2 py-1.5 border border-ink-200 text-sm bg-surface">
               <option value="">All topics</option>
               {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </Field>
           {metric?.supportsDifficulty && (
             <Field label="Difficulty">
-              <select value={draft.difficulty} onChange={e => setDraft(d => ({ ...d, difficulty: e.target.value }))} className="w-full px-2 py-1.5 border border-ink-200 text-sm bg-white">
+              <select value={draft.difficulty} onChange={e => setDraft(d => ({ ...d, difficulty: e.target.value }))} className="w-full px-2 py-1.5 border border-ink-200 text-sm bg-surface">
                 <option value="">Any</option><option>Easy</option><option>Medium</option><option>Hard</option>
               </select>
             </Field>
           )}
           {draft.metric === 'topics_at_target' && (
             <Field label="At level (default: each topic's target)">
-              <select value={draft.level} onChange={e => setDraft(d => ({ ...d, level: e.target.value }))} className="w-full px-2 py-1.5 border border-ink-200 text-sm bg-white">
+              <select value={draft.level} onChange={e => setDraft(d => ({ ...d, level: e.target.value }))} className="w-full px-2 py-1.5 border border-ink-200 text-sm bg-surface">
                 <option value="">Topic target</option>{[2, 3, 4, 5].map(n => <option key={n} value={n}>≥ {n}</option>)}
               </select>
             </Field>

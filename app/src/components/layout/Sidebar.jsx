@@ -21,7 +21,7 @@ export default function Sidebar({ activeTab, onTabChange, counts = {}, loading, 
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-60 shrink-0 bg-ink-900 text-ink-50 h-screen sticky top-0 overflow-y-auto">
+      <aside className="hidden md:flex flex-col w-60 shrink-0 bg-ink-900 text-ink-50 h-screen theme-fixed sticky top-0 overflow-y-auto">
         <div className="px-5 py-6">
           <h1 className="font-heading text-lg font-semibold text-white">Recruiting OS</h1>
           {demoMode
@@ -39,7 +39,7 @@ export default function Sidebar({ activeTab, onTabChange, counts = {}, loading, 
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                  ${active ? 'bg-accent-500 text-white' : 'text-ink-300 hover:bg-ink-800 hover:text-white'}`}
+                  ${active ? 'bg-accent-500 text-on-accent' : 'text-ink-300 hover:bg-ink-800 hover:text-white'}`}
               >
                 {Icon && <Icon size={16} strokeWidth={2} />}
                 <span className="flex-1 text-left">{item.label}</span>
@@ -55,7 +55,7 @@ export default function Sidebar({ activeTab, onTabChange, counts = {}, loading, 
           {!hideQuickActions && (
             <>
               <button onClick={onQuickCapture}
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-accent-500 text-white hover:bg-accent-600 transition-colors">
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-accent-500 text-on-accent hover:bg-accent-600 transition-colors">
                 <QUICK_CAPTURE_ICON size={13} />
                 Quick Capture
               </button>
@@ -71,7 +71,7 @@ export default function Sidebar({ activeTab, onTabChange, counts = {}, loading, 
               </button>
               <button onClick={() => onTabChange('settings')}
                 className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors
-                  ${activeTab === 'settings' ? 'bg-accent-500 text-white' : 'bg-ink-800 text-ink-100 hover:bg-ink-700'}`}>
+                  ${activeTab === 'settings' ? 'bg-accent-500 text-on-accent' : 'bg-ink-800 text-ink-100 hover:bg-ink-700'}`}>
                 <NAV_ICON.settings size={13} />
                 Settings
               </button>
@@ -100,7 +100,7 @@ export default function Sidebar({ activeTab, onTabChange, counts = {}, loading, 
       </aside>
 
       {/* Mobile bottom bar */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-ink-900 border-t border-ink-800 flex items-center justify-around px-1 py-2">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 theme-fixed bg-ink-900 border-t border-ink-800 flex items-center justify-around px-1 py-2">
         {navItems.map(item => {
           const Icon = NAV_ICON[item.id]
           const active = activeTab === item.id
@@ -118,19 +118,19 @@ export default function Sidebar({ activeTab, onTabChange, counts = {}, loading, 
       {!hideQuickActions && (
         <>
           <button onClick={() => onTabChange('settings')} aria-label="Settings"
-            className="md:hidden fixed right-4 bottom-68 z-30 w-12 h-12 rounded-full bg-ink-800 text-white shadow-lg flex items-center justify-center hover:bg-ink-700">
+            className="md:hidden fixed right-4 theme-fixed bottom-68 z-30 w-12 h-12 rounded-full bg-ink-800 text-white shadow-lg flex items-center justify-center hover:bg-ink-700">
             <NAV_ICON.settings size={20} />
           </button>
           <button onClick={onQuickCapture}
-            className="md:hidden fixed right-4 bottom-52 z-30 w-12 h-12 rounded-full bg-accent-500 text-white shadow-lg flex items-center justify-center hover:bg-accent-600">
+            className="md:hidden fixed right-4 theme-fixed bottom-52 z-30 w-12 h-12 rounded-full bg-accent-500 text-on-accent shadow-lg flex items-center justify-center hover:bg-accent-600">
             <QUICK_CAPTURE_ICON size={20} />
           </button>
           <button onClick={onAddSchedule}
-            className="md:hidden fixed right-4 bottom-36 z-30 w-12 h-12 rounded-full bg-ink-800 text-white shadow-lg flex items-center justify-center hover:bg-ink-700">
+            className="md:hidden fixed right-4 theme-fixed bottom-36 z-30 w-12 h-12 rounded-full bg-ink-800 text-white shadow-lg flex items-center justify-center hover:bg-ink-700">
             <SCHEDULE_ICON size={20} />
           </button>
           <button onClick={onAddEvent}
-            className="md:hidden fixed right-4 bottom-20 z-30 w-12 h-12 rounded-full bg-ink-800 text-white shadow-lg flex items-center justify-center hover:bg-ink-700">
+            className="md:hidden fixed right-4 theme-fixed bottom-20 z-30 w-12 h-12 rounded-full bg-ink-800 text-white shadow-lg flex items-center justify-center hover:bg-ink-700">
             <CALENDAR_ICON size={20} />
           </button>
         </>

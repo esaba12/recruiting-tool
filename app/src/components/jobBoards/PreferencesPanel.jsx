@@ -28,12 +28,12 @@ export default function PreferencesPanel({ prefs, onChange }) {
               <label className="block text-xs font-medium text-accent-700 mb-1">{label}</label>
               <input value={draft[key] || ''} onChange={e => setDraft(d => ({ ...d, [key]: e.target.value }))}
                 placeholder={placeholder}
-                className="w-full px-3 py-1.5 border border-accent-200 rounded-lg text-xs bg-white focus:outline-none focus:border-accent-400" />
+                className="w-full px-3 py-1.5 border border-accent-200 rounded-lg text-xs bg-surface focus:outline-none focus:border-accent-400" />
             </div>
           ))}
           <div className="md:col-span-2 flex justify-end">
             <button onClick={save}
-              className="px-4 py-1.5 bg-accent-600 text-white text-xs rounded-lg hover:bg-accent-700 font-medium">
+              className="px-4 py-1.5 bg-accent-600 text-on-accent text-xs rounded-lg hover:bg-accent-700 font-medium">
               Save preferences
             </button>
           </div>

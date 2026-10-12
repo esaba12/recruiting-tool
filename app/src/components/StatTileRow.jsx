@@ -30,7 +30,7 @@ export default function StatTileRow({ triagedApps, apps, trendData }) {
       className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-4 mb-4 border-b border-ink-200"
     >
       {/* Tile 1: Funnel */}
-      <motion.div variants={item} className="rounded-md border border-ink-300 bg-white p-4">
+      <motion.div variants={item} className="rounded-md border border-ink-300 bg-surface p-4">
         <p className="text-xs font-semibold text-ink-600">Funnel</p>
         <Mono className="block text-2xl mt-1">{appliedOrBeyond}</Mono>
         <p className="text-xs text-ink-400 mt-0.5">applied of {triagedApps.length} ({pct}%)</p>
@@ -40,7 +40,7 @@ export default function StatTileRow({ triagedApps, apps, trendData }) {
       </motion.div>
 
       {/* Tile 2: Next Deadline */}
-      <motion.div variants={item} className="rounded-md border border-ink-300 bg-white p-4">
+      <motion.div variants={item} className="rounded-md border border-ink-300 bg-surface p-4">
         <p className="text-xs font-semibold text-ink-600">Next Deadline</p>
         {soonest ? (
           <>
@@ -55,7 +55,7 @@ export default function StatTileRow({ triagedApps, apps, trendData }) {
       </motion.div>
 
       {/* Tile 3: Activity */}
-      <motion.div variants={item} className="rounded-md border border-ink-300 bg-white p-4">
+      <motion.div variants={item} className="rounded-md border border-ink-300 bg-surface p-4">
         <p className="text-xs font-semibold text-ink-600">Activity</p>
         <Mono className="block text-2xl mt-1">{activityTotal}</Mono>
         <p className="text-xs text-ink-400 mt-0.5">last 6 weeks</p>

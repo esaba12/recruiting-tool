@@ -31,7 +31,7 @@ export default function JobPanelBody({ job, status, blurb, deadline, onRecheckDe
   return (
     <>
       {/* Header */}
-      <div className="sticky top-0 bg-white border-b border-ink-100 px-5 py-4 rounded-t-md md:rounded-none">
+      <div className="sticky top-0 bg-surface border-b border-ink-100 px-5 py-4 rounded-t-md md:rounded-none">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-base font-bold text-ink-900 truncate">{job.company}</h2>
@@ -61,7 +61,7 @@ export default function JobPanelBody({ job, status, blurb, deadline, onRecheckDe
             <span className="px-2 py-1 rounded-lg text-xs text-ink-400">⏳ Checking apply page for a real deadline…</span>
           )}
           <button onClick={onRecheckDeadline} title="Re-fetch the apply page and re-check for a deadline"
-            className="text-xs text-ink-400 hover:text-accent-600 underline">
+            className="text-xs text-ink-400 hover:text-link underline">
             ↻ recheck
           </button>
         </div>
@@ -76,7 +76,7 @@ export default function JobPanelBody({ job, status, blurb, deadline, onRecheckDe
         <div className="flex items-center gap-2 mt-3">
           {job.applyUrl && (
             <a href={job.applyUrl} target="_blank" rel="noreferrer"
-              className="px-4 py-2 bg-ink-900 text-white text-xs rounded-md hover:bg-ink-800 font-medium">
+              className="px-4 py-2 bg-ink-900 text-on-fill text-xs rounded-md hover:bg-ink-800 font-medium">
               Apply ↗
             </a>
           )}
@@ -106,7 +106,7 @@ export default function JobPanelBody({ job, status, blurb, deadline, onRecheckDe
           <p className="text-xs font-semibold text-ink-400 uppercase tracking-wide">Fit Analysis</p>
           {!analysis && !aiLoading && (
             <NeedsKey kind="ai"><button onClick={doAnalysis}
-              className="px-3 py-1.5 bg-accent-50 text-accent-600 text-xs rounded-lg hover:bg-accent-100 font-medium">
+              className="px-3 py-1.5 bg-accent-50 text-link text-xs rounded-lg hover:bg-accent-100 font-medium">
               Analyze →
             </button></NeedsKey>
           )}
@@ -139,7 +139,7 @@ export default function JobPanelBody({ job, status, blurb, deadline, onRecheckDe
               </div>
               <span className={`text-sm font-bold shrink-0 ${
                 analysis.fitScore >= 8 ? 'text-success-600' :
-                analysis.fitScore >= 6 ? 'text-accent-600' :
+                analysis.fitScore >= 6 ? 'text-link' :
                 analysis.fitScore >= 4 ? 'text-warning-600' : 'text-danger-500'}`}>
                 {analysis.fitScore}/10
               </span>

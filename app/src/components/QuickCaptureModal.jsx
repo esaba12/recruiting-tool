@@ -191,9 +191,9 @@ export default function QuickCaptureModal({ contacts = [], apps = [], onClose, o
 
   return (
     <Modal onClose={onClose} size="lg">
-      <div className="sticky top-0 bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between z-10 rounded-t-md">
+      <div className="sticky top-0 bg-surface border-b border-ink-100 px-5 py-4 flex items-center justify-between z-10 rounded-t-md">
         <h2 className="text-base font-heading font-semibold text-ink-900 flex items-center gap-2">
-          <Sparkles size={16} className="text-accent-500" /> Quick Capture
+          <Sparkles size={16} className="text-link" /> Quick Capture
         </h2>
         <button onClick={onClose} className="w-7 h-7 rounded-full bg-ink-100 hover:bg-ink-200 flex items-center justify-center text-ink-500 text-sm">✕</button>
       </div>
@@ -221,7 +221,7 @@ export default function QuickCaptureModal({ contacts = [], apps = [], onClose, o
           ))}
         </div>
 
-        <div className="border-t border-ink-100 p-3 flex items-end gap-2 bg-white rounded-b-2xl">
+        <div className="border-t border-ink-100 p-3 flex items-end gap-2 bg-surface rounded-b-2xl">
           <textarea
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -242,7 +242,7 @@ export default function QuickCaptureModal({ contacts = [], apps = [], onClose, o
 
 function MessageBubble({ m, contacts, apps, onPatchDraft, onConfirm, onPatchItem, onConfirmItem, onConfirmAll }) {
   if (m.role === 'user') {
-    return <div className="ml-auto max-w-[80%] bg-accent-500 text-white rounded-md rounded-tr-sm px-3.5 py-2 text-sm">{m.text}</div>
+    return <div className="ml-auto max-w-[80%] bg-accent-500 text-on-accent rounded-md rounded-tr-sm px-3.5 py-2 text-sm">{m.text}</div>
   }
   if (m.kind === 'thinking') {
     return (
@@ -313,7 +313,7 @@ function MessageBubble({ m, contacts, apps, onPatchDraft, onConfirm, onPatchItem
 function ApplicationDraftCard({ draft, status, error, onPatch, onConfirm }) {
   const saving = status === 'saving'
   return (
-    <div className="max-w-[90%] bg-white border border-ink-200 rounded-md rounded-tl-sm p-3.5 space-y-3">
+    <div className="max-w-[90%] bg-surface border border-ink-200 rounded-md rounded-tl-sm p-3.5 space-y-3">
       {error && <div className="p-2 bg-danger-50 border border-danger-200 rounded-lg text-xs text-danger-700">{error}</div>}
       {draft.importNote && <div className="p-2 bg-warning-50 border border-warning-200 rounded-lg text-xs text-warning-800">{draft.importNote}</div>}
 
@@ -361,12 +361,12 @@ function MultiApplicationDraftCard({ draft, onPatchItem, onConfirmItem, onConfir
   const allSaving = pending.length > 0 && pending.every(it => it.status === 'saving')
 
   return (
-    <div className="max-w-[95%] bg-white border border-ink-200 rounded-md rounded-tl-sm p-3.5 space-y-3">
+    <div className="max-w-[95%] bg-surface border border-ink-200 rounded-md rounded-tl-sm p-3.5 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-semibold text-ink-400 uppercase tracking-wide">Add {items.length} to Pipeline</p>
         {pending.length > 1 && (
           <button onClick={onConfirmAll} disabled={allSaving}
-            className="text-xs font-medium text-accent-600 hover:text-accent-700 disabled:opacity-50">
+            className="text-xs font-medium text-link hover:text-accent-700 disabled:opacity-50">
             {allSaving ? 'Adding...' : `✓ Add all ${pending.length}`}
           </button>
         )}
@@ -418,7 +418,7 @@ function MultiApplicationRow({ item, onPatch, onConfirm }) {
         <>
           {item.importNote && <p className="text-[11px] text-warning-800">{item.importNote}</p>}
           {item.jdLink && (
-            <a href={item.jdLink} target="_blank" rel="noreferrer" className="block text-[11px] text-accent-600 truncate hover:underline">{item.jdLink}</a>
+            <a href={item.jdLink} target="_blank" rel="noreferrer" className="block text-[11px] text-link truncate hover:underline">{item.jdLink}</a>
           )}
         </>
       )}
@@ -440,7 +440,7 @@ function ApplicationUpdateDraftCard({ draft, status, error, apps, onPatch, onCon
   const saving = status === 'saving'
 
   return (
-    <div className="max-w-[90%] bg-white border border-ink-200 rounded-md rounded-tl-sm p-3.5 space-y-3">
+    <div className="max-w-[90%] bg-surface border border-ink-200 rounded-md rounded-tl-sm p-3.5 space-y-3">
       {error && <div className="p-2 bg-danger-50 border border-danger-200 rounded-lg text-xs text-danger-700">{error}</div>}
 
       <p className="text-[11px] font-semibold text-ink-400 uppercase tracking-wide">Update application</p>
@@ -448,7 +448,7 @@ function ApplicationUpdateDraftCard({ draft, status, error, apps, onPatch, onCon
       <div>
         <label className="block text-[11px] text-ink-400 mb-0.5">Which application</label>
         <select value={draft.resolvedApplicationId} onChange={e => onPatch({ resolvedApplicationId: e.target.value })}
-          className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+          className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-surface">
           <option value="">— select —</option>
           {options.map(app => (
             <option key={app.id} value={app.id}>{app.company}{app.role ? ` — ${app.role}` : ''}</option>
@@ -460,7 +460,7 @@ function ApplicationUpdateDraftCard({ draft, status, error, apps, onPatch, onCon
         <div>
           <label className="block text-[11px] text-ink-400 mb-0.5">Stage</label>
           <select value={draft.stage} onChange={e => onPatch({ stage: e.target.value })}
-            className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+            className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-surface">
             <option value="">— no change —</option>
             {STAGE_ORDER.map(o => <option key={o} value={o}>{stageLabel(o, profile)}</option>)}
           </select>
@@ -468,7 +468,7 @@ function ApplicationUpdateDraftCard({ draft, status, error, apps, onPatch, onCon
         <div>
           <label className="block text-[11px] text-ink-400 mb-0.5">Triage</label>
           <select value={draft.triage} onChange={e => onPatch({ triage: e.target.value })}
-            className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+            className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-surface">
             <option value="">— no change —</option>
             {TRIAGE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
@@ -492,7 +492,7 @@ function ApplicationUpdateDraftCard({ draft, status, error, apps, onPatch, onCon
 function TargetCompanyDraftCard({ draft, status, error, onPatch, onConfirm }) {
   const saving = status === 'saving'
   return (
-    <div className="max-w-[90%] bg-white border border-ink-200 rounded-md rounded-tl-sm p-3.5 space-y-3">
+    <div className="max-w-[90%] bg-surface border border-ink-200 rounded-md rounded-tl-sm p-3.5 space-y-3">
       {error && <div className="p-2 bg-danger-50 border border-danger-200 rounded-lg text-xs text-danger-700">{error}</div>}
 
       <p className="text-[11px] font-semibold text-ink-400 uppercase tracking-wide">Add target company</p>
@@ -515,7 +515,7 @@ function DraftCard({ draft, status, error, contacts, onPatch, onConfirm }) {
   const saving = status === 'saving'
 
   return (
-    <div className="max-w-[90%] bg-white border border-ink-200 rounded-md rounded-tl-sm p-3.5 space-y-3">
+    <div className="max-w-[90%] bg-surface border border-ink-200 rounded-md rounded-tl-sm p-3.5 space-y-3">
       {error && <div className="p-2 bg-danger-50 border border-danger-200 rounded-lg text-xs text-danger-700">{error}</div>}
 
       <div>
@@ -531,7 +531,7 @@ function DraftCard({ draft, status, error, contacts, onPatch, onConfirm }) {
           <div>
             <label className="block text-[11px] text-ink-400 mb-0.5">Which contact</label>
             <select value={draft.resolvedContactId} onChange={e => onPatch({ resolvedContactId: e.target.value })}
-              className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+              className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-surface">
               <option value="">+ Create new contact</option>
               {matches.map(({ contact }) => (
                 <option key={contact.id} value={contact.id}>{contact.name}{contact.company ? ` @ ${contact.company}` : ''}</option>
@@ -549,7 +549,7 @@ function DraftCard({ draft, status, error, contacts, onPatch, onConfirm }) {
             <div>
               <label className="block text-[11px] text-ink-400 mb-0.5">Role</label>
               <select value={draft.roleGuess} onChange={e => onPatch({ roleGuess: e.target.value })}
-                className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+                className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-surface">
                 {ROLE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
@@ -564,7 +564,7 @@ function DraftCard({ draft, status, error, contacts, onPatch, onConfirm }) {
           </div>
           <div className="grid grid-cols-[auto_1fr] gap-2 items-start">
             <select value={draft.interactionType} onChange={e => onPatch({ interactionType: e.target.value })}
-              className="px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+              className="px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-surface">
               {TYPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
             </select>
             <textarea value={draft.summary} onChange={e => onPatch({ summary: e.target.value })} rows={2}
@@ -579,7 +579,7 @@ function DraftCard({ draft, status, error, contacts, onPatch, onConfirm }) {
           <div>
             <label className="block text-[11px] text-ink-400 mb-0.5">Referral status</label>
             <select value={draft.referralStatus} onChange={e => onPatch({ referralStatus: e.target.value })}
-              className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+              className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-surface">
               <option value="">— no change —</option>
               {REFERRAL_STATUS_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
             </select>
@@ -587,7 +587,7 @@ function DraftCard({ draft, status, error, contacts, onPatch, onConfirm }) {
           <div>
             <label className="block text-[11px] text-ink-400 mb-0.5">Status</label>
             <select value={draft.statusBump} onChange={e => onPatch({ statusBump: e.target.value })}
-              className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
+              className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-surface">
               <option value="">— no change —</option>
               {STATUS_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
             </select>

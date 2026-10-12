@@ -34,7 +34,7 @@ export default function PipelineTab({ apps, contacts = [], interactions = [], re
           <div className="flex border border-ink-200 rounded-full overflow-hidden text-xs font-medium">
             {views.map(v => (
               <button key={v.key} onClick={() => setView(v.key)}
-                className={`px-3 py-1 flex items-center gap-1.5 transition-colors ${view === v.key ? 'bg-ink-900 text-white' : 'bg-white text-ink-500 hover:bg-ink-50'}`}>
+                className={`px-3 py-1 flex items-center gap-1.5 transition-colors ${view === v.key ? 'bg-ink-900 text-on-fill' : 'bg-surface text-ink-500 hover:bg-ink-50'}`}>
                 <v.icon size={13} strokeWidth={2.25} />
                 {v.label}
               </button>

@@ -15,7 +15,7 @@ function FacetFilter({ column, options }) {
   const value = column.getFilterValue() ?? ''
   return (
     <select value={value} onChange={e => column.setFilterValue(e.target.value || undefined)}
-      className="w-full mt-1 px-1.5 py-1 border border-ink-200 rounded text-[11px] bg-white text-ink-500 focus:outline-none focus:border-accent-400">
+      className="w-full mt-1 px-1.5 py-1 border border-ink-200 rounded text-[11px] bg-surface text-ink-500 focus:outline-none focus:border-accent-400">
       <option value="">All</option>
       {options.map(o => <option key={o} value={o}>{o}</option>)}
     </select>
@@ -103,9 +103,9 @@ export default function ContactsTable({ contacts, onEdit, onMet }) {
       header: 'Links',
       cell: info => (
         <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-          {info.row.original.email && <a href={`mailto:${info.row.original.email}`} className="text-accent-500 hover:underline">Email</a>}
-          {info.row.original.phone && <a href={`sms:${info.row.original.phone}`} className="text-accent-500 hover:underline">Text</a>}
-          {info.row.original.linkedin && <a href={info.row.original.linkedin} target="_blank" rel="noreferrer" className="text-accent-500 hover:underline">LinkedIn</a>}
+          {info.row.original.email && <a href={`mailto:${info.row.original.email}`} className="text-link hover:underline">Email</a>}
+          {info.row.original.phone && <a href={`sms:${info.row.original.phone}`} className="text-link hover:underline">Text</a>}
+          {info.row.original.linkedin && <a href={info.row.original.linkedin} target="_blank" rel="noreferrer" className="text-link hover:underline">LinkedIn</a>}
         </div>
       ),
     }),
@@ -131,7 +131,7 @@ export default function ContactsTable({ contacts, onEdit, onMet }) {
   })
 
   return (
-    <div className="bg-white rounded-md border border-ink-300 overflow-x-auto">
+    <div className="bg-surface rounded-md border border-ink-300 overflow-x-auto">
       <table className="w-full text-xs">
         <thead>
           {table.getHeaderGroups().map(hg => (

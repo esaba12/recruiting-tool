@@ -30,10 +30,10 @@ export default function AddEventModal({ defaultDate, onClose, onCreated }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-ink-900/40 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white w-full md:max-w-md rounded-t-md md:rounded-md border border-ink-300 max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-ink-100 px-5 py-4 rounded-t-md flex items-center justify-between">
+      <div className="bg-surface w-full md:max-w-md rounded-t-md md:rounded-md border border-ink-300 max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-surface border-b border-ink-100 px-5 py-4 rounded-t-md flex items-center justify-between">
           <h2 className="text-base font-bold text-ink-900">Add Event</h2>
           <button onClick={onClose} className="w-7 h-7 rounded-full bg-ink-100 hover:bg-ink-200 flex items-center justify-center text-ink-500 text-sm">✕</button>
         </div>
@@ -51,7 +51,7 @@ export default function AddEventModal({ defaultDate, onClose, onCreated }) {
             <div className="flex border border-ink-200 rounded-lg overflow-hidden text-xs font-medium w-fit">
               {Object.entries(CALENDAR_SLOTS).map(([key, label]) => (
                 <button key={key} type="button" onClick={() => setSlot(key)}
-                  className={`px-3 py-1.5 transition-colors ${slot === key ? 'bg-ink-900 text-white' : 'bg-white text-ink-500 hover:bg-ink-50'}`}>
+                  className={`px-3 py-1.5 transition-colors ${slot === key ? 'bg-ink-900 text-on-fill' : 'bg-surface text-ink-500 hover:bg-ink-50'}`}>
                   {label}
                 </button>
               ))}
@@ -86,7 +86,7 @@ export default function AddEventModal({ defaultDate, onClose, onCreated }) {
           </div>
 
           <button onClick={save} disabled={saving}
-            className="w-full py-3 bg-accent-600 text-white text-sm rounded-xl hover:bg-accent-700 disabled:opacity-50 font-medium transition-colors">
+            className="w-full py-3 bg-accent-600 text-on-accent text-sm rounded-xl hover:bg-accent-700 disabled:opacity-50 font-medium transition-colors">
             {saving ? 'Creating...' : '+ Create Event'}
           </button>
         </div>

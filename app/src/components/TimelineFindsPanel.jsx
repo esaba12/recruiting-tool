@@ -13,14 +13,14 @@ const SOURCE_LABEL = { application: 'Application notes', call: 'Call', interacti
 // there's something to show, and only renders what it's handed via props.
 export default function TimelineFindsPanel({ pending, running, error, meta, onScan, onDismiss, onUpdateField, onApprove }) {
   return (
-    <div className="bg-white rounded-md p-5 border border-accent-200">
+    <div className="bg-surface rounded-md p-5 border border-accent-200">
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-sm font-semibold text-accent-700 mb-1 flex items-center gap-1.5">
           <CalendarSearch size={16} strokeWidth={2} />
           Timeline Finds ({pending.length}){running ? ' · scanning…' : ''}
         </h2>
         <NeedsKey kind="ai"><button onClick={() => onScan({ force: true })} disabled={running}
-          className="shrink-0 ml-3 px-2.5 py-1 bg-white border border-accent-200 rounded-full text-xs font-medium text-accent-700 hover:border-accent-400 disabled:opacity-40">
+          className="shrink-0 ml-3 px-2.5 py-1 bg-surface border border-accent-200 rounded-full text-xs font-medium text-accent-700 hover:border-accent-400 disabled:opacity-40">
           ↻ Rescan
         </button></NeedsKey>
       </div>
@@ -36,7 +36,7 @@ export default function TimelineFindsPanel({ pending, running, error, meta, onSc
         {pending.length === 0
           ? <EmptyState msg={running ? 'Scanning your records…' : 'Nothing pending — you’re caught up.'} />
           : pending.map(item => (
-              <div key={item.key} className="bg-white rounded-lg p-3 border border-ink-100">
+              <div key={item.key} className="bg-surface rounded-lg p-3 border border-ink-100">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
@@ -56,11 +56,11 @@ export default function TimelineFindsPanel({ pending, running, error, meta, onSc
                   </div>
                   <div className="shrink-0 flex flex-col gap-1.5">
                     <button onClick={() => onApprove(item)} disabled={item.status === 'saving' || !item.date}
-                      className="px-2.5 py-1 bg-accent-600 text-white rounded-full text-xs font-medium hover:bg-accent-700 disabled:opacity-40">
+                      className="px-2.5 py-1 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700 disabled:opacity-40">
                       {item.status === 'saving' ? '…' : '+ Add to Calendar'}
                     </button>
                     <button onClick={() => onDismiss(item.key)}
-                      className="px-2 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-400 hover:border-danger-300 hover:text-danger-600">
+                      className="px-2 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-400 hover:border-danger-300 hover:text-danger-600">
                       Dismiss
                     </button>
                   </div>

@@ -11,15 +11,15 @@ export default function NetworkGraphTab({ contacts, contactRelationships = [] })
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div className="md:col-span-2 bg-ink-900 rounded-md border border-ink-800 shadow-sm overflow-hidden" style={{ height: 520 }}>
+      <div className="md:col-span-2 bg-ink-900 rounded-md border border-ink-800 shadow-sm overflow-hidden theme-fixed" style={{ height: 520 }}>
         <NetworkGraphView contacts={contacts} contactRelationships={contactRelationships} height={520} onNodeSelect={setSelected} />
       </div>
 
-      <div className="bg-white rounded-md border border-ink-300 p-4">
+      <div className="bg-surface rounded-md border border-ink-300 p-4">
         {!selected ? (
           <div className="text-sm text-ink-400 space-y-2">
             <p>Hover a node to see its name · click a contact for details.</p>
-            <p className="text-xs">Light dots = companies · colored dots = contacts (by status, bigger = more connections) · orange arrows = "referred by" · purple arrows = a tagged relationship — hover any arrow to see its type.</p>
+            <p className="text-xs">Light dots = companies · colored dots = contacts (by status, bigger = more connections) · accent-colored arrows = "referred by" · purple arrows = a tagged relationship — hover any arrow to see its type.</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -35,9 +35,9 @@ export default function NetworkGraphTab({ contacts, contactRelationships = [] })
               {selected.urgency && selected.urgency !== 'LOW' && <Badge label={selected.urgency} color={URGENCY_COLOR[selected.urgency]} />}
             </div>
             {selected.referredByName && <p className="text-xs text-ink-500">Referred by <strong>{selected.referredByName}</strong></p>}
-            {selected.email && <p className="text-xs"><a href={`mailto:${selected.email}`} className="text-accent-500 hover:underline">{selected.email}</a></p>}
-            {selected.phone && <p className="text-xs"><a href={`sms:${selected.phone}`} className="text-accent-500 hover:underline">Text {selected.phone}</a></p>}
-            {selected.linkedin && <p className="text-xs"><a href={selected.linkedin} target="_blank" rel="noreferrer" className="text-accent-500 hover:underline">LinkedIn ↗</a></p>}
+            {selected.email && <p className="text-xs"><a href={`mailto:${selected.email}`} className="text-link hover:underline">{selected.email}</a></p>}
+            {selected.phone && <p className="text-xs"><a href={`sms:${selected.phone}`} className="text-link hover:underline">Text {selected.phone}</a></p>}
+            {selected.linkedin && <p className="text-xs"><a href={selected.linkedin} target="_blank" rel="noreferrer" className="text-link hover:underline">LinkedIn ↗</a></p>}
             {selected.whatTheyDid && <p className="text-xs text-ink-500 italic mt-2">"{selected.whatTheyDid}"</p>}
           </div>
         )}

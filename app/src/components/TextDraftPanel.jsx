@@ -33,7 +33,7 @@ export default function TextDraftPanel({ contact, daysOverdue = 0 }) {
       <div className="flex items-center justify-between mb-2">
         <p className="text-xs font-semibold text-accent-700">Text Follow-Up (tier {tier}/3)</p>
         {draft && (
-          <button onClick={() => navigator.clipboard.writeText(draft)} className="text-xs text-accent-500 hover:underline">Copy</button>
+          <button onClick={() => navigator.clipboard.writeText(draft)} className="text-xs text-link hover:underline">Copy</button>
         )}
       </div>
 
@@ -41,10 +41,10 @@ export default function TextDraftPanel({ contact, daysOverdue = 0 }) {
 
       {draft ? (
         <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={2}
-          className="w-full px-2.5 py-1.5 border border-accent-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 resize-none bg-white" />
+          className="w-full px-2.5 py-1.5 border border-accent-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 resize-none bg-surface" />
       ) : (
         <NeedsKey kind="ai"><button onClick={generate} disabled={generating}
-          className="w-full py-2 bg-accent-600 text-white text-xs rounded-lg hover:bg-accent-700 disabled:opacity-40 font-medium">
+          className="w-full py-2 bg-accent-600 text-on-accent text-xs rounded-lg hover:bg-accent-700 disabled:opacity-40 font-medium">
           {generating ? 'Drafting...' : 'Generate draft →'}
         </button></NeedsKey>
       )}
@@ -52,11 +52,11 @@ export default function TextDraftPanel({ contact, daysOverdue = 0 }) {
       {draft && (
         <div className="flex items-center gap-2 mt-2">
           <NeedsKey kind="ai"><button onClick={generate} disabled={generating}
-            className="px-3 py-1.5 bg-white border border-accent-200 rounded-lg text-xs font-medium text-accent-700 hover:border-accent-400 disabled:opacity-40">
+            className="px-3 py-1.5 bg-surface border border-accent-200 rounded-lg text-xs font-medium text-accent-700 hover:border-accent-400 disabled:opacity-40">
             {generating ? 'Regenerating...' : 'Regenerate'}
           </button></NeedsKey>
           <a href={`sms:${contact.phone}?&body=${encodeURIComponent(draft)}`}
-            className="px-3 py-1.5 bg-accent-600 text-white rounded-lg text-xs font-medium hover:bg-accent-700">
+            className="px-3 py-1.5 bg-accent-600 text-on-accent rounded-lg text-xs font-medium hover:bg-accent-700">
             Open in Messages →
           </a>
         </div>

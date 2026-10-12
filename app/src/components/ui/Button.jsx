@@ -1,10 +1,10 @@
 import { cn } from '../../lib/cn.js'
 
 const VARIANTS = {
-  primary:   'bg-accent-600 text-white hover:bg-accent-700 border border-transparent',
-  secondary: 'bg-white text-ink-700 border border-ink-100 hover:bg-ink-50',
+  primary:   'bg-accent-600 text-on-accent hover:bg-accent-700 border border-transparent',
+  secondary: 'bg-surface text-ink-700 border border-ink-100 hover:bg-ink-50',
   ghost:     'bg-transparent text-ink-500 hover:bg-ink-50 border border-transparent',
-  danger:    'bg-danger-600 text-white hover:bg-danger-700 border border-transparent',
+  danger:    'bg-danger-600 text-on-fill hover:bg-danger-700 border border-transparent',
 }
 
 const SIZES = {

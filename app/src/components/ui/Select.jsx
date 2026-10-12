@@ -4,7 +4,7 @@ export default function Select({ label, className, options = [], placeholder = '
   const select = (
     <select
       className={cn(
-        'w-full px-2.5 py-1.5 border border-ink-100 rounded-lg text-sm bg-white focus:outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-200',
+        'w-full px-2.5 py-1.5 border border-ink-100 rounded-lg text-sm bg-surface focus:outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-200',
         className,
       )}
       {...rest}

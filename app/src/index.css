@@ -1,70 +1,254 @@
 @import "tailwindcss";
 
-/* Registered now for future-proofing — not used until a dark-mode pass is explicitly requested. */
-@custom-variant dark (&:where(.dark, .dark *));
+/* Dark mode is driven by html[data-mode="dark"] (see lib/theme.js), not the OS directly —
+   "System" resolves prefers-color-scheme in JS so one attribute is the single source of truth. */
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
 
-@theme {
+/* ── Theme architecture ──────────────────────────────────────────────────────────────
+   Three layers, so scheme × mode stays orthogonal and no component needs `dark:` classes:
+     1. --p-*  raw palettes. A scheme ([data-scheme] on <html>) swaps the graphite (ink)
+               and signal (accent) scales; status hues are shared by every scheme.
+     2. --t-*  role mapping. Light maps p-N → t-N 1:1. Dark *flips* the ink scale (text-ink-900
+               means "strongest text" and becomes near-white; border-ink-100 means "faint border"
+               and becomes a dark hairline) and turns 50–200 tints into dark tinted fills.
+     3. @theme inline exposes t-* as Tailwind colors, so utilities emit var(--t-*) and the
+        cascade works at any depth — .theme-fixed re-applies the light mapping on islands that
+        are dark in both modes (sidebar, mobile nav).
+   link — accent-colored text (links, inline actions): the darkest accent step that still
+          reads as the hue on white (maize needs 700), and the bright 400 in dark mode.
+   Two dual-role tokens exist because a fill's text color can't be derived from the fill:
+     on-accent — text on a bg-accent-* fill (white on orange, navy on maize)
+     on-fill   — text on a solid ink/status fill (white in light; dark ink in dark, where those
+                 fills flip to light). */
+
+@theme inline {
   --font-heading: "Space Grotesk", sans-serif;
   --font-body: "Public Sans", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
 
-  /* Cool steel page canvas — replaces the warm-paper off-white */
-  --color-canvas: #f2f3f4;
+  --color-canvas: var(--t-canvas);
+  --color-surface: var(--t-surface);
+  --color-on-accent: var(--t-on-accent);
+  --color-on-fill: var(--t-on-fill);
+  --color-link: var(--t-link);
 
-  /* Gunmetal/graphite scale — dominant color. Sidebar bg is ink-900, sidebar text is ink-50. */
-  --color-ink-50: #f1f2f3;
-  --color-ink-100: #e1e3e6;
-  --color-ink-200: #c7cbd0;
-  --color-ink-300: #a2a7af;
-  --color-ink-400: #666c74;
-  --color-ink-500: #4f555d;
-  --color-ink-600: #3a3f45;
-  --color-ink-700: #2a2e33;
-  --color-ink-800: #1a1c20;
-  --color-ink-900: #101215;
+  --color-ink-50: var(--t-ink-50);
+  --color-ink-100: var(--t-ink-100);
+  --color-ink-200: var(--t-ink-200);
+  --color-ink-300: var(--t-ink-300);
+  --color-ink-400: var(--t-ink-400);
+  --color-ink-500: var(--t-ink-500);
+  --color-ink-600: var(--t-ink-600);
+  --color-ink-700: var(--t-ink-700);
+  --color-ink-800: var(--t-ink-800);
+  --color-ink-900: var(--t-ink-900);
 
-  /* Safety-orange — the one sharp accent. Used for all primary actions/active states/links/focus. */
-  --color-accent-50: #fff4e6;
-  --color-accent-100: #ffe0b8;
-  --color-accent-200: #ffc27a;
-  --color-accent-300: #ff9f40;
-  --color-accent-400: #f97e1c;
-  --color-accent-500: #f2680a;
-  --color-accent-600: #c94e0a;
-  --color-accent-700: #a8420a;
-  --color-accent-800: #7c3009;
-  --color-accent-900: #5c2308;
+  --color-accent-50: var(--t-accent-50);
+  --color-accent-100: var(--t-accent-100);
+  --color-accent-200: var(--t-accent-200);
+  --color-accent-300: var(--t-accent-300);
+  --color-accent-400: var(--t-accent-400);
+  --color-accent-500: var(--t-accent-500);
+  --color-accent-600: var(--t-accent-600);
+  --color-accent-700: var(--t-accent-700);
+  --color-accent-800: var(--t-accent-800);
+  --color-accent-900: var(--t-accent-900);
 
-  /* Status tokens — coordinated replacements for stock Tailwind green/yellow/red */
-  --color-success-50: #eaf6ec;
-  --color-success-100: #cfead4;
-  --color-success-200: #a3d7ac;
-  --color-success-500: #2f8f3d;
-  --color-success-600: #23732f;
-  --color-success-700: #1c5c26;
-  --color-success-800: #164a1e;
-  --color-success-900: #0f3516;
+  --color-success-50: var(--t-success-50);
+  --color-success-100: var(--t-success-100);
+  --color-success-200: var(--t-success-200);
+  --color-success-500: var(--t-success-500);
+  --color-success-600: var(--t-success-600);
+  --color-success-700: var(--t-success-700);
+  --color-success-800: var(--t-success-800);
+  --color-success-900: var(--t-success-900);
 
-  --color-warning-50: #fdf3dc;
-  --color-warning-100: #f8e2a8;
-  --color-warning-200: #f0cd6e;
-  --color-warning-400: #e0ab28;
-  --color-warning-500: #d99a12;
-  --color-warning-600: #9c690d;
-  --color-warning-700: #8a630c;
-  --color-warning-800: #6b4b12;
+  --color-warning-50: var(--t-warning-50);
+  --color-warning-100: var(--t-warning-100);
+  --color-warning-200: var(--t-warning-200);
+  --color-warning-300: var(--t-warning-300);
+  --color-warning-400: var(--t-warning-400);
+  --color-warning-500: var(--t-warning-500);
+  --color-warning-600: var(--t-warning-600);
+  --color-warning-700: var(--t-warning-700);
+  --color-warning-800: var(--t-warning-800);
 
-  --color-danger-50: #fbe9e8;
-  --color-danger-100: #f3c6c4;
-  --color-danger-200: #e59e9b;
-  --color-danger-400: #cc5955;
-  --color-danger-500: #b3312c;
-  --color-danger-600: #942720;
-  --color-danger-700: #741e19;
+  --color-danger-50: var(--t-danger-50);
+  --color-danger-100: var(--t-danger-100);
+  --color-danger-200: var(--t-danger-200);
+  --color-danger-300: var(--t-danger-300);
+  --color-danger-400: var(--t-danger-400);
+  --color-danger-500: var(--t-danger-500);
+  --color-danger-600: var(--t-danger-600);
+  --color-danger-700: var(--t-danger-700);
+}
+
+/* ── 1. Raw palettes ── */
+:root {
+  /* Status hues — shared by every scheme so a red badge always means the same thing. */
+  --p-success-50: #eaf6ec; --p-success-100: #cfead4; --p-success-200: #a3d7ac; --p-success-500: #2f8f3d;
+  --p-success-600: #23732f; --p-success-700: #1c5c26; --p-success-800: #164a1e; --p-success-900: #0f3516;
+  --p-warning-50: #fdf3dc; --p-warning-100: #f8e2a8; --p-warning-200: #f0cd6e; --p-warning-300: #e8bc48;
+  --p-warning-400: #e0ab28; --p-warning-500: #d99a12; --p-warning-600: #9c690d; --p-warning-700: #8a630c;
+  --p-warning-800: #6b4b12;
+  --p-danger-50: #fbe9e8; --p-danger-100: #f3c6c4; --p-danger-200: #e59e9b; --p-danger-300: #d97b77;
+  --p-danger-400: #cc5955; --p-danger-500: #b3312c; --p-danger-600: #942720; --p-danger-700: #741e19;
+}
+
+/* Safety Orange on gunmetal — the original look, and the default. */
+:root, [data-scheme="orange"] {
+  --p-canvas: #f2f3f4;
+  --p-ink-50: #f1f2f3; --p-ink-100: #e1e3e6; --p-ink-200: #c7cbd0; --p-ink-300: #a2a7af; --p-ink-400: #666c74;
+  --p-ink-500: #4f555d; --p-ink-600: #3a3f45; --p-ink-700: #2a2e33; --p-ink-800: #1a1c20; --p-ink-900: #101215;
+  --p-ink-950: #090a0c;
+  --p-accent-50: #fff4e6; --p-accent-100: #ffe0b8; --p-accent-200: #ffc27a; --p-accent-300: #ff9f40;
+  --p-accent-400: #f97e1c; --p-accent-500: #f2680a; --p-accent-600: #c94e0a; --p-accent-700: #a8420a;
+  --p-accent-800: #7c3009; --p-accent-900: #5c2308;
+  --p-on-accent: #ffffff; --p-on-accent-dark: #160b03;
+  --p-link: var(--p-accent-600);
+}
+
+/* Maize & Blue — navy graphite, maize signal. Maize is too light for white text, so on-accent is navy. */
+[data-scheme="maize"] {
+  --p-canvas: #f1f3f6;
+  --p-ink-50: #eff2f6; --p-ink-100: #dce2ea; --p-ink-200: #bac5d4; --p-ink-300: #90a0b6; --p-ink-400: #5d7090;
+  --p-ink-500: #465a77; --p-ink-600: #33455f; --p-ink-700: #22334a; --p-ink-800: #11233b; --p-ink-900: #061a31;
+  --p-ink-950: #020d1b;
+  --p-accent-50: #fffae3; --p-accent-100: #fff0b0; --p-accent-200: #ffe27a; --p-accent-300: #ffd643;
+  --p-accent-400: #ffcb05; --p-accent-500: #e8b400; --p-accent-600: #d4a200; --p-accent-700: #8a6a00;
+  --p-accent-800: #6b5100; --p-accent-900: #4a3800;
+  --p-on-accent: #061a31; --p-on-accent-dark: #061a31;
+  --p-link: var(--p-accent-700);
+}
+
+/* Cobalt on cold steel. */
+[data-scheme="cobalt"] {
+  --p-canvas: #f1f3f6;
+  --p-ink-50: #f0f2f5; --p-ink-100: #dfe3e9; --p-ink-200: #c3cad4; --p-ink-300: #9ca5b3; --p-ink-400: #636c7b;
+  --p-ink-500: #4c5564; --p-ink-600: #384050; --p-ink-700: #272e3b; --p-ink-800: #181d26; --p-ink-900: #0e1219;
+  --p-ink-950: #07090d;
+  --p-accent-50: #ecf2ff; --p-accent-100: #d3e1ff; --p-accent-200: #a9c4ff; --p-accent-300: #779fff;
+  --p-accent-400: #4b7cfa; --p-accent-500: #2d5ff0; --p-accent-600: #1f49d1; --p-accent-700: #1a3ca8;
+  --p-accent-800: #172f7d; --p-accent-900: #13245a;
+  --p-on-accent: #ffffff; --p-on-accent-dark: #050a1c;
+  --p-link: var(--p-accent-600);
+}
+
+/* Patina — oxidized-copper teal on blue-green slate. */
+[data-scheme="patina"] {
+  --p-canvas: #f0f4f4;
+  --p-ink-50: #eff3f3; --p-ink-100: #dce4e4; --p-ink-200: #bccaca; --p-ink-300: #93a6a6; --p-ink-400: #5c7171;
+  --p-ink-500: #465a5a; --p-ink-600: #334545; --p-ink-700: #233333; --p-ink-800: #152222; --p-ink-900: #0c1717;
+  --p-ink-950: #050c0c;
+  --p-accent-50: #e6faf7; --p-accent-100: #bff1ea; --p-accent-200: #86e2d6; --p-accent-300: #46cbbd;
+  --p-accent-400: #1db1a3; --p-accent-500: #0e968a; --p-accent-600: #0b7a71; --p-accent-700: #0b635c;
+  --p-accent-800: #0c4b46; --p-accent-900: #0a3633;
+  --p-on-accent: #ffffff; --p-on-accent-dark: #021412;
+  --p-link: var(--p-accent-600);
+}
+
+/* Signal Rose — hot magenta-rose on plum graphite. */
+[data-scheme="rose"] {
+  --p-canvas: #f5f2f4;
+  --p-ink-50: #f4f1f3; --p-ink-100: #e6e0e4; --p-ink-200: #cdc3ca; --p-ink-300: #ab9ea7; --p-ink-400: #74636e;
+  --p-ink-500: #5c4c57; --p-ink-600: #463943; --p-ink-700: #33282f; --p-ink-800: #21191f; --p-ink-900: #160f14;
+  --p-ink-950: #0b070a;
+  --p-accent-50: #fff0f5; --p-accent-100: #ffd6e5; --p-accent-200: #ffaaca; --p-accent-300: #ff77a8;
+  --p-accent-400: #f94c8a; --p-accent-500: #e62e72; --p-accent-600: #c41f5d; --p-accent-700: #9f1a4c;
+  --p-accent-800: #77163a; --p-accent-900: #55112b;
+  --p-on-accent: #ffffff; --p-on-accent-dark: #1c0310;
+  --p-link: var(--p-accent-600);
+}
+
+/* ── 2a. Light mapping (also re-applied on .theme-fixed islands in dark mode) ── */
+:root, [data-mode="dark"] .theme-fixed {
+  --t-canvas: var(--p-canvas);
+  --t-surface: #ffffff;
+  --t-on-accent: var(--p-on-accent);
+  --t-on-fill: #ffffff;
+  --t-link: var(--p-link);
+  --t-ink-50: var(--p-ink-50); --t-ink-100: var(--p-ink-100); --t-ink-200: var(--p-ink-200);
+  --t-ink-300: var(--p-ink-300); --t-ink-400: var(--p-ink-400); --t-ink-500: var(--p-ink-500);
+  --t-ink-600: var(--p-ink-600); --t-ink-700: var(--p-ink-700); --t-ink-800: var(--p-ink-800);
+  --t-ink-900: var(--p-ink-900);
+  --t-accent-50: var(--p-accent-50); --t-accent-100: var(--p-accent-100); --t-accent-200: var(--p-accent-200);
+  --t-accent-300: var(--p-accent-300); --t-accent-400: var(--p-accent-400); --t-accent-500: var(--p-accent-500);
+  --t-accent-600: var(--p-accent-600); --t-accent-700: var(--p-accent-700); --t-accent-800: var(--p-accent-800);
+  --t-accent-900: var(--p-accent-900);
+  --t-success-50: var(--p-success-50); --t-success-100: var(--p-success-100); --t-success-200: var(--p-success-200);
+  --t-success-500: var(--p-success-500); --t-success-600: var(--p-success-600); --t-success-700: var(--p-success-700);
+  --t-success-800: var(--p-success-800); --t-success-900: var(--p-success-900);
+  --t-warning-50: var(--p-warning-50); --t-warning-100: var(--p-warning-100); --t-warning-200: var(--p-warning-200);
+  --t-warning-300: var(--p-warning-300); --t-warning-400: var(--p-warning-400); --t-warning-500: var(--p-warning-500);
+  --t-warning-600: var(--p-warning-600); --t-warning-700: var(--p-warning-700); --t-warning-800: var(--p-warning-800);
+  --t-danger-50: var(--p-danger-50); --t-danger-100: var(--p-danger-100); --t-danger-200: var(--p-danger-200);
+  --t-danger-300: var(--p-danger-300); --t-danger-400: var(--p-danger-400); --t-danger-500: var(--p-danger-500);
+  --t-danger-600: var(--p-danger-600); --t-danger-700: var(--p-danger-700);
+  color-scheme: light;
+}
+
+/* ── 2b. Dark mapping ── */
+[data-mode="dark"] {
+  --t-canvas: var(--p-ink-950);
+  --t-surface: var(--p-ink-900);
+  --t-on-accent: var(--p-on-accent-dark);
+  --t-on-fill: var(--p-ink-950);
+  --t-link: var(--p-accent-400);
+  /* Flipped graphite: low steps become fills/hairlines a notch above the surface, high steps become text. */
+  --t-ink-50: var(--p-ink-800);
+  --t-ink-100: var(--p-ink-700);
+  --t-ink-200: var(--p-ink-600);
+  --t-ink-300: var(--p-ink-500);
+  --t-ink-400: color-mix(in oklab, var(--p-ink-400), var(--p-ink-300) 55%);
+  --t-ink-500: var(--p-ink-300);
+  --t-ink-600: var(--p-ink-200);
+  --t-ink-700: var(--p-ink-100);
+  --t-ink-800: var(--p-ink-50);
+  --t-ink-900: color-mix(in oklab, var(--p-ink-50), #fff 50%);
+  /* Accent: tints become dark glows, the fill steps lift to the bright end, text steps go lighter still. */
+  --t-accent-50: color-mix(in oklab, var(--p-accent-500) 12%, var(--p-ink-900));
+  --t-accent-100: color-mix(in oklab, var(--p-accent-500) 22%, var(--p-ink-900));
+  --t-accent-200: color-mix(in oklab, var(--p-accent-500) 38%, var(--p-ink-900));
+  --t-accent-300: color-mix(in oklab, var(--p-accent-400) 65%, var(--p-ink-900));
+  --t-accent-400: var(--p-accent-400);
+  --t-accent-500: var(--p-accent-400);
+  --t-accent-600: var(--p-accent-400);
+  --t-accent-700: var(--p-accent-300);
+  --t-accent-800: var(--p-accent-200);
+  --t-accent-900: var(--p-accent-100);
+  /* Status: same treatment, derived from each hue's 500. */
+  --t-success-50: color-mix(in oklab, var(--p-success-500) 14%, var(--p-ink-900));
+  --t-success-100: color-mix(in oklab, var(--p-success-500) 24%, var(--p-ink-900));
+  --t-success-200: color-mix(in oklab, var(--p-success-500) 40%, var(--p-ink-900));
+  --t-success-500: color-mix(in oklab, var(--p-success-500), #fff 18%);
+  --t-success-600: color-mix(in oklab, var(--p-success-500), #fff 30%);
+  --t-success-700: color-mix(in oklab, var(--p-success-500), #fff 45%);
+  --t-success-800: color-mix(in oklab, var(--p-success-500), #fff 60%);
+  --t-success-900: color-mix(in oklab, var(--p-success-500), #fff 72%);
+  --t-warning-50: color-mix(in oklab, var(--p-warning-500) 12%, var(--p-ink-900));
+  --t-warning-100: color-mix(in oklab, var(--p-warning-500) 22%, var(--p-ink-900));
+  --t-warning-200: color-mix(in oklab, var(--p-warning-500) 38%, var(--p-ink-900));
+  --t-warning-300: color-mix(in oklab, var(--p-warning-500) 60%, var(--p-ink-900));
+  --t-warning-400: var(--p-warning-400);
+  --t-warning-500: var(--p-warning-500);
+  --t-warning-600: color-mix(in oklab, var(--p-warning-500), #fff 15%);
+  --t-warning-700: color-mix(in oklab, var(--p-warning-500), #fff 35%);
+  --t-warning-800: color-mix(in oklab, var(--p-warning-500), #fff 55%);
+  --t-danger-50: color-mix(in oklab, var(--p-danger-500) 14%, var(--p-ink-900));
+  --t-danger-100: color-mix(in oklab, var(--p-danger-500) 24%, var(--p-ink-900));
+  --t-danger-200: color-mix(in oklab, var(--p-danger-500) 42%, var(--p-ink-900));
+  --t-danger-300: color-mix(in oklab, var(--p-danger-500) 65%, var(--p-ink-900));
+  --t-danger-400: color-mix(in oklab, var(--p-danger-400), #fff 15%);
+  --t-danger-500: color-mix(in oklab, var(--p-danger-400), #fff 25%);
+  --t-danger-600: color-mix(in oklab, var(--p-danger-400), #fff 38%);
+  --t-danger-700: color-mix(in oklab, var(--p-danger-400), #fff 52%);
+  color-scheme: dark;
 }
 
 body {
   font-family: var(--font-body);
+  background-color: var(--t-canvas);
+  color: var(--t-ink-900);
 }
 
 h1, h2, h3 {

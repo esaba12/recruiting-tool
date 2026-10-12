@@ -6,6 +6,7 @@ import { CALENDAR_SLOTS } from '../googleCalendar.js'
 import { fetchSchools, getUserSetting, setUserSetting } from '../db.js'
 import { SYNC_SETTING_KEY, DEFAULT_SYNC } from '../lib/useEventCalendarSync.js'
 import Button from './ui/Button.jsx'
+import AppearanceSection from './AppearanceSection.jsx'
 import Input from './ui/Input.jsx'
 import ChipToggleGroup from './ui/ChipToggleGroup.jsx'
 import { Badge } from '../shared.jsx'
@@ -211,7 +212,7 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
     <div className="max-w-2xl space-y-6">
       <div>
         {onDone && (
-          <button onClick={onDone} className="text-xs text-ink-400 hover:text-accent-600 mb-1">
+          <button onClick={onDone} className="text-xs text-ink-400 hover:text-link mb-1">
             ← Back to {returnLabel}
           </button>
         )}
@@ -261,8 +262,10 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
         </section>
       )}
 
+      <AppearanceSection />
+
       {/* Profile / onboarding */}
-      <section className="bg-white rounded-2xl border border-ink-100 p-5 space-y-3">
+      <section className="bg-surface rounded-2xl border border-ink-100 p-5 space-y-3">
         <h3 className="text-sm font-semibold text-ink-900">Your profile</h3>
         <p className="text-xs text-ink-400">Used to personalize AI prompts (company ranking, outreach drafts, discovery scoring) instead of hardcoded defaults.</p>
         {profileForm && (
@@ -318,7 +321,7 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
       </section>
 
       {/* BYOK keys */}
-      <section className="bg-white rounded-2xl border border-ink-100 p-5 space-y-4">
+      <section className="bg-surface rounded-2xl border border-ink-100 p-5 space-y-4">
         <div>
           <h3 className="text-sm font-semibold text-ink-900">Your API keys</h3>
           <p className="text-xs text-ink-400 mt-0.5">Bring your own keys — encrypted at rest, never shared, never billed to anyone but you. Stored server-side only; the browser never sees them again after you save.</p>
@@ -336,7 +339,7 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
               <div className="flex-1">
                 <label className="block text-xs text-ink-400 mb-0.5">
                   {p.label}{' '}
-                  <a href={p.href} target="_blank" rel="noreferrer" className="text-accent-500 hover:underline">({p.hint})</a>
+                  <a href={p.href} target="_blank" rel="noreferrer" className="text-link hover:underline">({p.hint})</a>
                 </label>
                 <input
                   type="password"
@@ -363,7 +366,7 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
       {/* Networking email accounts — any number of connected Gmail accounts, scanned
           periodically for recruiting/networking signals (contacts, applications, follow-up
           action items). See api/_lib/emailPipeline.js. */}
-      <section className="bg-white rounded-2xl border border-ink-100 p-5 space-y-3">
+      <section className="bg-surface rounded-2xl border border-ink-100 p-5 space-y-3">
         <div>
           <h3 className="text-sm font-semibold text-ink-900">Networking Email Accounts</h3>
           <p className="text-xs text-ink-400">
@@ -394,7 +397,7 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
 
       {/* Google Calendar — up to two independent connections (e.g. a personal Gmail
           account and a separate school Google account), each its own OAuth grant. */}
-      <section className="bg-white rounded-2xl border border-ink-100 p-5 space-y-3">
+      <section className="bg-surface rounded-2xl border border-ink-100 p-5 space-y-3">
         <div>
           <h3 className="text-sm font-semibold text-ink-900">Google Calendar</h3>
           <p className="text-xs text-ink-400">Powers the "+ Event" screenshot/text → calendar event feature and the Calendar tab. Connect a second account for a school calendar separate from your personal one.</p>

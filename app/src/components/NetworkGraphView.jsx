@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import ForceGraph2D from 'react-force-graph-2d'
-import { STATUS_CHART_COLORS, CHART_SERIES, GRAPH_SURFACE_DARK, GRAPH_NODE_NEUTRAL_DARK, GRAPH_TEXT_DARK, GRAPH_LINK_DARK } from './charts/theme.js'
+import { STATUS_CHART_COLORS, useChartTheme, GRAPH_SURFACE_DARK, GRAPH_NODE_NEUTRAL_DARK, GRAPH_TEXT_DARK, GRAPH_LINK_DARK } from './charts/theme.js'
 import { buildGraph, hexToRgba } from '../lib/networkGraph.js'
 
 const COMPANY_COLOR = GRAPH_NODE_NEUTRAL_DARK // neutral dot color against the dark canvas, accent reserved for the referral highlight
@@ -10,19 +10,23 @@ const COMPANY_COLOR = GRAPH_NODE_NEUTRAL_DARK // neutral dot color against the d
 // original tuned look. Any other kind — i.e. a contact_relationships row's relationshipType
 // (Mentor Of, College Friend Of, etc.) — falls back to one shared "named relationship" style
 // rather than growing a new hardcoded branch per type.
-const NAMED_RELATIONSHIP_COLOR = { 'referred-by': CHART_SERIES }
 const DEFAULT_RELATIONSHIP_COLOR = '#a78bfa' // generic named-relationship purple, distinct from the referral accent
 const RELATIONSHIP_STYLE = {
   'referred-by': { width: 2, curvature: 0.3, arrow: 4 },
 }
 const DEFAULT_RELATIONSHIP_STYLE = { width: 1.5, curvature: 0.25, arrow: 3 }
-const colorFor = (kind) => NAMED_RELATIONSHIP_COLOR[kind] || DEFAULT_RELATIONSHIP_COLOR
+// 'referred-by' takes the color scheme's accent; every other named kind shares one hue.
+const colorFor = (kind, accent) => kind === 'referred-by' ? accent : DEFAULT_RELATIONSHIP_COLOR
 const styleFor = (kind) => RELATIONSHIP_STYLE[kind] || DEFAULT_RELATIONSHIP_STYLE
 
 export default function NetworkGraphView({ contacts, contactRelationships = [], compact = false, height = 520, onNodeSelect }) {
   const containerRef = useRef()
   const fgRef = useRef()
   const [hoverNode, setHoverNode] = useState(null)
+  const { graphAccent } = useChartTheme()
+  // The graph canvas is dark in both modes, so status hues stay the light-mode set; only
+  // Champion follows the scheme's accent.
+  const statusColors = useMemo(() => ({ ...STATUS_CHART_COLORS, '⭐ Champion': graphAccent }), [graphAccent])
   // Measured explicitly rather than left to ForceGraph2D's own auto-detection: inside a CSS
   // grid cell (this view's parent is a `md:col-span-2` grid column), the auto-detected width
   // can be read before the grid has finished laying out, so the sim/zoomToFit compute against
@@ -115,7 +119,7 @@ export default function NetworkGraphView({ contacts, contactRelationships = [], 
 
         const dimmed = isDimmed(n.id)
         const hovered = hoverNode?.id === n.id
-        const baseColor = n.kind === 'company' ? COMPANY_COLOR : (STATUS_CHART_COLORS[n.contact?.status] || COMPANY_COLOR)
+        const baseColor = n.kind === 'company' ? COMPANY_COLOR : (statusColors[n.contact?.status] || COMPANY_COLOR)
         const r = nodeRadius(n) * (hovered ? 1.35 : 1)
 
         ctx.save()
@@ -162,17 +166,17 @@ export default function NetworkGraphView({ contacts, contactRelationships = [], 
         const dimmed = hoverNode && hoverNode.id !== sid && hoverNode.id !== tid
         // "works-at" threads stay faint by default — a quiet connective web, not grid lines
         if (l.kind === 'works-at') return hexToRgba(GRAPH_LINK_DARK, dimmed ? 0.04 : 0.18)
-        const color = colorFor(l.kind)
+        const color = colorFor(l.kind, graphAccent)
         return dimmed ? hexToRgba(color, 0.15) : color
       }}
       linkWidth={l => l.kind === 'works-at' ? 1 : styleFor(l.kind).width}
       linkCurvature={l => l.kind === 'works-at' ? 0.15 : styleFor(l.kind).curvature}
       linkDirectionalArrowLength={l => l.kind === 'works-at' ? 0 : styleFor(l.kind).arrow}
       linkDirectionalArrowRelPos={1}
-      linkDirectionalArrowColor={l => colorFor(l.kind)}
+      linkDirectionalArrowColor={l => colorFor(l.kind, graphAccent)}
       linkDirectionalParticles={l => l.kind === 'referred-by' ? (compact ? 2 : 3) : 0}
       linkDirectionalParticleWidth={l => l.kind === 'referred-by' ? 2.5 : 0}
-      linkDirectionalParticleColor={l => colorFor(l.kind)}
+      linkDirectionalParticleColor={l => colorFor(l.kind, graphAccent)}
       linkDirectionalParticleSpeed={0.006}
       onEngineStop={handleEngineStop}
       onNodeHover={n => setHoverNode(n)}

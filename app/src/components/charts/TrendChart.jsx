@@ -1,13 +1,13 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import ChartTooltip from './ChartTooltip.jsx'
-import { CHART_SERIES, CHART_GRID, CHART_AXIS_TEXT, CHART_SURFACE } from './theme.js'
-
-const tickStyle = { fill: CHART_AXIS_TEXT, fontSize: 11, fontFamily: 'Public Sans, sans-serif' }
+import { useChartTheme } from './theme.js'
 
 // Single-series trend over time — { data: [{ label, count }] }, pre-bucketed by
 // the consuming tab (this component is presentation-only, matching the rest of
 // charts/ — no date-bucketing logic lives here).
 export default function TrendChart({ data, labelKey = 'label', dataKey = 'count', height = 180 }) {
+  const { series: CHART_SERIES, grid: CHART_GRID, axisText: CHART_AXIS_TEXT, surface: CHART_SURFACE } = useChartTheme()
+  const tickStyle = { fill: CHART_AXIS_TEXT, fontSize: 11, fontFamily: 'Public Sans, sans-serif' }
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>

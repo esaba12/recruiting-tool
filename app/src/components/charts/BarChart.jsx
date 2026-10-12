@@ -1,14 +1,14 @@
 import { BarChart as RBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
 import ChartTooltip from './ChartTooltip.jsx'
-import { CHART_SERIES, CHART_GRID, CHART_AXIS_TEXT } from './theme.js'
-
-const tickStyle = { fill: CHART_AXIS_TEXT, fontSize: 11, fontFamily: 'Public Sans, sans-serif' }
+import { useChartTheme } from './theme.js'
 
 // Single-series magnitude chart — one flat hue (see theme.js for why: axis
 // position already encodes any order, so color doesn't need to re-encode it).
 // `orientation`: 'vertical' (columns, default) | 'horizontal' (bars)
 export default function BarChart({ data, dataKey = 'value', labelKey = 'label', orientation = 'vertical', height = 200, formatter }) {
   const horizontal = orientation === 'horizontal'
+  const { series: CHART_SERIES, grid: CHART_GRID, axisText: CHART_AXIS_TEXT } = useChartTheme()
+  const tickStyle = { fill: CHART_AXIS_TEXT, fontSize: 11, fontFamily: 'Public Sans, sans-serif' }
   return (
     <ResponsiveContainer width="100%" height={height}>
       <RBarChart

@@ -4,7 +4,7 @@ import Mono from '../ui/Mono.jsx'
 import Button from '../ui/Button.jsx'
 import TrendChart from '../charts/TrendChart.jsx'
 import DonutChart from '../charts/DonutChart.jsx'
-import { DIFFICULTY_COLORS } from '../charts/theme.js'
+import { useChartTheme } from '../charts/theme.js'
 import { GOAL_METRICS } from '../../lib/learning/templates.js'
 import { weeklyActivity, difficultySplit, startOfWeek } from '../../lib/learning/mastery.js'
 import { reviewQueue } from '../../lib/learning/review.js'
@@ -18,7 +18,7 @@ import NeedsKey from '../onboarding/NeedsKey.jsx'
 // squared-off label bar. Every widget renders inside this so the page reads as one panel.
 export function Panel({ title, meta, children, className = '', action }) {
   return (
-    <section className={`bg-white border border-ink-300 rounded-sm ${className}`}>
+    <section className={`bg-surface border border-ink-300 rounded-sm ${className}`}>
       <header className="flex items-center justify-between gap-2 px-4 py-2 border-b border-ink-200 bg-ink-50">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-600">{title}</h3>
         <div className="flex items-center gap-2">
@@ -78,7 +78,7 @@ export function SummaryWidget({ view }) {
     { label: 'Next up', value: next ? (days != null ? `${days}d` : 'now') : '—', sub: next ? next.label : 'no interviews in pipeline' },
   ]
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 border border-ink-300 rounded-sm bg-white divide-x divide-ink-200 [&>*:nth-child(3)]:border-t md:[&>*:nth-child(3)]:border-t-0 [&>*:nth-child(4)]:border-t md:[&>*:nth-child(4)]:border-t-0 [&>*]:border-ink-200">
+    <div className="grid grid-cols-2 md:grid-cols-4 border border-ink-300 rounded-sm bg-surface divide-x divide-ink-200 [&>*:nth-child(3)]:border-t md:[&>*:nth-child(3)]:border-t-0 [&>*:nth-child(4)]:border-t md:[&>*:nth-child(4)]:border-t-0 [&>*]:border-ink-200">
       {tiles.map((t, i) => (
         <div key={t.label} className="p-4 learn-rise" style={{ animationDelay: `${i * 70}ms` }}>
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-500">{t.label}</p>
@@ -323,6 +323,7 @@ export function ActivityWidget({ view }) {
 export function DifficultyWidget({ view, snapshot }) {
   const split = difficultySplit(view.logs)
   const lifetime = snapshot?.difficulty
+  const { difficulty: DIFFICULTY_COLORS } = useChartTheme()
   const src = lifetime && (lifetime.Easy || lifetime.Medium || lifetime.Hard) ? lifetime : split
   const data = ['Easy', 'Medium', 'Hard'].map(k => ({ label: k, value: src[k] || 0, color: DIFFICULTY_COLORS[k] }))
   return (
@@ -389,7 +390,7 @@ export function CompanyPrepWidget({ view, prep, onLog, onPin, isDemoMode = false
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-1.5">
             {sets.map(x => (
-              <span key={x.company} className={`inline-flex items-center border text-xs ${x === set ? 'bg-ink-900 border-ink-900 text-white' : 'bg-white border-ink-200 text-ink-600 hover:border-ink-400'}`}>
+              <span key={x.company} className={`inline-flex items-center border text-xs ${x === set ? 'bg-ink-900 border-ink-900 text-on-fill' : 'bg-surface border-ink-200 text-ink-600 hover:border-ink-400'}`}>
                 <button onClick={() => setActive(x.company)} className="px-2.5 py-1 font-semibold">
                   {x.company} <span className={x === set ? 'text-accent-300' : 'text-ink-400'}>· {WHY_LABEL[x.why]}</span>
                 </button>
@@ -400,7 +401,7 @@ export function CompanyPrepWidget({ view, prep, onLog, onPin, isDemoMode = false
             ))}
             <form onSubmit={pin} className="inline-flex">
               <input value={adding} onChange={e => setAdding(e.target.value)} list="lc-company-folders" placeholder="+ pin a company"
-                className="w-36 px-2 py-1 text-xs border border-dashed border-ink-300 focus:outline-none focus:border-accent-500 bg-white" />
+                className="w-36 px-2 py-1 text-xs border border-dashed border-ink-300 focus:outline-none focus:border-accent-500 bg-surface" />
               <datalist id="lc-company-folders">{prep.folders.map(f => <option key={f} value={f} />)}</datalist>
             </form>
           </div>

@@ -230,7 +230,7 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
             <div className="flex border border-ink-200 rounded-full overflow-hidden text-xs font-medium">
               {[['recommended', `✨ Recommended${recommended.length ? ` (${recommended.length})` : ''}`], ['byCompany', 'By company']].map(([k, label]) => (
                 <button key={k} onClick={() => setView(k)}
-                  className={`px-3 py-1 transition-colors ${view === k ? 'bg-ink-900 text-white' : 'bg-white text-ink-500 hover:bg-ink-50'}`}>
+                  className={`px-3 py-1 transition-colors ${view === k ? 'bg-ink-900 text-on-fill' : 'bg-surface text-ink-500 hover:bg-ink-50'}`}>
                   {label}
                 </button>
               ))}
@@ -240,11 +240,11 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
                 {running ? `Searching ${progress?.done ?? 0}/${progress?.total ?? '…'}…` : lastRunMs ? `Updated ${timeAgo(new Date(lastRunMs).toISOString())}` : 'Not run yet'}
               </span>
               <NeedsKey kind={['ai', 'exa']}><button onClick={() => runScheduler({ force: true })} disabled={running}
-                className="px-3 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 disabled:opacity-40">
+                className="px-3 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 disabled:opacity-40">
                 ↻ Refresh now
               </button></NeedsKey>
               <button onClick={() => setShowSettings(s => !s)}
-                className="px-2 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-400 hover:border-accent-300">⚙</button>
+                className="px-2 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-400 hover:border-accent-300">⚙</button>
             </div>
           </div>
 
@@ -255,7 +255,7 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
           )}
 
           {showSettings && (
-            <div className="flex items-center gap-4 rounded-xl border border-ink-100 bg-white p-3 text-xs">
+            <div className="flex items-center gap-4 rounded-xl border border-ink-100 bg-surface p-3 text-xs">
               <span className="text-ink-500">Hands-off refresh runs daily, but each company is only re-searched on a cooldown.</span>
               <label className="flex items-center gap-1.5 ml-auto">Cooldown (days)
                 <input type="number" min="1" value={settings.cooldownDays}
@@ -282,7 +282,7 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
                 const live = (r.ranked || []).filter(isLive)
                 return (
                   <div key={r.company} ref={el => { if (el) rowRefs.current.set(normalizeCompanyName(r.company), el) }}
-                    className={`bg-white rounded-md p-4 border transition-shadow ${focus && normalizeCompanyName(focus.company) === normalizeCompanyName(r.company) ? 'ring-2 ring-accent-300' : ''} ${r.status === 'gap' ? 'border-danger-200' : r.status === 'weak' ? 'border-warning-200' : 'border-ink-300'}`}>
+                    className={`bg-surface rounded-md p-4 border transition-shadow ${focus && normalizeCompanyName(focus.company) === normalizeCompanyName(r.company) ? 'ring-2 ring-accent-300' : ''} ${r.status === 'gap' ? 'border-danger-200' : r.status === 'weak' ? 'border-warning-200' : 'border-ink-300'}`}>
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-ink-900">{r.company}</span>
@@ -293,7 +293,7 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
                           : <Badge label={`${r.matchedCount} contact${r.matchedCount !== 1 ? 's' : ''}`} color="bg-success-100 text-success-800" />}
                       </div>
                       <NeedsKey kind={['ai', 'exa']}><button onClick={() => findPeople(r.company)} disabled={loadingCompany === r.company}
-                        className="shrink-0 px-3 py-1.5 bg-accent-600 text-white rounded-full text-xs font-medium hover:bg-accent-700 disabled:opacity-40">
+                        className="shrink-0 px-3 py-1.5 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700 disabled:opacity-40">
                         {loadingCompany === r.company ? 'Searching…' : r.ranked ? '↻ Re-run' : '🔍 Find people'}
                       </button></NeedsKey>
                     </div>
@@ -394,27 +394,27 @@ function CandidateCard({ cand, profile, authProfile, showCompany, isAdded, onDis
           </p>
           <div className="flex flex-wrap gap-1 mt-1.5">
             {reasons.slice(0, 5).map((rr, i) => (
-              <span key={i} className="text-[11px] px-1.5 py-0.5 rounded-full bg-white border border-ink-200 text-ink-500">{rr}</span>
+              <span key={i} className="text-[11px] px-1.5 py-0.5 rounded-full bg-surface border border-ink-200 text-ink-500">{rr}</span>
             ))}
           </div>
         </div>
         <div className="shrink-0 flex flex-col items-end gap-1.5">
           {person.linkedinUrl && (
-            <a href={person.linkedinUrl} target="_blank" rel="noreferrer" className="text-xs text-accent-500 hover:underline">LinkedIn ↗</a>
+            <a href={person.linkedinUrl} target="_blank" rel="noreferrer" className="text-xs text-link hover:underline">LinkedIn ↗</a>
           )}
           {!isAdded && (
             <button onClick={addToContacts} disabled={adding}
-              className="px-2.5 py-1 bg-accent-600 text-white rounded-full text-xs font-medium hover:bg-accent-700 disabled:opacity-40">
+              className="px-2.5 py-1 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700 disabled:opacity-40">
               {adding ? 'Adding…' : '+ Add to Contacts'}
             </button>
           )}
           <div className="flex gap-1.5">
             <button onClick={() => setDrafting(d => !d)}
-              className="px-2.5 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300">
+              className="px-2.5 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300">
               {drafting ? 'Hide' : '✎ Draft intro'}
             </button>
             <button onClick={onDismiss}
-              className="px-2 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-400 hover:border-danger-300 hover:text-danger-600">✕</button>
+              className="px-2 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-400 hover:border-danger-300 hover:text-danger-600">✕</button>
           </div>
         </div>
       </div>
@@ -422,24 +422,24 @@ function CandidateCard({ cand, profile, authProfile, showCompany, isAdded, onDis
       {addErr && <div className="mt-2 p-2 bg-danger-50 border border-danger-200 rounded-lg text-xs text-danger-700">{addErr}</div>}
 
       {drafting && (
-        <div className="mt-2 bg-white border border-accent-100 rounded-lg p-3">
+        <div className="mt-2 bg-surface border border-accent-100 rounded-lg p-3">
           <p className="text-[11px] text-ink-400 mb-1.5">Personalized on: {personalizationSeed(person, reasons)}</p>
           {draftErr && <div className="p-2 mb-2 bg-danger-50 border border-danger-200 rounded-lg text-xs text-danger-700">{draftErr}</div>}
           {draft
             ? <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={4}
                 className="w-full px-2.5 py-1.5 border border-accent-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 resize-none" />
             : <NeedsKey kind="ai"><button onClick={generateDraft} disabled={genning}
-                className="w-full py-2 bg-accent-600 text-white text-xs rounded-lg hover:bg-accent-700 disabled:opacity-40 font-medium">
+                className="w-full py-2 bg-accent-600 text-on-accent text-xs rounded-lg hover:bg-accent-700 disabled:opacity-40 font-medium">
                 {genning ? 'Drafting…' : 'Generate intro →'}
               </button></NeedsKey>}
           {draft && (
             <div className="flex gap-2 mt-2">
               <NeedsKey kind="ai"><button onClick={generateDraft} disabled={genning}
-                className="px-3 py-1.5 bg-white border border-accent-200 rounded-lg text-xs font-medium text-accent-700 hover:border-accent-400 disabled:opacity-40">
+                className="px-3 py-1.5 bg-surface border border-accent-200 rounded-lg text-xs font-medium text-accent-700 hover:border-accent-400 disabled:opacity-40">
                 {genning ? 'Regenerating…' : 'Regenerate'}
               </button></NeedsKey>
               <button onClick={() => navigator.clipboard.writeText(draft)}
-                className="px-3 py-1.5 bg-accent-600 text-white rounded-lg text-xs font-medium hover:bg-accent-700">Copy</button>
+                className="px-3 py-1.5 bg-accent-600 text-on-accent rounded-lg text-xs font-medium hover:bg-accent-700">Copy</button>
             </div>
           )}
           <p className="text-[11px] text-ink-400 mt-2">Tip: “+ Add to Contacts” first if you want the draft saved to their Notion record.</p>
@@ -497,19 +497,19 @@ function ProfilePanel({ profile, open, onToggle, onSave }) {
             <Field label="High school"><input value={highSchool} onChange={e => setHighSchool(e.target.value)} className={inputCls} /></Field>
           </div>
           <div>
-            <label className="block text-xs text-accent-600 mb-1">Signal weights</label>
+            <label className="block text-xs text-link mb-1">Signal weights</label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {WEIGHT_FIELDS.map(([k, label]) => (
                 <div key={k} className="flex items-center gap-1.5">
                   <span className="text-[11px] text-ink-500 flex-1">{label}</span>
                   <input type="number" value={weights[k]} onChange={e => setWeights(w => ({ ...w, [k]: Number(e.target.value) }))}
-                    className="w-14 px-2 py-1 border border-accent-200 rounded-lg text-xs bg-white focus:outline-none focus:border-accent-400" />
+                    className="w-14 px-2 py-1 border border-accent-200 rounded-lg text-xs bg-surface focus:outline-none focus:border-accent-400" />
                 </div>
               ))}
             </div>
           </div>
           <div className="flex justify-end">
-            <button onClick={save} className="px-4 py-1.5 bg-accent-600 text-white text-xs rounded-lg hover:bg-accent-700 font-medium">Save profile</button>
+            <button onClick={save} className="px-4 py-1.5 bg-accent-600 text-on-accent text-xs rounded-lg hover:bg-accent-700 font-medium">Save profile</button>
           </div>
         </div>
       )}
@@ -517,7 +517,7 @@ function ProfilePanel({ profile, open, onToggle, onSave }) {
   )
 }
 
-const inputCls = 'w-full px-3 py-2 border border-accent-200 rounded-lg text-sm bg-white focus:outline-none focus:border-accent-400'
+const inputCls = 'w-full px-3 py-2 border border-accent-200 rounded-lg text-sm bg-surface focus:outline-none focus:border-accent-400'
 function Field({ label, children }) {
-  return <div><label className="block text-xs text-accent-600 mb-0.5">{label}</label>{children}</div>
+  return <div><label className="block text-xs text-link mb-0.5">{label}</label>{children}</div>
 }

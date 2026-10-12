@@ -50,12 +50,12 @@ function DuplicatesPanel({ apps, onRefresh }) {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => setExpanded(e => !e)}
-            className="px-3 py-1.5 bg-white border border-warning-200 text-warning-700 text-xs rounded-lg hover:bg-warning-100 font-medium">
+            className="px-3 py-1.5 bg-surface border border-warning-200 text-warning-700 text-xs rounded-lg hover:bg-warning-100 font-medium">
             {expanded ? 'Hide' : 'Review'}
           </button>
           <button onClick={() => { if (confirm(`Archive ${extraCount} duplicate row${extraCount !== 1 ? 's' : ''}? This keeps the oldest copy of each and archives the rest in Notion (recoverable from Notion's trash).`)) dedupe() }}
             disabled={archiving}
-            className="px-3 py-1.5 bg-danger-600 text-white text-xs rounded-lg hover:bg-danger-700 disabled:opacity-50 font-medium">
+            className="px-3 py-1.5 bg-danger-600 text-on-fill text-xs rounded-lg hover:bg-danger-700 disabled:opacity-50 font-medium">
             {archiving ? 'Archiving...' : `Archive ${extraCount} duplicate${extraCount !== 1 ? 's' : ''}`}
           </button>
         </div>
@@ -66,7 +66,7 @@ function DuplicatesPanel({ apps, onRefresh }) {
       {expanded && (
         <div className="mt-3 space-y-2 max-h-72 overflow-y-auto">
           {groups.map((g, i) => (
-            <div key={i} className="bg-white rounded-lg border border-warning-100 px-3 py-2">
+            <div key={i} className="bg-surface rounded-lg border border-warning-100 px-3 py-2">
               <p className="text-xs font-semibold text-ink-700">{g[0].company} · {g[0].role || '(no role)'} — {g.length} copies</p>
               <div className="mt-1 space-y-0.5">
                 {g.map((a, j) => (
@@ -138,8 +138,8 @@ export default function ApplicationsView({ apps, contacts = [], interactions = [
         {[['active','Active'],['review','Needs Review'],['all','All incl. rejected']].map(([val, label]) => (
           <button key={val} onClick={() => setFilter(val)}
             className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${filter === val
-              ? 'bg-accent-600 text-white border-accent-600'
-              : 'bg-white text-ink-600 border-ink-200 hover:border-accent-300'}`}>
+              ? 'bg-accent-600 text-on-accent border-accent-600'
+              : 'bg-surface text-ink-600 border-ink-200 hover:border-accent-300'}`}>
             {label}
           </button>
         ))}
@@ -147,7 +147,7 @@ export default function ApplicationsView({ apps, contacts = [], interactions = [
           placeholder="Search company, role..."
           className="px-3 py-1 border border-ink-200 rounded-full text-xs focus:outline-none focus:border-accent-400 w-44" />
         <button onClick={() => setAddingNew(true)}
-          className="ml-auto px-3 py-1 bg-accent-600 text-white rounded-full text-xs font-medium hover:bg-accent-700">
+          className="ml-auto px-3 py-1 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700">
           + Add Application
         </button>
       </div>
@@ -162,7 +162,7 @@ export default function ApplicationsView({ apps, contacts = [], interactions = [
               const coverage = a.company?.trim() ? companyCoverage(a.company, contacts, interactions) : null
               return (
                 <div key={a.id} onClick={() => setSelectedAppId(a.id)}
-                  className={`bg-white rounded-md px-4 py-3 border transition-all cursor-pointer hover:shadow-md hover:border-accent-200 ${stale ? 'border-warning-200' : 'border-ink-300'}`}>
+                  className={`bg-surface rounded-md px-4 py-3 border transition-all cursor-pointer hover:shadow-md hover:border-accent-200 ${stale ? 'border-warning-200' : 'border-ink-300'}`}>
                   <div className="flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -189,11 +189,11 @@ export default function ApplicationsView({ apps, contacts = [], interactions = [
                         )}
                         {a.jdLink && (
                           <a href={a.jdLink} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-                            className="text-xs text-accent-500 hover:underline">JD ↗</a>
+                            className="text-xs text-link hover:underline">JD ↗</a>
                         )}
                       </div>
                       {a.referredById && (
-                        <p className="text-xs text-accent-600 mt-0.5">
+                        <p className="text-xs text-link mt-0.5">
                           Referred by {contacts.find(c => c.id === a.referredById)?.name || '—'}
                         </p>
                       )}

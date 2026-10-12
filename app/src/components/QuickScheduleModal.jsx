@@ -60,7 +60,7 @@ export default function QuickScheduleModal({ contacts = [], onClose, onSaved }) 
 
   return (
     <Modal onClose={onClose} size="sm">
-      <div className="sticky top-0 bg-white border-b border-ink-100 px-5 py-4 flex items-center justify-between">
+      <div className="sticky top-0 bg-surface border-b border-ink-100 px-5 py-4 flex items-center justify-between">
         <h2 className="text-base font-heading font-semibold text-ink-900">+ Schedule</h2>
         <button onClick={onClose} className="w-7 h-7 rounded-full bg-ink-100 hover:bg-ink-200 flex items-center justify-center text-ink-500 text-sm">✕</button>
       </div>
@@ -73,7 +73,7 @@ export default function QuickScheduleModal({ contacts = [], onClose, onSaved }) 
           <input value={name} onChange={e => onNameChange(e.target.value)} placeholder="Start typing a name..." autoFocus
             className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
           {nameMatches.length > 0 && (
-            <div className="absolute z-10 mt-1 w-full bg-white border border-ink-200 rounded-lg shadow-lg overflow-hidden">
+            <div className="absolute z-10 mt-1 w-full bg-surface border border-ink-200 rounded-lg shadow-lg overflow-hidden">
               {nameMatches.map(c => (
                 <button key={c.id} onClick={() => pick(c)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-ink-50">
                   {c.name}{c.company ? ` @ ${c.company}` : ''}

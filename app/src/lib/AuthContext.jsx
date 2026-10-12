@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient.js'
 import { setStorageUserId } from './scopedStorage.js'
 import { setSentryUser } from './sentry.js'
 import { setAiProvider } from './ai.js'
+import { setAppearance, APPEARANCE_SETTING_KEY } from './theme.js'
 
 const AuthContext = createContext(null)
 
@@ -20,6 +21,10 @@ export function AuthProvider({ children }) {
     setAiProvider(data?.ai_provider)   // null/missing -> env default
     setProfile(data || null)
     setProfileUserId(userId)
+    // The account's saved color scheme wins over this browser's cached one (theme-init.js
+    // painted from the cache). Fire-and-forget: a failed read just keeps the cached theme.
+    supabase.from('user_settings').select('value').eq('key', APPEARANCE_SETTING_KEY).maybeSingle()
+      .then(({ data: row }) => { if (row?.value) setAppearance(row.value) }, () => {})
   }, [])
 
   useEffect(() => {

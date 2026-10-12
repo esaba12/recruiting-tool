@@ -27,7 +27,7 @@ export default function TrackedBoardsPanel({ onPullAll, pulling, lastPull }) {
   const enabledCount = boards.filter(b => b.enabled !== false).length
 
   return (
-    <div className="bg-white rounded-xl border border-ink-100 p-4 space-y-3">
+    <div className="bg-surface rounded-xl border border-ink-100 p-4 space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <p className="text-sm font-semibold text-ink-900">📋 Tracked boards</p>
@@ -38,7 +38,7 @@ export default function TrackedBoardsPanel({ onPullAll, pulling, lastPull }) {
           </p>
         </div>
         <button onClick={() => onPullAll(boards)} disabled={pulling || enabledCount === 0}
-          className="px-4 py-2 bg-ink-900 text-white text-sm rounded-xl hover:bg-ink-800 disabled:opacity-40 font-medium transition-colors shrink-0">
+          className="px-4 py-2 bg-ink-900 text-on-fill text-sm rounded-xl hover:bg-ink-800 disabled:opacity-40 font-medium transition-colors shrink-0">
           {pulling ? 'Pulling…' : '↻ Pull all tracked boards'}
         </button>
       </div>
@@ -52,7 +52,7 @@ export default function TrackedBoardsPanel({ onPullAll, pulling, lastPull }) {
                 <input type="checkbox" checked={b.enabled !== false} onChange={e => handleToggle(id, e.target.checked)}
                   className="accent-accent-600" />
                 <a href={`https://github.com/${b.owner}/${b.repo}`} target="_blank" rel="noreferrer"
-                  className="flex-1 min-w-0 truncate text-ink-700 hover:text-accent-600 font-medium">
+                  className="flex-1 min-w-0 truncate text-ink-700 hover:text-link font-medium">
                   {b.label || `${b.owner}/${b.repo}`}
                 </a>
                 {lastPull?.sources && (() => {

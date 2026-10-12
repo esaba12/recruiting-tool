@@ -47,14 +47,14 @@ export default function SidePanel({ open = true, onClose, children, className })
       <AnimatePresence>
         {open && (
           <motion.div
-            className="fixed inset-0 bg-ink-900/40 z-50 flex items-end md:items-stretch md:justify-end"
+            className="fixed inset-0 bg-black/40 z-50 flex items-end md:items-stretch md:justify-end"
             onClick={e => e.target === e.currentTarget && onClose?.()}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
           >
             <motion.div
               className={cn(
-                'bg-white w-full md:w-[480px] md:max-w-[92vw] rounded-t-md md:rounded-none border border-ink-300 max-h-[90vh] md:max-h-none md:h-full overflow-y-auto',
+                'bg-surface w-full md:w-[480px] md:max-w-[92vw] rounded-t-md md:rounded-none border border-ink-300 max-h-[90vh] md:max-h-none md:h-full overflow-y-auto',
                 className,
               )}
               {...transform}

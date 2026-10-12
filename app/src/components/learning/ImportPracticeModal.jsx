@@ -24,7 +24,7 @@ const MODES = [
 ]
 const KIND_LABEL = { session: 'Study', mock: 'Mock', assessment: 'OA / test', problem: 'Problem' }
 const ORIGIN_LABEL = { csv: 'sheet', paste: 'paste', screenshot: 'image' }
-const field = 'px-2 py-1 border border-ink-200 bg-white text-xs focus:outline-none focus:border-accent-500'
+const field = 'px-2 py-1 border border-ink-200 bg-surface text-xs focus:outline-none focus:border-accent-500'
 
 export default function ImportPracticeModal({ view, learning, onClose, isDemoMode = false }) {
   const topics = view.visible
@@ -161,7 +161,7 @@ export default function ImportPracticeModal({ view, learning, onClose, isDemoMod
             {image ? (
               <div className="relative inline-block">
                 <img src={image.preview} alt="Screenshot to import" className="max-h-48 border border-ink-200" />
-                <button onClick={() => setImage(null)} className="absolute -top-2 -right-2 bg-ink-900 text-white p-0.5" title="Remove"><X size={12} /></button>
+                <button onClick={() => setImage(null)} className="absolute -top-2 -right-2 bg-ink-900 text-on-fill p-0.5" title="Remove"><X size={12} /></button>
               </div>
             ) : (
               <button type="button" onClick={() => fileRef.current?.click()}
@@ -228,7 +228,7 @@ function DraftRow({ d, topics, topicById, onPatch, onRemove }) {
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
         {d.topicIds.map(id => (
-          <span key={id} className="inline-flex items-center gap-1 bg-ink-900 text-white text-[11px] pl-1.5 pr-1 py-0.5">
+          <span key={id} className="inline-flex items-center gap-1 bg-ink-900 text-on-fill text-[11px] pl-1.5 pr-1 py-0.5">
             {topicById.get(id)?.name || 'topic'}
             <button onClick={() => onPatch({ topicIds: d.topicIds.filter(x => x !== id) })} className="text-ink-300 hover:text-white"><X size={10} /></button>
           </span>

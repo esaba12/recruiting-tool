@@ -29,7 +29,7 @@ export default function CalendarView({ jobs, selectedDay, onDaySelect }) {
   const maxDay     = Math.max(...Object.values(jobsByDay), 1)
 
   return (
-    <div className="bg-white rounded-md p-5 border border-ink-300">
+    <div className="bg-surface rounded-md p-5 border border-ink-300">
       <div className="flex items-center justify-between mb-4">
         <button onClick={() => setViewDate(new Date(year, mo - 1, 1))}
           className="p-1.5 hover:bg-ink-100 rounded-lg text-ink-500 text-sm">←</button>
@@ -53,7 +53,7 @@ export default function CalendarView({ jobs, selectedDay, onDaySelect }) {
           const isTod = key === todayKey
           const heat  = count ? Math.min(Math.ceil((count / maxDay) * 4), 4) : 0
           const heatBg = ['', 'bg-accent-100', 'bg-accent-200', 'bg-accent-400', 'bg-accent-600'][heat]
-          const heatTx = heat >= 3 ? 'text-white' : heat > 0 ? 'text-accent-800' : 'text-ink-300'
+          const heatTx = heat >= 3 ? 'text-on-accent' : heat > 0 ? 'text-accent-800' : 'text-ink-300'
           return (
             <button key={d} disabled={!count}
               onClick={() => onDaySelect(isSel ? null : key)}
@@ -67,7 +67,7 @@ export default function CalendarView({ jobs, selectedDay, onDaySelect }) {
         })}
       </div>
       {selectedDay && (
-        <p className="text-xs text-center text-accent-600 mt-3 cursor-pointer hover:underline" onClick={() => onDaySelect(null)}>
+        <p className="text-xs text-center text-link mt-3 cursor-pointer hover:underline" onClick={() => onDaySelect(null)}>
           Showing {selectedDay.split('-')[2] && jobsByDay[+selectedDay.split('-')[2]]} jobs from this day · click to clear
         </p>
       )}
