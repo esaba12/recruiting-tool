@@ -9,6 +9,7 @@ import { dedupKey } from './ingest/dedup.js'
 import { classifyKind, extractEmployer } from './ingest/adapters/localist.js'
 import { REQUIREMENT_KINDS } from './eventRequirements.js'
 import { splitCsvLine } from './csv.js'
+import { todayLocal } from './dates.js'
 
 // ── ICS ─────────────────────────────────────────────────────────────────────
 function unfold(text) {
@@ -140,7 +141,7 @@ Text:
 `
 
 export async function extractFromPaste(text, { timezone = 'UTC' } = {}) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocal()
   const parsed = await aiJSON({ model: AI_MODELS.STANDARD, content: PASTE_PROMPT_HEADER(timezone, today) + text.slice(0, 12000), maxTokens: 3000 })
   const drafts = []
   for (const it of parsed.items || []) {

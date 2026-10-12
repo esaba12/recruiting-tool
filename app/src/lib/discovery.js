@@ -141,11 +141,11 @@ export function rankCandidates(people, profile = DEFAULT_PROFILE, existingContac
 }
 
 // Label for the "shared school" tag/chip — whatever university the user actually
-// typed into their profile, not a hardcoded one. Falls back to 'UMich' only when no
-// university is set at all, matching this app's historical default so existing data
-// (and not-yet-configured accounts) don't visibly change.
+// typed into their profile, not a hardcoded one. Falls back to a generic 'Same School'
+// when none is set (the same fallback shared.jsx's affinityOptionsFor uses, so the tag
+// vocabulary stays consistent across Discover, Quick Add, and the contact panel).
 export function schoolTag(profile) {
-  return profile?.university ? `${profile.university} alum` : 'UMich'
+  return profile?.university ? `${profile.university} alum` : 'Same School'
 }
 
 // Map a scored candidate's matched signals onto the Contacts affinity vocabulary

@@ -1,5 +1,6 @@
 import { aiJSON, AI_MODELS } from './ai.js'
 import { authHeader } from './supabaseClient.js'
+import { assertKey } from './keyStore.js'
 import { exaSearch } from './exa.js'
 
 // Paste-a-link application import: fetch the real posting page (same Exa /contents
@@ -9,6 +10,7 @@ import { exaSearch } from './exa.js'
 // background job, so the token-minimization machinery there doesn't apply here.
 
 async function fetchPageText(url) {
+  assertKey('exa')
   const res = await fetch('/exa/contents', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },

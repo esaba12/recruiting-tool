@@ -22,6 +22,23 @@ describe('scoreEvent', () => {
     const fair = scoreEvent({ ...base, kind: 'career_fair', attributes: { roles: [], employerIds: ['e1'] } }, ctx)
     expect(fair.reason).toMatch(/1 target employer attending/)
   })
+  it('scores role fit from the profile\'s tracks', () => {
+    const ib = { ...ctx, profile: { tracks: ['ib'] } }
+    const finance = scoreEvent({ ...base, attributes: { roles: ['Finance'] } }, ib)
+    const swe = scoreEvent({ ...base, attributes: { roles: ['SWE'] } }, ib)
+    expect(finance.reason).toMatch(/Finance roles/)
+    expect(swe.reason).toMatch(/other role families/)
+    expect(finance.score).toBeGreaterThan(swe.score)
+    // legacy focus still works when tracks is unset
+    expect(scoreEvent({ ...base, attributes: { roles: ['PM'] } }, { ...ctx, profile: { focus: 'Both' } }).reason).toMatch(/PM roles/)
+  })
+  it('changes the input hash when tracks change', () => {
+    const ev = { ...base, attributes: { roles: ['Finance'] } }
+    expect(relevanceInputHash(ev, { ...ctx, profile: { tracks: ['swe'] } }))
+      .not.toBe(relevanceInputHash(ev, { ...ctx, profile: { tracks: ['swe', 'ib'] } }))
+    expect(relevanceInputHash(ev, { ...ctx, profile: { tracks: ['ib', 'swe'] } }))
+      .toBe(relevanceInputHash(ev, { ...ctx, profile: { tracks: ['swe', 'ib'] } }))
+  })
   it('never upgrades a stale event past medium', () => {
     const fresh = scoreEvent({ ...base, employerId: 'e1', attributes: { roles: ['SWE'] } }, ctx)
     const stale = scoreEvent({ ...base, employerId: 'e1', attributes: { roles: ['SWE'] }, sourceLastVerifiedAt: iso(-20) }, ctx)

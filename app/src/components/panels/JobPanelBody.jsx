@@ -2,8 +2,9 @@
 // No behavior changed — only the two overlay wrapper elements were removed.
 import { useState } from 'react'
 import { BUCKET_CONFIG, BUCKET_ACTIVE, generateJobAnalysis, jobAgeDays, isGhostJob, urgencyTier, daysUntilDeadline } from '../jobBoards/helpers.js'
-import { AI_PROVIDER_LABEL } from '../../lib/ai.js'
+import { aiProviderLabel } from '../../lib/ai.js'
 import Mono from '../ui/Mono.jsx'
+import NeedsKey from '../onboarding/NeedsKey.jsx'
 
 const DEADLINE_TEXT = {
   urgent: 'text-danger-600 bg-danger-50',
@@ -104,17 +105,17 @@ export default function JobPanelBody({ job, status, blurb, deadline, onRecheckDe
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-semibold text-ink-400 uppercase tracking-wide">Fit Analysis</p>
           {!analysis && !aiLoading && (
-            <button onClick={doAnalysis}
+            <NeedsKey kind="ai"><button onClick={doAnalysis}
               className="px-3 py-1.5 bg-accent-50 text-accent-600 text-xs rounded-lg hover:bg-accent-100 font-medium">
               Analyze →
-            </button>
+            </button></NeedsKey>
           )}
         </div>
 
         {aiLoading && (
           <div className="flex items-center gap-2 text-xs text-ink-400">
             <div className="w-3 h-3 border-2 border-accent-400 border-t-transparent rounded-full animate-spin" />
-            Analyzing with {AI_PROVIDER_LABEL}...
+            Analyzing with {aiProviderLabel()}...
           </div>
         )}
 
@@ -181,7 +182,7 @@ export default function JobPanelBody({ job, status, blurb, deadline, onRecheckDe
 
         {!analysis && !aiLoading && !aiError && (
           <p className="text-xs text-ink-400">
-            {AI_PROVIDER_LABEL} reads your preferences and gives personalized pros/cons.
+            {aiProviderLabel()} reads your preferences and gives personalized pros/cons.
             {Object.keys(prefs).filter(k => prefs[k]).length === 0 &&
               ' Set your preferences above for a more targeted analysis.'}
           </p>

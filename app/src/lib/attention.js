@@ -182,3 +182,40 @@ export function learningAttention(learning, apps, { now = Date.now(), withinDays
   }
   return out
 }
+
+// Next Deadline tile: soonest of open OA due dates and the job-board deadlines the caller
+// already has (statTiles.js's nextDeadlines output: { company, role, days }). OAs only count
+// when not completed, not in the past, and the app isn't Rejected/Accepted — a dead
+// application's OA is no longer a deadline. Ties go to the OA (it's a commitment, not a
+// posting). Returns { label, company, days, kind } or null.
+export function pickNextDeadline(apps, jobDeadlines = [], now = Date.now()) {
+  const found = []
+  for (const a of apps || []) {
+    if (!a.oaDueDate || a.oaCompleted || TERMINAL_STAGES.includes(a.stage)) continue
+    const days = daysUntil(a.oaDueDate, now)
+    if (days === null || days < 0) continue
+    found.push({ kind: 'oa', company: a.company, label: `${a.company} OA`, days })
+  }
+  for (const j of jobDeadlines) {
+    found.push({ kind: 'job', company: j.company, label: j.company, days: j.days })
+  }
+  found.sort((x, y) => x.days - y.days || (x.kind === 'oa' ? -1 : 1) - (y.kind === 'oa' ? -1 : 1))
+  return found[0] || null
+}
+
+export const FUNNEL_STAGES = ['Wishlist', 'Applied', 'Phone Screen', 'Technical', 'Onsite', 'Offer']
+
+// Stage-to-stage conversion on a cumulative "reached at least this stage" basis: an app at
+// Phone Screen has also reached Wishlist and Applied, so every count is >= the next one and
+// no ratio can exceed 100%. Accepted implies Offer was reached. Rejected apps are left out
+// because the data doesn't record how far they got — counting them anywhere would be a guess.
+export function funnelConversions(apps, stages = FUNNEL_STAGES) {
+  const rank = s => s === 'Accepted' ? stages.length - 1 : stages.indexOf(s)
+  const ranks = (apps || []).map(a => rank(a.stage)).filter(r => r >= 0)
+  const reached = stages.map((_, i) => ranks.filter(r => r >= i).length)
+  const out = []
+  for (let i = 0; i < stages.length - 1; i++) {
+    if (reached[i] > 0) out.push({ from: stages[i], to: stages[i + 1], pct: Math.round((reached[i + 1] / reached[i]) * 100) })
+  }
+  return out
+}

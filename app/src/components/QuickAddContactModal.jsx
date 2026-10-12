@@ -153,7 +153,7 @@ export default function QuickAddContactModal({ contacts = [], onClose, onSaved }
                 <p className="text-[11px] font-semibold text-accent-700 uppercase tracking-wide mb-1.5">How they fit</p>
                 <div className="flex flex-wrap gap-1.5">
                   {draft.targetMatch && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-accent-200 text-xs text-accent-700"><Target size={11} /> Target company</span>}
-                  {draft.isUMichAlum && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-accent-200 text-xs text-accent-700"><GraduationCap size={11} /> {draft.schoolTagLabel || 'UMich alum'}</span>}
+                  {draft.isUMichAlum && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-accent-200 text-xs text-accent-700"><GraduationCap size={11} /> {draft.schoolTagLabel || 'Same school'}</span>}
                   {(draft.affinity || []).filter(a => a !== draft.schoolTagLabel && a !== 'UMich').map(a => (
                     <span key={a} className="px-2 py-0.5 rounded-full bg-white border border-accent-200 text-xs text-accent-700">{a}</span>
                   ))}

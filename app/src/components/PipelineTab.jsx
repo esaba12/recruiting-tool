@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Kanban, GitFork } from 'lucide-react'
 import ApplicationsView from './ApplicationsView.jsx'
 import JobBoardsView from './jobBoards/JobBoardsView.jsx'
+import { usesTechSources } from '../lib/tracks.js'
 
 // Merged Pipeline destination shell delivering PIPE-01: a segmented control over two
 // mutually exclusive bodies (Applications | Job Boards), so only one body ever mounts
@@ -17,6 +18,11 @@ const PIPELINE_VIEWS = [
 ]
 
 export const DEMO_PIPELINE_VIEWS = PIPELINE_VIEWS.filter(v => v.key === 'applications')
+
+// Job Boards is built on GitHub internship repos (tech-only), so non-tech users don't get it.
+export function pipelineViewsFor(profile) {
+  return usesTechSources(profile) ? PIPELINE_VIEWS : DEMO_PIPELINE_VIEWS
+}
 
 export default function PipelineTab({ apps, contacts = [], interactions = [], relationships = [], onRefresh, onImported = onRefresh, onFindPeople, onRefreshRelationships, views = PIPELINE_VIEWS }) {
   const [view, setView] = useState('applications')

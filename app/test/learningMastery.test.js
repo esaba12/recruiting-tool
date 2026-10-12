@@ -212,7 +212,7 @@ describe('templates + problem bank', () => {
       expect(new Set(track.config.widgets.map(w => w.type)).size).toBe(track.config.widgets.length)
       topics.forEach(t => expect(t.name).toBeTruthy())
     }
-    expect(defaultTemplateKeys('Both')).toEqual(['swe', 'pm'])
+    expect(defaultTemplateKeys(['swe', 'pm'])).toEqual(['swe', 'pm'])
     expect(defaultTemplateKeys(undefined)).toEqual(['swe'])
   })
 

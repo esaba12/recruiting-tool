@@ -6,6 +6,8 @@ import { findApplicationForCompany } from '../lib/applicationImport.js'
 import { ROLE_OPTIONS, STATUS_OPTIONS, REFERRAL_STATUS_OPTIONS, STAGE_ORDER } from '../shared.jsx'
 import { normalizeCompanyName } from '../lib/networkGraph.js'
 import { useTargetCompanies } from '../lib/useTargetCompanies.js'
+import { useAuth } from '../lib/AuthContext.jsx'
+import { stageLabel } from '../lib/tracks.js'
 import Modal from './ui/Modal.jsx'
 import Button from './ui/Button.jsx'
 
@@ -429,6 +431,7 @@ function MultiApplicationRow({ item, onPatch, onConfirm }) {
 }
 
 function ApplicationUpdateDraftCard({ draft, status, error, apps, onPatch, onConfirm }) {
+  const { profile } = useAuth()
   const scored = bestApplicationMatches(draft.applicationQuery, apps, 8)
   // Fall back to every open application if the text match came up empty — better to make
   // the user pick manually than to show an empty, unusable dropdown.
@@ -459,7 +462,7 @@ function ApplicationUpdateDraftCard({ draft, status, error, apps, onPatch, onCon
           <select value={draft.stage} onChange={e => onPatch({ stage: e.target.value })}
             className="w-full px-2 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 bg-white">
             <option value="">— no change —</option>
-            {STAGE_ORDER.map(o => <option key={o} value={o}>{o}</option>)}
+            {STAGE_ORDER.map(o => <option key={o} value={o}>{stageLabel(o, profile)}</option>)}
           </select>
         </div>
         <div>

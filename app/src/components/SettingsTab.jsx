@@ -7,7 +7,13 @@ import { fetchSchools, getUserSetting, setUserSetting } from '../db.js'
 import { SYNC_SETTING_KEY, DEFAULT_SYNC } from '../lib/useEventCalendarSync.js'
 import Button from './ui/Button.jsx'
 import Input from './ui/Input.jsx'
+import ChipToggleGroup from './ui/ChipToggleGroup.jsx'
 import { Badge } from '../shared.jsx'
+import { TRACKS, profileTracks } from '../lib/tracks.js'
+import { refreshKeyStatus } from '../lib/useKeyStatus.js'
+import GetAKey from './onboarding/GetAKey.jsx'
+import UnverifiedAppNote from './onboarding/UnverifiedAppNote.jsx'
+import { openFeedback } from './onboarding/FeedbackHost.jsx'
 
 const PROVIDERS = [
   { id: 'anthropic', label: 'Anthropic (Claude)', hint: 'console.anthropic.com/settings/keys', href: 'https://console.anthropic.com/settings/keys' },
@@ -18,7 +24,7 @@ const PROVIDERS = [
 
 const SCHOOLS_HINT = 'e.g. University of Michigan'
 
-export default function SettingsTab() {
+export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
   const { profile, refreshProfile, signOut, user } = useAuth()
   const [keys, setKeys] = useState([])
   const [keysLoading, setKeysLoading] = useState(true)
@@ -66,7 +72,7 @@ export default function SettingsTab() {
       school: profile.school || '',
       school_id: profile.school_id || '',
       grad_year: profile.grad_year || '',
-      focus: profile.focus || 'SWE',
+      tracks: profileTracks(profile),
       ai_provider: profile.ai_provider || 'claude',
     })
   }, [profile])
@@ -74,6 +80,7 @@ export default function SettingsTab() {
   async function saveKey(provider) {
     const apiKey = (drafts[provider] || '').trim()
     if (!apiKey) return
+    let saved = false
     setSavingProvider(provider); setError(null)
     try {
       const res = await fetch('/api/keys', {
@@ -84,8 +91,11 @@ export default function SettingsTab() {
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error?.message || 'Failed to save key')
       setDrafts(d => ({ ...d, [provider]: '' }))
       await loadKeys()
+      refreshKeyStatus()
+      saved = true
     } catch (e) { setError(e.message) }
     finally { setSavingProvider(null) }
+    if (saved) onDone?.()
   }
 
   async function removeKey(provider) {
@@ -94,11 +104,22 @@ export default function SettingsTab() {
       const res = await fetch(`/api/keys?provider=${provider}`, { method: 'DELETE', headers: await authHeader() })
       if (!res.ok) throw new Error('Failed to remove key')
       await loadKeys()
+      refreshKeyStatus()
     } catch (e) { setError(e.message) }
     finally { setSavingProvider(null) }
   }
 
+  // Clears onboarded_at so AuthGate shows the first-run wizard again.
+  async function rerunSetup() {
+    setError(null)
+    const { error } = await supabase.from('profiles').update({ onboarded_at: null }).eq('id', user.id)
+    if (error) { setError(error.message); return }
+    await setUserSetting('onboarding_step', null).catch(() => {})
+    await refreshProfile()
+  }
+
   async function saveProfile() {
+    let saved = false
     setSavingProfile(true); setError(null)
     try {
       const { error } = await supabase.from('profiles').update({
@@ -108,13 +129,16 @@ export default function SettingsTab() {
         // school name when it matches a known campus, else left as-is.
         school_id: profileForm.school_id || null,
         grad_year: profileForm.grad_year ? Number(profileForm.grad_year) : null,
-        focus: profileForm.focus,
+        tracks: profileForm.tracks,
         ai_provider: profileForm.ai_provider,
       }).eq('id', user.id)
       if (error) throw error
       await refreshProfile()
+      saved = true
     } catch (e) { setError(e.message) }
     finally { setSavingProfile(false) }
+    // Back to whichever tab Settings was opened from.
+    if (saved) onDone?.()
   }
 
   // Password-only on purpose — this project's auth config has double_confirm_changes
@@ -186,6 +210,11 @@ export default function SettingsTab() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
+        {onDone && (
+          <button onClick={onDone} className="text-xs text-ink-400 hover:text-accent-600 mb-1">
+            ← Back to {returnLabel}
+          </button>
+        )}
         <h2 className="font-heading text-lg font-semibold text-ink-900">Settings</h2>
         <p className="text-sm text-ink-400 mt-0.5">Signed in as {user?.email}</p>
       </div>
@@ -255,25 +284,37 @@ export default function SettingsTab() {
             </div>
             <Input label="Grad year" type="number" value={profileForm.grad_year} onChange={e => setProfileForm(f => ({ ...f, grad_year: e.target.value }))} />
             <div>
-              <label className="block text-xs text-ink-400 mb-0.5">Focus</label>
-              <select value={profileForm.focus} onChange={e => setProfileForm(f => ({ ...f, focus: e.target.value }))}
-                className="w-full px-2.5 py-1.5 border border-ink-100 rounded-lg text-sm focus:outline-none focus:border-accent-400">
-                <option value="SWE">SWE</option>
-                <option value="PM">PM</option>
-                <option value="Both">Both</option>
-              </select>
-            </div>
-            <div>
               <label className="block text-xs text-ink-400 mb-0.5">AI provider</label>
               <select value={profileForm.ai_provider} onChange={e => setProfileForm(f => ({ ...f, ai_provider: e.target.value }))}
                 className="w-full px-2.5 py-1.5 border border-ink-100 rounded-lg text-sm focus:outline-none focus:border-accent-400">
                 <option value="claude">Claude (Anthropic)</option>
                 <option value="openai">GPT (OpenAI)</option>
               </select>
+              {!keys.find(k => k.provider === (profileForm.ai_provider === 'openai' ? 'openai' : 'anthropic'))?.hasKey && (
+                <p className="text-[11px] text-warning-700 mt-1">
+                  {profileForm.ai_provider === 'openai' ? 'Add an OpenAI key below to use GPT.' : 'Add an Anthropic key below to use Claude.'}
+                </p>
+              )}
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs text-ink-400 mb-1">Recruiting for</label>
+              <ChipToggleGroup options={TRACKS.map(t => t.short)}
+                value={TRACKS.filter(t => profileForm.tracks.includes(t.id)).map(t => t.short)}
+                onToggle={short => {
+                  const id = TRACKS.find(t => t.short === short).id
+                  setProfileForm(f => {
+                    const next = f.tracks.includes(id) ? f.tracks.filter(t => t !== id) : [...f.tracks, id]
+                    return next.length ? { ...f, tracks: next } : f   // at least one track
+                  })
+                }} />
             </div>
           </div>
         )}
-        <Button size="sm" onClick={saveProfile} disabled={savingProfile}>{savingProfile ? 'Saving...' : 'Save profile'}</Button>
+        <div className="flex items-center gap-3">
+          <Button size="sm" onClick={saveProfile} disabled={savingProfile}>{savingProfile ? 'Saving...' : 'Save profile'}</Button>
+          <button type="button" onClick={rerunSetup} className="text-xs text-ink-400 hover:text-accent-700">Re-run setup</button>
+          <button type="button" onClick={() => openFeedback('settings')} className="text-xs text-ink-400 hover:text-accent-700">Send feedback</button>
+        </div>
       </section>
 
       {/* BYOK keys */}
@@ -282,6 +323,12 @@ export default function SettingsTab() {
           <h3 className="text-sm font-semibold text-ink-900">Your API keys</h3>
           <p className="text-xs text-ink-400 mt-0.5">Bring your own keys — encrypted at rest, never shared, never billed to anyone but you. Stored server-side only; the browser never sees them again after you save.</p>
         </div>
+        {!keys.find(k => k.provider === 'anthropic')?.hasKey && (
+          <details className="text-xs">
+            <summary className="cursor-pointer text-accent-700 font-medium">New to API keys? Get an Anthropic key step by step</summary>
+            <div className="mt-2"><GetAKey provider="anthropic" stepsOnly /></div>
+          </details>
+        )}
         {keysLoading ? <p className="text-xs text-ink-400">Loading...</p> : PROVIDERS.map(p => {
           const state = keys.find(k => k.provider === p.id)
           return (
@@ -330,6 +377,7 @@ export default function SettingsTab() {
             any connected account until one is set.
           </p>
         )}
+        {gmailConnections.length === 0 && <UnverifiedAppNote what="Gmail" />}
         {gmailConnections.map(c => (
           <div key={c.email} className="flex items-center gap-2">
             <Badge label={c.email} color="bg-success-50 text-success-700" />
@@ -351,6 +399,7 @@ export default function SettingsTab() {
           <h3 className="text-sm font-semibold text-ink-900">Google Calendar</h3>
           <p className="text-xs text-ink-400">Powers the "+ Event" screenshot/text → calendar event feature and the Calendar tab. Connect a second account for a school calendar separate from your personal one.</p>
         </div>
+        {!Object.values(calStatus).some(s => s?.connected) && <UnverifiedAppNote what="Calendar" />}
         {Object.entries(CALENDAR_SLOTS).map(([slot, label]) => {
           const status = calStatus[slot] || { connected: false, email: null }
           const needsReconnect = status.connected && !status.canManageCalendars && syncSetting?.enabled && syncSetting.slot === slot

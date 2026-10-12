@@ -7,6 +7,7 @@
 
 import { aiJSON, AI_MODELS } from './ai.js'
 import { hashText, splitFresh, runChunked, partialErrorMessage } from './ingest/hashGate.js'
+import { todayLocal } from './dates.js'
 
 const CHUNK_SIZE = 30 // records per Haiku call — keeps prompts small even on a big history
 
@@ -78,7 +79,7 @@ export async function findTimelineEvents({ apps, calls, interactions, contactsBy
   if (!fresh.length) return { events: [], scannedKeys, error: null }
 
   const byKey = new Map(fresh.map(c => [c.key, c]))
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocal()
 
   const { results: rawEvents, scannedKeys: done, errors, chunkCount } = await runChunked(fresh, CHUNK_SIZE, scanChunk)
   Object.assign(scannedKeys, done)

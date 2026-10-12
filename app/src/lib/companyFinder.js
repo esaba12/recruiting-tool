@@ -2,6 +2,7 @@ import { companySearch, exaFindSimilar } from './exa.js'
 import { filterCompanies, DOMAINS } from './ycDirectory.js'
 import { normalizeCompanyName } from './networkGraph.js'
 import { aiJSON, AI_MODELS } from './ai.js'
+import { tracksLabel, profileTracks, usesTechSources } from './tracks.js'
 
 // The company finder: merges YC's structured candidate pool with Exa's public-web company
 // search, dedups against companies the user already tracks/applied to, then does ONE AI
@@ -37,18 +38,46 @@ export function prefsFromRecPrefs(recPrefs = {}) {
   }
 }
 
+// Per-track phrasing for the Exa query's "who hires people like me" clause, and the
+// signals students in that track tend to under-weight (fed to the ranking prompt).
+const TRACK_QUERY = {
+  ib: 'investment banks, boutique advisory firms, and asset managers that run summer analyst internship programs',
+  quant: 'quantitative trading firms, market makers, and hedge funds that run quant and trading internship programs',
+  consulting: 'management and strategy consulting firms that run undergraduate summer intern programs',
+}
+const TRACK_UNDERWEIGHTED = {
+  tech: 'mentorship quality, return-offer reputation, and genuine domain interest',
+  ib: 'group/deal-flow exposure, return-offer rate, culture and hours, and exit opportunities',
+  quant: 'training program quality, return-offer rate, and team culture',
+  consulting: 'staffing model, training quality, return-offer rate, and exit options',
+}
+
 // Natural-language interest query for Exa's company search (neural/embedding search likes
-// descriptive phrasing over keyword lists).
-export function buildCompanyQuery(prefs) {
+// descriptive phrasing over keyword lists). Tech users get the original engineering-intern
+// phrasing; finance/quant/consulting users get their own industry's firms instead.
+export function buildCompanyQuery(prefs, studentProfile = null) {
+  const tech = usesTechSources(studentProfile)
+  const other = profileTracks(studentProfile).map(t => TRACK_QUERY[t]).filter(Boolean)
   const parts = []
-  parts.push(prefs.domains?.length ? `${prefs.domains.join(' or ')} companies` : 'technology companies')
-  const stageWord = { seed_a: 'early-stage startups', scaleup: 'high-growth scale-ups', bigtech: 'large established tech companies' }[prefs.stage]
-  if (stageWord) parts.push(stageWord)
+  if (tech) {
+    parts.push(prefs.domains?.length ? `${prefs.domains.join(' or ')} companies` : 'technology companies')
+    const stageWord = { seed_a: 'early-stage startups', scaleup: 'high-growth scale-ups', bigtech: 'large established tech companies' }[prefs.stage]
+    if (stageWord) parts.push(stageWord)
+  } else {
+    parts.push(other.join('; or '))
+  }
   if (prefs.seedCompanies?.length) parts.push(`similar to ${prefs.seedCompanies.slice(0, 5).join(', ')}`)
   if (prefs.locations?.length) parts.push(`based in ${prefs.locations.join(' or ')}`)
   if (prefs.extras?.trim()) parts.push(prefs.extras.trim())
-  parts.push('with a strong engineering culture that hire software engineering interns')
+  if (tech) parts.push(other.length
+    ? `with a strong engineering culture that hire software engineering interns, or ${other.join('; or ')}`
+    : 'with a strong engineering culture that hire software engineering interns')
   return parts.join(', ')
+}
+
+function underweightedSignals(studentProfile) {
+  const keys = profileTracks(studentProfile).map(t => (t === 'swe' || t === 'pm') ? 'tech' : t)
+  return [...new Set(keys)].map(k => TRACK_UNDERWEIGHTED[k]).filter(Boolean).join('; ')
 }
 
 // Merge candidate arrays, dropping blanks, excluded names, and duplicates (by normalized
@@ -66,26 +95,26 @@ export function mergeCandidates(lists, excludeNames = []) {
   return out
 }
 
-function profileText(prefs) {
+function profileText(prefs, studentProfile = null) {
+  const tech = usesTechSources(studentProfile)
   return [
-    prefs.domains?.length && `Domains of interest: ${prefs.domains.join(', ')}`,
-    prefs.seedCompanies?.length && `Companies he already admires: ${prefs.seedCompanies.join(', ')}`,
-    `Role focus: ${prefs.roleLean >= 0.5 ? 'SWE-leaning (some PM interest)' : 'PM-leaning (some SWE interest)'}`,
-    prefs.stage && prefs.stage !== 'any' && `Company stage preference: ${prefs.stage}`,
-    prefs.priorities?.length && `What he says matters most: ${prefs.priorities.join(', ')}`,
+    tech && prefs.domains?.length && `Domains of interest: ${prefs.domains.join(', ')}`,
+    prefs.seedCompanies?.length && `Companies they already admire: ${prefs.seedCompanies.join(', ')}`,
+    tech && `Role focus: ${prefs.roleLean >= 0.5 ? 'SWE-leaning (some PM interest)' : 'PM-leaning (some SWE interest)'}`,
+    tech && prefs.stage && prefs.stage !== 'any' && `Company stage preference: ${prefs.stage}`,
+    prefs.priorities?.length && `What they say matters most: ${prefs.priorities.join(', ')}`,
     prefs.locations?.length && `Preferred locations: ${prefs.locations.join(', ')} (${prefs.workStyle})`,
     prefs.extras?.trim() && `Other notes / deal-breakers: ${prefs.extras.trim()}`,
   ].filter(Boolean).join('\n') || 'No specific preferences set'
 }
 
 // Builds the "You are an internship-search advisor for ___" line from the
-// signed-in user's Settings profile (school/grad_year/focus) instead of a
+// signed-in user's Settings profile (school/grad_year/tracks) instead of a
 // hardcoded persona — falls back to a generic phrase for anyone who hasn't
 // filled those fields in yet.
 function advisorFraming(studentProfile) {
   const school = studentProfile?.school ? `a ${studentProfile.school} student` : 'a college student'
-  const focus = studentProfile?.focus === 'PM' ? 'PM primary, SWE secondary'
-    : studentProfile?.focus === 'Both' ? 'SWE and PM' : 'SWE primary, PM secondary'
+  const focus = tracksLabel(studentProfile)
   const term = studentProfile?.grad_year ? `recruiting for internships ahead of graduating in ${studentProfile.grad_year}` : 'recruiting for internships'
   return `You are an internship-search advisor for ${school} (${focus}) ${term}.`
 }
@@ -96,14 +125,14 @@ async function rankCompanies(candidates, prefs, studentProfile) {
     `[${i}] ${c.name}${c.website ? ` (${c.website})` : ''}${c.industry ? ` · ${c.industry}` : ''}${c.stage ? ` · ${c.stage}` : ''}${c.teamSize ? ` · ~${c.teamSize} ppl` : ''}${c.isHiring ? ' · hiring' : ''}\n${(c.oneLiner || c.summary || '').slice(0, 240)}`
   ).join('\n\n')
 
-  const content = `${advisorFraming(studentProfile)} Rank the candidate companies below by genuine fit FOR HIM. Return ONLY JSON — no markdown, no explanation.
+  const content = `${advisorFraming(studentProfile)} Rank the candidate companies below by genuine fit FOR THIS STUDENT. Return ONLY JSON — no markdown, no explanation.
 
-His profile:
-${profileText(prefs)}
+Their preferences:
+${profileText(prefs, studentProfile)}
 
 Ranking guidance (important):
-- Honor his stated domains, stage, locations, and any deal-breakers.
-- Students tend to OVER-weight brand/prestige and pay and UNDER-weight mentorship quality, return-offer reputation, and genuine domain interest — factor those under-weighted signals into your ranking even though he didn't list them.
+- Honor their stated domains, stage, locations, and any deal-breakers.
+- Students tend to OVER-weight brand/prestige and pay and UNDER-weight ${underweightedSignals(studentProfile)} — factor those under-weighted signals into your ranking even though they didn't list them.
 - Prefer companies that actually run strong internship programs / hire interns.
 - Do not invent companies; only rank the candidates given.
 
@@ -128,9 +157,10 @@ Return the best ${Math.min(15, candidates.length)}, best first:
 // skipped=true (Exa returned the same pages as priorResultHash) means the caller keeps its
 // cached ranking and pays zero AI tokens.
 export async function findCompanies({ prefs, excludeNames = [], priorResultHash = null, studentProfile = null }) {
-  const query = buildCompanyQuery(prefs)
+  const query = buildCompanyQuery(prefs, studentProfile)
   const [ycPool, exaRes] = await Promise.all([
-    filterCompanies(prefs).catch(() => []),
+    // The YC directory is startups only — no use to a finance/quant/consulting-only user.
+    usesTechSources(studentProfile) ? filterCompanies(prefs).catch(() => []) : Promise.resolve([]),
     companySearch({ query, priorResultHash }).catch(() => ({ candidates: [], resultHash: null, skipped: false })),
   ])
   if (exaRes.skipped) return { companies: null, resultHash: exaRes.resultHash, skipped: true }

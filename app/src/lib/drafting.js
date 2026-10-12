@@ -1,4 +1,5 @@
 import { aiJSON, AI_MODELS } from './ai.js'
+import { tracksLabel } from './tracks.js'
 
 // Sentence fragment describing who's sending the message, built from the signed-in
 // user's profile instead of a hardcoded student persona — empty when the user hasn't
@@ -6,8 +7,7 @@ import { aiJSON, AI_MODELS } from './ai.js'
 // the surrounding prompt still reads cleanly with no dangling "from ... to a contact."
 export function personaClause(profile) {
   if (!profile?.school) return ''
-  const focus = profile.focus && profile.focus !== 'Both' ? profile.focus : 'CS'
-  return `a ${focus} student at ${profile.school}`
+  return `a student at ${profile.school} recruiting for ${tracksLabel(profile)} roles`
 }
 
 // True when a contact is tagged as a personal (non-recruiting) relationship — a friend,

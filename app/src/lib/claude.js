@@ -2,6 +2,7 @@
 // Extracted from 3 near-identical hand-rolled fetch calls that previously lived in
 // LogInteractionModal.jsx, jobBoards/helpers.js, and AddToCalendarModal.jsx.
 import { authHeader } from './supabaseClient.js'
+import { assertKey } from './keyStore.js'
 
 export const CLAUDE_MODELS = {
   HAIKU: 'claude-haiku-4-5-20251001',
@@ -11,6 +12,7 @@ export const CLAUDE_MODELS = {
 // content: a plain string, or a content-block array (e.g. AddToCalendarModal's
 // [{type:'image', source:{...}}, {type:'text', text:'...'}] vision payload).
 async function callClaude({ model, content, maxTokens = 1000 }) {
+  assertKey('anthropic')
   const res = await fetch('/claude-api/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },

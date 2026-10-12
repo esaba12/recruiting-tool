@@ -1,6 +1,7 @@
 import { motion } from 'motion/react'
 import Mono from './ui/Mono.jsx'
 import { nextDeadlines } from '../lib/statTiles.js'
+import { pickNextDeadline } from '../lib/attention.js'
 
 // Self-contained stagger for the 3 tiles, independent of TodayTab's own Section-list
 // stagger (which wraps this whole component in its own <motion.div variants={rise}>).
@@ -15,7 +16,7 @@ export default function StatTileRow({ triagedApps, apps, trendData }) {
   const appliedOrBeyond = triagedApps.filter(a => a.stage !== 'Wishlist').length
   const pct = triagedApps.length ? Math.round((appliedOrBeyond / triagedApps.length) * 100) : 0
 
-  const [soonest] = nextDeadlines(apps, 1)
+  const soonest = pickNextDeadline(apps, nextDeadlines(apps, 1))
 
   const last6 = trendData.slice(-6)
   const activityTotal = last6.reduce((sum, w) => sum + w.count, 0)
@@ -44,7 +45,7 @@ export default function StatTileRow({ triagedApps, apps, trendData }) {
         {soonest ? (
           <>
             <Mono className="block text-2xl mt-1">{soonest.days}d</Mono>
-            <p className="text-xs text-ink-400 mt-0.5">{soonest.company}</p>
+            <p className="text-xs text-ink-400 mt-0.5">{soonest.label} · {soonest.days === 0 ? 'today' : `in ${soonest.days}d`}</p>
             <div className="h-1 bg-gradient-to-r from-danger-500 to-warning-500 rounded-sm mt-3"
               style={{ width: `${Math.max(4, Math.min(100, 100 - (soonest.days / 30) * 100))}%` }} />
           </>

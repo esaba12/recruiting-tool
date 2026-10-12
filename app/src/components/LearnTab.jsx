@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { SlidersHorizontal, Plus, MessageSquareText, RefreshCw, Check } from 'lucide-react'
+import { SlidersHorizontal, Plus, MessageSquareText, RefreshCw, Check, FileInput } from 'lucide-react'
 import Button from './ui/Button.jsx'
 import Mono from './ui/Mono.jsx'
 import EmptyState from './ui/EmptyState.jsx'
@@ -8,6 +8,7 @@ import { TEMPLATES, defaultTemplateKeys } from '../lib/learning/templates.js'
 import { useTrackView, activeTrack } from '../lib/learning/useLearning.js'
 import useCompanyPrep from '../lib/learning/useCompanyPrep.js'
 import { lsGet, lsSet } from '../lib/scopedStorage.js'
+import { profileTracks } from '../lib/tracks.js'
 import {
   SummaryWidget, GoalsWidget, GapsWidget, PlanWidget, MasteryWidget, ReviewWidget, ActivityWidget,
   DifficultyWidget, RecentWidget, CompanyPrepWidget, LanguagesWidget, FULL_WIDTH,
@@ -15,6 +16,7 @@ import {
 import CustomizePanel, { mergeWidgets } from './learning/CustomizePanel.jsx'
 import LogModal from './learning/LogModal.jsx'
 import ExplainBackModal from './learning/ExplainBackModal.jsx'
+import ImportPracticeModal from './learning/ImportPracticeModal.jsx'
 
 const ACTIVE_TRACK_KEY = 'rec_learn_active_track'
 
@@ -24,10 +26,11 @@ const ACTIVE_TRACK_KEY = 'rec_learn_active_track'
 // tab is where it gets logged, measured against targets, and turned into what to do next.
 export default function LearnTab({ learning, apps, profile, logRequest, onLogRequestHandled, isDemoMode = false }) {
   const [trackId, setTrackId] = useState(() => lsGet(ACTIVE_TRACK_KEY))
-  const [customizing, setCustomizing] = useState(false)
+  const [customizing, setCustomizing] = useState(false) // false | section key
   const [logInitial, setLogInitial] = useState(null)
   const [explainTopic, setExplainTopic] = useState(undefined) // undefined = closed, null = open w/o preset
   const [addingTrack, setAddingTrack] = useState(false)
+  const [importing, setImporting] = useState(false)
   const track = activeTrack(learning, trackId)
   // Company problem lists only matter for tracks that practice on LeetCode.
   const lcTrack = !!track && learning.topics.some(t => t.trackId === track.id && t.lcTags?.length)
@@ -44,7 +47,7 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
 
   if (!learning.loaded) return <EmptyState msg="Loading your prep…" />
   if (learning.error) return <EmptyState msg={`Couldn't load Learn: ${learning.error}`} />
-  if (!learning.tracks.length) return <Onboarding learning={learning} focus={profile?.focus} />
+  if (!learning.tracks.length) return <Onboarding learning={learning} tracks={profileTracks(profile)} />
 
   const widgets = mergeWidgets(view.track.config?.widgets, { lcTrack }).filter(w => w.visible)
   const openLog = (initial = {}) => setLogInitial(initial)
@@ -54,14 +57,14 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
   function renderWidget(type) {
     switch (type) {
       case 'summary': return <SummaryWidget view={view} />
-      case 'goals': return <GoalsWidget view={view} onCustomize={() => setCustomizing(true)} />
+      case 'goals': return <GoalsWidget view={view} onCustomize={() => setCustomizing('goals')} />
       case 'gaps': return <GapsWidget view={view} onExplain={t => setExplainTopic(t)} onLog={openLog} />
       case 'plan': return <PlanWidget view={view} onLog={openLog} onExplain={t => setExplainTopic(t)} />
       case 'mastery': return <MasteryWidget view={view} />
       case 'review': return <ReviewWidget view={view} onLog={openLog} onDismiss={id => learning.dismissReview(id)} />
       case 'activity': return <ActivityWidget view={view} />
       case 'difficulty': return <DifficultyWidget view={view} snapshot={view.track.config?.leetcodeUsername ? learning.snapshot : null} />
-      case 'languages': return <LanguagesWidget snapshot={trackSnapshot} onCustomize={() => setCustomizing(true)} />
+      case 'languages': return <LanguagesWidget snapshot={trackSnapshot} onCustomize={() => setCustomizing('track')} />
       case 'recent': return <RecentWidget view={view} onDelete={id => learning.removeLog(id)} />
       case 'company': return <CompanyPrepWidget view={view} prep={companyPrep} onLog={openLog} isDemoMode={isDemoMode}
         onPin={names => learning.saveTrack(view.track.id, { config: { ...view.track.config, prepCompanies: names } })} />
@@ -89,6 +92,12 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {lcTrack && !lcUser && !isDemoMode && (
+            <button onClick={() => setCustomizing('track')}
+              className="text-xs text-accent-700 hover:text-accent-800 font-medium inline-flex items-center gap-1 mr-1" title="Add your LeetCode username to import solves">
+              <RefreshCw size={12} /> Connect LeetCode
+            </button>
+          )}
           {view.track.config?.leetcodeUsername && (
             <button onClick={() => learning.runLeetcodeSync(view.track).catch(() => {})} disabled={syncing}
               className="text-xs text-ink-500 hover:text-ink-800 inline-flex items-center gap-1 font-mono mr-1" title="Sync LeetCode now">
@@ -98,8 +107,11 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
           <Button variant="secondary" size="sm" onClick={() => setExplainTopic(null)} disabled={!view.visible.length}>
             <MessageSquareText size={13} className="inline -mt-0.5 mr-1" />Explain back
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => setCustomizing(true)}>
+          <Button variant="secondary" size="sm" onClick={() => setCustomizing('topics')}>
             <SlidersHorizontal size={13} className="inline -mt-0.5 mr-1" />Customize
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => setImporting(true)} title="Import practice from a sheet, pasted text or a screenshot">
+            <FileInput size={13} className="inline -mt-0.5 mr-1" />Import
           </Button>
           <Button size="sm" onClick={() => openLog()}>+ Log</Button>
         </div>
@@ -118,17 +130,18 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
         ))}
       </div>
 
-      {customizing && <CustomizePanel view={view} learning={learning} onClose={() => setCustomizing(false)} />}
+      {customizing && <CustomizePanel view={view} learning={learning} initialSection={customizing} onClose={() => setCustomizing(false)} />}
       {logInitial && <LogModal view={view} apps={apps} initial={logInitial} onSave={learning.logAttempt} onClose={() => setLogInitial(null)} />}
       {explainTopic !== undefined && <ExplainBackModal view={view} topic={explainTopic} onLog={learning.logAttempt} onClose={() => setExplainTopic(undefined)} />}
+      {importing && <ImportPracticeModal view={view} learning={learning} isDemoMode={isDemoMode} onClose={() => setImporting(false)} />}
       {addingTrack && <AddTrackModal learning={learning} onClose={() => setAddingTrack(false)} onCreated={t => { setTrackId(t.id); setAddingTrack(false) }} />}
     </div>
   )
 }
 
 // ── First run: pick what you're recruiting for ──
-function Onboarding({ learning, focus }) {
-  const [picked, setPicked] = useState(() => new Set(defaultTemplateKeys(focus)))
+function Onboarding({ learning, tracks }) {
+  const [picked, setPicked] = useState(() => new Set(defaultTemplateKeys(tracks)))
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
   async function start() {

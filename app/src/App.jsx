@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships, fetchActionItems, fetchDailyRecap } from './db.js'
 import { researchOaDeadlines } from './lib/oaResearch.js'
 import { useAuth } from './lib/AuthContext.jsx'
@@ -19,7 +19,7 @@ import LogInteractionModal from './components/LogInteractionModal.jsx'
 import MetButton from './components/MetButton.jsx'
 import { logMetWithContact } from './lib/quickLog.js'
 import NetworkGraphTab from './components/NetworkGraphTab.jsx'
-import PipelineTab, { DEMO_PIPELINE_VIEWS } from './components/PipelineTab.jsx'
+import PipelineTab, { DEMO_PIPELINE_VIEWS, pipelineViewsFor } from './components/PipelineTab.jsx'
 import TodayTab from './components/TodayTab.jsx'
 import CalendarTab from './components/CalendarTab.jsx'
 import AddToCalendarModal from './components/AddToCalendarModal.jsx'
@@ -32,6 +32,10 @@ import GrowTab from './components/GrowTab.jsx'
 import LearnTab from './components/LearnTab.jsx'
 import useLearning from './lib/learning/useLearning.js'
 import NotFoundPage from './components/NotFoundPage.jsx'
+import OnboardingWizard from './components/onboarding/OnboardingWizard.jsx'
+import FeedbackHost from './components/onboarding/FeedbackHost.jsx'
+import { needsOnboarding } from './lib/onboarding.js'
+import { useKeysReady } from './lib/useKeyStatus.js'
 import { NAV_ITEMS } from './components/layout/Sidebar.jsx'
 import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, keepInTouchDue, needsReviewApps } from './lib/attention.js'
 import { Table2, LayoutGrid, Share2, Send } from 'lucide-react'
@@ -216,8 +220,8 @@ function NetworkTab({ contacts, apps, interactions, contactRelationships = [], o
 // ── Root ──────────────────────────────────────────────────────────────────────
 
 function AuthGate({ children }) {
-  const { user, loading } = useAuth()
-  if (loading) {
+  const { user, profile, loading, profileLoading } = useAuth()
+  if (loading || profileLoading) {
     return (
       <div className="min-h-screen bg-canvas flex items-center justify-center">
         <p className="text-sm text-ink-400">Loading...</p>
@@ -225,11 +229,56 @@ function AuthGate({ children }) {
     )
   }
   if (!user) return <LoginPage />
+  if (needsOnboarding(profile)) return <OnboardingWizard />
   return children
 }
 
+// The active tab lives in the URL hash (#pipeline) and sessionStorage, so a reload, a
+// remount, or an OAuth round trip (Connect Calendar/Gmail redirect back to `/`) lands you
+// on the tab you were on instead of Today. Opening Settings remembers the tab you came
+// from; saving in Settings (or its Back link) returns you there.
+const TAB_IDS = new Set([...NAV_ITEMS.map(i => i.id), 'settings'])
+const TAB_KEY = 'rec_tab'
+const RETURN_TAB_KEY = 'rec_settings_return_tab'
+function storedTab(key) {
+  try { const v = sessionStorage.getItem(key); return TAB_IDS.has(v) ? v : null } catch { return null }
+}
+function storeTab(key, value) {
+  try { sessionStorage.setItem(key, value) } catch { /* private mode etc. — URL hash still works */ }
+}
+function hashTab() {
+  const h = window.location.hash.slice(1)
+  return TAB_IDS.has(h) ? h : null
+}
+
 function AppInner() {
-  const [tab, setTab]           = useState('today')
+  const [tab, setTabState]      = useState(() => hashTab() || storedTab(TAB_KEY) || 'today')
+  const [settingsReturnTab, setSettingsReturnTab] = useState(() => storedTab(RETURN_TAB_KEY) || 'today')
+  const tabRef = useRef(tab)
+  tabRef.current = tab
+  const setTab = useCallback(next => {
+    const prev = tabRef.current
+    if (!TAB_IDS.has(next) || next === prev) return
+    if (next === 'settings') setSettingsReturnTab(prev)
+    setTabState(next)
+    window.history.pushState(null, '', `#${next}`)
+  }, [])
+  useEffect(() => { storeTab(TAB_KEY, tab) }, [tab])
+  useEffect(() => { storeTab(RETURN_TAB_KEY, settingsReturnTab) }, [settingsReturnTab])
+  // Reflect a restored tab in the URL, and follow browser back/forward between tabs.
+  useEffect(() => {
+    if (hashTab() !== tabRef.current) window.history.replaceState(null, '', `#${tabRef.current}`)
+    const onPop = () => { const h = hashTab(); if (h) setTabState(h) }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+  const leaveSettings = useCallback(() => setTab(settingsReturnTab), [setTab, settingsReturnTab])
+  // Deep links from outside the tab tree (e.g. NeedsKey's "add a key in Settings").
+  useEffect(() => {
+    const onNavigate = e => { if (e.detail?.tab) setTab(e.detail.tab) }
+    window.addEventListener('rec:navigate', onNavigate)
+    return () => window.removeEventListener('rec:navigate', onNavigate)
+  }, [])
   const [networkInitialView, setNetworkInitialView] = useState('table')
   const [growFocusCompany, setGrowFocusCompany] = useState(null)
   // Deep-link into Grow's People section, pre-searching one company — shared by Pipeline's
@@ -296,15 +345,16 @@ function AppInner() {
   // completed pass stamps oaDueDate/oaResearchCheckedAt on every app it touched, so the next
   // pass's filter no longer matches them.
   const oaResearchRunningRef = useRef(false)
+  const oaKeysReady = useKeysReady('ai', 'exa')
   useEffect(() => {
-    if (loading || oaResearchRunningRef.current) return
+    if (loading || !oaKeysReady || oaResearchRunningRef.current) return
     oaResearchRunningRef.current = true
     researchOaDeadlines(apps)
       .then(count => { if (count > 0) load() })
       .catch(() => { /* fail-soft — OA due dates just stay unresolved until next load */ })
       .finally(() => { oaResearchRunningRef.current = false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apps])
+  }, [apps, oaKeysReady])
 
   // Narrower than load() on purpose: doesn't touch `loading`, which gates whether
   // NetworkTab (and the open record panel it may have open) is even mounted —
@@ -352,7 +402,7 @@ function AppInner() {
       )}
       {!loading && tab === 'pipeline' && (
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
-          onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} />
+          onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} views={pipelineViewsFor(profile)} />
       )}
       {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} actionItems={actionItems} dailyRecap={dailyRecap} learning={learning} onOpenLearn={() => setTab('learn')} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} />}
       {!loading && tab === 'inbox'    && (
@@ -360,8 +410,12 @@ function AppInner() {
       )}
       {!loading && tab === 'learn'    && <LearnTab learning={learning} apps={apps} profile={profile} logRequest={learnLogRequest} onLogRequestHandled={() => setLearnLogRequest(null)} />}
       {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} eventPool={eventPool} eventCalendarSync={eventCalendarSync} />}
-      {tab === 'settings' && <SettingsTab />}
+      {tab === 'settings' && (
+        <SettingsTab onDone={leaveSettings}
+          returnLabel={NAV_ITEMS.find(i => i.id === settingsReturnTab)?.label || 'Today'} />
+      )}
 
+      <FeedbackHost />
       {addEventOpen && <AddToCalendarModal onClose={() => setAddEventOpen(false)} />}
       {addScheduleOpen && (
         <QuickScheduleModal

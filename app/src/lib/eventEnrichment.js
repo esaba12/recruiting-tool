@@ -36,7 +36,7 @@ export function needsDeadlineCheck(event, { now = Date.now() } = {}) {
 }
 
 export const ATTRIBUTES_PROMPT_HEADER = `You are tagging campus recruiting events for a student job-search tool. Each event below is labeled with a bracketed ID. For EACH event return:
-- "roles": job families it targets, from ["SWE","PM","Data","Hardware","Design","Quant","Consulting","Research","Other"]; empty list if it's general/for everyone
+- "roles": job families it targets, from ["SWE","PM","Data","Hardware","Design","Finance","Quant","Consulting","Research","Other"]; empty list if it's general/for everyone
 - "majors": majors or departments explicitly named (short strings); empty list if none
 - "term": the recruiting term if stated (e.g. "Fall 2026"), else null
 - "format": "in_person" | "virtual" | "hybrid"

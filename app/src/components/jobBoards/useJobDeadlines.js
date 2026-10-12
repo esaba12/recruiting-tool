@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { extractDeadlines } from '../../lib/deadlines.js'
+import { useKeysReady } from '../../lib/useKeyStatus.js'
 import { jobId, lsGet, lsSet } from './helpers.js'
 
 const DEADLINE_KEY = 'rec_job_deadlines'
@@ -17,7 +18,9 @@ export default function useJobDeadlines(jobs) {
 
   const jobsKey = jobs.map(jobId).join('|')
 
+  const keysReady = useKeysReady('ai', 'exa')
   useEffect(() => {
+    if (!keysReady) return
     const missing = jobs
       .filter(j => j.status !== 'closed')
       .filter(j => {
@@ -44,7 +47,7 @@ export default function useJobDeadlines(jobs) {
 
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobsKey])
+  }, [jobsKey, keysReady])
 
   function recheck(job) {
     const key = jobId(job)

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { generateJobBlurb, jobId, lsGet, lsSet } from './helpers.js'
+import { useKeysReady } from '../../lib/useKeyStatus.js'
 
 const BLURB_KEY = 'rec_job_blurbs'
 const CONCURRENCY = 3
@@ -15,7 +16,9 @@ export default function useJobBlurbs(jobs) {
 
   const jobsKey = jobs.map(jobId).join('|')
 
+  const keysReady = useKeysReady('ai')
   useEffect(() => {
+    if (!keysReady) return
     const missing = jobs.filter(j => {
       const key = jobId(j)
       return !blurbsRef.current[key] && !pendingRef.current.has(key)
@@ -47,7 +50,7 @@ export default function useJobBlurbs(jobs) {
     Promise.all(Array.from({ length: CONCURRENCY }, worker))
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobsKey])
+  }, [jobsKey, keysReady])
 
   return blurbs
 }

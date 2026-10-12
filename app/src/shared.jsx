@@ -57,12 +57,12 @@ export const URGENCY_OPTIONS = ['HIGH','MED','LOW']
 // Shared-background signals, distinct from ROLE_OPTIONS's 'Alumni' (which describes this
 // contact's relationship *type* to you, not a background they happen to share with you).
 // Default vocabulary for spots that can't reach the signed-in user's profile.
-export const AFFINITY_OPTIONS_DEFAULT = ['UMich','Same Hometown','Shared Club/Activity','Warm Intro']
+export const AFFINITY_OPTIONS_DEFAULT = ['Same School','Same Hometown','Shared Club/Activity','Warm Intro']
 // Profile-driven version — the first option reads whatever school the user set in
-// Settings (profiles.school) instead of hardcoding UMich, so this vocabulary doesn't
-// silently assume every user/contact is a Michigan CS student.
+// Settings (profiles.school), falling back to a generic 'Same School' when none is set, so
+// this vocabulary never assumes every user/contact went to one particular school.
 export function affinityOptionsFor(profile) {
-  const school = profile?.school ? `${profile.school} alum` : 'UMich'
+  const school = profile?.school ? `${profile.school} alum` : 'Same School'
   return [school, 'Same Hometown', 'Shared Club/Activity', 'Warm Intro']
 }
 export const REFERRAL_STATUS_OPTIONS = Object.keys(REFERRAL_STATUS_COLOR)
@@ -73,25 +73,10 @@ export const LIFE_DOMAIN_OPTIONS = ['Professional', 'Recruiting', 'Friend', 'Fam
 // me to this contact" field.
 export const RELATIONSHIP_TYPES = ['Mentor Of', 'Introduced To', 'Referred To', 'College Friend Of', 'Coworker Of', 'Family Of', 'Other']
 
-export function daysSince(d) {
-  if (!d) return null
-  return Math.floor((Date.now() - new Date(d)) / 86400000)
-}
-
-export function daysUntil(d) {
-  if (!d) return null
-  return Math.floor((new Date(d) - Date.now()) / 86400000)
-}
-
-export function daysBetween(a, b) {
-  if (!a || !b) return null
-  return Math.round((new Date(b) - new Date(a)) / 86400000)
-}
-
-export function fmt(d) {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
+// Thin re-exports: date-only strings must parse as local days (see lib/dates.js).
+import { daysSince, daysUntil, daysBetween, formatDay } from './lib/dates.js'
+export { daysSince, daysUntil, daysBetween }
+export const fmt = formatDay
 
 // A contact whose Follow-Up Date has passed with no newer touch recorded — the single
 // source of truth for "needs a follow-up," used by Actions, Overview, the sidebar badge,

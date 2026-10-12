@@ -1,4 +1,5 @@
 import { Component } from 'react'
+import { reportError } from '../lib/sentry.js'
 
 export default class ErrorBoundary extends Component {
   state = { error: null }
@@ -9,6 +10,7 @@ export default class ErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error('Render crash caught by ErrorBoundary:', error, info.componentStack)
+    reportError(error, { componentStack: info.componentStack })
   }
 
   render() {

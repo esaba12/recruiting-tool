@@ -6,6 +6,7 @@
 // No new API calls, no new keys beyond one small localStorage history array.
 import { normalizeCompanyName } from './networkGraph.js'
 import { lsGet, lsSet } from './scopedStorage.js'
+import { todayLocal } from './dates.js'
 
 const HISTORY_KEY = 'rec_posting_history'
 const MAX_SNAPSHOTS = 60 // daily pulls over ~2 months — comfortably covers any 30d window
@@ -21,7 +22,7 @@ export function recordPostingSnapshot(jobs) {
     const key = normalizeCompanyName(j.company)
     counts[key] = (counts[key] || 0) + 1
   }
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocal()
   const history = (lsGet(HISTORY_KEY) || []).filter(s => s.date !== today)
   history.push({ date: today, counts })
   history.sort((a, b) => a.date.localeCompare(b.date))

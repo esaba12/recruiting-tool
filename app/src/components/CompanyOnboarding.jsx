@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { searchCompanies } from '../lib/ycDirectory.js'
 import { DOMAINS, PRIORITIES, STAGES, WORK_STYLES, DEFAULT_COMPANY_PREFS } from '../lib/companyFinder.js'
+import { usesTechSources, hasTrack } from '../lib/tracks.js'
 
 // Guided interest onboarding for the company finder. Research-backed, ~6 skippable
 // questions; the anchor is example-based seeding ("companies you already love") since
@@ -32,8 +33,14 @@ function Section({ n, title, hint, children }) {
   )
 }
 
-export default function CompanyOnboarding({ initial, onSave, onCancel }) {
+export default function CompanyOnboarding({ initial, onSave, onCancel, profile = null }) {
   const [prefs, setPrefs] = useState({ ...DEFAULT_COMPANY_PREFS, ...(initial || {}) })
+  // Domains (YC tag sets), startup stages, and YC autocomplete are tech-only; the SWE↔PM
+  // slider only means something to someone recruiting for both.
+  const tech = usesTechSources(profile)
+  const both = hasTrack(profile, 'swe') && hasTrack(profile, 'pm')
+  let n = 0
+  const num = () => String(++n)
   const set = (k, v) => setPrefs(p => ({ ...p, [k]: v }))
 
   const toggleIn = (key, val, max) => setPrefs(p => {
@@ -50,17 +57,19 @@ export default function CompanyOnboarding({ initial, onSave, onCancel }) {
         <p className="text-xs text-ink-500 mt-0.5">A few quick questions — all optional. We infer the rest from the companies you already admire.</p>
       </div>
 
-      <Section n="1" title="Companies you'd love to work at" hint="The most important one — we infer your taste from these. Type to search, or add your own.">
-        <SeedCompanyPicker value={prefs.seedCompanies} onChange={v => set('seedCompanies', v)} />
+      <Section n={num()} title="Companies you'd love to work at" hint={tech
+        ? 'The most important one — we infer your taste from these. Type to search, or add your own.'
+        : 'The most important one — we infer your taste from these. Type a name + Enter.'}>
+        <SeedCompanyPicker value={prefs.seedCompanies} onChange={v => set('seedCompanies', v)} autocomplete={tech} />
       </Section>
 
-      <Section n="2" title="Domains that excite you" hint="Pick up to 3.">
+      {tech && <Section n={num()} title="Domains that excite you" hint="Pick up to 3.">
         <div className="flex flex-wrap gap-1.5">
           {DOMAINS.map(d => <Chip key={d} label={d} active={prefs.domains.includes(d)} onClick={() => toggleIn('domains', d, 3)} />)}
         </div>
-      </Section>
+      </Section>}
 
-      <Section n="3" title="SWE or PM lean?">
+      {both && <Section n={num()} title="SWE or PM lean?">
         <div className="flex items-center gap-3">
           <span className="text-xs text-ink-400 w-8">PM</span>
           <input type="range" min="0" max="100" value={Math.round(prefs.roleLean * 100)}
@@ -68,28 +77,28 @@ export default function CompanyOnboarding({ initial, onSave, onCancel }) {
             className="flex-1 accent-accent-600" />
           <span className="text-xs text-ink-400 w-8 text-right">SWE</span>
         </div>
-      </Section>
+      </Section>}
 
-      <Section n="4" title="Company stage sweet spot">
+      {tech && <Section n={num()} title="Company stage sweet spot">
         <div className="flex flex-wrap gap-1.5">
           {STAGES.map(s => <Chip key={s.key} label={s.label} active={prefs.stage === s.key} onClick={() => set('stage', s.key)} />)}
         </div>
-      </Section>
+      </Section>}
 
-      <Section n="5" title="What matters most this summer?" hint="Pick your top 2 — forces a real trade-off.">
+      <Section n={num()} title="What matters most this summer?" hint="Pick your top 2 — forces a real trade-off.">
         <div className="flex flex-wrap gap-1.5">
           {PRIORITIES.map(p => <Chip key={p} label={p} active={prefs.priorities.includes(p)} onClick={() => toggleIn('priorities', p, 2)} />)}
         </div>
       </Section>
 
-      <Section n="6" title="Location & work style" hint="Add cities, then a work style. A constraint, not a ranking factor.">
+      <Section n={num()} title="Location & work style" hint="Add cities, then a work style. A constraint, not a ranking factor.">
         <ChipInput value={prefs.locations} onChange={v => set('locations', v)} placeholder="Add a city + Enter (e.g. Bay Area, NYC)" />
         <div className="flex flex-wrap gap-1.5 mt-2">
           {WORK_STYLES.map(w => <Chip key={w} label={w} active={prefs.workStyle === w} onClick={() => set('workStyle', w)} />)}
         </div>
       </Section>
 
-      <Section n="+" title="Anything specific? (optional)" hint="e.g. “small teams”, “uses Rust”, “no crypto or defense”.">
+      <Section n="+" title="Anything specific? (optional)" hint={tech ? 'e.g. “small teams”, “uses Rust”, “no crypto or defense”.' : 'e.g. “small teams”, “NYC only”, “no crypto or defense”.'}>
         <input value={prefs.extras} onChange={e => set('extras', e.target.value)} className={inputCls}
           placeholder="Soft constraints, in your words" />
       </Section>
@@ -106,20 +115,20 @@ export default function CompanyOnboarding({ initial, onSave, onCancel }) {
 }
 
 // Seed-company picker with YC autocomplete + free-text add (for non-YC companies).
-function SeedCompanyPicker({ value, onChange }) {
+function SeedCompanyPicker({ value, onChange, autocomplete = true }) {
   const [q, setQ] = useState('')
   const [suggestions, setSuggestions] = useState([])
   const timer = useRef(null)
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current)
-    if (q.trim().length < 2) { setSuggestions([]); return }
+    if (!autocomplete || q.trim().length < 2) { setSuggestions([]); return }
     timer.current = setTimeout(async () => {
       const found = await searchCompanies(q)
       setSuggestions(found.filter(n => !value.includes(n)))
     }, 220)
     return () => timer.current && clearTimeout(timer.current)
-  }, [q, value])
+  }, [q, value, autocomplete])
 
   function add(name) {
     const n = name.trim()
@@ -142,7 +151,7 @@ function SeedCompanyPicker({ value, onChange }) {
       <div className="relative">
         <input value={q} onChange={e => setQ(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && q.trim()) { e.preventDefault(); add(q) } }}
-          placeholder="Search companies, or type any name + Enter" className={inputCls} />
+          placeholder={autocomplete ? 'Search companies, or type any name + Enter' : 'Type a company name + Enter'} className={inputCls} />
         {suggestions.length > 0 && (
           <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-ink-200 rounded-lg shadow-lg overflow-hidden">
             {suggestions.map(name => (

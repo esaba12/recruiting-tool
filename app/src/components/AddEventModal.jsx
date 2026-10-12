@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { createEvent, addOneHour, CALENDAR_SLOTS } from '../googleCalendar.js'
+import { todayLocal } from '../lib/dates.js'
 
 export default function AddEventModal({ defaultDate, onClose, onCreated }) {
   const [title, setTitle]           = useState('')
-  const [date, setDate]             = useState(defaultDate || new Date().toISOString().slice(0, 10))
+  const [date, setDate]             = useState(defaultDate || todayLocal())
   const [startTime, setStartTime]   = useState('')
   const [endTime, setEndTime]       = useState('')
   const [location, setLocation]     = useState('')

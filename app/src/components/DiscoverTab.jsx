@@ -9,6 +9,8 @@ import { addContact, updateContact, searchContactByName } from '../db.js'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { Badge, EmptyState } from '../shared.jsx'
 import { RowCap } from './ui/Section.jsx'
+import { useKeysReady } from '../lib/useKeyStatus.js'
+import NeedsKey from './onboarding/NeedsKey.jsx'
 
 const PROFILE_KEY    = 'rec_affinity_profile'
 const DISCOVERED_KEY = 'rec_discovered'        // { [companyKey]: rankedCandidate[] }
@@ -132,12 +134,13 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
   // Hands-off daily gate: on first mount, if we haven't checked today, quietly refresh the
   // highest-priority due companies in the background. The cooldown/budget inside the
   // scheduler keep this cheap even though the *check* happens every day.
+  const keysReady = useKeysReady('ai', 'exa')
   useEffect(() => {
-    if (ranRef.current || !targetsLoaded) return
+    if (ranRef.current || !targetsLoaded || !keysReady) return
     ranRef.current = true
     if (targets.length && meta.lastCheck !== todayStr()) runScheduler({ force: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetsLoaded])
+  }, [targetsLoaded, keysReady])
 
   // Manual per-company search (By company view) — still respects the resultHash skip.
   async function findPeople(company) {
@@ -236,10 +239,10 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
               <span className="text-[11px] text-ink-400">
                 {running ? `Searching ${progress?.done ?? 0}/${progress?.total ?? '…'}…` : lastRunMs ? `Updated ${timeAgo(new Date(lastRunMs).toISOString())}` : 'Not run yet'}
               </span>
-              <button onClick={() => runScheduler({ force: true })} disabled={running}
+              <NeedsKey kind={['ai', 'exa']}><button onClick={() => runScheduler({ force: true })} disabled={running}
                 className="px-3 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 disabled:opacity-40">
                 ↻ Refresh now
-              </button>
+              </button></NeedsKey>
               <button onClick={() => setShowSettings(s => !s)}
                 className="px-2 py-1 bg-white border border-ink-200 rounded-full text-xs font-medium text-ink-400 hover:border-accent-300">⚙</button>
             </div>
@@ -289,10 +292,10 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
                           ? <Badge label={`${r.matchedCount} contact${r.matchedCount !== 1 ? 's' : ''} · weak — find the next`} color="bg-warning-100 text-warning-800" />
                           : <Badge label={`${r.matchedCount} contact${r.matchedCount !== 1 ? 's' : ''}`} color="bg-success-100 text-success-800" />}
                       </div>
-                      <button onClick={() => findPeople(r.company)} disabled={loadingCompany === r.company}
+                      <NeedsKey kind={['ai', 'exa']}><button onClick={() => findPeople(r.company)} disabled={loadingCompany === r.company}
                         className="shrink-0 px-3 py-1.5 bg-accent-600 text-white rounded-full text-xs font-medium hover:bg-accent-700 disabled:opacity-40">
                         {loadingCompany === r.company ? 'Searching…' : r.ranked ? '↻ Re-run' : '🔍 Find people'}
-                      </button>
+                      </button></NeedsKey>
                     </div>
                     {errorFor[r.company] && (
                       <div className="mt-2 p-2 bg-danger-50 border border-danger-200 rounded-lg text-xs text-danger-700">{errorFor[r.company]}</div>
@@ -425,16 +428,16 @@ function CandidateCard({ cand, profile, authProfile, showCompany, isAdded, onDis
           {draft
             ? <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={4}
                 className="w-full px-2.5 py-1.5 border border-accent-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 resize-none" />
-            : <button onClick={generateDraft} disabled={genning}
+            : <NeedsKey kind="ai"><button onClick={generateDraft} disabled={genning}
                 className="w-full py-2 bg-accent-600 text-white text-xs rounded-lg hover:bg-accent-700 disabled:opacity-40 font-medium">
                 {genning ? 'Drafting…' : 'Generate intro →'}
-              </button>}
+              </button></NeedsKey>}
           {draft && (
             <div className="flex gap-2 mt-2">
-              <button onClick={generateDraft} disabled={genning}
+              <NeedsKey kind="ai"><button onClick={generateDraft} disabled={genning}
                 className="px-3 py-1.5 bg-white border border-accent-200 rounded-lg text-xs font-medium text-accent-700 hover:border-accent-400 disabled:opacity-40">
                 {genning ? 'Regenerating…' : 'Regenerate'}
-              </button>
+              </button></NeedsKey>
               <button onClick={() => navigator.clipboard.writeText(draft)}
                 className="px-3 py-1.5 bg-accent-600 text-white rounded-lg text-xs font-medium hover:bg-accent-700">Copy</button>
             </div>

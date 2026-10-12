@@ -12,6 +12,7 @@
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { decrypt } from './crypto.js'
 import { getUserKey } from './keys.js'
+import { tracksLabel, isTechOnly } from '../../src/lib/tracks.js'
 
 // ── Discovery queries + recall-hint constants (ported verbatim) ─────────────────────────
 const SENT_SCAN_QUERY = 'in:sent newer_than:30d'
@@ -23,11 +24,15 @@ const ATS_DOMAINS = [
   'ashbyhq.com', 'jobvite.com', 'taleo.net', 'workable.com', 'breezy.hr', 'jazz.co',
   'bamboohr.com', 'successfactors.com', 'ultipro.com', 'wellfound.com', 'ripplematch.com',
   'paradox.ai', 'gem.com', 'hire.withgoogle.com',
+  // Common in finance/consulting recruiting (video interviews, games-based assessments,
+  // enterprise ATSes). Recall hints only — the classifier is still the real filter.
+  'hirevue.com', 'avature.net', 'brassring.com', 'pymetrics.ai',
 ]
 const RECRUITING_SUBJECT_KEYWORDS = [
   'application', 'applying', 'applied', 'interview', 'recruiter', 'recruiting',
   'internship', 'offer', '"next steps"', 'assessment', '"phone screen"', 'onsite',
   'candidacy', '"thank you for your interest"', '"hiring team"', 'oa', '"coding challenge"',
+  'superday', 'hirevue', '"first round"', '"final round"', '"assessment centre"', '"assessment center"',
 ]
 const NETWORKING_SHAPE_KEYWORDS = [
   'nice meeting you', 'great meeting you', 'great to connect', 'great connecting',
@@ -41,10 +46,10 @@ const GENERIC_EMAIL_DOMAINS = new Set([
 ])
 const REFERRAL_MENTION_RE = /\b(referred by|referred you|referral from|recommended by|thanks to (?:the |your )?(?:introduction|referral)|your referrer|employee referral|referral (?:portal|link|program)|apply(?:ing)? through a referral)\b/i
 const APPLICATION_CONFIRMATION_RE = /\b(thank(?:s| you) for (?:your interest|applying)|we(?:'| ha)ve received your application|your application (?:has been received|was submitted|is being reviewed)|application (?:received|submitted|confirmation)|successfully applied)\b/i
-const OA_INVITE_RE = /\b(online assessment|coding assessment|coding challenge|skills assessment|hackerrank|codesignal|codility|hackerearth|complete (?:your|the) assessment|assessment invit)/i
+const OA_INVITE_RE = /\b(online assessment|coding assessment|coding challenge|skills assessment|hackerrank|codesignal|codility|hackerearth|pymetrics|numerical reasoning|complete (?:your|the) assessment|assessment invit)/i
 const AUTOMATED_SENDER_RE = /^(no-?reply|do-?not-?reply|notification|mailer|automated|system|recruiting|careers|jobs|ats|talent)@|greenhouse-mail\.io$/i
 const MEETING_LINK_RE = /https?:\/\/[^\s<>"')\]]*(?:zoom\.us\/j\/|meet\.google\.com\/|teams\.microsoft\.com\/l\/meetup-join|teams\.live\.com\/meet|webex\.com\/(?:meet|join))[^\s<>"')\]]*/i
-const STAGE_RANK = { Wishlist: 0, Applied: 1, 'Phone Screen': 2, Onsite: 3, Offer: 4, Rejected: 5 }
+const STAGE_RANK = { Wishlist: 0, Applied: 1, 'Phone Screen': 2, Technical: 3, Onsite: 4, Offer: 5, Rejected: 6 }
 
 export function recruitingShapeHint(fromHeader, subject, body) {
   const addr = parseAddress(fromHeader)
@@ -178,10 +183,36 @@ async function getThreadMessages(accessToken, threadId) {
 
 // ── Claude classification (same prompt as the Apps Script version, minus the calendar-
 // invite hint — .ics parsing isn't ported yet, see module comment) ─────────────────────
-async function classifyEmail(apiKey, { subject, from, body, date, meetingLink, extraHints }) {
+// Who the candidate is, from their profile's recruiting tracks (src/lib/tracks.js) —
+// replaces the old hardcoded "a CS student".
+export function candidateFraming(profile) {
+  return `a student recruiting for ${tracksLabel(profile)} roles`
+}
+
+// Finance/consulting recruiting uses different words for the same stages. Only added to the
+// prompt for users with a non-tech track, so SWE-only prompts stay short.
+export function trackGuidance(profile) {
+  if (isTechOnly(profile)) return ''
+  return `
+
+This candidate recruits in finance/consulting-style processes too. Map their vocabulary:
+- HireVue / pre-recorded video interview / "first round" → INTERVIEW_INVITE, interview_round "first"
+- "second round" / technical interview → INTERVIEW_INVITE, interview_round "second"
+- Superday / final round / assessment centre → INTERVIEW_INVITE, interview_round "final"
+- Pymetrics / numerical-reasoning / games-based or online test → OA_INVITE
+- Insight days, spring weeks, diversity programs, and info sessions are networking events, not
+  applications: NEW_CONTACT or FOLLOW_UP_NEEDED, never APPLICATION_CONFIRMATION.`
+}
+
+// INTERVIEW_INVITE's pipeline stage from the reported round (defaults to the first round).
+export function interviewStage(round) {
+  return { second: 'Technical', final: 'Onsite' }[round] || 'Phone Screen'
+}
+
+async function classifyEmail(apiKey, { subject, from, body, date, meetingLink, extraHints, profile }) {
   const linkHint = meetingLink ? `\n\nA video meeting link was found in this email: ${meetingLink}` : ''
 
-  const prompt = `You are processing a CS student's email for two equally-in-scope purposes: (1)
+  const prompt = `You are processing the email of ${candidateFraming(profile)}, for two equally-in-scope purposes: (1)
 formal recruiting-process signals (an application, assessment, interview, offer, or rejection at a
 specific company) and (2) professional networking — anyone who could plausibly help their job
 search or is worth tracking as a relationship, even with no specific application mentioned at all:
@@ -207,6 +238,7 @@ Otherwise return:
   "follow_up_draft": "3-sentence reply the candidate could send, or null",
   "interview_date": "YYYY-MM-DD if an interview is scheduled, or null",
   "interview_format": "phone|video|onsite|null",
+  "interview_round": "first|second|final|null — for INTERVIEW_INVITE only: which round this invite is for (a final-round/onsite/superday invite is 'final'); null if not stated",
   "meeting_link": "the Zoom/Google Meet/Teams/etc. video call URL if one is mentioned in the body, else null",
   "referrer_name": "the full name of the person who referred/recommended the candidate for this specific role, ONLY if the email explicitly says so (e.g. 'referred by Jane Doe', 'submitted your referral', 'thanks to an employee referral from...'). Otherwise null — never guess.",
   "oa_due_date": "YYYY-MM-DD if this is an Online Assessment invite AND the email states a completion deadline, else null — never guess or estimate a date that isn't actually stated",
@@ -238,7 +270,7 @@ treated as a rare fallback.
 FOLLOW_UP_NEEDED means a networking thread (not tied to a specific application stage) whose
 natural next step is for the candidate to follow up — say thanks, schedule a call, check in again
 later. Prefer this over REPLY when the email is relationship-building rather than a reply within a
-formal application process.${linkHint}${extraHints || ''}
+formal application process.${trackGuidance(profile)}${linkHint}${extraHints || ''}
 
 Subject: ${subject}
 From: ${from}
@@ -316,7 +348,7 @@ async function upsertApplication(db, userId, data) {
   const stageMap = {
     APPLICATION_CONFIRMATION: 'Applied',
     OA_INVITE: 'Applied',
-    INTERVIEW_INVITE: 'Phone Screen',
+    INTERVIEW_INVITE: interviewStage(data.interview_round),
     OFFER: 'Offer',
     REJECTION: 'Rejected',
   }
@@ -400,6 +432,8 @@ export async function scanGmailConnection(connection) {
   if (!anthropicKey) {
     return { threadProgress: connection.thread_progress || {}, scanned: 0, skipped: 'no_anthropic_key' }
   }
+  // Recruiting tracks shape the classifier prompt (candidateFraming / trackGuidance).
+  const { data: profile } = await db.from('profiles').select('tracks, focus').eq('id', userId).maybeSingle()
 
   const refreshToken = decrypt(connection.refresh_token_ciphertext)
   const accessToken = await mintAccessToken(refreshToken)
@@ -439,6 +473,7 @@ export async function scanGmailConnection(connection) {
         subject: msg.subject, from: msg.from, body: msg.plainBody,
         date: msg.date.toISOString().slice(0, 10), meetingLink,
         extraHints: applicationHint + referralHint + oaHint + companyHint + shapeHint + networkingHint,
+        profile,
       })
 
       if (!data || data.type === 'UNRELATED') {

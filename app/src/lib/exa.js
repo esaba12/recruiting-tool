@@ -1,5 +1,6 @@
 import { aiJSON, AI_MODELS } from './ai.js'
 import { authHeader } from './supabaseClient.js'
+import { assertKey } from './keyStore.js'
 
 // People discovery via Exa (see api/exa.js + vite.config.js). Exa searches its own index
 // of the PUBLIC web — company pages, personal sites, public profile pages as crawled
@@ -24,6 +25,7 @@ function buildQuery({ company, roles, profile }) {
 // Pass `category: null` explicitly for an unrestricted web search (e.g. hunting for a
 // specific job posting, which isn't any single Exa category).
 export async function exaSearch({ query, numResults = 15, includeDomains, category = 'people' }) {
+  assertKey('exa')
   const res = await fetch('/exa/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
@@ -49,6 +51,7 @@ export async function exaSearch({ query, numResults = 15, includeDomains, catego
 // "More like this" — given a company's URL, Exa returns similar company pages (same
 // result shape as exaSearch). Used by the Explore tab's 🔎 More like this button.
 export async function exaFindSimilar({ url, numResults = 8 }) {
+  assertKey('exa')
   const res = await fetch('/exa/findSimilar', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },

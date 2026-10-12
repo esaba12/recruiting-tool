@@ -152,6 +152,25 @@ const QUANT_TOPICS = [
   { name: 'Coding (DSA)', category: 'Coding', lcTags: ['array', 'hash-table', 'dynamic-programming'], weight: 0.8 },
 ]
 
+const CONSULTING_TOPICS = [
+  { name: 'Case structuring', category: 'Case', weight: 1.4,
+    rubric: ['restate the objective', 'MECE issue tree', 'hypothesis-driven', 'prioritize branches'] },
+  { name: 'Market sizing', category: 'Case', weight: 1.1,
+    rubric: ['state assumptions', 'top-down or bottom-up breakdown', 'clean arithmetic', 'sanity check the result'] },
+  { name: 'Profitability', category: 'Case', weight: 1.2,
+    rubric: ['revenue vs cost split', 'price × volume', 'fixed vs variable costs', 'isolate the driver'] },
+  { name: 'Market entry & growth', category: 'Case', weight: 1.0,
+    rubric: ['market attractiveness', 'competition', 'capabilities and fit', 'entry mode (build/buy/partner)', 'risks'] },
+  { name: 'Charts & exhibits', category: 'Analysis', weight: 0.9,
+    rubric: ['read the axes and units first', 'call out the "so what"', 'link it back to the hypothesis'] },
+  { name: 'Case math', category: 'Analysis', weight: 1.0,
+    rubric: ['percentages and growth rates', 'break-even', 'round sensibly and narrate'] },
+  { name: 'Synthesis & recommendation', category: 'Case', weight: 1.0,
+    rubric: ['answer first', 'two or three supporting reasons', 'risks and next steps'] },
+  { name: 'Fit / PEI stories', category: 'Fit', weight: 1.1,
+    rubric: ['leadership, impact, and teamwork stories', 'STAR structure', 'why consulting / why this firm'] },
+]
+
 export const TEMPLATES = {
   swe: {
     kind: 'swe', name: 'SWE', blurb: 'LeetCode patterns, system design, SQL, HTTP & networking',
@@ -186,6 +205,15 @@ export const TEMPLATES = {
     widgets: hiddenRest(['summary', 'goals', 'gaps', 'plan', 'mastery', 'activity', 'recent']),
     goals: [{ id: 'g-min', metric: 'minutes', period: 'week', target: 240 }],
   },
+  consulting: {
+    kind: 'consulting', name: 'Consulting', blurb: 'Case structuring, market sizing, case math, fit',
+    topics: CONSULTING_TOPICS,
+    widgets: hiddenRest(['summary', 'goals', 'gaps', 'plan', 'mastery', 'activity', 'recent']),
+    goals: [
+      { id: 'g-mocks', metric: 'mocks', period: 'week', target: 2 },
+      { id: 'g-eb', metric: 'explain_backs', period: 'week', target: 3 },
+    ],
+  },
   custom: {
     kind: 'custom', name: 'Custom track', blurb: 'Start blank — add topics yourself or let AI suggest them',
     topics: [],
@@ -194,11 +222,11 @@ export const TEMPLATES = {
   },
 }
 
-// Which template(s) to seed on first open, from profiles.focus ('SWE' | 'PM' | 'Both').
-export function defaultTemplateKeys(focus) {
-  if (focus === 'PM') return ['pm']
-  if (focus === 'Both') return ['swe', 'pm']
-  return ['swe']
+// Which template(s) to seed on first open, from the profile's recruiting tracks
+// (lib/tracks.js ids — every track id is also a template key).
+export function defaultTemplateKeys(tracks) {
+  const keys = (tracks || []).filter(t => TEMPLATES[t])
+  return keys.length ? keys : ['swe']
 }
 
 // Template → { track, topics } row shapes ready for db.js's createTrackWithTopics().

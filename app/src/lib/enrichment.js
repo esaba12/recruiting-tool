@@ -84,7 +84,7 @@ what they do: "${whatTheyDo || ''}"
 
 // name + company + free-text "what they do" -> a review-ready contact draft.
 // profile: the rec_affinity_profile (merged with DEFAULT_PROFILE) so shared-background
-//   tags (UMich alum, shared employer, hometown) are computed the same way Discover does.
+//   tags (school alum, shared employer, hometown) are computed the same way Discover does.
 // targetCompanies: rec_target_companies — used to flag "this person is at a target company".
 // existingContacts: your Contacts — used to surface who else you already know there.
 export async function enrichContact({
@@ -158,13 +158,14 @@ export async function enrichContact({
 }
 
 // Compose the deterministic network-fit chips into a single human sentence, e.g.
-// "🎯 At a target company · 🎓 UMich alum · you already know 2 people here".
+// "🎯 At a target company · 🎓 Penn alum · you already know 2 people here".
 // Kept out of enrichContact so the modal can render chips individually too.
 export function fitSummary(draft) {
   const parts = []
-  const schoolLabel = draft.schoolTagLabel || 'UMich alum'
+  const schoolLabel = draft.schoolTagLabel || 'Same school'
   if (draft.targetMatch) parts.push('🎯 At a target company')
   if (draft.isUMichAlum) parts.push(`🎓 ${schoolLabel}`)
+  // 'UMich' is the pre-v1.2 hardcoded school tag, still on older contacts.
   const otherAffinity = (draft.affinity || []).filter(a => a !== draft.schoolTagLabel && a !== 'UMich')
   if (otherAffinity.length) parts.push(otherAffinity.join(' · '))
   if (draft.alsoAt?.length) {
