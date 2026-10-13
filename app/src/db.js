@@ -12,6 +12,7 @@ import {
   DEMO_CONTACTS, DEMO_APPLICATIONS, DEMO_INTERACTIONS, DEMO_EMAILS, DEMO_CALLS, DEMO_CONTACT_RELATIONSHIPS, nextDemoId,
   DEMO_SCHOOLS, DEMO_EMPLOYERS, DEMO_EVENTS, DEMO_USER_EVENTS, DEMO_EVENT_RELEVANCE, DEMO_REQUIREMENT_COMPLETIONS, DEMO_INGEST_SOURCES,
   buildDemoLearning,
+  buildDemoLeetcodeSnapshot,
 } from './demoData.js'
 import { ROLE_OPTIONS } from './shared.jsx'
 import { parseDay, todayLocal, addDaysLocal } from './lib/dates.js'
@@ -553,7 +554,11 @@ export async function fetchDailyRecap() {
 // calendar id per slot, sync preferences). Demo mode keeps them in memory.
 const demoSettings = new Map()
 export async function getUserSetting(key) {
-  if (isDemoMode()) return demoSettings.has(key) ? demoSettings.get(key) : null
+  if (isDemoMode()) {
+    // The demo's LeetCode track is "connected", so serve a seeded sync snapshot.
+    if (key === 'leetcode_snapshot' && !demoSettings.has(key)) demoSettings.set(key, buildDemoLeetcodeSnapshot())
+    return demoSettings.has(key) ? demoSettings.get(key) : null
+  }
   const { data, error } = await supabase.from('user_settings').select('value').eq('key', key).maybeSingle()
   throwIfError(error, `getUserSetting(${key})`)
   return data ? data.value : null

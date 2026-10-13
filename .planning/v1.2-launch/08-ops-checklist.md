@@ -6,9 +6,9 @@ dashboard, Vercel, third-party signups). Items marked 🤖 can be run by Claude 
 ## P0 — before the link goes out
 
 ### Ship the code
-- [ ] **Merge PR #6** (`v1.2-friends-launch` → `main`). Vercel deploys `main` to prod. The preview build passed and was smoke-tested 2026-10-10 (`/`, `/demo`, `/privacy.html` all 200; the bundle contains the wizard, getting-started, no-key and feedback code). Claude Code's auto-mode blocks `gh pr merge`, so the owner merges in the GitHub UI or with `! gh pr merge 6 --merge`.
-- [ ] After the merge, re-check prod: routes return 200 and the prod bundle has the same feature strings.
-- [ ] 🤖 `clasp push` the Apps Script mirror (`scripts/email-pipeline.js`: finance ATS domains, keywords and `interview_round`). Check the output for "Skipping push", which means the remote manifest differs (see CLAUDE.md's clasp entry).
+- [x] **Merge PR #6** (merged 2026-10-12 as `8067213`) (`v1.2-friends-launch` → `main`). Vercel deploys `main` to prod. The preview build passed and was smoke-tested 2026-10-10 (`/`, `/demo`, `/privacy.html` all 200; the bundle contains the wizard, getting-started, no-key and feedback code). Claude Code's auto-mode blocks `gh pr merge`, so the owner merges in the GitHub UI or with `! gh pr merge 6 --merge`.
+- [x] After the merge, re-check prod (2026-10-12: /, /demo, /privacy.html, /terms.html 200; bundle has wizard, feedback, practice import): routes return 200 and the prod bundle has the same feature strings.
+- [x] 🤖 `clasp push` (2026-10-12, manifest unchanged, diff was additive only) the Apps Script mirror (`scripts/email-pipeline.js`: finance ATS domains, keywords and `interview_round`). Check the output for "Skipping push", which means the remote manifest differs (see CLAUDE.md's clasp entry).
 
 ### Google Cloud (project `recruitingos`)
 - [ ] **Decide the consent-screen mode.** Recommended: **publish to Production, unverified**. Users click through "Google hasn't verified this app → Advanced → Go to recruitingos", you're capped at 100 users, and there's no 7-day token expiry. The alternative (stay in Testing and add every friend's Google account as a Test user) means everyone's Calendar/Gmail silently breaks every 7 days.
@@ -36,7 +36,7 @@ dashboard, Vercel, third-party signups). Items marked 🤖 can be run by Claude 
 ## P1 — launch week
 
 - [ ] 🤖 Smoke test on prod with three disposable accounts (email/password, Google, API key), following milestone DoD #1–#3 in README.md. Delete them afterward.
-- [ ] Refresh `/demo` so it shows Inbox + Learn properly (it's the "look before you sign up" link).
+- [x] Refresh `/demo` so it shows Inbox + Learn properly (2026-10-13: Inbox was already fine; Learn now has a seeded LeetCode snapshot — languages, lifetime difficulty, baseline mastery — and static company-prep sets for the Pipeline OA/interview companies) (it's the "look before you sign up" link).
 - [ ] Write the invite message: the link, "takes 3 minutes", what the unverified-Google screen looks like, that AI needs your own key (link to the in-app guide), and where the Feedback button is.
 - [ ] Soft launch to 3–5 friends across tracks (at least 1 finance, 1 non-UMich), then read the `feedback` table and Sentry after 48h before a wider send.
 

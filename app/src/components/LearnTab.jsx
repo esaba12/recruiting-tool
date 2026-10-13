@@ -7,6 +7,7 @@ import Modal from './ui/Modal.jsx'
 import { TEMPLATES, defaultTemplateKeys } from '../lib/learning/templates.js'
 import { useTrackView, activeTrack } from '../lib/learning/useLearning.js'
 import useCompanyPrep from '../lib/learning/useCompanyPrep.js'
+import { DEMO_COMPANY_PREP } from '../demoData.js'
 import { lsGet, lsSet } from '../lib/scopedStorage.js'
 import { profileTracks } from '../lib/tracks.js'
 import {
@@ -34,7 +35,8 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
   const track = activeTrack(learning, trackId)
   // Company problem lists only matter for tracks that practice on LeetCode.
   const lcTrack = !!track && learning.topics.some(t => t.trackId === track.id && t.lcTags?.length)
-  const companyPrep = useCompanyPrep(track, apps, { enabled: learning.loaded && lcTrack && !isDemoMode })
+  const livePrep = useCompanyPrep(track, apps, { enabled: learning.loaded && lcTrack && !isDemoMode })
+  const companyPrep = isDemoMode && lcTrack ? DEMO_COMPANY_PREP : livePrep
   const view = useTrackView(learning, trackId, apps, companyPrep.sets)
 
   useEffect(() => { if (view?.track && view.track.id !== trackId) setTrackId(view.track.id) }, [view?.track, trackId])
@@ -98,7 +100,12 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
               <RefreshCw size={12} /> Connect LeetCode
             </button>
           )}
-          {view.track.config?.leetcodeUsername && (
+          {view.track.config?.leetcodeUsername && isDemoMode && (
+            <span className="text-xs text-ink-500 inline-flex items-center gap-1 font-mono mr-1" title="Sample LeetCode account">
+              <RefreshCw size={12} /> {view.track.config.leetcodeUsername}
+            </span>
+          )}
+          {view.track.config?.leetcodeUsername && !isDemoMode && (
             <button onClick={() => learning.runLeetcodeSync(view.track).catch(() => {})} disabled={syncing}
               className="text-xs text-ink-500 hover:text-ink-800 inline-flex items-center gap-1 font-mono mr-1" title="Sync LeetCode now">
               <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} /> {view.track.config.leetcodeUsername}

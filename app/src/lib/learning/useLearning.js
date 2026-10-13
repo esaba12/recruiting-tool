@@ -205,7 +205,8 @@ export default function useLearning({ enabled = true } = {}) {
   // back into view (a long-open tab would otherwise let the 20-submission window overflow).
   // Fail-soft — the manual ↻ surfaces errors.
   useEffect(() => {
-    if (!enabled || !loaded) return
+    // The demo's username is fictional; its snapshot is seeded in db.js.
+    if (!enabled || !loaded || window.location.pathname.startsWith('/demo')) return
     async function syncDueTracks() {
       if (syncInFlightRef.current) return
       const meta = lsGet(SYNC_META_KEY) || {}

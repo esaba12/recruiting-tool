@@ -385,89 +385,86 @@ export function CompanyPrepWidget({ view, prep, onLog, onPin, isDemoMode = false
   const meta = prep.loading ? 'loading…' : set ? `${set.problems.length} tagged problems` : null
   return (
     <Panel title="Company prep" meta={meta}>
-      {isDemoMode && <p className="text-sm text-ink-400">Company problem lists load for signed-in accounts.</p>}
-      {!isDemoMode && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {sets.map(x => (
-              <span key={x.company} className={`inline-flex items-center border text-xs ${x === set ? 'bg-ink-900 border-ink-900 text-on-fill' : 'bg-surface border-ink-200 text-ink-600 hover:border-ink-400'}`}>
-                <button onClick={() => setActive(x.company)} className="px-2.5 py-1 font-semibold">
-                  {x.company} <span className={x === set ? 'text-accent-300' : 'text-ink-400'}>· {WHY_LABEL[x.why]}</span>
-                </button>
-                {x.why === 'pinned' && (
-                  <button onClick={() => onPin(pinned.filter(p => p !== x.company))} className="pr-1.5 opacity-60 hover:opacity-100" title="Unpin"><X size={11} /></button>
-                )}
-              </span>
-            ))}
-            <form onSubmit={pin} className="inline-flex">
-              <input value={adding} onChange={e => setAdding(e.target.value)} list="lc-company-folders" placeholder="+ pin a company"
-                className="w-36 px-2 py-1 text-xs border border-dashed border-ink-300 focus:outline-none focus:border-accent-500 bg-surface" />
-              <datalist id="lc-company-folders">{prep.folders.map(f => <option key={f} value={f} />)}</datalist>
-            </form>
-          </div>
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {sets.map(x => (
+            <span key={x.company} className={`inline-flex items-center border text-xs ${x === set ? 'bg-ink-900 border-ink-900 text-on-fill' : 'bg-surface border-ink-200 text-ink-600 hover:border-ink-400'}`}>
+              <button onClick={() => setActive(x.company)} className="px-2.5 py-1 font-semibold">
+                {x.company} <span className={x === set ? 'text-accent-300' : 'text-ink-400'}>· {WHY_LABEL[x.why]}</span>
+              </button>
+              {x.why === 'pinned' && (
+                <button onClick={() => onPin(pinned.filter(p => p !== x.company))} className="pr-1.5 opacity-60 hover:opacity-100" title="Unpin"><X size={11} /></button>
+              )}
+            </span>
+          ))}
+          {!isDemoMode && <form onSubmit={pin} className="inline-flex">
+            <input value={adding} onChange={e => setAdding(e.target.value)} list="lc-company-folders" placeholder="+ pin a company"
+              className="w-36 px-2 py-1 text-xs border border-dashed border-ink-300 focus:outline-none focus:border-accent-500 bg-surface" />
+            <datalist id="lc-company-folders">{prep.folders.map(f => <option key={f} value={f} />)}</datalist>
+          </form>}
+        </div>
 
-          {prep.error && <p className="text-xs text-danger-600">{prep.error}</p>}
-          {!!prep.unmatched.length && <p className="text-[11px] text-ink-400">No LeetCode data for {prep.unmatched.join(', ')}.</p>}
-          {!set && !prep.loading && (
-            <p className="text-sm text-ink-400">No interviews or OAs in your Pipeline for this track right now. Pin a company to see what it asks.</p>
-          )}
+        {prep.error && <p className="text-xs text-danger-600">{prep.error}</p>}
+        {!!prep.unmatched.length && <p className="text-[11px] text-ink-400">No LeetCode data for {prep.unmatched.join(', ')}.</p>}
+        {!set && !prep.loading && (
+          <p className="text-sm text-ink-400">No interviews or OAs in your Pipeline for this track right now. Pin a company to see what it asks.</p>
+        )}
 
-          {set && cov && (
-            <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-x-6 gap-y-4">
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-baseline gap-2">
-                    <Mono className="text-3xl font-semibold text-ink-900">{Math.round(cov.solvedFrequencyPct * 100)}%</Mono>
-                    <span className="text-xs text-ink-500">of how often {set.company} asks, solved</span>
-                  </div>
-                  <div className="h-1.5 bg-ink-100 mt-2"><div className="h-full bg-accent-500 transition-all" style={{ width: `${cov.solvedFrequencyPct * 100}%` }} /></div>
-                  <Mono className="block text-[11px] text-ink-400 mt-1">{cov.solved}/{cov.total} problems{cov.attempted ? ` · ${cov.attempted} attempted` : ''}</Mono>
+        {set && cov && (
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-x-6 gap-y-4">
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-baseline gap-2">
+                  <Mono className="text-3xl font-semibold text-ink-900">{Math.round(cov.solvedFrequencyPct * 100)}%</Mono>
+                  <span className="text-xs text-ink-500">of how often {set.company} asks, solved</span>
                 </div>
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-400 mb-1.5">Leans on</p>
-                  <ul className="space-y-1.5">
-                    {cov.topicShares.slice(0, 5).map(({ topic, share }) => {
-                      const m = view.mastery.get(topic.id)
-                      return (
-                        <li key={topic.id} className="flex items-center gap-2">
-                          <Mono className="w-9 text-right text-[11px] text-ink-500">{Math.round(share * 100)}%</Mono>
-                          <span className="flex-1 text-sm text-ink-800 truncate">{topic.name}</span>
-                          {m && <LevelMeter level={m.level} target={topic.targetLevel} verified={m.verified} compact />}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
+                <div className="h-1.5 bg-ink-100 mt-2"><div className="h-full bg-accent-500 transition-all" style={{ width: `${cov.solvedFrequencyPct * 100}%` }} /></div>
+                <Mono className="block text-[11px] text-ink-400 mt-1">{cov.solved}/{cov.total} problems{cov.attempted ? ` · ${cov.attempted} attempted` : ''}</Mono>
               </div>
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-400 mb-1.5">Most asked · not solved yet</p>
-                {!cov.next.length && <p className="text-sm text-ink-400">You've solved every problem on {set.company}'s list.</p>}
-                <ol className="divide-y divide-ink-100">
-                  {cov.next.map((p, i) => (
-                    <li key={p.slug} className="py-1.5 flex items-center gap-2.5">
-                      <Mono className="text-ink-300 w-4">{String(i + 1).padStart(2, '0')}</Mono>
-                      <div className="flex-1 min-w-0">
-                        <a href={`https://leetcode.com/problems/${p.slug}/`} target="_blank" rel="noreferrer" className="text-sm text-ink-900 hover:underline truncate block">{p.title}</a>
-                        <p className="text-[11px] text-ink-400">
-                          <span className={DIFF_TEXT[p.difficulty] || ''}>{p.difficulty || '—'}</span>
-                          {attempted.has(p.slug) && <span className="text-danger-600"> · attempted, not accepted</span>}
-                        </p>
-                      </div>
-                      <div className="w-12 h-1 bg-ink-100" title={`Frequency ${p.frequency}`}><div className="h-full bg-ink-700" style={{ width: `${Math.min(100, p.frequency)}%` }} /></div>
-                      <button onClick={() => onLog({ kind: 'problem', problem: `https://leetcode.com/problems/${p.slug}/` })} className="text-xs text-ink-500 hover:text-ink-800">+ Log</button>
-                    </li>
-                  ))}
-                </ol>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-400 mb-1.5">Leans on</p>
+                <ul className="space-y-1.5">
+                  {cov.topicShares.slice(0, 5).map(({ topic, share }) => {
+                    const m = view.mastery.get(topic.id)
+                    return (
+                      <li key={topic.id} className="flex items-center gap-2">
+                        <Mono className="w-9 text-right text-[11px] text-ink-500">{Math.round(share * 100)}%</Mono>
+                        <span className="flex-1 text-sm text-ink-800 truncate">{topic.name}</span>
+                        {m && <LevelMeter level={m.level} target={topic.targetLevel} verified={m.verified} compact />}
+                      </li>
+                    )
+                  })}
+                </ul>
               </div>
             </div>
-          )}
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-400 mb-1.5">Most asked · not solved yet</p>
+              {!cov.next.length && <p className="text-sm text-ink-400">You've solved every problem on {set.company}'s list.</p>}
+              <ol className="divide-y divide-ink-100">
+                {cov.next.map((p, i) => (
+                  <li key={p.slug} className="py-1.5 flex items-center gap-2.5">
+                    <Mono className="text-ink-300 w-4">{String(i + 1).padStart(2, '0')}</Mono>
+                    <div className="flex-1 min-w-0">
+                      <a href={`https://leetcode.com/problems/${p.slug}/`} target="_blank" rel="noreferrer" className="text-sm text-ink-900 hover:underline truncate block">{p.title}</a>
+                      <p className="text-[11px] text-ink-400">
+                        <span className={DIFF_TEXT[p.difficulty] || ''}>{p.difficulty || '—'}</span>
+                        {attempted.has(p.slug) && <span className="text-danger-600"> · attempted, not accepted</span>}
+                      </p>
+                    </div>
+                    <div className="w-12 h-1 bg-ink-100" title={`Frequency ${p.frequency}`}><div className="h-full bg-ink-700" style={{ width: `${Math.min(100, p.frequency)}%` }} /></div>
+                    <button onClick={() => onLog({ kind: 'problem', problem: `https://leetcode.com/problems/${p.slug}/` })} className="text-xs text-ink-500 hover:text-ink-800">+ Log</button>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        )}
 
-          <p className="text-[11px] text-ink-400 border-t border-ink-100 pt-2">
-            From the public <a href={`https://github.com/${COMPANY_REPO}`} target="_blank" rel="noreferrer" className="underline">{COMPANY_REPO}</a> list of LeetCode company tags.
-            "Solved" counts problems logged here or synced from LeetCode since you connected it, because LeetCode only exposes your last 20 submissions.
-          </p>
-        </div>
-      )}
+        <p className="text-[11px] text-ink-400 border-t border-ink-100 pt-2">
+          From the public <a href={`https://github.com/${COMPANY_REPO}`} target="_blank" rel="noreferrer" className="underline">{COMPANY_REPO}</a> list of LeetCode company tags.
+          "Solved" counts problems logged here or synced from LeetCode since you connected it, because LeetCode only exposes your last 20 submissions.
+        </p>
+      </div>
     </Panel>
   )
 }

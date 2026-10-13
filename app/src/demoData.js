@@ -309,7 +309,7 @@ export const DEMO_INGEST_SOURCES = [
 export function buildDemoLearning() {
   const { track, topics } = instantiateTemplate('swe')
   const trackRow = { id: 'demo-lt1', ...track, sort: 0, archivedAt: null }
-  trackRow.config.leetcodeUsername = ''
+  trackRow.config.leetcodeUsername = DEMO_LC_USERNAME
   const topicRows = topics.map((t, i) => ({ id: `demo-lp${i}`, trackId: trackRow.id, hidden: false, selfRating: null, ...t }))
   const byName = n => topicRows.find(t => t.name === n)?.id
 
@@ -362,4 +362,67 @@ export function buildDemoLearning() {
       title: name, difficulty: null, outcome: null, minutes, confidence: score, score, notes: '', occurredAt: new Date(Date.now() - d * 86400000).toISOString() })
   }
   return { tracks: [trackRow, ibTrack], topics: [...topicRows, ...ibTopics], items, logs }
+}
+
+// What a LeetCode sync would have stored (lib/learning/leetcodeImport.js's snapshot): lifetime
+// per-tag counts feed mastery as baseline evidence, and languages/languageStats drive the
+// Languages widget. db.js serves it as the demo's `leetcode_snapshot` user setting.
+const DEMO_LC_USERNAME = 'demo-student'
+export function buildDemoLeetcodeSnapshot() {
+  const day = 86400000
+  return {
+    username: DEMO_LC_USERNAME,
+    difficulty: { All: 97, Easy: 52, Medium: 41, Hard: 4 },
+    tagCounts: {
+      array: 48, 'hash-table': 31, string: 24, sorting: 12, 'two-pointers': 14, 'sliding-window': 6, stack: 8,
+      'monotonic-stack': 3, 'binary-search': 7, tree: 16, 'binary-tree': 16, 'depth-first-search': 13,
+      'breadth-first-search': 9, graph: 6, 'linked-list': 5, heap: 3, 'heap-priority-queue': 3, backtracking: 3,
+      'dynamic-programming': 5, greedy: 6, math: 8, 'prefix-sum': 4, matrix: 5,
+    },
+    languages: [{ name: 'Python3', solved: 81 }, { name: 'Java', solved: 22 }, { name: 'MySQL', solved: 9 }],
+    languageStats: {
+      byLang: {
+        Python3: { solves: 15, firstTry: 9, struggled: 6, failed: 3, lastAt: Date.now() - day },
+        Java: { solves: 4, firstTry: 2, struggled: 2, failed: 1, lastAt: Date.now() - 9 * day },
+      },
+      seen: [],
+      since: Date.now() - 35 * day,
+    },
+    syncedIds: [],
+    syncedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+  }
+}
+
+// Static stand-in for useCompanyPrep's output (the real one reads the company-tagged lists
+// through the auth-gated /gh-api proxy). Companies match the demo Pipeline's OA/interviews.
+// Frequencies are illustrative; slugs and tags are real LeetCode problems from problemBank.js.
+const companySet = (company, why, rows) => ({
+  company, why, folder: company,
+  problems: rows.map(([slug, frequency]) => {
+    const p = PROBLEM_BY_SLUG.get(slug)
+    return { slug, title: p.title, difficulty: p.difficulty, frequency, tags: p.tags }
+  }),
+})
+export const DEMO_COMPANY_PREP = {
+  sets: [
+    companySet('Rippling', 'oa', [
+      ['lru-cache', 100], ['merge-intervals', 88], ['time-based-key-value-store', 81], ['top-k-frequent-elements', 70],
+      ['two-sum', 66], ['meeting-rooms-ii', 61], ['course-schedule', 55], ['insert-interval', 49], ['word-break', 44],
+      ['number-of-islands', 40], ['kth-largest-element-in-an-array', 36], ['house-robber', 31], ['valid-parentheses', 28],
+      ['longest-substring-without-repeating-characters', 25], ['coin-change', 22], ['task-scheduler', 19],
+    ]),
+    companySet('Stripe', 'interview', [
+      ['time-based-key-value-store', 100], ['merge-intervals', 77], ['lru-cache', 72], ['group-anagrams', 58],
+      ['two-sum', 54], ['valid-parentheses', 47], ['top-k-frequent-elements', 41], ['minimum-window-substring', 37],
+      ['implement-trie-prefix-tree', 33], ['insert-interval', 30], ['product-of-array-except-self', 26],
+      ['daily-temperatures', 23], ['search-in-rotated-sorted-array', 20], ['word-search', 18], ['3sum', 16],
+    ]),
+    companySet('Anthropic', 'interview', [
+      ['lru-cache', 100], ['find-median-from-data-stream', 74], ['merge-k-sorted-lists', 69], ['course-schedule', 62],
+      ['word-break', 55], ['number-of-islands', 51], ['clone-graph', 46], ['kth-largest-element-in-an-array', 42],
+      ['longest-palindromic-substring', 37], ['rotting-oranges', 33], ['task-scheduler', 29], ['coin-change', 26],
+      ['implement-trie-prefix-tree', 23], ['merge-intervals', 21], ['two-sum', 18],
+    ]),
+  ],
+  unmatched: [], folders: [], loading: false, error: null,
 }
