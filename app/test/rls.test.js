@@ -188,6 +188,27 @@ describe.skipIf(!configured)('shared-pool RLS isolation', () => {
     expect(upd || []).toHaveLength(0)
   })
 
+  // Stage history (20261016000000_application_stage_events.sql) — trigger-written,
+  // read-own only, no client writes at all (not even for your own applications).
+  it('application stage events are trigger-written, private, and read-only', async () => {
+    const app = await must(clients.A.from('applications').insert({ company: 'RLS Co', stage: 'Applied' }).select('id').single(), 'A app')
+    await must(clients.A.from('applications').update({ stage: 'Phone Screen' }).eq('id', app.id), 'A moves stage')
+    await must(clients.A.from('applications').update({ notes: 'no stage change' }).eq('id', app.id), 'A edits notes')
+    const own = await must(clients.A.from('application_stage_events').select('from_stage,to_stage,source').eq('application_id', app.id).order('id'), 'A events')
+    expect(own).toEqual([
+      { from_stage: null, to_stage: 'Applied', source: 'user' },
+      { from_stage: 'Applied', to_stage: 'Phone Screen', source: 'user' },
+    ])
+    expect((await must(clients.B.from('application_stage_events').select('id').eq('application_id', app.id), 'B reads A')).length).toBe(0)
+    const { error: forgeA } = await clients.A.from('application_stage_events').insert({ user_id: users.A.id, application_id: app.id, to_stage: 'Offer', source: 'user' })
+    expect(forgeA).toBeTruthy()
+    const { error: forgeB } = await clients.B.from('application_stage_events').insert({ user_id: users.A.id, application_id: app.id, to_stage: 'Offer', source: 'user' })
+    expect(forgeB).toBeTruthy()
+    await must(admin.from('applications').update({ stage: 'Rejected' }).eq('id', app.id), 'pipeline rejects')
+    const last = await must(admin.from('application_stage_events').select('to_stage,source').eq('application_id', app.id).order('id', { ascending: false }).limit(1).single(), 'last event')
+    expect(last).toEqual({ to_stage: 'Rejected', source: 'pipeline' })
+  })
+
   it('profile tracks/onboarding are private, owner-writable, and constrained to known tracks', async () => {
     // New signups start un-onboarded with no tracks (the wizard's gate).
     const own = await must(clients.A.from('profiles').select('tracks, onboarded_at').eq('id', users.A.id).single(), 'A profile')

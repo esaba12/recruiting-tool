@@ -9,12 +9,13 @@
 // needed zero changes beyond the import path.
 import { supabase } from './lib/supabaseClient.js'
 import {
-  DEMO_CONTACTS, DEMO_APPLICATIONS, DEMO_INTERACTIONS, DEMO_EMAILS, DEMO_CALLS, DEMO_CONTACT_RELATIONSHIPS, nextDemoId,
+  DEMO_CONTACTS, DEMO_APPLICATIONS, DEMO_STAGE_EVENTS, DEMO_INTERACTIONS, DEMO_EMAILS, DEMO_CALLS, DEMO_CONTACT_RELATIONSHIPS, nextDemoId,
   DEMO_SCHOOLS, DEMO_EMPLOYERS, DEMO_EVENTS, DEMO_USER_EVENTS, DEMO_EVENT_RELEVANCE, DEMO_REQUIREMENT_COMPLETIONS, DEMO_INGEST_SOURCES,
   buildDemoLearning,
 } from './demoData.js'
 import { ROLE_OPTIONS } from './shared.jsx'
 import { parseDay, todayLocal, addDaysLocal } from './lib/dates.js'
+import { attachStageHistory } from './lib/stageHistory.js'
 
 // Local calendar day, not UTC (toISOString flips to tomorrow after ~8pm Eastern).
 function todayStr() { return todayLocal() }
@@ -43,6 +44,7 @@ function demoStore() {
     demo = {
       contacts: DEMO_CONTACTS.map(c => ({ ...c })),
       applications: DEMO_APPLICATIONS.map(a => ({ ...a })),
+      stageEvents: DEMO_STAGE_EVENTS.map(e => ({ ...e })),
       interactions: [...DEMO_INTERACTIONS, ...DEMO_EMAILS].map(i => ({ ...i })),
       calls: DEMO_CALLS.map(c => ({ ...c })),
       contactRelationships: DEMO_CONTACT_RELATIONSHIPS.map(r => ({ ...r })),
@@ -56,6 +58,12 @@ function demoStore() {
     }
   }
   return demo
+}
+
+// Demo stand-in for the application_stage_events trigger.
+function demoLogStage(app, toStage) {
+  if (!toStage || app.stage === toStage) return
+  demoStore().stageEvents.push({ applicationId: app.id, fromStage: app.stage || null, toStage, changedAt: new Date().toISOString(), source: 'user' })
 }
 
 // ── Contacts ────────────────────────────────────────────────────────────────
@@ -257,6 +265,7 @@ export async function addApplication({ company, role, jdLink, location, sourceRe
       jdLink: jdLink || '', notes: datePosted ? `Posted ${datePosted}` : '', createdTime: todayStr(),
       referredById: referredById || null,
     })
+    demoStore().stageEvents.push({ applicationId: id, fromStage: null, toStage: 'Wishlist', changedAt: new Date().toISOString(), source: 'user' })
     return { id }
   }
   const { data, error } = await supabase.from('applications').insert({
@@ -280,6 +289,7 @@ export async function updateApplicationTriage(id, triage, currentStage) {
     if (!a) return
     a.triage = triage
     if (triage === 'Applied' && (!currentStage || currentStage === 'Wishlist')) {
+      demoLogStage(a, 'Applied')
       a.stage = 'Applied'
       a.appliedDate = todayStr()
     }
@@ -298,7 +308,8 @@ export async function updateApplication(id, fields) {
   if (isDemoMode()) {
     const a = demoStore().applications.find(a => a.id === id)
     if (!a) return
-    for (const k of ['company', 'role', 'location', 'jdLink', 'notes', 'stage', 'appliedDate', 'closedDate', 'referredById', 'oaDueDate', 'oaLink', 'oaCompleted', 'oaResearchCheckedAt']) {
+    if ('stage' in fields) demoLogStage(a, fields.stage)
+    for (const k of ['company', 'role', 'location', 'jdLink', 'notes', 'stage', 'triage', 'appliedDate', 'closedDate', 'referredById', 'oaDueDate', 'oaLink', 'oaCompleted', 'oaResearchCheckedAt']) {
       if (k in fields) a[k] = fields[k]
     }
     return
@@ -310,6 +321,7 @@ export async function updateApplication(id, fields) {
   if ('jdLink' in fields) patch.jd_link = fields.jdLink || null
   if ('notes' in fields) patch.notes = fields.notes || ''
   if ('stage' in fields) patch.stage = fields.stage || null
+  if ('triage' in fields) patch.triage = fields.triage || 'Needs Review'
   if ('appliedDate' in fields) patch.applied_date = fields.appliedDate || null
   if ('closedDate' in fields) patch.closed_date = fields.closedDate || null
   if ('referredById' in fields) patch.referred_by_id = fields.referredById || null
@@ -322,7 +334,33 @@ export async function updateApplication(id, fields) {
 }
 
 export async function fetchApplications() {
-  if (isDemoMode()) return demoStore().applications.map(a => ({ ...a }))
+  if (isDemoMode()) return attachStageHistory(demoStore().applications.map(a => ({ ...a })), demoStore().stageEvents)
+  const [apps, events] = await Promise.all([fetchApplicationRows(), fetchStageEvents()])
+  return attachStageHistory(apps, events)
+}
+
+// Every stage change (application_stage_events, written by a DB trigger). Fails soft to
+// null — attachStageHistory then synthesizes history — so the app keeps working before
+// the migration is pushed.
+export async function fetchStageEvents() {
+  if (isDemoMode()) return null
+  const PAGE_SIZE = 1000
+  const rows = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data: page, error } = await supabase.from('application_stage_events')
+      .select('application_id,from_stage,to_stage,changed_at,source')
+      .order('changed_at', { ascending: true }).range(from, from + PAGE_SIZE - 1)
+    if (error) { console.warn('fetchStageEvents:', error.message); return null }
+    rows.push(...(page || []))
+    if (!page || page.length < PAGE_SIZE) break
+  }
+  return rows.map(r => ({
+    applicationId: r.application_id, fromStage: r.from_stage, toStage: r.to_stage,
+    changedAt: r.changed_at, source: r.source,
+  }))
+}
+
+async function fetchApplicationRows() {
   // PostgREST caps a single response at 1000 rows — this table's Job Boards auto-import
   // volume has grown past that, which was silently dropping newest rows (no .order() meant
   // an arbitrary 1000 came back). Page through with .range() so nothing gets dropped.

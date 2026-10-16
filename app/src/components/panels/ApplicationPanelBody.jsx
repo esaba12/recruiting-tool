@@ -103,6 +103,30 @@ function NetworkAtCompany({ company, contacts, interactions, relationships, onFi
   )
 }
 
+// Every recorded stage move, oldest first. Backfilled rows (history from before
+// tracking) are marked estimated; moves the email pipeline made say so.
+function StageTimeline({ events, estimated }) {
+  const via = { pipeline: 'from email', backfill: 'estimated', system: 'system' }
+  return (
+    <div className="px-5 py-4 border-b border-ink-100">
+      <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">Stage history</p>
+      <ol className="relative border-l border-ink-200 ml-1 space-y-2">
+        {events.map((e, i) => (
+          <li key={i} className="pl-3 relative">
+            <span className={`absolute -left-[4.5px] top-1.5 w-2 h-2 rounded-full ${i === events.length - 1 ? 'bg-accent-500' : 'bg-ink-300'}`} />
+            <div className="flex items-baseline gap-2 text-xs">
+              <span className="font-medium text-ink-800">{e.toStage}</span>
+              <span className="font-mono text-ink-500">{e.changedAt ? fmt(e.changedAt) : '—'}</span>
+              {via[e.source] && <span className="text-ink-400">{via[e.source]}</span>}
+            </div>
+          </li>
+        ))}
+      </ol>
+      {estimated && <p className="text-[11px] text-ink-400 mt-2">Dates marked estimated were reconstructed from the applied/closed dates.</p>}
+    </div>
+  )
+}
+
 export default function ApplicationPanelBody({ app, contacts = [], apps = [], interactions = [], relationships = [], onStatusChange, onClose, onDelete, onSaved, onFindPeople, onRefresh, onRefreshRelationships }) {
   const { profile } = useAuth()
   const isNew = !app
@@ -363,6 +387,8 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
             </button>
           </div>
         )}
+
+        {!isNew && app.stageEvents?.length > 0 && <StageTimeline events={app.stageEvents} estimated={app.historyEstimated} />}
 
         {!isNew && (
           <div className="px-5 py-4 border-b border-ink-100">

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships, fetchActionItems, fetchDailyRecap } from './db.js'
 import { researchOaDeadlines } from './lib/oaResearch.js'
 import { useAuth } from './lib/AuthContext.jsx'
+import useApplicationsLive from './lib/useApplicationsLive.js'
 import useEventIngest from './lib/useEventIngest.js'
 import useRecruitingEvents from './lib/useRecruitingEvents.js'
 import useEventCalendarSync from './lib/useEventCalendarSync.js'
@@ -312,7 +313,7 @@ function AppInner() {
   // successful pull bumps `eventsRefreshKey` so the pool hook below re-reads.
   const [eventsRefreshKey, setEventsRefreshKey] = useState(0)
   useEventIngest({ enabled: true, onIngested: () => setEventsRefreshKey(k => k + 1) })
-  const { profile } = useAuth()
+  const { profile, user } = useAuth()
   const { targets: targetCompanies } = useTargetCompanies()
   // Shared pool + this user's overlay; consumed by Today (attention sections) and
   // Calendar (Events view). Enrichment/relevance run inside the hook.
@@ -363,6 +364,13 @@ function AppInner() {
     setContactRelationships(await fetchContactRelationships())
   }
 
+  // Same reasoning for the Pipeline Sheet: an inline cell edit (or a live update from the
+  // email pipeline) must not unmount the grid and lose the active cell / scroll position.
+  async function refreshApps() {
+    setApps(await fetchApplications())
+  }
+  useApplicationsLive({ userId: user?.id, onChange: refreshApps })
+
   const activeApps = apps.filter(a => !['Rejected','Accepted'].includes(a.stage))
   const openActionItemCount = actionItems.filter(i => !i.completedAt && !i.dismissedAt).length
   const todayCount = overdueFollowUps(contacts).length + staleApplications(apps).length + highUrgencyContacts(contacts).length + wantToSchedule(contacts).length + oaDue(apps).length + oaNeedsCheck(apps).length + keepInTouchDue(contacts, interactions).length + needsReviewApps(apps).length + openActionItemCount
@@ -402,7 +410,7 @@ function AppInner() {
       )}
       {!loading && tab === 'pipeline' && (
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
-          onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} views={pipelineViewsFor(profile)} />
+          onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} views={pipelineViewsFor(profile)} />
       )}
       {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} actionItems={actionItems} dailyRecap={dailyRecap} learning={learning} onOpenLearn={() => setTab('learn')} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} />}
       {!loading && tab === 'inbox'    && (
@@ -475,6 +483,10 @@ function DemoApp() {
     setContactRelationships(await fetchContactRelationships())
   }
 
+  async function refreshApps() {
+    setApps(await fetchApplications())
+  }
+
   const activeApps = apps.filter(a => !['Rejected', 'Accepted'].includes(a.stage))
   const todayCount = overdueFollowUps(contacts).length + staleApplications(apps).length + highUrgencyContacts(contacts).length + wantToSchedule(contacts).length + oaDue(apps).length + oaNeedsCheck(apps).length + keepInTouchDue(contacts, interactions).length + needsReviewApps(apps).length
   const inboxUnread = buildThreads({ interactions }).filter(t => t.unread).length
@@ -496,7 +508,7 @@ function DemoApp() {
       )}
       {!loading && tab === 'pipeline' && (
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
-          onRefreshRelationships={refreshContactRelationships} views={DEMO_PIPELINE_VIEWS} />
+          onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} views={DEMO_PIPELINE_VIEWS} />
       )}
       {!loading && tab === 'today' && (
         <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships}
