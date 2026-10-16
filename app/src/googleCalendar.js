@@ -132,10 +132,6 @@ export async function createEvent({ slot = 'personal', calendarId = 'primary', .
   return normalizeEvent(await gcalFetch('events', { method: 'POST', body: eventBody(fields), slot, calendarId }), slot, calendarId)
 }
 
-export async function getEvent(eventId, { slot = 'personal', calendarId = 'primary' } = {}) {
-  return normalizeEvent(await gcalFetch(`events/${encodeURIComponent(eventId)}`, { slot, calendarId }), slot, calendarId)
-}
-
 // PATCH semantics: only the fields in `patch` change. `eventId` must be the id of the
 // thing you mean — under singleEvents=true that's a per-occurrence id for recurring
 // series, and patching it edits that one instance (Google materializes an exception),
@@ -189,10 +185,6 @@ export async function ensureRecruitingCalendar(slot = 'personal') {
   const created = await createCalendar(slot, { summary: RECRUITING_CALENDAR_SUMMARY, description: 'Career fairs, info sessions, coffee chats and their registration deadlines — pushed by Recruiting OS.' })
   await setUserSetting(RECRUITING_CAL_KEY(slot), created.id)
   return created.id
-}
-
-export async function getCachedRecruitingCalendarId(slot = 'personal') {
-  return getUserSetting(RECRUITING_CAL_KEY(slot))
 }
 
 // Free/busy for a set of calendars on one slot — the conflict engine's cheap path

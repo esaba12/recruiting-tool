@@ -20,7 +20,6 @@ import { envDefaultProvider, resolveProvider, providerLabel } from './aiProvider
 // AuthContext via setAiProvider) overrides the env default, and can change mid-session.
 let current = envDefaultProvider()
 export const setAiProvider = (p) => { current = resolveProvider(p) }
-export const getAiProvider = () => current
 export const aiProviderLabel = () => providerLabel(current)
 
 // Provider-agnostic model tiers — MINI for cheap/fast structured extraction, STANDARD

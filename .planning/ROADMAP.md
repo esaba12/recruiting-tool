@@ -277,4 +277,14 @@ Phase breakdown approved 2026-09-13 (full detail in the session plan). Continues
 - [x] **Phase 14: UI I** — Events view in CalendarTab, `EventPanelBody`, Today sections, stale badge, school token, `/demo`.
 - [x] **Phase 15: UI II** — day plan + booth route, post-event capture via prefillable modals, sync controls.
 
-Handoff / resume notes for the remaining phases: `.planning/v1.1-HANDOFF.md`.
+Handoff notes (archived): `.planning/archive/v1.1-HANDOFF.md`. The one open item, the live Recruiting-calendar round trip, is v1.3 spec 03.
+
+---
+
+## Milestone v1.2 — Friends launch (shipped 2026-10-12, PR #6)
+
+Specs in `.planning/v1.2-launch/`. Code is done; the owner console steps moved to v1.3 spec 02.
+
+## Milestone v1.3 — Launch + cleanup (started 2026-10-16)
+
+Specs in `.planning/v1.3-launch-and-cleanup/` (README has the status table). 05–07 (code follow-ups, pruning, docs restructure) are done on `chore/v1.3-cleanup`; 01–04 are owner steps; 08 (retire the Apps Script pipeline) comes after the Gmail cron is live.
