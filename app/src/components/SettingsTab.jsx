@@ -444,6 +444,16 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
               {Object.entries(CALENDAR_SLOTS).map(([slot, label]) => <option key={slot} value={slot}>{label}{calStatus[slot]?.connected ? '' : ' (not connected)'}</option>)}
             </select>
           </div>
+          {/* Per-user override of schools.transit_buffer_min (that column is service-role
+              write only); conflictsForEvent and the day plan read it via eventCalendarSync.setting. */}
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-ink-500">Walking time between events</span>
+            <select value={syncSetting?.transitBufferMin ?? ''} onChange={e => updateSync({ transitBufferMin: e.target.value === '' ? null : Number(e.target.value) })}
+              className="px-2 py-1 border border-ink-100 rounded-md text-xs focus:outline-none focus:border-accent-400">
+              <option value="">Campus default</option>
+              {[0, 5, 10, 15, 20, 30, 45].map(m => <option key={m} value={m}>{m} min</option>)}
+            </select>
+          </div>
         </div>
       </section>
 

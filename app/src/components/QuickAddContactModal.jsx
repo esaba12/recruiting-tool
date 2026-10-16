@@ -17,11 +17,15 @@ const TARGETS_KEY = 'rec_target_companies'   // shared with Coverage/Discover
 // rest — LinkedIn, cleaned role, shared-background tags, and how they slot into your
 // network. You glance at the filled card and save (one-tap-review flow). Replaces the old
 // blank New-Contact form, which captured only 4 fields and dropped everything else.
-export default function QuickAddContactModal({ contacts = [], onClose, onSaved }) {
+// Optional prefill for capture flows (e.g. "met someone at this career fair"):
+// initialName/initialCompany/initialRole seed the entry step, and extraFields is merged
+// into the final updateContact (followUpDate, employerId, source…). onSaved receives
+// { id, name, company } so the caller can link the new contact.
+export default function QuickAddContactModal({ contacts = [], onClose, onSaved, initialName = '', initialCompany = '', initialRole = '', extraFields = null, title = null }) {
   const [step, setStep]       = useState('entry') // 'entry' | 'enriching' | 'review'
-  const [name, setName]       = useState('')
-  const [company, setCompany] = useState('')
-  const [role, setRole]       = useState('')      // free-text "what they do"
+  const [name, setName]       = useState(initialName)
+  const [company, setCompany] = useState(initialCompany)
+  const [role, setRole]       = useState(initialRole)      // free-text "what they do"
   const [draft, setDraft]     = useState(null)    // enriched, editable
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState(null)
@@ -84,8 +88,9 @@ export default function QuickAddContactModal({ contacts = [], onClose, onSaved }
         lifeDomain: draft.lifeDomain || [],
         referredById: draft.referredById || null,
         exaEnriched: !!draft.enrichedFromWeb,
+        ...(extraFields || {}),
       })
-      onSaved?.()
+      onSaved?.({ id, name: draft.name.trim(), company: draft.company })
     } catch (e) {
       setError(e.message)
       setSaving(false)
@@ -98,7 +103,7 @@ export default function QuickAddContactModal({ contacts = [], onClose, onSaved }
     <Modal onClose={onClose} size="md">
       <div className="sticky top-0 bg-surface border-b border-ink-100 px-5 py-4 flex items-center justify-between z-10">
         <h2 className="text-base font-heading font-semibold text-ink-900 flex items-center gap-2">
-          <Sparkles size={16} className="text-link" /> Add someone to your network
+          <Sparkles size={16} className="text-link" /> {title || 'Add someone to your network'}
         </h2>
         <button onClick={onClose} className="w-7 h-7 rounded-full bg-ink-100 hover:bg-ink-200 flex items-center justify-center text-ink-500 text-sm">✕</button>
       </div>

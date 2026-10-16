@@ -369,6 +369,9 @@ function AppInner() {
   async function refreshApps() {
     setApps(await fetchApplications())
   }
+  async function refreshContacts() {
+    setContacts(await fetchContacts())
+  }
   useApplicationsLive({ userId: user?.id, onChange: refreshApps })
 
   const activeApps = apps.filter(a => !['Rejected','Accepted'].includes(a.stage))
@@ -417,7 +420,7 @@ function AppInner() {
         <InboxTab contacts={contacts} apps={apps} interactions={interactions} actionItems={actionItems} onRefresh={load} />
       )}
       {!loading && tab === 'learn'    && <LearnTab learning={learning} apps={apps} profile={profile} logRequest={learnLogRequest} onLogRequestHandled={() => setLearnLogRequest(null)} />}
-      {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} eventPool={eventPool} eventCalendarSync={eventCalendarSync} />}
+      {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} eventPool={eventPool} eventCalendarSync={eventCalendarSync} onRefreshContacts={refreshContacts} />}
       {tab === 'settings' && (
         <SettingsTab onDone={leaveSettings}
           returnLabel={NAV_ITEMS.find(i => i.id === settingsReturnTab)?.label || 'Today'} />
@@ -489,6 +492,9 @@ function DemoApp() {
   async function refreshApps() {
     setApps(await fetchApplications())
   }
+  async function refreshContacts() {
+    setContacts(await fetchContacts())
+  }
 
   const activeApps = apps.filter(a => !['Rejected', 'Accepted'].includes(a.stage))
   const todayCount = overdueFollowUps(contacts).length + staleApplications(apps).length + highUrgencyContacts(contacts).length + wantToSchedule(contacts).length + oaDue(apps).length + oaNeedsCheck(apps).length + keepInTouchDue(contacts, interactions).length + needsReviewApps(apps).length
@@ -520,7 +526,7 @@ function DemoApp() {
           eventPool={eventPool} onOpenEvents={() => setTab('calendar')} />
       )}
       {!loading && tab === 'calendar' && (
-        <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={[]} onRefresh={load} eventPool={eventPool} eventCalendarSync={null} isDemoMode />
+        <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={[]} onRefresh={load} eventPool={eventPool} eventCalendarSync={null} isDemoMode onRefreshContacts={refreshContacts} />
       )}
       {!loading && tab === 'inbox' && (
         <InboxTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} demoMode />
