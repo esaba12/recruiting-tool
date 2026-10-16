@@ -369,6 +369,9 @@ function AppInner() {
   async function refreshApps() {
     setApps(await fetchApplications())
   }
+  async function refreshContacts() {
+    setContacts(await fetchContacts())
+  }
   useApplicationsLive({ userId: user?.id, onChange: refreshApps })
 
   const activeApps = apps.filter(a => !['Rejected','Accepted'].includes(a.stage))
@@ -412,12 +415,12 @@ function AppInner() {
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
           onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} views={pipelineViewsFor(profile)} />
       )}
-      {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} actionItems={actionItems} dailyRecap={dailyRecap} learning={learning} onOpenLearn={() => setTab('learn')} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} />}
+      {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} actionItems={actionItems} dailyRecap={dailyRecap} learning={learning} onOpenLearn={() => setTab('learn')} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} />}
       {!loading && tab === 'inbox'    && (
         <InboxTab contacts={contacts} apps={apps} interactions={interactions} actionItems={actionItems} onRefresh={load} />
       )}
       {!loading && tab === 'learn'    && <LearnTab learning={learning} apps={apps} profile={profile} logRequest={learnLogRequest} onLogRequestHandled={() => setLearnLogRequest(null)} />}
-      {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} eventPool={eventPool} eventCalendarSync={eventCalendarSync} />}
+      {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} eventPool={eventPool} eventCalendarSync={eventCalendarSync} onRefreshContacts={refreshContacts} />}
       {tab === 'settings' && (
         <SettingsTab onDone={leaveSettings}
           returnLabel={NAV_ITEMS.find(i => i.id === settingsReturnTab)?.label || 'Today'} />
@@ -456,7 +459,7 @@ function AppInner() {
 // Boards/Calendar/Settings all call Claude/OpenAI/Exa/GitHub/Google proxies that
 // `requireUser()`-gate on a real signed-in session and would just 401 for an anonymous
 // visitor, so they're left out rather than shown half-broken.
-const DEMO_NAV_ITEMS = NAV_ITEMS.filter(item => ['today', 'inbox', 'network', 'pipeline', 'learn'].includes(item.id))
+const DEMO_NAV_ITEMS = NAV_ITEMS.filter(item => ['today', 'inbox', 'network', 'pipeline', 'calendar', 'learn'].includes(item.id))
 
 function DemoApp() {
   const [tab, setTab] = useState('today')
@@ -466,6 +469,9 @@ function DemoApp() {
   const [contactRelationships, setContactRelationships] = useState([])
   const [loading, setLoading] = useState(true)
   const learning = useLearning({ enabled: true })
+  // Recruiting events from demoData.js (db.js's demo branch). isDemo skips the AI
+  // enrichment pass; there's no Google account, so no calendar sync hook.
+  const eventPool = useRecruitingEvents({ enabled: true, isDemo: true, contacts, apps })
 
   useEffect(() => { load() }, [])
 
@@ -485,6 +491,9 @@ function DemoApp() {
 
   async function refreshApps() {
     setApps(await fetchApplications())
+  }
+  async function refreshContacts() {
+    setContacts(await fetchContacts())
   }
 
   const activeApps = apps.filter(a => !['Rejected', 'Accepted'].includes(a.stage))
@@ -513,7 +522,11 @@ function DemoApp() {
       {!loading && tab === 'today' && (
         <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships}
           learning={learning} onOpenLearn={() => setTab('learn')}
-          onRefresh={load} onRefreshRelationships={refreshContactRelationships} isDemoMode />
+          onRefresh={load} onRefreshRelationships={refreshContactRelationships} isDemoMode
+          eventPool={eventPool} onOpenEvents={() => setTab('calendar')} />
+      )}
+      {!loading && tab === 'calendar' && (
+        <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={[]} onRefresh={load} eventPool={eventPool} eventCalendarSync={null} isDemoMode onRefreshContacts={refreshContacts} />
       )}
       {!loading && tab === 'inbox' && (
         <InboxTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} demoMode />

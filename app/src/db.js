@@ -157,7 +157,7 @@ const CONTACT_FIELD_MAP = {
 const CONTACT_DEMO_KEYS = [
   'name', 'company', 'role', 'email', 'phone', 'linkedin', 'notes', 'whatTheyDid', 'followUpDraft', 'scheduleNote',
   'source', 'status', 'urgency', 'lastInteraction', 'followUpDate', 'referredById', 'followUpDraftTier',
-  'followUpDraftKind', 'isUMichAlum', 'affinity', 'lifeDomain', 'exaEnriched', 'wantsToSchedule', 'scheduleBy', 'referralStatus',
+  'followUpDraftKind', 'isUMichAlum', 'affinity', 'lifeDomain', 'exaEnriched', 'wantsToSchedule', 'scheduleBy', 'referralStatus', 'employerId',
 ]
 
 export async function updateContact(id, fields) {
@@ -192,6 +192,7 @@ export async function updateContact(id, fields) {
   if ('wantsToSchedule' in fields) patch.wants_to_schedule = !!fields.wantsToSchedule
   if ('scheduleBy' in fields) patch.schedule_by = fields.scheduleBy || null
   if ('referralStatus' in fields) patch.referral_status = fields.referralStatus || null
+  if ('employerId' in fields) patch.employer_id = fields.employerId || null
 
   const { error } = await supabase.from('contacts').update(patch).eq('id', id)
   throwIfError(error, 'updateContact')

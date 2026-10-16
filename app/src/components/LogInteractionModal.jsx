@@ -63,10 +63,12 @@ ${text}`
   return aiJSON({ model: AI_MODELS.STANDARD, content: prompt, maxTokens: 1000 })
 }
 
-export default function LogInteractionModal({ contacts = [], contact = null, onClose, onSaved }) {
+// initialChannel/initialDate/initialNotes prefill the form (post-event capture opens it
+// as a Meeting dated the event day with the event named in the notes).
+export default function LogInteractionModal({ contacts = [], contact = null, onClose, onSaved, initialChannel = 'call', initialDate = null, initialNotes = '' }) {
   const { profile } = useAuth()
   const schoolLabel = profile?.school ? `${profile.school} alum` : 'Same School'
-  const [channel, setChannel] = useState('call')
+  const [channel, setChannel] = useState(initialChannel)
 
   // Transcript channels (Call / LinkedIn)
   const [text, setText] = useState('')
@@ -76,9 +78,9 @@ export default function LogInteractionModal({ contacts = [], contact = null, onC
 
   // Manual channels (Meeting / Email / Other)
   const [name, setName] = useState(contact?.name || '')
-  const [date, setDate] = useState(todayLocal())
+  const [date, setDate] = useState(initialDate || todayLocal())
   const [duration, setDuration] = useState('')
-  const [notes, setNotes] = useState('')
+  const [notes, setNotes] = useState(initialNotes)
 
   const [saving, setSaving] = useState(null) // null | 'saving' | 'done' | 'error'
   const [saved, setSaved] = useState(null)

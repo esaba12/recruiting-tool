@@ -62,6 +62,12 @@
   --color-success-700: var(--t-success-700);
   --color-success-800: var(--t-success-800);
   --color-success-900: var(--t-success-900);
+  --color-school-50: var(--t-school-50);
+  --color-school-100: var(--t-school-100);
+  --color-school-200: var(--t-school-200);
+  --color-school-500: var(--t-school-500);
+  --color-school-600: var(--t-school-600);
+  --color-school-700: var(--t-school-700);
 
   --color-warning-50: var(--t-warning-50);
   --color-warning-100: var(--t-warning-100);
@@ -88,6 +94,9 @@
   /* Status hues — shared by every scheme so a red badge always means the same thing. */
   --p-success-50: #eaf6ec; --p-success-100: #cfead4; --p-success-200: #a3d7ac; --p-success-500: #2f8f3d;
   --p-success-600: #23732f; --p-success-700: #1c5c26; --p-success-800: #164a1e; --p-success-900: #0f3516;
+  /* School calendar / campus identity — violet, kept off the accent and status hues. 700 on 100 = 7.4:1. */
+  --p-school-50: #f3effc; --p-school-100: #e6defa; --p-school-200: #cbbcf1; --p-school-500: #6d4fc2;
+  --p-school-600: #5a3fae; --p-school-700: #4b3391;
   --p-warning-50: #fdf3dc; --p-warning-100: #f8e2a8; --p-warning-200: #f0cd6e; --p-warning-300: #e8bc48;
   --p-warning-400: #e0ab28; --p-warning-500: #d99a12; --p-warning-600: #9c690d; --p-warning-700: #8a630c;
   --p-warning-800: #6b4b12;
@@ -178,6 +187,8 @@
   --t-success-50: var(--p-success-50); --t-success-100: var(--p-success-100); --t-success-200: var(--p-success-200);
   --t-success-500: var(--p-success-500); --t-success-600: var(--p-success-600); --t-success-700: var(--p-success-700);
   --t-success-800: var(--p-success-800); --t-success-900: var(--p-success-900);
+  --t-school-50: var(--p-school-50); --t-school-100: var(--p-school-100); --t-school-200: var(--p-school-200);
+  --t-school-500: var(--p-school-500); --t-school-600: var(--p-school-600); --t-school-700: var(--p-school-700);
   --t-warning-50: var(--p-warning-50); --t-warning-100: var(--p-warning-100); --t-warning-200: var(--p-warning-200);
   --t-warning-300: var(--p-warning-300); --t-warning-400: var(--p-warning-400); --t-warning-500: var(--p-warning-500);
   --t-warning-600: var(--p-warning-600); --t-warning-700: var(--p-warning-700); --t-warning-800: var(--p-warning-800);
@@ -225,6 +236,12 @@
   --t-success-700: color-mix(in oklab, var(--p-success-500), #fff 45%);
   --t-success-800: color-mix(in oklab, var(--p-success-500), #fff 60%);
   --t-success-900: color-mix(in oklab, var(--p-success-500), #fff 72%);
+  --t-school-50: color-mix(in oklab, var(--p-school-500) 14%, var(--p-ink-900));
+  --t-school-100: color-mix(in oklab, var(--p-school-500) 24%, var(--p-ink-900));
+  --t-school-200: color-mix(in oklab, var(--p-school-500) 40%, var(--p-ink-900));
+  --t-school-500: color-mix(in oklab, var(--p-school-500), #fff 25%);
+  --t-school-600: color-mix(in oklab, var(--p-school-500), #fff 38%);
+  --t-school-700: color-mix(in oklab, var(--p-school-500), #fff 55%);
   --t-warning-50: color-mix(in oklab, var(--p-warning-500) 12%, var(--p-ink-900));
   --t-warning-100: color-mix(in oklab, var(--p-warning-500) 22%, var(--p-ink-900));
   --t-warning-200: color-mix(in oklab, var(--p-warning-500) 38%, var(--p-ink-900));

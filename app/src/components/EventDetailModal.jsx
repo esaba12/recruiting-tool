@@ -40,7 +40,7 @@ export default function EventDetailModal({ event, onClose, onDeleted }) {
           </div>
           <div className="flex items-center gap-2 mt-1">
             <p className="text-sm text-ink-500">{formatWhen(event)}</p>
-            {event.slot && <Badge label={CALENDAR_SLOTS[event.slot] || event.slot} color={event.slot === 'school' ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' : 'bg-accent-100 text-accent-700'} />}
+            {event.slot && <Badge label={CALENDAR_SLOTS[event.slot] || event.slot} color={event.slot === 'school' ? 'bg-school-100 text-school-700' : 'bg-accent-100 text-accent-700'} />}
           </div>
         </div>
 

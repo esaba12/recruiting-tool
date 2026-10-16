@@ -650,12 +650,16 @@ function processThreadList(threads, keys, props, myEmail) {
       // regex above missed — the deterministic sources win when present.
       data.meeting_link = meetingLink || data.meeting_link || null
 
-      if (invite) {
-        // An attached calendar invite is ground truth for timing — overrides Claude's
-        // text-guessed date/format rather than merely supplementing it.
-        data.interview_date = Utilities.formatDate(invite.start, 'UTC', 'yyyy-MM-dd')
+      // An attached invite only says "a meeting is scheduled", not "this is an interview" — a
+      // coffee chat with an employee arrives as the exact same Google Calendar invite. So the
+      // invite never sets the type (that used to force INTERVIEW_INVITE, which bumped networking
+      // calls to Phone Screen); Claude decides, and the invite only supplies timing for a real
+      // interview. Anything else gets no interview_date, so no calendar event either.
+      if (data.type !== 'INTERVIEW_INVITE') {
+        data.interview_date = null
+      } else if (invite) {
+        data.interview_date = Utilities.formatDate(invite.start, Session.getScriptTimeZone(), 'yyyy-MM-dd')
         data.interview_time = invite
-        if (!['INTERVIEW_INVITE', 'OFFER'].includes(data.type)) data.type = 'INTERVIEW_INVITE'
         if (!data.interview_format) data.interview_format = data.meeting_link ? 'video' : data.interview_format
       }
 
@@ -701,7 +705,9 @@ function processThreadList(threads, keys, props, myEmail) {
         })
       }
 
-      if (data.interview_date) {
+      // An attached invite is already the calendar entry (Google adds it, or offers to) — making
+      // our own on top duplicated it, once more per "event updated" email.
+      if (data.interview_date && !invite) {
         createCalendarEvent(data)
       }
 
@@ -854,13 +860,25 @@ function backfillOaCompletions() {
 // CLAUDE — classify + extract in one Haiku call
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Shared with app/api/_lib/emailPipeline.js's prompt — keep the two in sync.
+const INTERVIEW_VS_NETWORKING = `INTERVIEW_INVITE is ONLY a formal evaluation step in a hiring process for a role: scheduled by a
+recruiter, recruiting coordinator, ATS or interview-scheduling tool (GoodTime, ModernLoop, Calendly
+from a recruiting team, etc.), or explicitly called an interview, phone screen, technical, onsite,
+superday or final round. A call or meeting with an individual employee — a coffee chat, intro call,
+informational interview, "catch up", or a calendar invite titled just with two names ("Ethan and
+Jane") — is networking: use NEW_CONTACT or FOLLOW_UP_NEEDED with interview_date null, even when
+it has a Google Meet/Zoom link or a calendar invite. Calendar notifications ("Invitation:",
+"Updated invitation", "This event has been updated") are scheduling updates for the same meeting,
+classified the same way as the original. When unsure, choose networking: a false interview moves
+the application to Phone Screen and puts an interview on the calendar.`
+
 function extractWithClaude(apiKey, subject, from, body, date, invite, meetingLink, extraHints) {
   // Deterministic signals (calendar invite attachment, Zoom/Meet/Teams link, application-
   // confirmation phrasing, referral mentions, sender-domain company guess) are handed to
   // Claude as hints rather than left for it to re-derive from free text — see
   // extractCalendarInvite()/extractMeetingLink() and their callers in processRecruitingEmails().
   const inviteHint = invite
-    ? `\n\nThis email has a calendar invite attached: "${invite.summary || subject}", scheduled for ${Utilities.formatDate(invite.start, 'UTC', 'yyyy-MM-dd HH:mm')} UTC${invite.location ? ` at/via ${invite.location}` : ''}. Treat this as strong evidence of a real scheduled interview/meeting.`
+    ? `\n\nThis email has a calendar invite attached: "${invite.summary || subject}", scheduled for ${Utilities.formatDate(invite.start, 'UTC', 'yyyy-MM-dd HH:mm')} UTC${invite.location ? ` at/via ${invite.location}` : ''}. This proves a meeting is scheduled, NOT that it is an interview — decide INTERVIEW_INVITE vs networking from who sent it and what it says (see INTERVIEW_INVITE above).`
     : ''
   const linkHint = meetingLink ? `\n\nA video meeting link was found in this email: ${meetingLink}` : ''
 
@@ -926,7 +944,9 @@ treated as a rare fallback.
 FOLLOW_UP_NEEDED means a networking thread (not tied to a specific application stage) whose
 natural next step is for the candidate to follow up — say thanks, schedule a call, check in again
 later. Prefer this over REPLY when the email is relationship-building rather than a reply within a
-formal application process.${inviteHint}${linkHint}${extraHints || ''}
+formal application process.
+
+${INTERVIEW_VS_NETWORKING}${inviteHint}${linkHint}${extraHints || ''}
 
 Subject: ${subject}
 From: ${from}
@@ -1288,6 +1308,8 @@ function createCalendarEvent(data) {
   if (data.interview_time && data.interview_time.start) {
     start = data.interview_time.start
     end   = data.interview_time.end || new Date(start.getTime() + 60 * 60000)
+    // Never write something longer than a working day — a bad parse should fail small.
+    if (end <= start || end - start > 10 * 3600000) end = new Date(start.getTime() + 60 * 60000)
   } else {
     const [y, m, d] = data.interview_date.split('-').map(Number)
     start = new Date(y, m - 1, d, 14, 0)
@@ -1306,7 +1328,15 @@ function createCalendarEvent(data) {
   const opts = { description: desc }
   if (data.meeting_link) opts.location = data.meeting_link
 
-  CalendarApp.getDefaultCalendar().createEvent(title, start, end, opts)
+  const cal = CalendarApp.getDefaultCalendar()
+  // A thread can be re-classified (reply, reschedule note) — one event per interview, not per email.
+  const dayStart = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+  const dayEnd   = new Date(dayStart.getTime() + 86400000)
+  if (cal.getEvents(dayStart, dayEnd).some(e => e.getTitle() === title)) {
+    console.log(`  Calendar event already exists: ${title} on ${data.interview_date}`)
+    return
+  }
+  cal.createEvent(title, start, end, opts)
   console.log(`  Calendar event: ${title} on ${data.interview_date}`)
 }
 
@@ -1344,6 +1374,8 @@ function icsField(text, name) {
 // the script owner's default calendar timezone.
 function parseIcsDate(value) {
   if (!value) return null
+  const day = value.match(/^(\d{4})(\d{2})(\d{2})$/) // VALUE=DATE (all-day)
+  if (day) return new Date(+day[1], +day[2] - 1, +day[3])
   const m = value.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?$/)
   if (!m) return null
   const [, y, mo, d, h, mi, s, isUtc] = m
@@ -1364,7 +1396,13 @@ function extractCalendarInvite(message) {
   if (!ics) return null
 
   try {
-    const text        = unfoldIcs(ics.getDataAsString())
+    // Only the VEVENT: Google/Outlook invites put a VTIMEZONE block first whose DAYLIGHT/
+    // STANDARD rules carry their own DTSTART (e.g. 19700308T020000). Reading the first DTSTART
+    // in the file made events start in 1970 and run to the real end — a multi-decade block
+    // that Google renders as all-day on every day.
+    const full        = unfoldIcs(ics.getDataAsString())
+    const vevent      = full.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/i)
+    const text        = vevent ? vevent[0] : full
     const start        = parseIcsDate(icsField(text, 'DTSTART'))
     if (!start) return null
     const end           = parseIcsDate(icsField(text, 'DTEND'))

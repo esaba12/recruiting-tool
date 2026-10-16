@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CalendarDays, ListTodo, Upload } from 'lucide-react'
+import { CalendarDays, ListTodo, Ticket } from 'lucide-react'
 import { listEvents, CALENDAR_SLOTS } from '../googleCalendar.js'
 import { updateApplicationTriage, archiveApplication } from '../db.js'
 import { BUCKET_TO_TRIAGE, MONTH_NAMES } from './jobBoards/helpers.js'
@@ -10,7 +10,7 @@ import ContactPanelBody from './panels/ContactPanelBody.jsx'
 import ApplicationPanelBody from './panels/ApplicationPanelBody.jsx'
 import EventDetailModal from './EventDetailModal.jsx'
 import AddEventModal from './AddEventModal.jsx'
-import EventImportModal from './EventImportModal.jsx'
+import EventsView from './events/EventsView.jsx'
 
 const OVERLAYS = [
   { key: 'events',       label: 'Events',       dot: 'bg-accent-600',  chipActive: 'bg-accent-600 text-on-accent border-accent-600' },
@@ -34,8 +34,7 @@ function eventDayKey(event) {
   return dayKey(d.getFullYear(), d.getMonth(), d.getDate())
 }
 
-export default function CalendarTab({ contacts, apps, interactions, calls, onRefresh, eventPool = null, eventCalendarSync = null }) {
-  const [importOpen, setImportOpen] = useState(false)
+export default function CalendarTab({ contacts, apps, interactions, calls, onRefresh, onRefreshContacts, eventPool = null, eventCalendarSync = null, isDemoMode = false }) {
   const [viewDate, setViewDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const [eventsByMonth, setEventsByMonth] = useState({}) // 'YYYY-MM' -> normalized event[]
   const [loadingEvents, setLoadingEvents] = useState(false)
@@ -46,7 +45,7 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
   const [selectedApp, setSelectedApp] = useState(null)
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [addEventOpen, setAddEventOpen] = useState(false)
-  const [viewMode, setViewMode] = useState('grid') // 'grid' | 'feed'
+  const [viewMode, setViewMode] = useState('grid') // 'grid' | 'feed' | 'events'
   const [feedEvents, setFeedEvents] = useState(null) // null = not yet fetched
   const [feedLoading, setFeedLoading] = useState(false)
   const [feedError, setFeedError] = useState(null)
@@ -172,13 +171,11 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
             className={`px-3 py-1 flex items-center gap-1.5 transition-colors ${viewMode === 'feed' ? 'bg-ink-900 text-on-fill' : 'bg-surface text-ink-500 hover:bg-ink-50'}`}>
             <ListTodo size={13} strokeWidth={2.25} /> Feed
           </button>
-        </div>
-        {eventPool?.school && (
-          <button onClick={() => setImportOpen(true)}
-            className="px-3 py-1 rounded-full text-xs font-medium border border-ink-200 bg-surface text-ink-500 hover:bg-ink-50 flex items-center gap-1.5">
-            <Upload size={13} strokeWidth={2.25} /> Import events
+          <button onClick={() => setViewMode('events')}
+            className={`px-3 py-1 flex items-center gap-1.5 transition-colors ${viewMode === 'events' ? 'bg-ink-900 text-on-fill' : 'bg-surface text-ink-500 hover:bg-ink-50'}`}>
+            <Ticket size={13} strokeWidth={2.25} /> Events
           </button>
-        )}
+        </div>
 
         {viewMode === 'grid' && OVERLAYS.map(o => (
           <button key={o.key} onClick={() => toggle(o.key)}
@@ -189,10 +186,10 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
             {o.label}
           </button>
         ))}
-        <button onClick={() => setAddEventOpen(true)}
+        {viewMode !== 'events' && <button onClick={() => setAddEventOpen(true)}
           className="ml-auto px-3 py-1 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700">
           + Add Event
-        </button>
+        </button>}
       </div>
 
       {viewMode === 'grid' && eventsError && (
@@ -250,7 +247,7 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
           {visible.events && selectedItems.events.map(ev => (
             <button key={`${ev.slot}-${ev.id}`} onClick={() => setSelectedEvent(ev)}
               className="w-full text-left bg-surface rounded-md px-4 py-3 border border-ink-300 hover:shadow-md hover:border-accent-200 transition-all flex items-center gap-3">
-              <Badge label={CALENDAR_SLOTS[ev.slot] || 'Event'} color={ev.slot === 'school' ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' : 'bg-accent-100 text-accent-700'} />
+              <Badge label={CALENDAR_SLOTS[ev.slot] || 'Event'} color={ev.slot === 'school' ? 'bg-school-100 text-school-700' : 'bg-accent-100 text-accent-700'} />
               <span className="text-sm font-medium text-ink-900 truncate">{ev.title}</span>
               {!ev.allDay && <span className="text-xs text-ink-400 ml-auto shrink-0">{new Date(ev.start).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>}
             </button>
@@ -283,6 +280,10 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
         <TimelineFeed groups={timelineGroups} loading={feedLoading} error={feedError} onOpen={openTimelineItem} />
       )}
 
+      {viewMode === 'events' && (
+        <EventsView eventPool={eventPool} eventCalendarSync={eventCalendarSync} isDemoMode={isDemoMode} apps={apps} contacts={contacts} onRefresh={onRefreshContacts} />
+      )}
+
       <SidePanel open={!!selectedContact} onClose={() => setSelectedContact(null)}>
         {selectedContact && (
           <ContactPanelBody
@@ -310,15 +311,6 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
           event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
           onDeleted={() => { setSelectedEvent(null); refetchMonth(); refetchFeed() }}
-        />
-      )}
-
-      {importOpen && eventPool && (
-        <EventImportModal
-          school={eventPool.school}
-          poolEvents={eventPool.events}
-          onClose={() => setImportOpen(false)}
-          onCommitted={() => eventPool.refresh()}
         />
       )}
 

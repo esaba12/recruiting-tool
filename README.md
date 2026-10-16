@@ -22,7 +22,15 @@ with AI assistance, wrapped in a **React** dashboard.
 - **Contact CRM**: a contact list with status, urgency, follow-up dates, a
   "referred by" self-relation, table + card + force-directed graph views, and
   an interaction history ledger.
-- **Application tracker**: one row per company/role with a stage funnel.
+- **Application tracker**: one row per company/role with a stage board, plus a
+  keyboard-editable **spreadsheet view** that exports to Excel (.xlsx) or CSV,
+  stage history recorded by a database trigger, live updates when the email
+  pipeline moves something, and a **Sankey** of where applications went
+  (source → OA → interviews → offer / rejected / ghosted).
+- **Recruiting events**: your campus's career fairs, info sessions and coffee
+  chats pulled into one list, ranked by relevance, with signup-step checklists,
+  calendar-conflict checks, a booth route for fairs, and "met someone here"
+  capture that adds the contact, logs the meeting and sets a follow-up.
 - **Networking tracker**: unified Call/LinkedIn/Meeting/Email/Other logging,
   a "Keep in Touch" reconnect-cadence queue, and referral coverage gaps against
   a target-company list.

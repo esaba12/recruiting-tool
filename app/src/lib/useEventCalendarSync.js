@@ -4,7 +4,7 @@ import { ensureRecruitingCalendar } from '../googleCalendar.js'
 import { getGoogleCalendarStatus } from './googleAuth.js'
 import { pushEvent, unpushEvent, reconcile, shouldAutoPush, needsPush } from './eventCalendarSync.js'
 
-export const SYNC_SETTING_KEY = 'recruiting_calendar_sync'   // { enabled: bool, slot: 'personal'|'school' }
+export const SYNC_SETTING_KEY = 'recruiting_calendar_sync'   // { enabled: bool, slot: 'personal'|'school', transitBufferMin?: number|null }
 export const DEFAULT_SYNC = { enabled: true, slot: 'personal' }
 const MAX_AUTO_PUSH_PER_RUN = 8
 

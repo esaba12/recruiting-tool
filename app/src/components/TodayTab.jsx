@@ -29,6 +29,7 @@ import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlu
 import GettingStarted from './onboarding/GettingStarted.jsx'
 import { isFreshAccount } from '../lib/onboarding.js'
 import { addDaysLocal, todayLocal } from '../lib/dates.js'
+import { deriveEventAttention, EventDeadlineSections, EventFeedHealth } from './today/EventAttentionSections.jsx'
 
 // Matches KeepInTouchTab.jsx:8 exactly — private to that component there, ported verbatim
 // here since it isn't exported.
@@ -583,7 +584,7 @@ function InterviewPrepRows({ prep, onOpenLearn }) {
   )
 }
 
-export default function TodayTab({ contacts, apps, interactions = [], calls = [], relationships = [], actionItems = [], dailyRecap = null, learning = null, onOpenLearn, onLogOa, onFindPeople, onRefresh, onRefreshRelationships, isDemoMode = false }) {
+export default function TodayTab({ contacts, apps, interactions = [], calls = [], relationships = [], actionItems = [], dailyRecap = null, learning = null, onOpenLearn, onLogOa, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, isDemoMode = false }) {
   const openItems = openActionItems(actionItems)
   const overdueContacts = overdueFollowUps(contacts)
   const staleApps = staleApplications(apps)
@@ -596,6 +597,8 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
   const awaitingReplyList = awaitingReply(contacts, interactions)
   const prep = learningAttention(learning, apps)
   const prepCount = prep.prepGaps.length + prep.goalsBehind.length + prep.reviewsDue.length
+  // Recruiting events (v1.1): empty when there's no pool or no campus picked yet.
+  const eventAttention = deriveEventAttention(eventPool)
 
   const [selectedContactId, setSelectedContactId] = useState(null)
   const [selectedAppId, setSelectedAppId] = useState(null)
@@ -631,7 +634,7 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
   const allEmpty = overdueContacts.length === 0 && staleApps.length === 0 && highUrgency.length === 0
     && keepInTouch.length === 0 && needsReview.length === 0 && scheduleContacts.length === 0
     && oaDueList.length === 0 && oaNeedsCheckList.length === 0 && awaitingReplyList.length === 0
-    && openItems.length === 0 && prepCount === 0
+    && openItems.length === 0 && prepCount === 0 && eventAttention.count === 0
     && (isDemoMode || timelineFinds.length === 0)
 
   return (
@@ -732,6 +735,10 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
         </motion.div>
       )}
 
+      {/* Event deadlines sit right after the OA deadline sections — same "a date is
+          coming that gates something" family — and before the softer prep/reply nudges. */}
+      <EventDeadlineSections attention={eventAttention} pool={eventPool} onOpenEvents={onOpenEvents} rise={rise} />
+
       {prepCount > 0 && (
         <motion.div variants={rise}>
           <Section title={`Interview Prep (${prepCount})`} accent="accent" icon={GraduationCap}
@@ -759,6 +766,8 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
           />
         </motion.div>
       )}
+
+      <EventFeedHealth attention={eventAttention} rise={rise} />
 
       <motion.div variants={rise}>
         <ActivitySection contacts={contacts} apps={apps} interactions={interactions} />
