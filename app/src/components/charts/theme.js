@@ -88,6 +88,27 @@ export function readChartTheme() {
       '✅ Closed': t('ink-400'),
     },
     difficulty: { Easy: t('success-500'), Medium: t('warning-500'), Hard: t('danger-500') },
+    // Application flow Sankey. Pipeline stages take the scheme accent (one hue — the
+    // journey); outcomes are two status hues + two neutrals. Validator runs (light/white
+    // and dark/ink-900, outcome order Accepted, In process, Ghosted, Rejected): CVD and
+    // normal-vision separation PASS in both modes (worst deutan ΔE 22.4 light, 12.7 dark).
+    // The neutrals FAIL the chroma floor by design ("no verdict yet" shouldn't read as a
+    // series), and Ghosted (ink-300) WARNs on contrast in light mode (2.42:1) — relieved
+    // by every node carrying a visible name + count label. Status green and red are never
+    // adjacent: side by side they're deutan ΔE 5.3.
+    flow: {
+      stage: t('accent-600'),
+      source: t('ink-500'),
+      link: t('ink-300'),
+      label: t('ink-700'),
+      muted: t('ink-400'),
+      outcome: {
+        Accepted: t('success-500'),
+        'In process': t('ink-600'),
+        Ghosted: t('ink-300'),
+        Rejected: t('danger-500'),
+      },
+    },
     // The Network Graph is a dark island in both modes, so it takes the scheme's raw accent
     // rather than the mode-mapped one.
     graphAccent: cssColor('--p-accent-500'),

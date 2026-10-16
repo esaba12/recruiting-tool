@@ -22,6 +22,7 @@ import LogInteractionModal from './LogInteractionModal.jsx'
 import MetButton from './MetButton.jsx'
 import TimelineFindsPanel from './TimelineFindsPanel.jsx'
 import StatTileRow from './StatTileRow.jsx'
+import ApplicationFlowPanel from './ApplicationFlowPanel.jsx'
 import Mono from './ui/Mono.jsx'
 import { Section, RowCap, HEADING_COLOR } from './ui/Section.jsx'
 import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity, MailQuestion, ListTodo, Sparkles, GraduationCap } from 'lucide-react'
@@ -522,6 +523,13 @@ function ActivitySection({ contacts, apps, interactions }) {
               {stageCounts.Accepted ? `${stageCounts.Accepted} accepted` : ''}
             </p>
           )}
+        </div>
+      )}
+      {triagedApps.some(a => a.stage !== 'Wishlist') && (
+        <div className="py-3">
+          <h3 className="text-xs font-semibold text-ink-500 mb-3">Where Applications Went</h3>
+          <ApplicationFlowPanel apps={triagedApps} height={240}
+            footer={<span>Pipeline → Sheet → Flow to filter by any band.</span>} />
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-3">

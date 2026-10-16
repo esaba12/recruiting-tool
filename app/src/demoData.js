@@ -88,7 +88,7 @@ export const DEMO_CONTACTS = [
   },
 ]
 
-export const DEMO_APPLICATIONS = [
+const SEED_APPLICATIONS = [
   { id: 'demo-a1', company: 'Stripe', role: 'SWE Intern, Infrastructure', stage: 'Phone Screen', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: '', appliedDate: daysFromNow(-14), closedDate: null, lastActivity: daysFromNow(-2), daysInStage: 14, jdLink: 'https://stripe.com/jobs', notes: 'Recruiter screen scheduled via Kelly.', createdTime: daysFromNow(-20), referredById: null },
   { id: 'demo-a2', company: 'Anthropic', role: 'SWE Intern', stage: 'Technical', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: '', appliedDate: daysFromNow(-21), closedDate: null, lastActivity: daysFromNow(-1), daysInStage: 6, jdLink: 'https://anthropic.com/careers', notes: 'First technical round went well.', createdTime: daysFromNow(-25), referredById: null },
   { id: 'demo-a3', company: 'Figma', role: 'PM Intern', stage: 'Applied', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: '', appliedDate: daysFromNow(-6), closedDate: null, lastActivity: daysFromNow(-4), daysInStage: 6, jdLink: 'https://figma.com/careers', notes: '', createdTime: daysFromNow(-6), referredById: null, oaDueDate: null, oaLink: 'https://codesignal.com/test/figma-pm-intern', oaCompleted: false, oaResearchCheckedAt: daysFromNow(-1) },
@@ -100,6 +100,79 @@ export const DEMO_APPLICATIONS = [
   { id: 'demo-a9', company: 'Rippling', role: 'SWE Intern', stage: 'Applied', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: 'speedyapply/2027-SWE-College-Jobs', appliedDate: daysFromNow(-3), closedDate: null, lastActivity: daysFromNow(-3), daysInStage: 3, jdLink: '', notes: '', createdTime: daysFromNow(-3), referredById: null, oaDueDate: daysFromNow(4), oaLink: 'https://hackerrank.com/test/rippling-swe-intern', oaCompleted: false, oaResearchCheckedAt: null },
   { id: 'demo-a10', company: 'Linear', role: 'SWE Intern', stage: 'Wishlist', triage: 'Maybe', location: 'Remote', sourceRepo: 'speedyapply/2027-SWE-College-Jobs', appliedDate: null, closedDate: null, lastActivity: daysFromNow(-2), daysInStage: null, jdLink: '', notes: 'Small team, not sure about internship structure yet.', createdTime: daysFromNow(-2), referredById: null },
   { id: 'demo-a11', company: 'Morgan Stanley', role: 'Investment Banking Summer Analyst', stage: 'Onsite', triage: 'Applied', location: 'New York, NY', sourceRepo: '', appliedDate: daysFromNow(-30), closedDate: null, lastActivity: daysFromNow(-3), daysInStage: 3, jdLink: 'https://example.com/careers', notes: 'Superday Friday — four back-to-back 30-min interviews (technicals + fit).', createdTime: daysFromNow(-35), referredById: 'demo-c8' },
+]
+
+// Stage history for the seeded apps above: [stage, daysAgo] in order. Feeds the outcome
+// Sankey (Pipeline → Sheet → Flow, and Today) through db.js's attachStageHistory, the
+// same path real application_stage_events rows take.
+const SEED_PATHS = {
+  'demo-a1': [['Applied', -14], ['Phone Screen', -8]],
+  'demo-a2': [['Applied', -21], ['Phone Screen', -12], ['Technical', -6]],
+  'demo-a3': [['Applied', -6]],
+  'demo-a4': [['Applied', -18]],
+  'demo-a5': [['Applied', -40], ['Phone Screen', -30], ['Technical', -20], ['Onsite', -12], ['Offer', -5]],
+  'demo-a6': [['Applied', -50], ['Phone Screen', -35], ['Rejected', -10]],
+  'demo-a9': [['Applied', -3]],
+  'demo-a11': [['Applied', -30], ['Phone Screen', -20], ['Onsite', -3]],
+}
+
+// A wider spread of finished and stalled applications so the flow looks like a real
+// season: mostly quiet rejections and ghosting, a few OAs, a handful of interviews.
+// [company, role, path, source ('board' | contact id | null), oa]
+const MORE_APPLICATIONS = [
+  ['Datadog', 'SWE Intern', [['Applied', -62], ['Rejected', -40]], 'board'],
+  ['Robinhood', 'SWE Intern, Backend', [['Applied', -58]], 'board'],
+  ['Palantir', 'Forward Deployed SWE Intern', [['Applied', -55], ['Phone Screen', -44], ['Technical', -36], ['Rejected', -30]], null, true],
+  ['Snowflake', 'SWE Intern', [['Applied', -54], ['Rejected', -47]], 'board'],
+  ['Plaid', 'SWE Intern', [['Applied', -52]], 'board'],
+  ['DoorDash', 'SWE Intern', [['Applied', -49], ['Rejected', -33]], 'board', true],
+  ['Coinbase', 'SWE Intern', [['Applied', -48]], 'board'],
+  ['Duolingo', 'SWE Intern', [['Applied', -46], ['Phone Screen', -38], ['Rejected', -31]], 'demo-c7'],
+  ['Scale AI', 'SWE Intern', [['Applied', -45], ['Rejected', -44]], null],
+  ['Two Sigma', 'Quant Dev Intern', [['Applied', -44], ['Rejected', -28]], null, true],
+  ['Cloudflare', 'SWE Intern', [['Applied', -42]], 'board'],
+  ['Asana', 'SWE Intern', [['Applied', -41], ['Rejected', -26]], 'board'],
+  ['Brex', 'SWE Intern', [['Applied', -39], ['Phone Screen', -31], ['Technical', -22], ['Onsite', -15], ['Rejected', -9]], 'demo-c5'],
+  ['Databricks', 'SWE Intern', [['Applied', -37], ['Rejected', -20]], 'board', true],
+  ['Atlassian', 'SWE Intern', [['Applied', -36]], 'board'],
+  ['HubSpot', 'SWE Intern', [['Applied', -33], ['Phone Screen', -21], ['Rejected', -14]], null],
+  ['Jane Street', 'SWE Intern', [['Applied', -32], ['Rejected', -12]], null, true],
+  ['Retool', 'SWE Intern', [['Applied', -28], ['Phone Screen', -16], ['Technical', -7]], 'demo-c6'],
+  ['Square', 'SWE Intern', [['Applied', -25], ['Rejected', -18]], 'board'],
+  ['MongoDB', 'SWE Intern', [['Applied', -22]], 'board', true],
+  ['Shopify', 'Dev Intern', [['Applied', -16]], 'board'],
+  ['Instacart', 'SWE Intern', [['Applied', -12], ['Rejected', -5]], 'board'],
+  ['Pinterest', 'SWE Intern', [['Applied', -9]], 'board'],
+  ['Hudson River Trading', 'SWE Intern', [['Applied', -7]], null, true],
+]
+
+const moreApplications = MORE_APPLICATIONS.map(([company, role, path, source, oa], i) => {
+  const [, applied] = path[0]
+  const [stage, last] = path[path.length - 1]
+  const oaDue = oa ? applied + 7 : null
+  return {
+    id: `demo-a${100 + i}`, company, role, stage, triage: 'Applied', location: '',
+    sourceRepo: source === 'board' ? 'SimplifyJobs/Summer2027-Internships' : '',
+    appliedDate: daysFromNow(applied), closedDate: stage === 'Rejected' ? daysFromNow(last) : null,
+    lastActivity: daysFromNow(oaDue && oaDue > last ? Math.min(oaDue, 0) : last), daysInStage: null,
+    jdLink: '', notes: '', createdTime: daysFromNow(applied), referredById: source && source.startsWith('demo-c') ? source : null,
+    oaDueDate: oaDue !== null ? daysFromNow(oaDue) : null, oaLink: null, oaCompleted: !!oa && oaDue < 0,
+    oaResearchCheckedAt: null,
+  }
+})
+
+export const DEMO_APPLICATIONS = [...SEED_APPLICATIONS, ...moreApplications]
+
+function pathEvents(id, path) {
+  return path.map(([stage, ago], i) => ({
+    applicationId: id, fromStage: i ? path[i - 1][0] : null, toStage: stage,
+    changedAt: daysFromNow(ago), source: 'user',
+  }))
+}
+
+export const DEMO_STAGE_EVENTS = [
+  ...Object.entries(SEED_PATHS).flatMap(([id, path]) => pathEvents(id, path)),
+  ...MORE_APPLICATIONS.flatMap(([, , path], i) => pathEvents(`demo-a${100 + i}`, path)),
 ]
 
 export const DEMO_INTERACTIONS = [

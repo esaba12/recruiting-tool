@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Kanban, GitFork } from 'lucide-react'
+import { Kanban, GitFork, Sheet } from 'lucide-react'
 import ApplicationsView from './ApplicationsView.jsx'
+import ApplicationsSheet from './ApplicationsSheet.jsx'
 import JobBoardsView from './jobBoards/JobBoardsView.jsx'
 import { usesTechSources } from '../lib/tracks.js'
 
-// Merged Pipeline destination shell delivering PIPE-01: a segmented control over two
-// mutually exclusive bodies (Applications | Job Boards), so only one body ever mounts
+// Merged Pipeline destination shell delivering PIPE-01: a segmented control over
+// mutually exclusive bodies (Applications | Sheet | Job Boards), so only one body ever mounts
 // at a time — Job Boards' auto-import/deadline-fetch effects must not run while the
 // user is looking at Applications. The two bodies deliberately take differently-named
 // refresh callbacks (onRefresh vs. onImported) that both resolve to the same App.jsx
@@ -14,17 +15,18 @@ import { usesTechSources } from '../lib/tracks.js'
 
 const PIPELINE_VIEWS = [
   { key: 'applications', label: 'Applications', icon: Kanban },
+  { key: 'sheet',        label: 'Sheet',         icon: Sheet },
   { key: 'jobBoards',    label: 'Job Boards',    icon: GitFork },
 ]
 
-export const DEMO_PIPELINE_VIEWS = PIPELINE_VIEWS.filter(v => v.key === 'applications')
+export const DEMO_PIPELINE_VIEWS = PIPELINE_VIEWS.filter(v => v.key !== 'jobBoards')
 
 // Job Boards is built on GitHub internship repos (tech-only), so non-tech users don't get it.
 export function pipelineViewsFor(profile) {
   return usesTechSources(profile) ? PIPELINE_VIEWS : DEMO_PIPELINE_VIEWS
 }
 
-export default function PipelineTab({ apps, contacts = [], interactions = [], relationships = [], onRefresh, onImported = onRefresh, onFindPeople, onRefreshRelationships, views = PIPELINE_VIEWS }) {
+export default function PipelineTab({ apps, contacts = [], interactions = [], relationships = [], onRefresh, onRefreshApps, onImported = onRefresh, onFindPeople, onRefreshRelationships, views = PIPELINE_VIEWS }) {
   const [view, setView] = useState('applications')
 
   return (
@@ -43,9 +45,9 @@ export default function PipelineTab({ apps, contacts = [], interactions = [], re
         </div>
       )}
 
-      {view === 'applications'
-        ? <ApplicationsView apps={apps} contacts={contacts} interactions={interactions} relationships={relationships} onRefresh={onRefresh} onFindPeople={onFindPeople} onRefreshRelationships={onRefreshRelationships} />
-        : <JobBoardsView apps={apps} onImported={onImported} />}
+      {view === 'applications' && <ApplicationsView apps={apps} contacts={contacts} interactions={interactions} relationships={relationships} onRefresh={onRefresh} onFindPeople={onFindPeople} onRefreshRelationships={onRefreshRelationships} />}
+      {view === 'sheet' && <ApplicationsSheet apps={apps} contacts={contacts} interactions={interactions} relationships={relationships} onRefresh={onRefresh} onRefreshApps={onRefreshApps} onFindPeople={onFindPeople} onRefreshRelationships={onRefreshRelationships} />}
+      {view === 'jobBoards' && <JobBoardsView apps={apps} onImported={onImported} />}
     </div>
   )
 }
