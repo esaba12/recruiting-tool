@@ -209,6 +209,18 @@ export function interviewStage(round) {
   return { second: 'Technical', final: 'Onsite' }[round] || 'Phone Screen'
 }
 
+// Shared with scripts/email-pipeline.js's prompt — keep the two in sync.
+export const INTERVIEW_VS_NETWORKING = `INTERVIEW_INVITE is ONLY a formal evaluation step in a hiring process for a role: scheduled by a
+recruiter, recruiting coordinator, ATS or interview-scheduling tool (GoodTime, ModernLoop, Calendly
+from a recruiting team, etc.), or explicitly called an interview, phone screen, technical, onsite,
+superday or final round. A call or meeting with an individual employee — a coffee chat, intro call,
+informational interview, "catch up", or a calendar invite titled just with two names ("Ethan and
+Jane") — is networking: use NEW_CONTACT or FOLLOW_UP_NEEDED with interview_date null, even when
+it has a Google Meet/Zoom link or a calendar invite. Calendar notifications ("Invitation:",
+"Updated invitation", "This event has been updated") are scheduling updates for the same meeting,
+classified the same way as the original. When unsure, choose networking: a false interview moves
+the application to Phone Screen and puts an interview on the calendar.`
+
 async function classifyEmail(apiKey, { subject, from, body, date, meetingLink, extraHints, profile }) {
   const linkHint = meetingLink ? `\n\nA video meeting link was found in this email: ${meetingLink}` : ''
 
@@ -270,7 +282,9 @@ treated as a rare fallback.
 FOLLOW_UP_NEEDED means a networking thread (not tied to a specific application stage) whose
 natural next step is for the candidate to follow up — say thanks, schedule a call, check in again
 later. Prefer this over REPLY when the email is relationship-building rather than a reply within a
-formal application process.${trackGuidance(profile)}${linkHint}${extraHints || ''}
+formal application process.
+
+${INTERVIEW_VS_NETWORKING}${trackGuidance(profile)}${linkHint}${extraHints || ''}
 
 Subject: ${subject}
 From: ${from}
