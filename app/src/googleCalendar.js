@@ -75,7 +75,12 @@ async function listEventsForSlot({ timeMin, timeMax, slot, calendarId = 'primary
 // A slot that isn't connected (or whose token has expired) fails on its own without
 // blocking the other — same fail-soft posture as everywhere else Calendar is read from.
 // Pass `slots` to scope to just one (e.g. a single-slot fetch elsewhere) — defaults to both.
+// The public /demo route has no signed-in user, so every Google call would 401.
+const isDemoPath = () => typeof window !== 'undefined' && window.location.pathname.startsWith('/demo')
+const DEMO_CALENDAR_MSG = 'Google Calendar isn\'t connected in the demo — sign up to sync events.'
+
 export async function listEvents({ timeMin, timeMax, slots = Object.keys(CALENDAR_SLOTS), calendarId = 'primary' }) {
+  if (isDemoPath()) return [] // /demo has no Google account; the grid shows app items only
   const results = await Promise.allSettled(slots.map(slot => listEventsForSlot({ timeMin, timeMax, slot, calendarId })))
   const errors = []
   const events = []
@@ -123,6 +128,7 @@ export function eventBody({ title, date, startTime, endTime, start, end, allDay,
 }
 
 export async function createEvent({ slot = 'personal', calendarId = 'primary', ...fields }) {
+  if (isDemoPath()) throw new Error(DEMO_CALENDAR_MSG)
   return normalizeEvent(await gcalFetch('events', { method: 'POST', body: eventBody(fields), slot, calendarId }), slot, calendarId)
 }
 
@@ -135,6 +141,7 @@ export async function getEvent(eventId, { slot = 'personal', calendarId = 'prima
 // series, and patching it edits that one instance (Google materializes an exception),
 // never the whole series. To edit a series, pass its recurringEventId explicitly.
 export async function updateEvent(eventId, patch, { slot = 'personal', calendarId = 'primary' } = {}) {
+  if (isDemoPath()) throw new Error(DEMO_CALENDAR_MSG)
   const body = patch.start || patch.end || patch.date ? eventBody(patch) : patch
   // eventBody() fills every key; strip the ones the caller didn't ask to change so
   // PATCH doesn't clobber them with undefined→omitted (fine) or defaults (not fine).
@@ -149,6 +156,7 @@ export async function updateEvent(eventId, patch, { slot = 'personal', calendarI
 // Note: with singleEvents=true, list() returns per-occurrence ids for recurring
 // events, so deleting one of those ids removes only that occurrence, not the series.
 export async function deleteEvent(eventId, slot = 'personal', calendarId = 'primary') {
+  if (isDemoPath()) throw new Error(DEMO_CALENDAR_MSG)
   return gcalFetch(`events/${encodeURIComponent(eventId)}`, { method: 'DELETE', slot, calendarId })
 }
 
@@ -171,6 +179,7 @@ const RECRUITING_CAL_KEY = slot => `recruiting_calendar_id:${slot}`
 // verified against calendarList (the app.created scope only lists calendars this
 // app made, so a hit is ours) → created if missing. Never returns 'primary'.
 export async function ensureRecruitingCalendar(slot = 'personal') {
+  if (isDemoPath()) throw new Error(DEMO_CALENDAR_MSG)
   const calendars = await listCalendars(slot)
   const cached = await getUserSetting(RECRUITING_CAL_KEY(slot))
   const byId = cached && calendars.find(c => c.id === cached)

@@ -250,7 +250,7 @@ export default function CalendarTab({ contacts, apps, interactions, calls, onRef
           {visible.events && selectedItems.events.map(ev => (
             <button key={`${ev.slot}-${ev.id}`} onClick={() => setSelectedEvent(ev)}
               className="w-full text-left bg-surface rounded-md px-4 py-3 border border-ink-300 hover:shadow-md hover:border-accent-200 transition-all flex items-center gap-3">
-              <Badge label={CALENDAR_SLOTS[ev.slot] || 'Event'} color={ev.slot === 'school' ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' : 'bg-accent-100 text-accent-700'} />
+              <Badge label={CALENDAR_SLOTS[ev.slot] || 'Event'} color={ev.slot === 'school' ? 'bg-school-100 text-school-700' : 'bg-accent-100 text-accent-700'} />
               <span className="text-sm font-medium text-ink-900 truncate">{ev.title}</span>
               {!ev.allDay && <span className="text-xs text-ink-400 ml-auto shrink-0">{new Date(ev.start).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>}
             </button>
