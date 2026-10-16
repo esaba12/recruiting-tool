@@ -312,8 +312,9 @@ function AppInner() {
   // actually pulls). Lives here, not in CalendarTab, so it fires on any tab. A
   // successful pull bumps `eventsRefreshKey` so the pool hook below re-reads.
   const [eventsRefreshKey, setEventsRefreshKey] = useState(0)
-  useEventIngest({ enabled: true, onIngested: () => setEventsRefreshKey(k => k + 1) })
   const { profile, user } = useAuth()
+  // No campus → the server can only answer 400 "pick your campus", so don't ask daily.
+  useEventIngest({ enabled: !!profile?.school_id, onIngested: () => setEventsRefreshKey(k => k + 1) })
   const { targets: targetCompanies } = useTargetCompanies()
   // Shared pool + this user's overlay; consumed by Today (attention sections) and
   // Calendar (Events view). Enrichment/relevance run inside the hook.
