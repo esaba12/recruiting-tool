@@ -3,6 +3,7 @@ import {
   parseAddress, parseAddressList, findCounterpartAddress, guessCompanyHint,
   recruitingShapeHint, networkingShapeHint, extractMeetingLink, extractPlainBody,
   parseGmailMessage, findHeader, candidateFraming, trackGuidance, interviewStage,
+  isAutomatedSender, isBulkMail, isGenericNetworking, shouldCreateContact, contactFollowUpDate, keepActionItem,
 } from '../api/_lib/emailPipeline.js'
 
 describe('parseAddress', () => {
@@ -202,5 +203,84 @@ describe('track-aware classification', () => {
     expect(recruitingShapeHint('HireVue <noreply@hirevue.com>', 'Your video interview', '')).not.toBe('')
     expect(recruitingShapeHint('Jane <jane@bigbank.com>', 'Superday invitation', '')).not.toBe('')
     expect(guessCompanyHint('Talent <talent@avature.net>')).toBe('')
+  })
+})
+
+describe('isAutomatedSender', () => {
+  it('flags role mailboxes and ATS/assessment domains', () => {
+    for (const a of ['no-reply@google.com', 'careers@ramp.com', 'university@janestreet.com', 'events@citadel.com',
+      'newsletter@a16z.com', 'hello@company.io', 'jane@us.greenhouse-mail.io', 'x@hire.lever.co', 'support@hackerrank.com',
+      'notifications@joinhandshake.com']) {
+      expect(isAutomatedSender(a), a).toBe(true)
+    }
+  })
+  it('passes real people, including at big companies', () => {
+    for (const a of ['priya.shah@stripe.com', 'jdoe@gmail.com', 'bob@umich.edu']) expect(isAutomatedSender(a), a).toBe(false)
+  })
+  it('treats a missing address as not a person', () => {
+    expect(isAutomatedSender(null)).toBe(true)
+  })
+})
+
+describe('isBulkMail', () => {
+  const h = (name, value) => [{ name, value }]
+  it('detects list/bulk headers', () => {
+    expect(isBulkMail(h('List-Unsubscribe', '<mailto:x@y.com>'))).toBe(true)
+    expect(isBulkMail(h('Precedence', 'bulk'))).toBe(true)
+    expect(isBulkMail(h('Auto-Submitted', 'auto-generated'))).toBe(true)
+  })
+  it('is false for an ordinary personal message', () => {
+    expect(isBulkMail([{ name: 'Auto-Submitted', value: 'no' }, { name: 'Subject', value: 'hi' }])).toBe(false)
+  })
+})
+
+describe('isGenericNetworking', () => {
+  it('drops networking-typed mail that was not written personally', () => {
+    expect(isGenericNetworking({ type: 'NEW_CONTACT', personal: false }, 'jane@acme.com')).toBe(true)
+    expect(isGenericNetworking({ type: 'FOLLOW_UP_NEEDED', personal: true }, 'events@acme.com')).toBe(true)
+  })
+  it('keeps personal networking mail and every recruiting-process type', () => {
+    expect(isGenericNetworking({ type: 'NEW_CONTACT', personal: true }, 'jane@acme.com')).toBe(false)
+    expect(isGenericNetworking({ type: 'APPLICATION_CONFIRMATION', personal: false }, 'no-reply@acme.com')).toBe(false)
+  })
+})
+
+describe('shouldCreateContact', () => {
+  it('never makes a contact for an automated sender, even when it has a display name', () => {
+    expect(shouldCreateContact({ type: 'INTERVIEW_INVITE', personal: true, contact_name: 'Google Careers' }, 'careers@google.com')).toBe(false)
+  })
+  it('never makes a contact from a non-personal (template/list) email', () => {
+    expect(shouldCreateContact({ type: 'REJECTION', personal: false, contact_name: 'Jane Doe' }, 'jane@acme.com')).toBe(false)
+  })
+  it('makes one for a real person writing personally', () => {
+    expect(shouldCreateContact({ type: 'REPLY', personal: true }, 'jane@acme.com')).toBe(true)
+  })
+})
+
+describe('contactFollowUpDate', () => {
+  const today = '2026-10-17'
+  it('only schedules a follow-up when the email says one is needed', () => {
+    expect(contactFollowUpDate({ type: 'FOLLOW_UP_NEEDED' }, null, today)).toBe('2026-10-20')
+    for (const type of ['NEW_CONTACT', 'REPLY', 'APPLICATION_CONFIRMATION', 'INTERVIEW_INVITE', 'REJECTION']) {
+      expect(contactFollowUpDate({ type }, null, today), type).toBeUndefined()
+    }
+  })
+  it('never moves a follow-up that is already planned for the future', () => {
+    expect(contactFollowUpDate({ type: 'FOLLOW_UP_NEEDED' }, '2026-11-01', today)).toBeUndefined()
+    expect(contactFollowUpDate({ type: 'FOLLOW_UP_NEEDED' }, '2026-10-01', today)).toBe('2026-10-20')
+  })
+})
+
+describe('keepActionItem', () => {
+  it('drops to-dos from receipts and rejections', () => {
+    for (const type of ['APPLICATION_CONFIRMATION', 'OA_COMPLETED', 'REJECTION']) {
+      expect(keepActionItem({ type, action_item: 'Wait to hear back', personal: true }, 'jane@acme.com'), type).toBe(false)
+    }
+  })
+  it('keeps real to-dos from automated senders (OA, interview scheduling)', () => {
+    expect(keepActionItem({ type: 'OA_INVITE', action_item: 'Do the OA', personal: false }, 'no-reply@hackerrank.com')).toBe(true)
+  })
+  it('is false when there is no action item', () => {
+    expect(keepActionItem({ type: 'REPLY', action_item: null, personal: true }, 'jane@acme.com')).toBe(false)
   })
 })

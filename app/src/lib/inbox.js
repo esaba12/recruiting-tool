@@ -27,8 +27,11 @@ export const FILTERS = [
 
 // Same shape the pipelines' AUTOMATED_SENDER_RE / ATS_DOMAINS use: a no-reply/ATS sender
 // can't be replied to, so it never counts toward "Needs a reply".
-const AUTOMATED_RE = /^(no-?reply|do-?not-?reply|notifications?|mailer|automated|system|recruiting|careers|jobs|ats|talent|hello|team|info)@|greenhouse|lever\.co|myworkday|workday|ashbyhq|smartrecruiters|icims|jobvite|hackerrank|codesignal|codility|hackerearth/i
+const AUTOMATED_RE = /^(no-?reply|do-?not-?reply|notifications?|mailer(-daemon)?|automated|system|recruit(ing|ment|er)?|careers?|jobs|ats|talent(acquisition)?|hello|team|info|news(letter)?s?|events?|marketing|updates?|support|admin|hr|campus|university|students?|hiring|apply|applications?|alerts?|digest)([._+-][^@]*)?@|joinhandshake|linkedin\.com|greenhouse|lever\.co|myworkday|workday|ashbyhq|smartrecruiters|icims|jobvite|hackerrank|codesignal|codility|hackerearth/i
 const NEEDS_REPLY_WINDOW_DAYS = 21
+// Same phrasing as the pipelines' APPLICATION_CONFIRMATION_RE, for pre-inbox rows with no category.
+const GENERIC_NETWORKING = ['NEW_CONTACT', 'FOLLOW_UP_NEEDED']
+const RECEIPT_SUBJECT_RE = /\b(thank(?:s| you) for (?:your interest|applying)|application (?:received|submitted|confirmation)|we(?:'| ha)ve received your application|successfully applied)\b/i
 
 export const isAutomated = address => !!address && AUTOMATED_RE.test(address)
 
@@ -82,6 +85,17 @@ export function buildThreads({ interactions = [], contacts = [], apps = [], acti
     const group = category ? CATEGORY[category].group : anyAutomated ? 'recruiting' : 'networking'
 
     const actionItems = openItemsByThread.get(id) || []
+    const hasSent = messages.some(m => m.direction === 'Outbound')
+
+    // "We got your application" receipts already became a Pipeline row; in the Inbox they're
+    // just noise. Kept if you wrote back or the pipeline flagged something to do.
+    const isReceipt = category === 'APPLICATION_CONFIRMATION'
+      || (!category && anyAutomated && RECEIPT_SUBJECT_RE.test(subjectFor(messages)))
+    if (isReceipt && !hasSent && !actionItems.length) continue
+    // Pre-gate rows: a mass mail the classifier called NEW_CONTACT/FOLLOW_UP_NEEDED. Nobody
+    // to network with if every message came from a role mailbox and you never wrote back.
+    const allAutomated = inbound.length > 0 && inbound.every(m => isAutomated(m.fromAddress))
+    if (GENERIC_NETWORKING.includes(category) && allAutomated && !hasSent && !actionItems.length) continue
     const linkedApp = actionItems.map(a => appById.get(a.applicationId)).find(Boolean)
       || (group === 'recruiting' && contact?.company
         ? apps.find(a => !a.archived && a.company && normalizeCompanyName(a.company) === normalizeCompanyName(contact.company))
@@ -105,7 +119,7 @@ export function buildThreads({ interactions = [], contacts = [], apps = [], acti
       actionItems,
       needsReply,
       unread: inbound.some(m => !m.readAt),
-      hasSent: messages.some(m => m.direction === 'Outbound'),
+      hasSent,
       mailbox: messages.find(m => m.mailbox)?.mailbox || null,
       // Who to show in the list: an automated sender as itself ("Ramp Recruiting", not the
       // recruiter contact the thread got linked to), else the contact, else whoever last

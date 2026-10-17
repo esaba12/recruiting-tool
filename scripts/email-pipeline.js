@@ -133,7 +133,7 @@ const NETWORKING_SHAPE_KEYWORDS = [
 function networkingShapeHint(subject, body) {
   const keywordRe = new RegExp(`\\b(${NETWORKING_SHAPE_KEYWORDS.join('|')})\\b`, 'i')
   if (!keywordRe.test(subject) && !keywordRe.test(body.slice(0, 500))) return ''
-  return '\n\nThis email has networking-shaped language (relationship-building, an event/introduction, a coffee chat/informational interview) — likely NEW_CONTACT or FOLLOW_UP_NEEDED even with no specific job/application mentioned. Still classify UNRELATED if it\'s genuinely unrelated to the candidate\'s job search or professional network.'
+  return '\n\nThis email has networking-shaped language (relationship-building, an event/introduction, a coffee chat/informational interview) — NEW_CONTACT or FOLLOW_UP_NEEDED if a specific person wrote it to the candidate, even with no job mentioned. An event announcement or promo sent to a list is UNRELATED, however networking-flavored its wording.'
 }
 
 // Common personal/webmail domains — never treated as a company-name hint even when they don't
@@ -631,14 +631,22 @@ function processThreadList(threads, keys, props, myEmail) {
       const companyHint = guessCompanyHint(from)
       const shapeHint = recruitingShapeHint(from, subject, body)
       const networkingHint = networkingShapeHint(subject, body)
+      const bulkHint = isBulkMessage(msg)
+        ? '\n\nThis email has mailing-list headers (List-Unsubscribe / bulk precedence): it was sent to a list, so it is almost certainly not personal outreach — "personal" should be false.'
+        : ''
 
       console.log(`→ "${subject}" from ${from} (${messages.length - seen} new message(s))`)
 
       const data = extractWithClaude(
         keys.anthropic, subject, from, body, date, invite, meetingLink,
-        applicationHint + referralHint + oaHint + oaCompletedHint + companyHint + shapeHint + networkingHint,
+        applicationHint + referralHint + oaHint + oaCompletedHint + companyHint + shapeHint + networkingHint + bulkHint,
       )
 
+      const counterpart = findCounterpartAddress(messages, myEmail)
+      if (data && data.type !== 'UNRELATED' && isGenericNetworking(data, counterpart.email)) {
+        console.log(`  Skipped — ${data.type} but not personal outreach (${counterpart.email})`)
+        data.type = 'UNRELATED'
+      }
       if (!data || data.type === 'UNRELATED') {
         console.log('  Skipped — UNRELATED')
         thread.addLabel(doneLabel)
@@ -666,7 +674,6 @@ function processThreadList(threads, keys, props, myEmail) {
       // Header-derived address is authoritative — Claude never guesses contact_email from
       // body text, since that breaks when the newest message is outbound (its 'from' header
       // is the user's own address, not the recruiter's). See findCounterpartAddress().
-      const counterpart = findCounterpartAddress(messages, myEmail)
       data.contact_email = counterpart.email || null
       if (!data.contact_name && counterpart.displayName) data.contact_name = counterpart.displayName
 
@@ -693,7 +700,7 @@ function processThreadList(threads, keys, props, myEmail) {
       // Orthogonal to `type` — Claude flags a concrete next step whenever the email implies
       // one, regardless of which (if any) contacts/applications row it also drove. See
       // extractWithClaude()'s action_item/action_priority/action_due_date fields.
-      if (data.action_item) {
+      if (keepActionItem(data, data.contact_email)) {
         upsertActionItem(keys, {
           gmailMessageId: msg.getId(),
           threadId,
@@ -872,6 +879,18 @@ it has a Google Meet/Zoom link or a calendar invite. Calendar notifications ("In
 classified the same way as the original. When unsure, choose networking: a false interview moves
 the application to Phone Screen and puts an interview on the calendar.`
 
+// Shared with app/api/_lib/emailPipeline.js's prompt — keep the two in sync.
+const PERSONAL_VS_BULK = `Only one-to-one mail counts as networking. A person reaching out means a specific human wrote
+this message to the candidate (or the candidate wrote to them): it reads as individual
+correspondence, not a template. These are NOT outreach, however friendly or personalized-looking
+("Hi Ethan,"): newsletters, event/info-session/career-fair announcements, webinar invites,
+"join our talent community", university career-center or club mailings, recruiting-marketing
+campaigns, LinkedIn/Handshake notifications, and anything with an unsubscribe footer. Classify
+those UNRELATED unless they carry a formal recruiting signal about the candidate's own
+application (a receipt, assessment, interview, offer or rejection). When unsure whether a human
+wrote it personally, choose UNRELATED: a false NEW_CONTACT puts a stranger in the candidate's
+network and a follow-up on their to-do list.`
+
 function extractWithClaude(apiKey, subject, from, body, date, invite, meetingLink, extraHints) {
   // Deterministic signals (calendar invite attachment, Zoom/Meet/Teams link, application-
   // confirmation phrasing, referral mentions, sender-domain company guess) are handed to
@@ -899,6 +918,7 @@ spam, newsletters, unrelated logistics, etc.): {"type":"UNRELATED"}
 Otherwise return:
 {
   "type": "APPLICATION_CONFIRMATION|OA_INVITE|OA_COMPLETED|REPLY|INTERVIEW_INVITE|OFFER|REJECTION|NEW_CONTACT|FOLLOW_UP_NEEDED",
+  "personal": "true if a specific human wrote this message individually to the candidate (or the candidate to them); false for templates, automated notices and anything sent to a list",
   "contact_name": "the recruiter/contact's full name if mentioned in the body or signature, else null — their email address is resolved separately from message headers, not from this field",
   "company": "company name",
   "role": "role title or null",
@@ -938,13 +958,15 @@ never for the original invite itself or a reminder to complete an assessment tha
 NEW_CONTACT means this introduces or continues a relationship with someone potentially useful to
 the candidate's professional network — met at a career fair/event, an alum, a friendly employee at
 a company of interest, someone offering to help or make an introduction — even if no specific
-job/application is mentioned at all. This should be used often for a networking-focused inbox, not
-treated as a rare fallback.
+job/application is mentioned at all. It requires a specific person writing to the candidate
+personally (see below).
 
 FOLLOW_UP_NEEDED means a networking thread (not tied to a specific application stage) whose
 natural next step is for the candidate to follow up — say thanks, schedule a call, check in again
 later. Prefer this over REPLY when the email is relationship-building rather than a reply within a
 formal application process.
+
+${PERSONAL_VS_BULK}
 
 ${INTERVIEW_VS_NETWORKING}${inviteHint}${linkHint}${extraHints || ''}
 
@@ -1066,26 +1088,63 @@ function supabaseReq(keys, method, path, body, prefer) {
 // no-reply mailbox, not a person). Skipping contact creation for these doesn't lose anything:
 // the application itself is still created/updated by upsertApplication() independent of any
 // contact_id, and the email is still logged to Interactions with contact_id left null.
-const AUTOMATED_SENDER_RE = /^(no-?reply|do-?not-?reply|notification|mailer|automated|system|recruiting|careers|jobs|ats|talent)@|greenhouse-mail\.io$/i
+// The guard used to run only when contact_name was empty, but the sender's display name
+// ("Google Careers") is copied into contact_name first, so it never fired. It now goes off
+// the address alone. Mirrors app/api/_lib/emailPipeline.js — keep the two in sync.
+const AUTOMATED_LOCAL_RE = /^(no-?reply|do-?not-?reply|notifications?|mailer(-daemon)?|automated|system|recruit(ing|ment|er)?|careers?|jobs|ats|talent(acquisition)?|hello|team|info|news(letter)?s?|events?|marketing|updates?|support|admin|hr|campus|university|students?|hiring|apply|applications?|alerts?|digest)([._+-][^@]*)?@/i
+const AUTOMATED_DOMAINS = ATS_DOMAINS.concat([
+  'greenhouse-mail.io', 'hackerrank.com', 'codesignal.com', 'codility.com', 'hackerearth.com',
+  'joinhandshake.com', 'linkedin.com', 'indeed.com', 'goodtime.io', 'modernloop.io', 'calendly.com',
+])
+const NETWORKING_TYPES = ['NEW_CONTACT', 'FOLLOW_UP_NEEDED', 'REPLY']
+const NO_ACTION_TYPES  = ['APPLICATION_CONFIRMATION', 'OA_COMPLETED', 'REJECTION']
+
+function isAutomatedSender(email) {
+  if (!email) return true
+  const domain = email.split('@')[1] || ''
+  return AUTOMATED_LOCAL_RE.test(email) || AUTOMATED_DOMAINS.some(d => domain === d || domain.endsWith('.' + d))
+}
+
+// Mailing-list / bulk-send headers (newsletters, event blasts, ATS templates).
+function isBulkMessage(msg) {
+  if (msg.getHeader('List-Unsubscribe') || msg.getHeader('List-Id')) return true
+  if (/^(bulk|list|junk)$/i.test(msg.getHeader('Precedence') || '')) return true
+  const auto = msg.getHeader('Auto-Submitted')
+  return !!auto && auto.toLowerCase() !== 'no'
+}
+
+function isGenericNetworking(data, senderEmail) {
+  if (!NETWORKING_TYPES.includes(data.type)) return false
+  if (data.personal === false) return true
+  return data.type !== 'REPLY' && isAutomatedSender(senderEmail)
+}
+
+function keepActionItem(data, senderEmail) {
+  if (!data.action_item || NO_ACTION_TYPES.includes(data.type)) return false
+  return !isGenericNetworking(data, senderEmail)
+}
+
+// Only FOLLOW_UP_NEEDED schedules a follow-up, and never over one already planned for later.
+function contactFollowUpDate(data, existingFollowUp, today) {
+  if (data.type !== 'FOLLOW_UP_NEEDED') return undefined
+  if (existingFollowUp && existingFollowUp > today) return undefined
+  return Utilities.formatDate(new Date(Date.parse(today + 'T00:00:00Z') + 3 * 86400000), 'UTC', 'yyyy-MM-dd')
+}
 
 function upsertContact(keys, data) {
-  if (!data.contact_name && data.contact_email && AUTOMATED_SENDER_RE.test(data.contact_email)) {
-    console.log(`  Skipped contact creation — automated sender (${data.contact_email})`)
+  if (data.personal === false || isAutomatedSender(data.contact_email)) {
+    console.log(`  Skipped contact creation — not a person writing personally (${data.contact_email})`)
     return null
   }
 
-  const today    = Utilities.formatDate(new Date(), 'UTC', 'yyyy-MM-dd')
-  const followUp = Utilities.formatDate(new Date(Date.now() + 3 * 86400000), 'UTC', 'yyyy-MM-dd')
+  const today = Utilities.formatDate(new Date(), 'UTC', 'yyyy-MM-dd')
 
   // Try to find existing contact by email
-  let existingId = null
-  let existingPhone = null
-  if (data.contact_email) {
-    const res = supabaseReq(keys, 'get',
-      `/contacts?user_id=eq.${keys.userId}&email=eq.${encodeURIComponent(data.contact_email)}&select=id,phone&limit=1`)
-    existingId = res?.[0]?.id
-    existingPhone = res?.[0]?.phone
-  }
+  const res = supabaseReq(keys, 'get',
+    `/contacts?user_id=eq.${keys.userId}&email=eq.${encodeURIComponent(data.contact_email)}&select=id,phone,follow_up_date&limit=1`)
+  const existingId    = res?.[0]?.id
+  const existingPhone = res?.[0]?.phone
+  const followUp      = contactFollowUpDate(data, res?.[0]?.follow_up_date, today)
 
   // Status is only set on create, not on every update — otherwise re-processing a thread
   // would silently overwrite a status you'd manually changed in the UI (e.g. to Hot) back to
@@ -1093,9 +1152,9 @@ function upsertContact(keys, data) {
   // non-clobber rule as referred_by_id below — a later email's opportunistic signature
   // extraction should never overwrite a number already on file (e.g. one entered by hand).
   const updateProps = {
-    company:          data.company || '',
+    ...(data.company ? { company: data.company } : existingId ? {} : { company: '' }),
     last_interaction: today,
-    follow_up_date:   followUp,
+    ...(followUp ? { follow_up_date: followUp } : {}),
     urgency:          data.urgency || 'LOW',
     notes:            data.summary || '',
     ...(data.contact_email ? { email: data.contact_email } : {}),
