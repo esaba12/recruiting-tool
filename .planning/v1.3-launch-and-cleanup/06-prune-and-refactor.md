@@ -1,6 +1,6 @@
 # 06 — Prune + refactor
 
-**Status:** everything marked ✅ is done on `chore/v1.3-cleanup` (406 tests and `vite build` pass).
+**Status:** A–D merged 2026-10-17 (PR #13; 406 tests and `vite build` pass) and the owner cleanup in D is done.
 Items marked **owner** or **later** are written up, not done.
 
 How the list was built: imports were checked for every file under `app/src` and `app/api`
@@ -48,23 +48,19 @@ All of it is in git history if ever needed (`git show d94c9fc:<path>`).
 `v1.1-HANDOFF.md` → `.planning/archive/`; its one open item is now [03](03-recruiting-calendar-roundtrip.md).
 `PROJECT.md` and `ROADMAP.md` stay at the top level and now point at v1.3.
 
-## D. Local worktrees and branches
+## D. ✅ Local worktrees and branches
 
-There were 15 worktrees. Removed: the 9 whose branch is merged into `main` and that had no
-uncommitted work. The only dirt was untracked `node_modules`/`.playwright-mcp`. Their branches were
-deleted with `git branch -d`, which refuses anything unmerged, along with 6 more merged local branches
-(`feat/color-schemes`, `feat/events-ui`, `feat/sheet-sankey`, `feat/practice-import`, `fix/leetcode-sync`, `fix/settings-return-tab`).
+There were 15 worktrees. Removed on 2026-10-16: the 9 whose branch was merged into `main` and
+that had no uncommitted work. Their branches went with `git branch -d`, along with 6 more merged
+local branches. Removed on 2026-10-17 (owner, after PR #13 merged):
 
-**owner, decide:**
-- `worktree-skeleton-loading` (`09c68ac`, Aug 28): skeleton loading screens, never merged.
-  Seven weeks behind `main` across a full reskin. Either rebase and finish it, or `git branch -D` it.
-- `.worktrees/{cowork-setup,dashboard,email-pipeline,notion-setup}`: all four sit on
-  `5de887a`, the original scaffolding commit. It isn't in `main`'s history (history was
-  rewritten at open-sourcing) and only has content B just removed. Safe to delete:
-  `for b in cowork-setup dashboard email-pipeline notion-setup; do git worktree remove .worktrees/$b && git branch -D $b; done`
-- `feat/demo-refresh`: handled by [01](01-merge-demo-refresh.md).
-- **Remote branches**, all merged. Deleting them is outward-facing, so the command is here and wasn't run:
-  `git push origin --delete docs/email-pipeline-invites feat/color-schemes feat/events-ui feat/sheet-sankey feature/custom-404-page feature/schedule-queue fix/leetcode-sync fix/settings-return-tab v1.2-friends-launch worktree-email-pipeline-fix worktree-personal-crm-pivot-research`
+- `worktree-skeleton-loading` (`09c68ac`, Aug 28: skeleton loading screens, never merged, seven
+  weeks behind a full reskin). Dropped; recover with `git branch skeleton-loading 09c68ac` while the reflog lasts.
+- `.worktrees/{cowork-setup,dashboard,email-pipeline,notion-setup}` on `5de887a`, the
+  pre-open-sourcing scaffolding commit. Only held content B removed.
+- Every merged remote branch, including `chore/v1.3-cleanup`.
+
+What's left: `main`, plus `feat/demo-refresh` and its worktree until [01](01-merge-demo-refresh.md) merges.
 
 ## E. Later (written up, not done)
 

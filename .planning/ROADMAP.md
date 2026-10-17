@@ -287,4 +287,4 @@ Specs in `.planning/v1.2-launch/`. Code is done; the owner console steps moved t
 
 ## Milestone v1.3 — Launch + cleanup (started 2026-10-16)
 
-Specs in `.planning/v1.3-launch-and-cleanup/` (README has the status table). 05–07 (code follow-ups, pruning, docs restructure) are done on `chore/v1.3-cleanup`; 01–04 are owner steps; 08 (retire the Apps Script pipeline) comes after the Gmail cron is live.
+Specs in `.planning/v1.3-launch-and-cleanup/` (README has the status table). 05–07 (code follow-ups, pruning, docs restructure) merged in PR #13 (2026-10-17); 01 is PR #9; 02–04 are owner steps; 08 (retire the Apps Script pipeline) comes after the Gmail cron is live.

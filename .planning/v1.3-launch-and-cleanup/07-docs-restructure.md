@@ -1,6 +1,6 @@
 # 07 — Docs restructure (slim CLAUDE.md)
 
-**Status:** ✅ done on `chore/v1.3-cleanup`.
+**Status:** ✅ merged 2026-10-17 (PR #13).
 
 ## Problem
 

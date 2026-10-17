@@ -1,6 +1,6 @@
 # 05 — Small code follow-ups
 
-**Status:** items 1–2 done on `chore/v1.3-cleanup`; item 3 is a standing rule.
+**Status:** items 1–2 merged 2026-10-17 (PR #13); item 3 is a standing rule.
 
 ## 1. ✅ Event ingest stops asking without a campus
 
