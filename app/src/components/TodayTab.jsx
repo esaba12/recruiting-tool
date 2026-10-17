@@ -33,6 +33,10 @@ import { isFreshAccount } from '../lib/onboarding.js'
 import { addDaysLocal, todayLocal } from '../lib/dates.js'
 import { deriveEventAttention, EventDeadlineSections, EventFeedHealth } from './today/EventAttentionSections.jsx'
 
+// Hover/cursor for any row region that opens a panel — every clickable thing on Today
+// answers the mouse, and nothing else does (docs/architecture/design-system.md, Affordances).
+const ROW_HIT = 'cursor-pointer rounded-sm -mx-1.5 px-1.5 hover:bg-ink-50 transition-colors'
+
 // Originally from the retired KeepInTouchTab.jsx; Today is its only home now.
 const TIE_LABEL = { strong: 'Close tie', moderate: 'Moderate tie', weak: 'Weak tie', cold: 'Not yet connected' }
 
@@ -68,7 +72,7 @@ function OverdueRow({ contact: c, interactions, onRefresh, onOpen }) {
   return (
     <div className="py-2.5">
       <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <div className="min-w-0 max-w-full cursor-pointer" onClick={() => onOpen(c)}>
+        <div className={`min-w-0 max-w-full ${ROW_HIT}`} onClick={() => onOpen(c)}>
           <p className="text-sm font-medium text-ink-900">{c.name}</p>
           <p className="text-xs text-ink-500">{[c.company, c.role].filter(Boolean).join(' · ')}</p>
           {c.email && <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="block truncate text-xs text-link hover:underline">{c.email}</a>}
@@ -130,7 +134,7 @@ function AwaitingReplyRow({ item, onRefresh, onOpen }) {
   return (
     <div className="py-2.5">
       <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <div className="min-w-0 max-w-full cursor-pointer" onClick={() => onOpen(c)}>
+        <div className={`min-w-0 max-w-full ${ROW_HIT}`} onClick={() => onOpen(c)}>
           <p className="text-sm font-medium text-ink-900">{c.name}</p>
           <p className="text-xs text-ink-500">{[c.company, c.role].filter(Boolean).join(' · ')}</p>
         </div>
@@ -181,7 +185,7 @@ function ScheduleRow({ contact: c, onRefresh, onOpen }) {
   return (
     <div className="py-2.5">
       <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <div className="min-w-0 max-w-full cursor-pointer" onClick={() => onOpen(c)}>
+        <div className={`min-w-0 max-w-full ${ROW_HIT}`} onClick={() => onOpen(c)}>
           <p className="text-sm font-medium text-ink-900">{c.name}</p>
           <p className="text-xs text-ink-500">{[c.company, c.role].filter(Boolean).join(' · ')}</p>
           {c.scheduleNote && <p className="text-xs text-ink-400 italic mt-0.5 line-clamp-1">"{c.scheduleNote}"</p>}
@@ -218,7 +222,7 @@ function HighUrgencyRow({ contact: c, onOpen }) {
   return (
     <div className="py-2.5">
       <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <div className="min-w-0 max-w-full cursor-pointer" onClick={() => onOpen(c)}>
+        <div className={`min-w-0 max-w-full ${ROW_HIT}`} onClick={() => onOpen(c)}>
           <p className="text-sm font-medium text-ink-900">{c.name}</p>
           <p className="text-xs text-ink-500">{[c.company, c.role].filter(Boolean).join(' · ')}</p>
           {c.email && <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="block truncate text-xs text-link hover:underline">{c.email}</a>}
@@ -243,9 +247,9 @@ function KeepInTouchRow({ contact: c, status, interactions, onOpen, onLog, onMet
   const bucket = tieStrengthBucket(c, interactions)
   const overdue = !status.never && status.overdueDays > 0
   return (
-    <div className={`bg-surface rounded-md px-4 py-3 border transition-shadow hover:shadow-md ${overdue ? 'border-warning-300' : 'border-ink-300'}`}>
+    <div className={`bg-surface rounded-md px-4 py-3 border ${overdue ? 'border-warning-300' : 'border-ink-300'}`}>
       <div className="flex items-start gap-3">
-        <button onClick={() => onOpen(c)} className="flex-1 min-w-0 text-left">
+        <button onClick={() => onOpen(c)} className={`flex-1 min-w-0 text-left py-1 ${ROW_HIT}`}>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-ink-900">{c.name}</span>
             {c.company && <span className="text-sm text-ink-500">@ {c.company}</span>}
@@ -298,7 +302,7 @@ function KeepInTouchRow({ contact: c, status, interactions, onOpen, onLog, onMet
 // standalone component, not nested inside TodayTab's closure.
 function ApplicationRow({ app: a, showTriageChips, onOpen, changeAppTriage }) {
   return (
-    <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 py-2.5 cursor-pointer" onClick={() => onOpen(a)}>
+    <div className={`flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 py-2.5 ${ROW_HIT}`} onClick={() => onOpen(a)}>
       <div className="min-w-0">
         <p className="text-sm font-medium text-ink-900">{a.company}</p>
         <p className="text-xs text-ink-500">{a.role || ''}</p>
@@ -352,7 +356,7 @@ function OaRow({ app: a, needsCheck, onOpen, onRefresh, onLogOa }) {
   }
 
   return (
-    <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 py-2.5 cursor-pointer" onClick={() => onOpen(a)}>
+    <div className={`flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 py-2.5 ${ROW_HIT}`} onClick={() => onOpen(a)}>
       <div className="min-w-0">
         <p className="text-sm font-medium text-ink-900">{a.company}</p>
         <p className="text-xs text-ink-500">{a.role || ''}</p>
@@ -411,7 +415,7 @@ function ActionItemRow({ item, contacts, onRefresh, onOpen }) {
   return (
     <div className="py-2.5">
       <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <div className="min-w-0 max-w-full cursor-pointer" onClick={() => contact && onOpen(contact)}>
+        <div className={`min-w-0 max-w-full ${contact ? ROW_HIT : ''}`} onClick={contact ? () => onOpen(contact) : undefined}>
           <p className="text-sm font-medium text-ink-900">{item.summary}</p>
           {contact && <p className="text-xs text-ink-500">{[contact.name, contact.company].filter(Boolean).join(' · ')}</p>}
         </div>

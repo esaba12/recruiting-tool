@@ -177,7 +177,7 @@ function CompanyCard({ company: c, index, isAdded, onAdd, onDismiss, onExpand, e
             {isAdded && <Badge label="✓ In targets" color="bg-success-100 text-success-800" />}
           </div>
           {c.oneLiner && <p className="text-xs text-ink-500 mt-0.5">{c.oneLiner}</p>}
-          {c.whyFit && <p className="text-xs text-ink-700 mt-1.5"><span className="text-link font-medium">Why you: </span>{c.whyFit}</p>}
+          {c.whyFit && <p className="text-xs text-ink-700 mt-1.5"><span className="text-ink-900 font-semibold">Why you: </span>{c.whyFit}</p>}
           <div className="flex flex-wrap items-center gap-1 mt-2">
             {c.domain && <Badge label={c.domain} color="bg-accent-100 text-accent-700" />}
             {c.stage && <Badge label={c.stage} color="bg-ink-100 text-ink-600" />}

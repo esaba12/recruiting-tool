@@ -18,15 +18,15 @@ export default function RepoStats({ jobs }) {
 
   return (
     <div className="space-y-3">
-      {/* Stat pills */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Stat readouts: unboxed on purpose (a bordered tile reads as a clickable card) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-surface rounded-md p-4 border border-ink-300">
         {[
           { label: 'Total Listings',  value: jobs.length,          sub: 'in this repo' },
           { label: 'New This Week',   value: newThisWeek.length,   sub: 'recently posted', accent: true },
           { label: 'Remote-Friendly', value: remote.length,        sub: `${Math.round((remote.length/jobs.length)*100)}% of listings` },
           { label: 'Cities',          value: Object.keys(locCounts).length, sub: 'unique locations' },
         ].map(s => (
-          <div key={s.label} className="bg-surface rounded-md p-4 border border-ink-300">
+          <div key={s.label}>
             <p className="text-xs font-medium text-ink-400 uppercase tracking-wide">{s.label}</p>
             <p className={`text-2xl font-bold mt-1 ${s.accent ? 'text-link' : 'text-ink-900'}`}>{s.value}</p>
             <p className="text-xs text-ink-400 mt-0.5">{s.sub}</p>

@@ -171,8 +171,14 @@ export default function ApplicationsView({ apps, contacts = [], interactions = [
                         <Badge label={a.stage} color={STAGE_COLOR[a.stage]} />
                         {isUntriaged(a) && <Badge label={a.triage} color={a.triage === 'Pass' ? 'bg-danger-100 text-danger-500' : 'bg-ink-100 text-ink-500'} />}
                         {coverage && coverage.status !== 'none' && (
-                          <Badge label={COVERAGE_BADGE[coverage.status].label(coverage.matchedContacts.length)}
-                            color={COVERAGE_BADGE[coverage.status].color} />
+                          coverage.status === 'gap' && onFindPeople
+                            // "Need network" reads as a call to action, so it is one: jumps to Grow → People.
+                            ? <button onClick={e => { e.stopPropagation(); onFindPeople(a.company) }} title={`Find people at ${a.company}`}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-semibold ${COVERAGE_BADGE.gap.color} hover:bg-danger-200 transition-colors`}>
+                                Need network →
+                              </button>
+                            : <Badge label={COVERAGE_BADGE[coverage.status].label(coverage.matchedContacts.length)}
+                                color={COVERAGE_BADGE[coverage.status].color} />
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 flex-wrap">
@@ -193,7 +199,7 @@ export default function ApplicationsView({ apps, contacts = [], interactions = [
                         )}
                       </div>
                       {a.referredById && (
-                        <p className="text-xs text-link mt-0.5">
+                        <p className="text-xs text-ink-500 mt-0.5">
                           Referred by {contacts.find(c => c.id === a.referredById)?.name || '—'}
                         </p>
                       )}
