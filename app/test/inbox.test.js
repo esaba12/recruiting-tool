@@ -89,6 +89,38 @@ describe('buildThreads', () => {
   })
 })
 
+describe('application receipts', () => {
+  it('hides "we got your application" threads, classified or not', () => {
+    const threads = buildThreads({ now: NOW, interactions: [
+      email({ channelRef: 'receipt', emailCategory: 'APPLICATION_CONFIRMATION', fromAddress: 'no-reply@greenhouse.io' }),
+      email({ channelRef: 'legacy', subject: 'Thank you for applying to Ramp', fromAddress: 'no-reply@ramp.com' }),
+      email({ channelRef: 'oa', emailCategory: 'OA_INVITE', fromAddress: 'no-reply@hackerrank.com' }),
+      email({ channelRef: 'human' }),
+    ] })
+    expect(threads.map(t => t.id).sort()).toEqual(['human', 'oa'])
+  })
+  it('keeps a receipt thread you replied to or that carries an open to-do', () => {
+    const threads = buildThreads({ now: NOW, actionItems: [{ threadId: 'todo', summary: 'Upload transcript' }], interactions: [
+      email({ channelRef: 'todo', emailCategory: 'APPLICATION_CONFIRMATION', fromAddress: 'no-reply@greenhouse.io' }),
+      email({ channelRef: 'replied', emailCategory: 'APPLICATION_CONFIRMATION', sentAt: at(2) }),
+      email({ channelRef: 'replied', direction: 'Outbound', fromAddress: 'me@x.com' }),
+    ] })
+    expect(threads.map(t => t.id).sort()).toEqual(['replied', 'todo'])
+  })
+})
+
+describe('generic networking mail', () => {
+  it('hides networking-labelled threads where every message came from a role mailbox and you never wrote', () => {
+    const threads = buildThreads({ now: NOW, interactions: [
+      email({ channelRef: 'blast', emailCategory: 'NEW_CONTACT', fromAddress: 'events@citadel.com' }),
+      email({ channelRef: 'person', emailCategory: 'NEW_CONTACT' }),
+      email({ channelRef: 'answered', emailCategory: 'FOLLOW_UP_NEEDED', fromAddress: 'university@janestreet.com', sentAt: at(2) }),
+      email({ channelRef: 'answered', direction: 'Outbound', fromAddress: 'me@x.com' }),
+    ] })
+    expect(threads.map(t => t.id).sort()).toEqual(['answered', 'person'])
+  })
+})
+
 describe('filters', () => {
   const threads = buildThreads({ now: NOW, contacts, interactions: [
     email({ channelRef: 'r', emailCategory: 'OFFER', subject: 'Your offer' }),
