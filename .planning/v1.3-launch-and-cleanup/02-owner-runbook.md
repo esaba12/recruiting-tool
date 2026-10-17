@@ -36,8 +36,8 @@ Do this first. B–D don't depend on it, but 03 and the Gmail half of D do.
 
 - [ ] **B1. 🤖 `! supabase config push`.** The live project still has `site_url =
   http://127.0.0.1:3000`, so password-reset and magic-link emails point at localhost.
-  `config.toml` already has the prod URL (`032fbd3`). Read the diff it prints before you
-  confirm. If it would undo something you changed in the dashboard (auth providers, rate
+  `config.toml` already has the prod URL (`032fbd3`). `config push` has no dry-run flag: it
+  prints a diff and asks first. Read that diff before you confirm. If it would undo something you changed in the dashboard (auth providers, rate
   limits), say no and change `config.toml` to match the dashboard first.
   **Check:** send yourself a password reset from prod; the link goes to the prod domain.
 - [ ] **B2. Custom SMTP** (Auth → SMTP settings). Built-in mail is capped at about 2/hour
@@ -51,9 +51,11 @@ Do this first. B–D don't depend on it, but 03 and the Gmail half of D do.
 
 ## C. Vercel (run from `app/`, where the project is linked)
 
-- [ ] **C1. 🤖 Remove dead env vars.** No `api/` code reads them (checked with grep again 2026-10-16),
+- [ ] **C1. 🤖 Remove dead env vars.** No `api/` code reads them (grep re-checked 2026-10-17: only comments mention them),
   so they're unneeded secret exposure:
   `! cd app && for v in ANTHROPIC_API_KEY EXA_API_KEY NOTION_API_KEY GOOGLE_REFRESH_TOKEN; do vercel env rm $v production -y; done`
+  `EXA_API_KEY` is also set for Preview: add `vercel env rm EXA_API_KEY preview -y`.
+  Auto mode blocks secret-store writes, so this one is yours to run.
   **Check:** `vercel env ls production` lists only the 7 required vars, plus `KV_REST_API_*`,
   `CRON_SECRET` and optionally `VITE_SENTRY_DSN`.
 - [ ] **C2. Sentry.** Create a free Sentry project (platform React), then

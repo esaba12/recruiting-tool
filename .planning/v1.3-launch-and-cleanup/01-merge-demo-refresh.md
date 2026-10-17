@@ -21,11 +21,11 @@ the two branches merge in either order.
 
 ## Steps
 
-1. ✅ Pushed; PR #9 is open.
+1. ✅ Pushed (PR #9).
 2. Check the preview: `/demo` → Learn shows Company prep, Languages and a readiness above 0%,
    with no console errors and no `/gh-api` request (it would 401).
-3. Merge in the GitHub UI, or with `! gh pr merge 9 --merge`.
-4. Clean up: `git worktree remove .claude/worktrees/demo-refresh && git branch -d feat/demo-refresh && git push origin --delete feat/demo-refresh`.
+3. ✅ Merged 2026-10-17 (`e96b40b`).
+4. Clean up (still open, auto mode blocks it): `git worktree remove .claude/worktrees/demo-refresh && git branch -d feat/demo-refresh && git push origin --delete feat/demo-refresh`.
 
 ## Done when
 
