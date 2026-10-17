@@ -20,16 +20,16 @@ files: the project is at the Vercel Hobby limit of 12 functions.
 
 | # | Spec | Who | Status |
 |---|------|-----|--------|
-| 01 | [Merge `feat/demo-refresh`](01-merge-demo-refresh.md) | owner | open |
+| 01 | [Merge `feat/demo-refresh`](01-merge-demo-refresh.md) | owner | open: PR #9 pushed, not merged |
 | 02 | [Owner runbook: Google Cloud, Supabase, Vercel, cron](02-owner-runbook.md) | owner (🤖 where marked) | open |
 | 03 | [Recruiting calendar live round trip](03-recruiting-calendar-roundtrip.md) | owner + 🤖 | blocked on 02 (Google scopes) |
 | 04 | [Launch week: smoke test, invite, soft launch](04-launch-week.md) | owner + 🤖 | blocked on 01–02 |
-| 05 | [Small code follow-ups](05-code-followups.md) | 🤖 | **done** on `chore/v1.3-cleanup` (2 of 3 items; function budget is a standing rule) |
-| 06 | [Prune + refactor](06-prune-and-refactor.md) | 🤖 | **done** on `chore/v1.3-cleanup`, except the items marked owner/later |
-| 07 | [Docs restructure (slim CLAUDE.md)](07-docs-restructure.md) | 🤖 | **done** on `chore/v1.3-cleanup` |
+| 05 | [Small code follow-ups](05-code-followups.md) | 🤖 | ✅ merged 2026-10-17 (PR #13). Job Boards keep-alive still needs a by-hand check |
+| 06 | [Prune + refactor](06-prune-and-refactor.md) | 🤖 | ✅ merged 2026-10-17 (PR #13); worktree/branch cleanup done; E items are later |
+| 07 | [Docs restructure (slim CLAUDE.md)](07-docs-restructure.md) | 🤖 | ✅ merged 2026-10-17 (PR #13) |
 | 08 | [Retire the Apps Script email pipeline](08-email-pipeline-consolidation.md) | 🤖 after 02's cron | later; needs the features the serverless scan lacks first |
 
-Order: 01 → 02 → (03 ∥ 04). 05–07 are independent of the rest and are already done on the branch.
+Order: 01 → 02 → (03 ∥ 04). 05–07 are merged (PR #13).
 08 waits until the Gmail cron (in 02) has run cleanly for a week.
 
 ## Definition of done
@@ -37,4 +37,4 @@ Order: 01 → 02 → (03 ∥ 04). 05–07 are independent of the rest and are al
 1. Every P0 box in [02](02-owner-runbook.md) is checked, and v1.2's DoD #1–#5 hold on prod.
 2. [03](03-recruiting-calendar-roundtrip.md)'s five checks pass against the real Google account.
 3. Three friends, at least one of them non-SWE, sign up without help, and after 48h you've read the `feedback` table and Sentry.
-4. `main` has no dead top-level folders. CLAUDE.md is an index under 25 KB, not a 118 KB changelog. Every local worktree is either in use or removed.
+4. ✅ (2026-10-17) `main` has no dead top-level folders. CLAUDE.md is an index under 25 KB, not a 118 KB changelog. Every local worktree is either in use or removed.

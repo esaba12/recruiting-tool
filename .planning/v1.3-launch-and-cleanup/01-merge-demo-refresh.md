@@ -15,17 +15,17 @@ Commit `43929ef` (2026-10-13) is the only branch with work that isn't on `main`.
 - Ticks the four items in `.planning/v1.2-launch/08-ops-checklist.md` that are already done (the
   PR #6 merge, the prod re-check, `clasp push`, the demo refresh).
 
-`git merge-tree` against `main` (`d94c9fc`) reports no conflicts. It touches `LearnTab.jsx`,
+`git merge-tree` against `main` (`d94c9fc`) reported no conflicts; PR #13 since landed without touching its files. It touches `LearnTab.jsx`,
 `db.js`, `demoData.js` and the 08 checklist. `chore/v1.3-cleanup` doesn't touch any of those, so
 the two branches merge in either order.
 
 ## Steps
 
-1. `! git push -u origin feat/demo-refresh && gh pr create --base main --head feat/demo-refresh --fill`
+1. ✅ Pushed; PR #9 is open.
 2. Check the preview: `/demo` → Learn shows Company prep, Languages and a readiness above 0%,
    with no console errors and no `/gh-api` request (it would 401).
-3. Merge in the GitHub UI, or with `! gh pr merge <n> --merge`.
-4. Remove the worktree: `git worktree remove .claude/worktrees/demo-refresh && git branch -d feat/demo-refresh`.
+3. Merge in the GitHub UI, or with `! gh pr merge 9 --merge`.
+4. Clean up: `git worktree remove .claude/worktrees/demo-refresh && git branch -d feat/demo-refresh && git push origin --delete feat/demo-refresh`.
 
 ## Done when
 

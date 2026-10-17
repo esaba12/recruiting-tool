@@ -34,4 +34,4 @@ with the session's Bearer token → 403 (`api/_lib/calendarAllowlist.js`; also c
 
 ## Done when
 
-All five checks pass. Then add a "verified live <date>" line to CLAUDE.md → Recruiting Events → Calendar extension.
+All five checks pass. Then add a "verified live <date>" line to `docs/architecture/recruiting-events.md` → Calendar extension, and mark 03 done in the README.
