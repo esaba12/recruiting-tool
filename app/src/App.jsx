@@ -39,7 +39,8 @@ import { needsOnboarding } from './lib/onboarding.js'
 import { useKeysReady } from './lib/useKeyStatus.js'
 import { NAV_ITEMS } from './components/layout/Sidebar.jsx'
 import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, keepInTouchDue, needsReviewApps } from './lib/attention.js'
-import { Table2, LayoutGrid, Share2, Send } from 'lucide-react'
+import { Table2, LayoutGrid, Share2, Send, Waypoints } from 'lucide-react'
+import NetworkingFlowPanel from './components/NetworkingFlowPanel.jsx'
 
 // ── Network Tab ───────────────────────────────────────────────────────────────
 
@@ -47,17 +48,18 @@ const NETWORK_VIEWS = [
   { key: 'table',    label: 'Table',    icon: Table2 },
   { key: 'cards',    label: 'Cards',    icon: LayoutGrid },
   { key: 'graph',    label: 'Graph',    icon: Share2 },
+  { key: 'flow',     label: 'Flow',     icon: Waypoints },
   { key: 'outbox',   label: 'Outbox',   icon: Send },
 ]
 
 // The public /demo route (see DemoApp below) only shows views that need zero AI/BYOK
 // keys and no deep-links into ones that do — Outbox calls Exa+Claude/GPT (401s
 // with no signed-in user), Keep in Touch's "Log" leans on the same AI extraction.
-// Table/Cards/Graph are pure local rendering over the seeded demo data, so they
+// Table/Cards/Graph/Flow are pure local rendering over the seeded demo data, so they
 // work perfectly with no backend at all.
-const DEMO_NETWORK_VIEWS = NETWORK_VIEWS.filter(v => ['table', 'cards', 'graph'].includes(v.key))
+const DEMO_NETWORK_VIEWS = NETWORK_VIEWS.filter(v => ['table', 'cards', 'graph', 'flow'].includes(v.key))
 
-function NetworkTab({ contacts, apps, interactions, contactRelationships = [], onRefresh, onRefreshRelationships, initialView = 'table', views = NETWORK_VIEWS }) {
+function NetworkTab({ contacts, apps, interactions, calls = [], contactRelationships = [], onRefresh, onRefreshRelationships, initialView = 'table', views = NETWORK_VIEWS }) {
   const [filter, setFilter]   = useState('ALL')
   const [search, setSearch]   = useState('')
   const [view, setView]       = useState(initialView) // 'table' | 'cards' | 'graph'
@@ -123,7 +125,14 @@ function NetworkTab({ contacts, apps, interactions, contactRelationships = [], o
         </div>
       </div>
 
-      {view === 'graph'
+      {view === 'flow'
+        ? (
+          <div className="bg-surface rounded-md p-4 border border-ink-200">
+            <h2 className="text-sm font-semibold text-ink-700 mb-3">Where Networking Went</h2>
+            <NetworkingFlowPanel contacts={contacts} interactions={interactions} calls={calls} height={320} onOpenContact={c => setEditing(c)} />
+          </div>
+        )
+        : view === 'graph'
         ? <NetworkGraphTab contacts={contacts} contactRelationships={contactRelationships} />
         : view === 'outbox'
         ? <OutboxTab contacts={contacts} interactions={interactions} />
@@ -404,7 +413,7 @@ function AppInner() {
     >
       {loading && <EmptyState msg="Loading your data..." />}
       {!loading && tab === 'network'  && (
-        <NetworkTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={load}
+        <NetworkTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} contactRelationships={contactRelationships} onRefresh={load}
           onRefreshRelationships={refreshContactRelationships}
           initialView={networkInitialView} />
       )}

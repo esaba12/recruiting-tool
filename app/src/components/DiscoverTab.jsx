@@ -519,5 +519,5 @@ function ProfilePanel({ profile, open, onToggle, onSave }) {
 
 const inputCls = 'w-full px-3 py-2 border border-accent-200 rounded-lg text-sm bg-surface focus:outline-none focus:border-accent-400'
 function Field({ label, children }) {
-  return <div><label className="block text-xs text-link mb-0.5">{label}</label>{children}</div>
+  return <div><label className="block text-xs font-medium text-ink-500 mb-0.5">{label}</label>{children}</div>
 }

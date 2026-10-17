@@ -9,10 +9,12 @@ import { useChartTheme } from './theme.js'
 // on where things ended up. `onSelect({ label, appIds })` fires on a band or node click.
 // Only the two verdicts get a strong band; the neutral outcomes stay as quiet as the
 // upstream flow so they don't out-shout Rejected/Accepted.
-const STATUS_OUTCOME = new Set(['Accepted', 'Rejected'])
+const STATUS_OUTCOME = new Set(['Accepted', 'Rejected', 'Referral', 'Gone cold'])
 
-export default function SankeyChart({ flow, height = 300, minWidth = 600, onSelect, selectedLabel }) {
-  const theme = useChartTheme().flow
+// `palette: 'network'` swaps in the networking outcome colors; `unit` names what a band counts.
+export default function SankeyChart({ flow, height = 300, minWidth = 600, onSelect, selectedLabel, palette = 'application', unit = 'application' }) {
+  const base = useChartTheme().flow
+  const theme = palette === 'network' ? { ...base, outcome: base.networkOutcome } : base
   const wrap = useRef(null)
   const [hover, setHover] = useState(null)
 
@@ -32,7 +34,7 @@ export default function SankeyChart({ flow, height = 300, minWidth = 600, onSele
       <g
         style={{ cursor: onSelect ? 'pointer' : 'default' }}
         onClick={() => onSelect?.({ label: payload.name, appIds: payload.appIds })}
-        onMouseMove={e => place(e, `${payload.name}: ${payload.value} application${payload.value === 1 ? '' : 's'}`)}
+        onMouseMove={e => place(e, `${payload.name}: ${payload.value} ${unit}${payload.value === 1 ? '' : 's'}`)}
         onMouseLeave={() => setHover(null)}
       >
         {/* hit target wider than the 8px bar */}

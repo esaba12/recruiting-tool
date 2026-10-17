@@ -10,6 +10,17 @@ Layout is a persistent dark sidebar (`components/layout/Sidebar.jsx`) + full-wid
 
 `App.jsx` was decomposed from ~1836 lines (monolithic, every tab inline) down to ~250 lines (root state/routing only) — every tab is now its own file under `components/`.
 
+## Affordances: only clickable things look clickable (2026-10-17)
+
+Rule: anything that does something on click answers the mouse (pointer **and** a hover state), and nothing else does. Concretely:
+- **Hover/pointer only on handlers.** No `hover:*` or `cursor-pointer` on an element without `onClick`/`href` (or a native control). Card-level hover is fine only when the whole card is the click target; otherwise put the hover on the part that is (Today's Keep in Touch card lost its whole-card shadow; its open button carries the hover).
+- **Clickable rows get feedback.** Row regions that open a side panel use Today's `ROW_HIT` (`cursor-pointer rounded-sm -mx-1.5 px-1.5 hover:bg-ink-50`). A row whose target can be missing (an action item with no contact) drops both pointer and hover.
+- **`text-link` means a link.** Accent-colored text is reserved for things you can click. Labels and metadata ("Referred by …", Coverage's "↩ Path", Explore's "Why you:", Discover's field labels, Inbox's unread count) use ink tones. Decorative accents that can't be mistaken for links (step numbers, bullets, big stat numbers) are fine.
+- **Read-only numbers aren't boxed as cards.** Stat readouts (Today's Funnel / Next Deadline / Activity, Job Boards' repo stats) sit unboxed or share one panel with dividers, because a bordered tile per number reads as a clickable card.
+- **Badges that imply an action are the action.** Pipeline → Applications' "Need network" is a button that jumps to Grow → People for that company (it stays a plain badge where `onFindPeople` isn't wired, e.g. `/demo`). Status badges stay plain.
+
+How it was audited: a headless-Chromium pass over every `/demo` tab, sub-view and side panel flagged (a) pointer or `hover:` elements with no React click handler on themselves or a row-sized ancestor, (b) clickable non-native elements with no hover feedback, (c) bordered small boxes containing nothing interactive, and (d) link-colored or underlined text that isn't interactive. A static pass over every `.jsx` file covered the tabs `/demo` hides (Grow, Settings, Outbox, Job Boards). Known false positives: segmented-control wrappers, Learn's company-prep chip wrapper (it contains real buttons), Recharts surfaces (hover = tooltip), Pipeline Sheet cells (spreadsheet selection), modal backdrops.
+
 ## Charts (shipped July 2026)
 
 `recharts` replaced the hand-rolled `<div>` bar/tile charts. All color/mark choices went through this repo's `dataviz` skill (six-check palette validator + form/mark-spec guidance) rather than being eyeballed:

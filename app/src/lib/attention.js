@@ -219,3 +219,50 @@ export function funnelConversions(apps, stages = FUNNEL_STAGES) {
   }
   return out
 }
+
+// ── Declutter (Today) ────────────────────────────────────────────────────────
+// AI action items pile up: the pipeline flags a next step per email, and nothing retires
+// them except a click. Drop the ones that have obviously resolved themselves:
+//   - replied: you sent a message on that thread after the item was created
+//   - expired: due date passed more than `graceDays` ago, or (no due date) older than `maxAgeDays`
+//   - duplicate: same summary for the same contact/thread as one already kept
+// Returns { items, hidden } — `hidden` is a count only; nothing is written back.
+export function trimActionItems(items, interactions = [], { now = Date.now(), graceDays = 7, maxAgeDays = 21 } = {}) {
+  const lastOutboundByThread = new Map()
+  for (const i of interactions) {
+    if (i.direction !== 'Outbound' || !i.channelRef) continue
+    const t = Date.parse(i.sentAt || i.date || '') || 0
+    if (t > (lastOutboundByThread.get(i.channelRef) || 0)) lastOutboundByThread.set(i.channelRef, t)
+  }
+  const seen = new Set()
+  const kept = []
+  for (const item of items) {
+    const created = Date.parse(item.createdAt || '') || 0
+    if (item.threadId && created && (lastOutboundByThread.get(item.threadId) || 0) > created) continue
+    if (item.dueDate) {
+      if (daysUntil(item.dueDate, now) < -graceDays) continue
+    } else if (created && (now - created) / 86400000 > maxAgeDays) continue
+    const key = `${item.contactId || item.threadId || ''}|${(item.summary || '').trim().toLowerCase()}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    kept.push(item)
+  }
+  return { items: kept, hidden: items.length - kept.length }
+}
+
+// One contact, one Today section. Lists are given in priority order ({ key: [rows] });
+// `idOf(row)` extracts the contact id (rows are contacts or { contact } wrappers). A contact
+// already shown in an earlier list is dropped from later ones.
+export function dedupeAcross(lists, idOf = r => r.contact?.id ?? r.id) {
+  const seen = new Set()
+  const out = {}
+  for (const [key, rows] of Object.entries(lists)) {
+    out[key] = rows.filter(r => {
+      const id = idOf(r)
+      if (seen.has(id)) return false
+      seen.add(id)
+      return true
+    })
+  }
+  return out
+}

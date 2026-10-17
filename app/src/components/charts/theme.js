@@ -108,6 +108,14 @@ export function readChartTheme() {
         Ghosted: t('ink-300'),
         Rejected: t('danger-500'),
       },
+      // Networking flow (lib/networkingFlow.js) — same four slots in the same order as the
+      // application outcomes above, so the validator runs carry over unchanged.
+      networkOutcome: {
+        Referral: t('success-500'),
+        Active: t('ink-600'),
+        'No reply': t('ink-300'),
+        'Gone cold': t('danger-500'),
+      },
     },
     // The Network Graph is a dark island in both modes, so it takes the scheme's raw accent
     // rather than the mode-mapped one.

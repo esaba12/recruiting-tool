@@ -7,9 +7,9 @@
 **Dev server:** `cd app && npm run dev` → http://localhost:3001
 
 ### Tabs (as of 2026-10-16 — `NAV_ITEMS` in `components/layout/Sidebar.jsx`)
-- **Today** (`TodayTab.jsx`) — the single attention stack: follow-ups, stale applications, OA due, signup steps / registration closing / event follow-ups (Recruiting Events), interview prep, awaiting reply, then Activity (Application Funnel, **Where Applications Went** Sankey, network donut, interactions trend). Replaced the old Overview + Actions tabs.
+- **Today** (`TodayTab.jsx`) — the single attention stack: follow-ups, stale applications, OA due, signup steps / registration closing / event follow-ups (Recruiting Events), interview prep, awaiting reply, then Activity (Application Funnel, **Where Applications Went** and **Where Networking Went** Sankeys, network donut, interactions trend). Replaced the old Overview + Actions tabs. Sections collapse, cap at 3 rows, and can be cleared — see "Today declutter".
 - **Inbox** (`InboxTab.jsx`) — recruiting + networking email threads from `interactions` (see `lib/inbox.js`).
-- **Network** — contact CRM. Views: **Table** (default), **Cards**, **Graph**, **Outbox**. "+ Contact" opens `QuickAddContactModal.jsx`; editing uses the contact side panel; "+ Log Interaction" opens `LogInteractionModal.jsx`.
+- **Network** — contact CRM. Views: **Table** (default), **Cards**, **Graph**, **Flow** (networking Sankey — see "Networking flow"), **Outbox**. "+ Contact" opens `QuickAddContactModal.jsx`; editing uses the contact side panel; "+ Log Interaction" opens `LogInteractionModal.jsx`.
 - **Grow** (`GrowTab.jsx`) — Companies (Explore) → Coverage → People (Discover) on one page; sections below still describe each piece.
 - **Learn** — interview-prep tracking (see Learn section above).
 - **Pipeline** — views: **Applications** (board + `DuplicatesPanel`), **Sheet** (spreadsheet + Excel/CSV export + Flow Sankey — see "Pipeline Sheet + outcome Sankey"), **Job Boards** (tech tracks only). Each application can record a referrer (`referred_by_id`), set manually or by the email pipeline, never overwritten once set.
@@ -105,3 +105,23 @@ Same phase also added manual OA editing to `ApplicationPanelBody.jsx` — OA due
 **Live updates (`lib/useApplicationsLive.js`, mounted in `AppInner`):** Supabase Realtime `postgres_changes` on both tables filtered by `user_id`, debounced into `refreshApps()`, plus a refresh on tab re-focus after >60s. CSP `connect-src` now allows `wss://*.supabase.co`. Verified live 2026-10-16 against the real project: a service-role stage update (what the email pipeline does) reached a signed-in user's channel as both an `applications` UPDATE and a stage-event INSERT. Gotcha when testing from Node 20: pass `realtime: { transport: ws }`, and wait for the `system` "Subscribed to PostgreSQL" message, not just `SUBSCRIBED`, before writing.
 
 **Sankey (`lib/applicationFlow.js` pure + tested, `charts/SankeyChart.jsx`, `ApplicationFlowPanel.jsx`):** each non-Wishlist app is one path: source (Job board / Referral / Direct, from `appSource`) → Applied → OA (if any `oa_*` field) → interview stages it reached, in pipeline order (first visits only, so corrections can't create cycles) → outcome (Accepted / In process / Ghosted = open with no activity for 30+ days / Rejected). Shown under Pipeline → Sheet → Flow (drawn from the sheet's current filter + search; clicking a band or node filters the grid to those apps) and on Today under the Application Funnel ("Where Applications Went"). Colors went through the `dataviz` validator — see `charts/theme.js`'s `flow` block: stages wear the scheme accent; outcomes are success/danger plus two neutrals, ordered so green never sits next to red (deutan ΔE 5.3 when adjacent); every node is direct-labeled with its count as the contrast relief for Ghosted. The demo seeds 24 extra applications plus `DEMO_STAGE_EVENTS`, and demo stage edits log events like the trigger does.
+
+## Today declutter (2026-10-17)
+
+Today had grown to a dozen sections that often repeated the same person. Three passes now run before anything renders (`TodayTab.jsx`, pure helpers in `lib/attention.js`, tested in `test/declutter.test.js`):
+
+1. **`trimActionItems(items, interactions)`** hides AI action items that resolved themselves: you sent an Outbound message on the item's thread (`interactions.channelRef === item.threadId`) after it was created; the due date is more than 7 days past; there is no due date and it is older than 21 days; or it duplicates an item already kept (same contact/thread + summary). It only hides (count shown at the top), it never writes back.
+2. **`dedupeAcross(lists)`** keeps each contact in one people section, by priority: Overdue Follow-Ups → Awaiting Reply → Want to Schedule → High Urgency → Keep in Touch.
+3. **Snoozes.** Each snoozable row has a ✕ (hide for 7 days), each section a **Clear all** (hide every row in it for 7 days), and **Unhide N** at the top restores them. Action Items get **Dismiss all** instead (`db.js` `dismissActionItems(ids)`, one `.in('id', ids)` update, confirm first), since they have a real dismissed state.
+
+Every section (including the event sections, recap, interview prep and Activity) collapses from its heading, with **Collapse all / Expand all** at the top. Snoozes (`{ '<section>:<id>': untilMs }`) and collapsed section ids live in `user_settings` under `today_prefs` via `lib/useTodayPrefs.js`, so they follow the account across devices; expired snoozes are pruned on load. `RowCap` now defaults to 3 rows.
+
+## Networking flow (2026-10-17)
+
+The networking twin of the application Sankey (`lib/networkingFlow.js` pure + tested in `test/networkingFlow.test.js`, `components/NetworkingFlowPanel.jsx`, reusing `charts/SankeyChart.jsx` with `palette="network"` and `unit="contact"`). Each contact with at least one logged interaction or call is one path:
+
+- **Source:** *They reached out* (first logged interaction was Inbound), else from `contacts.source`: Email / LinkedIn DM → *Cold outreach*, Referral → *Intro*, Coffee chat / Event → *Event or chat*, anything else → *Other*.
+- **Stages:** *Conversation* (both directions logged, or any call/meeting), *Met* (a Call/Meeting interaction or a `calls` transcript), *Referral asked* (`referralStatus` is not "Not Asked").
+- **Outcome:** *Referral* (`referralStatus` Confirmed) / *Active* / *No reply* (never became a conversation) / *Gone cold* (status Cold or Closed, or no touch for 60+ days unless Champion).
+
+Contacts with nothing logged are left out and counted in the caption. Headline numbers: contacted, reply rate (Conversation ÷ contacted), met, asked, referrals, no reply. On **Network → Flow**, clicking a band or node lists its contacts and clicking one opens the contact panel; Today's copy (Activity → "Where Networking Went") is read-only. Outcome colors are `charts/theme.js`'s `flow.networkOutcome`: the same four slots, in the same order, as the validated application outcomes (verdict, neutral, neutral, verdict), so the earlier validator runs still hold. Works in `/demo` (pure local rendering).

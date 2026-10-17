@@ -144,7 +144,7 @@ export default function ReferralCoverageTab({ contacts, apps, interactions, cont
                     </p>
                   )}
                   {r.bestPath && (
-                    <p className="text-[11px] text-link mt-0.5 truncate" title="Referral chain that led to this contact">
+                    <p className="text-[11px] text-ink-500 mt-0.5 truncate" title="Referral chain that led to this contact">
                       ↩ Path: {pathLabel(r.bestPath)}
                     </p>
                   )}

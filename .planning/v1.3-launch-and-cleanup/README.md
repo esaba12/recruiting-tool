@@ -20,16 +20,16 @@ files: the project is at the Vercel Hobby limit of 12 functions.
 
 | # | Spec | Who | Status |
 |---|------|-----|--------|
-| 01 | [Merge `feat/demo-refresh`](01-merge-demo-refresh.md) | owner | open: PR #9 pushed, not merged |
+| 01 | [Merge `feat/demo-refresh`](01-merge-demo-refresh.md) | owner | ✅ merged 2026-10-17 (PR #9) |
 | 02 | [Owner runbook: Google Cloud, Supabase, Vercel, cron](02-owner-runbook.md) | owner (🤖 where marked) | open |
 | 03 | [Recruiting calendar live round trip](03-recruiting-calendar-roundtrip.md) | owner + 🤖 | blocked on 02 (Google scopes) |
-| 04 | [Launch week: smoke test, invite, soft launch](04-launch-week.md) | owner + 🤖 | blocked on 01–02 |
+| 04 | [Launch week: smoke test, invite, soft launch](04-launch-week.md) | owner + 🤖 | blocked on 02 |
 | 05 | [Small code follow-ups](05-code-followups.md) | 🤖 | ✅ merged 2026-10-17 (PR #13). Job Boards keep-alive still needs a by-hand check |
-| 06 | [Prune + refactor](06-prune-and-refactor.md) | 🤖 | ✅ merged 2026-10-17 (PR #13); worktree/branch cleanup done; E items are later |
+| 06 | [Prune + refactor](06-prune-and-refactor.md) | 🤖 | ✅ merged 2026-10-17 (PR #13); branch cleanup done except the `demo-refresh` worktree (01 step 4); E items are later |
 | 07 | [Docs restructure (slim CLAUDE.md)](07-docs-restructure.md) | 🤖 | ✅ merged 2026-10-17 (PR #13) |
 | 08 | [Retire the Apps Script email pipeline](08-email-pipeline-consolidation.md) | 🤖 after 02's cron | later; needs the features the serverless scan lacks first |
 
-Order: 01 → 02 → (03 ∥ 04). 05–07 are merged (PR #13).
+Order: 02 → (03 ∥ 04). 01 and 05–07 are merged (PRs #9, #13).
 08 waits until the Gmail cron (in 02) has run cleanly for a week.
 
 ## Definition of done

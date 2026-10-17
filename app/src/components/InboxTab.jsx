@@ -231,7 +231,7 @@ export default function InboxTab({ contacts, apps, interactions, actionItems = [
             <h1 className="text-2xl font-semibold text-ink-900">Inbox</h1>
             <p className="text-sm text-ink-500 mt-0.5">
               Only the emails about your job search — applications, interviews, and people you're talking to.
-              {unreadCount > 0 && <span className="font-mono text-link ml-2">{unreadCount} unread</span>}
+              {unreadCount > 0 && <span className="font-mono text-ink-700 font-semibold ml-2">{unreadCount} unread</span>}
             </p>
           </div>
           <label className="ml-auto relative w-full sm:w-64">
