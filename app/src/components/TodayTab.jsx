@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
 import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TYPE_COLOR, fmt, daysUntil, daysSince, Badge, EmptyState, isUntriaged } from '../shared.jsx'
-import { updateContact, addInteraction, updateApplicationTriage, archiveApplication, updateApplication, completeActionItem, dismissActionItem } from '../db.js'
+import { updateContact, addInteraction, updateApplicationTriage, archiveApplication, updateApplication, completeActionItem, dismissActionItem, dismissActionItems } from '../db.js'
 import BarChartWrapper from './charts/BarChart.jsx'
 import DonutChart from './charts/DonutChart.jsx'
 import TrendChart from './charts/TrendChart.jsx'
 import { useChartTheme } from './charts/theme.js'
 import { logMetWithContact } from '../lib/quickLog.js'
-import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue, awaitingReply, openActionItems, learningAttention, funnelConversions } from '../lib/attention.js'
+import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue, awaitingReply, openActionItems, learningAttention, funnelConversions, trimActionItems, dedupeAcross } from '../lib/attention.js'
+import useTodayPrefs from '../lib/useTodayPrefs.js'
+import NetworkingFlowPanel from './NetworkingFlowPanel.jsx'
 import { lastPointOfContact } from '../lib/keepInTouch.js'
 import { tieStrengthBucket } from '../lib/affinity.js'
 import { statusIconFor } from '../lib/icons.js'
@@ -24,7 +26,7 @@ import TimelineFindsPanel from './TimelineFindsPanel.jsx'
 import StatTileRow from './StatTileRow.jsx'
 import ApplicationFlowPanel from './ApplicationFlowPanel.jsx'
 import Mono from './ui/Mono.jsx'
-import { Section, RowCap, HEADING_COLOR } from './ui/Section.jsx'
+import { Section, SectionAction, RowCap } from './ui/Section.jsx'
 import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity, MailQuestion, ListTodo, Sparkles, GraduationCap } from 'lucide-react'
 import GettingStarted from './onboarding/GettingStarted.jsx'
 import { isFreshAccount } from '../lib/onboarding.js'
@@ -440,10 +442,10 @@ function ActionItemRow({ item, contacts, onRefresh, onOpen }) {
 // interactive state here (no checkboxes on todo_json's bullets) — the actionable version of
 // the same information lives in the Action Items section above, so nothing is duplicated
 // across two independently-clickable surfaces.
-function DailyRecapCard({ recap }) {
+function DailyRecapCard({ recap, collapsed, onToggle }) {
   if (!recap) return null
   return (
-    <Section title="Today's Recap" accent="ink" icon={Sparkles}>
+    <Section title="Today's Recap" accent="ink" icon={Sparkles} collapsed={collapsed} onToggle={onToggle}>
       <div className="py-2 space-y-3">
         <p className="text-sm text-ink-600">{recap.summaryText}</p>
         {recap.todos?.length > 0 && (
@@ -470,7 +472,7 @@ function weekStart(d) {
   return date
 }
 
-function ActivitySection({ contacts, apps, interactions }) {
+function ActivitySection({ contacts, apps, interactions, calls, collapsed, onToggle }) {
   const chartTheme = useChartTheme()
   const triagedApps  = apps.filter(a => !isUntriaged(a))
   const hasRecruitingActivity = apps.length > 0
@@ -503,7 +505,7 @@ function ActivitySection({ contacts, apps, interactions }) {
   const hasInteractions = interactions.length > 0
 
   return (
-    <Section title="Activity" accent="ink" icon={Activity}>
+    <Section title="Activity" accent="ink" icon={Activity} collapsed={collapsed} onToggle={onToggle}>
       <StatTileRow triagedApps={triagedApps} apps={apps} trendData={trendData} />
       {hasRecruitingActivity && (
         <div className="py-3">
@@ -532,6 +534,13 @@ function ActivitySection({ contacts, apps, interactions }) {
             footer={<span>Pipeline → Sheet → Flow to filter by any band.</span>} />
         </div>
       )}
+      {interactions.length > 0 && (
+        <div className="py-3">
+          <h3 className="text-xs font-semibold text-ink-500 mb-3">Where Networking Went</h3>
+          <NetworkingFlowPanel contacts={contacts} interactions={interactions} calls={calls} height={240}
+            footer={<span>Network → Flow to see who's in each band.</span>} />
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-3">
         <div>
           <h3 className="text-xs font-semibold text-ink-500 mb-3">Network by Status</h3>
@@ -553,10 +562,10 @@ function ActivitySection({ contacts, apps, interactions }) {
 // Interview-prep attention (lib/attention.js's learningAttention): upcoming OA/interview →
 // that track's top gaps; goals behind pace; re-solve queue items due. Every row deep-links
 // to the Learn tab, which owns logging.
-function InterviewPrepRows({ prep, onOpenLearn }) {
-  return (
-    <>
-      {prep.prepGaps.map((p, i) => (
+// Returns a flat array of rows so Today can put them through RowCap like every other section.
+function interviewPrepRows({ prep, onOpenLearn }) {
+  return [
+      ...prep.prepGaps.map((p, i) => (
         <div key={`p${i}`} className="py-2.5 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-medium text-ink-900">{p.app.company} <span className="text-ink-400 font-normal">· {p.kind}{p.kind === 'OA' && p.app.oaDueDate ? <> due <Mono>{fmt(p.app.oaDueDate)}</Mono></> : ''}</span></p>
@@ -566,34 +575,53 @@ function InterviewPrepRows({ prep, onOpenLearn }) {
           </div>
           <button onClick={() => onOpenLearn?.()} className="text-xs font-medium text-accent-700 hover:underline shrink-0">Prep →</button>
         </div>
-      ))}
-      {prep.goalsBehind.map((g, i) => (
+      )),
+      ...prep.goalsBehind.map((g, i) => (
         <div key={`g${i}`} className="py-2.5 flex items-center justify-between gap-3">
           <p className="text-sm text-ink-800">Behind on a {g.track.name} goal <span className="text-ink-400">· <Mono>{g.progress.current}/{g.progress.target}</Mono> {g.goal.period === 'week' ? 'this week' : ''}</span></p>
           <button onClick={() => onOpenLearn?.()} className="text-xs font-medium text-accent-700 hover:underline shrink-0">Open →</button>
         </div>
-      ))}
-      {prep.reviewsDue.length > 0 && (
-        <div className="py-2.5 flex items-center justify-between gap-3">
+      )),
+      ...(prep.reviewsDue.length > 0 ? [
+        <div key="r" className="py-2.5 flex items-center justify-between gap-3">
           <p className="text-sm text-ink-800">{prep.reviewsDue.length} problem{prep.reviewsDue.length === 1 ? '' : 's'} due to re-solve <span className="text-ink-400">· {prep.reviewsDue.slice(0, 3).map(r => r.item.title).join(', ')}</span></p>
           <button onClick={() => onOpenLearn?.()} className="text-xs font-medium text-accent-700 hover:underline shrink-0">Review →</button>
-        </div>
-      )}
-    </>
-  )
+        </div>,
+      ] : []),
+  ]
 }
 
 export default function TodayTab({ contacts, apps, interactions = [], calls = [], relationships = [], actionItems = [], dailyRecap = null, learning = null, onOpenLearn, onLogOa, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, isDemoMode = false }) {
-  const openItems = openActionItems(actionItems)
-  const overdueContacts = overdueFollowUps(contacts)
-  const staleApps = staleApplications(apps)
-  const highUrgency = highUrgencyContacts(contacts)
-  const scheduleContacts = wantToSchedule(contacts)
-  const keepInTouch = keepInTouchDue(contacts, interactions)
-  const needsReview = needsReviewApps(apps)
-  const oaDueList = oaDue(apps)
-  const oaNeedsCheckList = oaNeedsCheck(apps)
-  const awaitingReplyList = awaitingReply(contacts, interactions)
+  const prefs = useTodayPrefs()
+  // Declutter pass 1: AI action items that already resolved themselves (replied on the
+  // thread, long expired, duplicates) never reach the list.
+  const trimmed = trimActionItems(openActionItems(actionItems), interactions)
+  // Pass 2: a contact shows up in one people section only, highest-priority first.
+  const people = dedupeAcross({
+    overdue: overdueFollowUps(contacts),
+    awaiting: awaitingReply(contacts, interactions),
+    schedule: wantToSchedule(contacts),
+    urgent: highUrgencyContacts(contacts),
+    keepInTouch: keepInTouchDue(contacts, interactions),
+  })
+  // Pass 3: rows the user hid (✕ / Clear all) stay hidden for a week.
+  const SNOOZE_KEY = { overdue: c => c.id, awaiting: x => x.contact.id, schedule: c => c.id, urgent: c => c.id, keepInTouch: x => x.contact.id, stale: a => a.id, review: a => a.id, oa: a => a.id, oaCheck: a => a.id }
+  let snoozedHidden = 0
+  const visible = (id, rows) => {
+    const out = rows.filter(r => !prefs.isSnoozed(`${id}:${SNOOZE_KEY[id](r)}`))
+    snoozedHidden += rows.length - out.length
+    return out
+  }
+  const openItems = trimmed.items
+  const overdueContacts = visible('overdue', people.overdue)
+  const awaitingReplyList = visible('awaiting', people.awaiting)
+  const scheduleContacts = visible('schedule', people.schedule)
+  const highUrgency = visible('urgent', people.urgent)
+  const keepInTouch = visible('keepInTouch', people.keepInTouch)
+  const staleApps = visible('stale', staleApplications(apps))
+  const needsReview = visible('review', needsReviewApps(apps))
+  const oaDueList = visible('oa', oaDue(apps))
+  const oaNeedsCheckList = visible('oaCheck', oaNeedsCheck(apps))
   const prep = learningAttention(learning, apps)
   const prepCount = prep.prepGaps.length + prep.goalsBehind.length + prep.reviewsDue.length
   // Recruiting events (v1.1): empty when there's no pool or no campus picked yet.
@@ -602,6 +630,7 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
   const [selectedContactId, setSelectedContactId] = useState(null)
   const [selectedAppId, setSelectedAppId] = useState(null)
   const [logContact, setLogContact] = useState(null)
+  const [dismissingAll, setDismissingAll] = useState(false)
   const {
     pending: timelineFinds, running: timelineFindsRunning, error: timelineFindsError, meta: timelineFindsMeta,
     scan: scanTimelineFinds, dismiss: dismissTimelineFind, updateField: updateTimelineFindField, approve: approveTimelineFind,
@@ -620,6 +649,13 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
     onRefresh?.()
   }
 
+  async function dismissAllItems() {
+    if (!window.confirm(`Dismiss all ${openItems.length} action items? They won't come back.`)) return
+    setDismissingAll(true)
+    try { await dismissActionItems(openItems.map(i => i.id)); onRefresh?.() }
+    finally { setDismissingAll(false) }
+  }
+
   const selectedApp = selectedAppId ? apps.find(a => a.id === selectedAppId) : null
 
   // useTimelineFinds is called unconditionally near the top of this component (above this
@@ -630,129 +666,106 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
   // state-synchronization step needed (unlike Plan 02-05's synced-count-state workaround,
   // which this replaces). Timeline Finds is still short-circuited/ignored in demo mode,
   // matching the section's own demo-mode exclusion below.
-  const allEmpty = overdueContacts.length === 0 && staleApps.length === 0 && highUrgency.length === 0
-    && keepInTouch.length === 0 && needsReview.length === 0 && scheduleContacts.length === 0
-    && oaDueList.length === 0 && oaNeedsCheckList.length === 0 && awaitingReplyList.length === 0
-    && openItems.length === 0 && prepCount === 0 && eventAttention.count === 0
+  const listCount = openItems.length + overdueContacts.length + staleApps.length + highUrgency.length
+    + keepInTouch.length + needsReview.length + scheduleContacts.length + oaDueList.length
+    + oaNeedsCheckList.length + awaitingReplyList.length
+  const allEmpty = listCount === 0 && prepCount === 0 && eventAttention.count === 0
     && (isDemoMode || timelineFinds.length === 0)
 
+  // One snoozable feed section: collapsible heading, per-row ✕, "Clear all" hides the lot for
+  // a week. Action Items pass `onClearAll` instead (they have a real dismiss).
+  const COLLAPSIBLE = ['recap', 'items', 'overdue', 'stale', 'urgent', 'keepInTouch', 'review', 'schedule', 'oa', 'oaCheck', 'prep', 'awaiting', 'activity', 'evSteps', 'evReg', 'evFollow', 'evFeeds']
+  const feed = ({ id, title, accent, icon, subtitle, items, renderItem, onClearAll, clearing }) => items.length > 0 && (
+    <motion.div variants={rise}>
+      <Section title={`${title} (${items.length})`} accent={accent} icon={icon} subtitle={subtitle}
+        collapsed={prefs.isCollapsed(id)} onToggle={() => prefs.toggleCollapsed(id)}
+        actions={onClearAll
+          ? <SectionAction onClick={onClearAll} disabled={clearing}>{clearing ? 'Clearing…' : 'Dismiss all'}</SectionAction>
+          : <SectionAction onClick={() => prefs.snooze(items.map(x => `${id}:${SNOOZE_KEY[id](x)}`))}>Clear all</SectionAction>}>
+        <RowCap items={items} tier={accent} renderItem={renderItem}
+          onHide={onClearAll ? undefined : x => prefs.snooze([`${id}:${SNOOZE_KEY[id](x)}`])} />
+      </Section>
+    </motion.div>
+  )
+  const fold = id => ({ collapsed: prefs.isCollapsed(id), onToggle: () => prefs.toggleCollapsed(id) })
+  const allCollapsed = COLLAPSIBLE.every(id => prefs.isCollapsed(id))
+
   return (
-    <motion.div className="space-y-4" variants={container} initial="hidden" animate="show">
+    <motion.div className="space-y-3" variants={container} initial="hidden" animate="show">
+      {!allEmpty && (
+        <motion.div variants={rise} className="flex items-center gap-4 flex-wrap text-xs text-ink-400 px-1">
+          <span><Mono className="text-ink-700 font-semibold">{listCount + prepCount}</Mono> to look at</span>
+          {trimmed.hidden > 0 && <span title="Already replied on the thread, long past due, or duplicates">{trimmed.hidden} resolved AI items auto-hidden</span>}
+          <span className="ml-auto flex items-center gap-4">
+            {snoozedHidden > 0 && (
+              <button onClick={prefs.clearSnoozes} className="hover:text-ink-700 hover:underline">Unhide {snoozedHidden}</button>
+            )}
+            <button onClick={() => prefs.setAllCollapsed(allCollapsed ? [] : COLLAPSIBLE)} className="hover:text-ink-700 hover:underline">
+              {allCollapsed ? 'Expand all' : 'Collapse all'}
+            </button>
+          </span>
+        </motion.div>
+      )}
+
       {dailyRecap && (
         <motion.div variants={rise}>
-          <DailyRecapCard recap={dailyRecap} />
+          <DailyRecapCard recap={dailyRecap} collapsed={prefs.isCollapsed('recap')} onToggle={() => prefs.toggleCollapsed('recap')} />
         </motion.div>
       )}
 
       {allEmpty && (!isDemoMode && isFreshAccount({ contacts, apps })
         ? <GettingStarted hasApps={apps.length > 0} hasContacts={contacts.length > 0} />
-        : <EmptyState msg="✓ Nothing needs your attention. You're on top of it." />)}
-
-      {openItems.length > 0 && (
-        <motion.div variants={rise}>
-          <Section title={`Action Items (${openItems.length})`} accent="warning" icon={ListTodo}
-            subtitle="Flagged by AI while processing your email — a specific next step, not just a stale date.">
-            <RowCap items={openItems} tier="warning"
-              renderItem={item => <ActionItemRow key={item.id} item={item} contacts={contacts} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} />} />
-          </Section>
-        </motion.div>
+        : <EmptyState msg={snoozedHidden ? `✓ Nothing left — ${snoozedHidden} hidden for now.` : "✓ Nothing needs your attention. You're on top of it."} />)}
+      {allEmpty && snoozedHidden > 0 && (
+        <p className="text-center -mt-1"><button onClick={prefs.clearSnoozes} className="text-xs text-link hover:underline">Unhide them</button></p>
       )}
 
-      {overdueContacts.length > 0 && (
-        <motion.div variants={rise}>
-          <Section title={`Overdue Follow-Ups (${overdueContacts.length})`} accent="danger" icon={CalendarClock}>
-            <RowCap items={overdueContacts} tier="danger"
-              renderItem={c => <OverdueRow key={c.id} contact={c} interactions={interactions} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} />} />
-          </Section>
-        </motion.div>
-      )}
+      {feed({ id: 'items', title: 'Action Items', accent: 'warning', icon: ListTodo, items: openItems,
+        subtitle: 'Flagged by AI from your email.',
+        onClearAll: dismissAllItems, clearing: dismissingAll,
+        renderItem: item => <ActionItemRow key={item.id} item={item} contacts={contacts} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} /> })}
 
-      {staleApps.length > 0 && (
-        <motion.div variants={rise}>
-          <Section title={`Stale Applications (${staleApps.length})`} accent="danger" icon={Hourglass}
-            subtitle="No movement in 14+ days — follow up or update the stage.">
-            <RowCap items={staleApps} tier="danger"
-              renderItem={a => <ApplicationRow key={a.id} app={a} showTriageChips={false} onOpen={x => setSelectedAppId(x.id)} changeAppTriage={changeAppTriage} />} />
-          </Section>
-        </motion.div>
-      )}
+      {feed({ id: 'overdue', title: 'Overdue Follow-Ups', accent: 'danger', icon: CalendarClock, items: overdueContacts,
+        renderItem: c => <OverdueRow key={c.id} contact={c} interactions={interactions} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} /> })}
 
-      {highUrgency.length > 0 && (
-        <motion.div variants={rise}>
-          <Section title={`High Urgency Contacts (${highUrgency.length})`} accent="danger" icon={AlertTriangle}>
-            <RowCap items={highUrgency} tier="danger"
-              renderItem={c => <HighUrgencyRow key={c.id} contact={c} onOpen={x => setSelectedContactId(x.id)} />} />
-          </Section>
-        </motion.div>
-      )}
+      {feed({ id: 'stale', title: 'Stale Applications', accent: 'danger', icon: Hourglass, items: staleApps,
+        subtitle: 'No movement in 14+ days.',
+        renderItem: a => <ApplicationRow key={a.id} app={a} showTriageChips={false} onOpen={x => setSelectedAppId(x.id)} changeAppTriage={changeAppTriage} /> })}
 
-      {keepInTouch.length > 0 && (
-        <motion.div variants={rise}>
-          <Section title={`Keep in Touch Due (${keepInTouch.length})`} accent="warning" icon={HeartHandshake}>
-            <RowCap items={keepInTouch} tier="warning"
-              renderItem={({ contact: c, status }) => (
-                <KeepInTouchRow key={c.id} contact={c} status={status} interactions={interactions}
-                  onOpen={x => setSelectedContactId(x.id)} onLog={x => setLogContact(x)} onMet={handleMet} />
-              )} />
-          </Section>
-        </motion.div>
-      )}
+      {feed({ id: 'oa', title: 'OA Due', accent: 'warning', icon: ClipboardCheck, items: oaDueList,
+        renderItem: a => <OaRow key={a.id} app={a} onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} onLogOa={onLogOa} /> })}
 
-      {needsReview.length > 0 && (
-        <motion.div variants={rise}>
-          <Section title={`Job Boards Needs-Review (${needsReview.length})`} accent="warning" icon={Inbox}>
-            <RowCap items={needsReview} tier="warning"
-              renderItem={a => <ApplicationRow key={a.id} app={a} showTriageChips onOpen={x => setSelectedAppId(x.id)} changeAppTriage={changeAppTriage} />} />
-          </Section>
-        </motion.div>
-      )}
+      {feed({ id: 'awaiting', title: 'Awaiting Reply', accent: 'warning', icon: MailQuestion, items: awaitingReplyList,
+        renderItem: item => <AwaitingReplyRow key={item.contact.id} item={item} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} /> })}
 
-      {scheduleContacts.length > 0 && (
-        <motion.div variants={rise}>
-          <Section title={`Want to Schedule (${scheduleContacts.length})`} accent="ink" icon={UserPlus}>
-            <RowCap items={scheduleContacts} tier="ink"
-              renderItem={c => <ScheduleRow key={c.id} contact={c} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} />} />
-          </Section>
-        </motion.div>
-      )}
+      {feed({ id: 'urgent', title: 'High Urgency Contacts', accent: 'danger', icon: AlertTriangle, items: highUrgency,
+        renderItem: c => <HighUrgencyRow key={c.id} contact={c} onOpen={x => setSelectedContactId(x.id)} /> })}
 
-      {oaDueList.length > 0 && (
-        <motion.div variants={rise}>
-          <Section title={`OA-Due (${oaDueList.length})`} accent="warning" icon={ClipboardCheck}>
-            <RowCap items={oaDueList} tier="warning"
-              renderItem={a => <OaRow key={a.id} app={a} onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} onLogOa={onLogOa} />} />
-          </Section>
-        </motion.div>
-      )}
+      {feed({ id: 'schedule', title: 'Want to Schedule', accent: 'ink', icon: UserPlus, items: scheduleContacts,
+        renderItem: c => <ScheduleRow key={c.id} contact={c} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} /> })}
 
-      {oaNeedsCheckList.length > 0 && (
-        <motion.div variants={rise}>
-          <Section title={`OA-Needs-Check (${oaNeedsCheckList.length})`} accent="ink" icon={Search}>
-            <RowCap items={oaNeedsCheckList} tier="ink"
-              renderItem={a => <OaRow key={a.id} app={a} needsCheck onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} onLogOa={onLogOa} />} />
-          </Section>
-        </motion.div>
-      )}
+      {feed({ id: 'keepInTouch', title: 'Keep in Touch', accent: 'warning', icon: HeartHandshake, items: keepInTouch,
+        renderItem: ({ contact: c, status }) => (
+          <KeepInTouchRow key={c.id} contact={c} status={status} interactions={interactions}
+            onOpen={x => setSelectedContactId(x.id)} onLog={x => setLogContact(x)} onMet={handleMet} />
+        ) })}
 
-      {/* Event deadlines sit right after the OA deadline sections — same "a date is
-          coming that gates something" family — and before the softer prep/reply nudges. */}
-      <EventDeadlineSections attention={eventAttention} pool={eventPool} onOpenEvents={onOpenEvents} rise={rise} />
+      {feed({ id: 'review', title: 'Job Boards Needs-Review', accent: 'warning', icon: Inbox, items: needsReview,
+        renderItem: a => <ApplicationRow key={a.id} app={a} showTriageChips onOpen={x => setSelectedAppId(x.id)} changeAppTriage={changeAppTriage} /> })}
+
+      {feed({ id: 'oaCheck', title: 'OA Needs Check', accent: 'ink', icon: Search, items: oaNeedsCheckList,
+        renderItem: a => <OaRow key={a.id} app={a} needsCheck onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} onLogOa={onLogOa} /> })}
+
+      {/* Event deadlines sit after the OA deadline sections — same "a date is coming that
+          gates something" family — and before the softer prep nudges. */}
+      <EventDeadlineSections attention={eventAttention} pool={eventPool} onOpenEvents={onOpenEvents} rise={rise} fold={fold} />
 
       {prepCount > 0 && (
         <motion.div variants={rise}>
           <Section title={`Interview Prep (${prepCount})`} accent="accent" icon={GraduationCap}
-            subtitle="From Learn — what to shore up before upcoming assessments and interviews.">
-            <InterviewPrepRows prep={prep} onOpenLearn={onOpenLearn} />
-          </Section>
-        </motion.div>
-      )}
-
-      {awaitingReplyList.length > 0 && (
-        <motion.div variants={rise}>
-          <Section title={`Awaiting Reply (${awaitingReplyList.length})`} accent="warning" icon={MailQuestion}
-            subtitle="You sent the last message and haven't heard back — nudge or note the reply.">
-            <RowCap items={awaitingReplyList} tier="warning"
-              renderItem={item => <AwaitingReplyRow key={item.contact.id} item={item} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} />} />
+            subtitle="From Learn — what to shore up before upcoming assessments and interviews."
+            collapsed={prefs.isCollapsed('prep')} onToggle={() => prefs.toggleCollapsed('prep')}>
+            <RowCap items={interviewPrepRows({ prep, onOpenLearn })} tier="accent" renderItem={row => row} />
           </Section>
         </motion.div>
       )}
@@ -766,10 +779,11 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
         </motion.div>
       )}
 
-      <EventFeedHealth attention={eventAttention} rise={rise} />
+      <EventFeedHealth attention={eventAttention} rise={rise} fold={fold} />
 
       <motion.div variants={rise}>
-        <ActivitySection contacts={contacts} apps={apps} interactions={interactions} />
+        <ActivitySection contacts={contacts} apps={apps} interactions={interactions} calls={calls}
+          collapsed={prefs.isCollapsed('activity')} onToggle={() => prefs.toggleCollapsed('activity')} />
       </motion.div>
 
       <SidePanel open={!!selectedContactId} onClose={() => setSelectedContactId(null)}>

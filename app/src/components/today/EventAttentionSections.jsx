@@ -207,13 +207,14 @@ function FollowUpRow({ item, pool, onOpenEvents }) {
 }
 
 // The three deadline sections, rendered as siblings in TodayTab's stagger stack.
-export function EventDeadlineSections({ attention, pool, onOpenEvents, rise, now = Date.now() }) {
+// `fold(id)` (optional) → { collapsed, onToggle } so Today's collapse controls reach these too.
+export function EventDeadlineSections({ attention, pool, onOpenEvents, rise, fold = () => ({}), now = Date.now() }) {
   const { steps, registrations, followUps } = attention
   return (
     <>
       {steps.length > 0 && (
         <motion.div variants={rise}>
-          <Section title={`Signup Steps Due (${steps.length})`} accent="warning" icon={CalendarCheck2}
+          <Section title={`Signup Steps Due (${steps.length})`} {...fold('evSteps')} accent="warning" icon={CalendarCheck2}
             subtitle="Required steps before a recruiting event lets you in.">
             <RowCap items={steps} tier="warning"
               renderItem={it => <StepRow key={it.requirement.id} item={it} pool={pool} now={now} onOpenEvents={onOpenEvents} />} />
@@ -222,7 +223,7 @@ export function EventDeadlineSections({ attention, pool, onOpenEvents, rise, now
       )}
       {registrations.length > 0 && (
         <motion.div variants={rise}>
-          <Section title={`Registration Closing (${registrations.length})`} accent="warning" icon={TicketCheck}>
+          <Section title={`Registration Closing (${registrations.length})`} {...fold('evReg')} accent="warning" icon={TicketCheck}>
             <RowCap items={registrations} tier="warning"
               renderItem={it => <RegistrationRow key={it.event.id} item={it} pool={pool} now={now} onOpenEvents={onOpenEvents} />} />
           </Section>
@@ -230,7 +231,7 @@ export function EventDeadlineSections({ attention, pool, onOpenEvents, rise, now
       )}
       {followUps.length > 0 && (
         <motion.div variants={rise}>
-          <Section title={`Event Follow-Ups Overdue (${followUps.length})`} accent="danger" icon={MessageSquareReply}>
+          <Section title={`Event Follow-Ups Overdue (${followUps.length})`} {...fold('evFollow')} accent="danger" icon={MessageSquareReply}>
             <RowCap items={followUps} tier="danger"
               renderItem={it => <FollowUpRow key={it.userEvent.eventId} item={it} pool={pool} onOpenEvents={onOpenEvents} />} />
           </Section>
@@ -241,12 +242,12 @@ export function EventDeadlineSections({ attention, pool, onOpenEvents, rise, now
 }
 
 // Quiet feed-health notice: one line per degraded source. Informational, not a to-do.
-export function EventFeedHealth({ attention, rise }) {
+export function EventFeedHealth({ attention, rise, fold = () => ({}) }) {
   const { degraded } = attention
   if (!degraded.length) return null
   return (
     <motion.div variants={rise}>
-      <Section title={`Event Feeds Degraded (${degraded.length})`} accent="ink" icon={RadioTower}
+      <Section title={`Event Feeds Degraded (${degraded.length})`} {...fold('evFeeds')} accent="ink" icon={RadioTower}
         subtitle="Nothing from these feeds was written — events from them may be missing or stale.">
         {degraded.map(s => (
           <div key={s.id} className="py-2 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">

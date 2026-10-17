@@ -571,6 +571,14 @@ export async function dismissActionItem(id) {
   throwIfError(error, 'dismissActionItem')
 }
 
+// Today's "Clear all" on Action Items — one round trip instead of N.
+export async function dismissActionItems(ids) {
+  if (isDemoMode() || !ids.length) return
+  const { error } = await supabase.from('email_action_items')
+    .update({ dismissed_at: new Date().toISOString() }).in('id', ids)
+  throwIfError(error, 'dismissActionItems')
+}
+
 export async function fetchDailyRecap() {
   if (isDemoMode()) return null
   const { data, error } = await supabase.from('daily_recaps').select('*')
