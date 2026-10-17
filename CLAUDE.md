@@ -95,6 +95,8 @@ and Settings (`DEMO_NAV_ITEMS` in `App.jsx`).
   migrate them in place; matching keys off `normalizeCompanyName`.
 - **Styling:** semantic tokens only (`bg-surface`, `text-ink-*`, `text-on-accent`, `text-link`;
   never `bg-white` or raw Tailwind colors). Chart colors go through the `dataviz` skill and `charts/theme.js`.
+  Only clickable things look clickable: hover/pointer only on handlers, `text-link` only on links
+  (`docs/architecture/design-system.md` → Affordances).
 - **Process:** no GSD orchestration. Work inline, tests first where a spec names them, then
   `npm test && npm run build`, then check in the browser, one commit per spec. Subagents only when the user asks.
 - **Never commit** `.env*`, `context.md`, `CLAUDE.local.md`, `.clasp.json`. Claude Code can't read
