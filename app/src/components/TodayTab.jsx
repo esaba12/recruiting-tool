@@ -31,8 +31,7 @@ import { isFreshAccount } from '../lib/onboarding.js'
 import { addDaysLocal, todayLocal } from '../lib/dates.js'
 import { deriveEventAttention, EventDeadlineSections, EventFeedHealth } from './today/EventAttentionSections.jsx'
 
-// Matches KeepInTouchTab.jsx:8 exactly — private to that component there, ported verbatim
-// here since it isn't exported.
+// Originally from the retired KeepInTouchTab.jsx; Today is its only home now.
 const TIE_LABEL = { strong: 'Close tie', moderate: 'Moderate tie', weak: 'Weak tie', cold: 'Not yet connected' }
 
 // Mount-time stagger for the whole Section list (D-04) — same shape as NotFoundPage.jsx's
@@ -233,7 +232,7 @@ function HighUrgencyRow({ contact: c, onOpen }) {
   )
 }
 
-// Ported from KeepInTouchTab.jsx:40-87, remapped onto onOpen/onLog/onMet. `status` is the
+// Ported from the retired KeepInTouchTab.jsx, remapped onto onOpen/onLog/onMet. `status` is the
 // per-contact { cadence, dueDate, overdueDays, never } object keepInTouchDue's queue items
 // carry alongside `contact` — required for the cadence/overdue text below, so it's threaded
 // in as its own prop rather than recomputed here.

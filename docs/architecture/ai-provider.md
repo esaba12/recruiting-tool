@@ -1,0 +1,15 @@
+# AI provider switch
+
+> Moved out of CLAUDE.md on 2026-10-16 (v1.3 spec 07). Dated "shipped" notes are history; check the code before trusting a detail.
+
+## AI Provider Switch (shipped 2026-07-22, defaults flipped 2026-07-23)
+
+> **Current (2026-10-12+):** the provider is per user, picked in Settings → AI provider (`profiles.ai_provider` → `lib/aiProvider.js` → `setAiProvider()` from `AuthContext`). `VITE_AI_PROVIDER` is only the default for users who haven't chosen one. The env-var instructions below still work but are no longer the main switch.
+
+Both Claude and OpenAI are fully wired for every text-only AI call in the app (job blurbs/fit analysis, deadline extraction, contact enrichment, company ranking, call/email/LinkedIn extraction, timeline scanning, drafting) — `lib/ai.js` is the single switch between them, so which provider is active is a **one-line env change, not a code change**.
+
+- **Default: Claude** (`CLAUDE_MODELS.HAIKU`/`SONNET`, via `lib/claude.js` + `/claude-api`).
+- **To switch to OpenAI:** set `VITE_AI_PROVIDER=openai` in the root `.env` (repo root — same place `NOTION_API_KEY` etc. live) and restart the dev server; for production, set the same var in Vercel's env vars and redeploy (Vite inlines `import.meta.env.VITE_*` at *build* time, so a live env-var change alone won't flip it without a rebuild). Needs `OPENAI_API_KEY` set either way it's used.
+- Every call site imports `aiJSON`/`aiText`/`AI_MODELS` from `lib/ai.js` (never `lib/claude.js`/`lib/openai.js` directly, except `lib/ai.js` itself) and uses provider-agnostic tiers — `AI_MODELS.MINI` (cheap/fast structured extraction) and `AI_MODELS.STANDARD` (heavier judgment calls: company ranking, call/email extraction) — which resolve to the right underlying model name for whichever provider is active. UI copy that names the provider (e.g. "Analyzing with Claude...") reads `AI_PROVIDER_LABEL` from the same file rather than hardcoding either name, so it never goes stale when the switch flips.
+- **Vision stays on Claude regardless of the switch** — `AddToCalendarModal`'s screenshot→event extraction always calls `lib/claude.js`'s Sonnet vision directly, never through `lib/ai.js`. Anthropic's and OpenAI's image content-block formats differ enough that swapping it untested would carry real regression risk with no way to verify output quality without a live screenshot; every other call site is plain text→JSON, so routing those through the switch was low-risk.
+- `lib/openai.js` mirrors `lib/claude.js`'s exact shape (`openaiJSON`/`openaiText`, same `{model, content, maxTokens}` signature, shared `parseJSONLoose` salvage logic from `claude.js`) — that symmetry is what makes `lib/ai.js`'s dispatch a two-line `if`. GPT-5.1's chat completions endpoint uses `max_completion_tokens` (not the deprecated `max_tokens`) and `response_format:{type:'json_object'}` for JSON mode — see `api/openai.js` + the `/openai-api` proxy entries in `vite.config.js`/`vercel.json`, which mirror `/claude-api`'s pattern exactly (flat-file `?path=` proxy, fresh headers server-side, browser Origin/Referer stripped in dev).

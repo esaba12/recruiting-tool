@@ -1,7 +1,3 @@
-transcripts/*
-jds/*
-!transcripts/.gitkeep
-!jds/.gitkeep
 
 # credentials & personal context — never commit
 context.md

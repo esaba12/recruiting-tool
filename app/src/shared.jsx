@@ -56,9 +56,7 @@ export const STATUS_OPTIONS = Object.keys(STATUS_COLOR)
 export const URGENCY_OPTIONS = ['HIGH','MED','LOW']
 // Shared-background signals, distinct from ROLE_OPTIONS's 'Alumni' (which describes this
 // contact's relationship *type* to you, not a background they happen to share with you).
-// Default vocabulary for spots that can't reach the signed-in user's profile.
-export const AFFINITY_OPTIONS_DEFAULT = ['Same School','Same Hometown','Shared Club/Activity','Warm Intro']
-// Profile-driven version — the first option reads whatever school the user set in
+// The first option reads whatever school the user set in
 // Settings (profiles.school), falling back to a generic 'Same School' when none is set, so
 // this vocabulary never assumes every user/contact went to one particular school.
 export function affinityOptionsFor(profile) {

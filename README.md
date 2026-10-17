@@ -125,12 +125,11 @@ scripts/
   migrate-notion-to-supabase.js   One-time: pull an existing Notion workspace into Supabase
 supabase/
   migrations/                 SQL schema + RLS policies
-notion/                      Legacy: schema reference + setup scripts for the
-                             original single-tenant Notion version, kept only
-                             for the one-time migration path above.
+notion/schema.md             Legacy Notion field reference for the migration script
+docs/architecture/           Topic deep dives (auth, events, Learn, calendar, …)
 ```
 
-See [`CLAUDE.md`](CLAUDE.md) for a full technical overview.
+See [`CLAUDE.md`](CLAUDE.md) for the technical overview and [`docs/architecture/`](docs/architecture/) for the deep dives.
 
 ---
 

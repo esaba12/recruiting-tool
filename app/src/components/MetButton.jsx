@@ -4,7 +4,7 @@ import { Handshake, Check } from 'lucide-react'
 // One-tap "met with them" — logs a Meeting interaction and bumps Last Interaction/Follow-Up
 // Date via onMet (see lib/quickLog.js's logMetWithContact), with no modal in the way. Used
 // wherever a contact row is already visible: ContactsTable, NetworkTab's Cards view,
-// KeepInTouchTab.
+// Today's Keep in Touch rows.
 export default function MetButton({ contact, onMet, className = '' }) {
   const [state, setState] = useState('idle') // idle | logging | done | error
 

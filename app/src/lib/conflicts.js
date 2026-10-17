@@ -122,11 +122,6 @@ export function formatFragments(fragments, timeZone = 'UTC') {
   return (fragments || []).map(f => `${hhmm(f.start)}–${hhmm(f.end)}`).join(', ')
 }
 
-// Longest fragment first — the "best single window to be there" for a day plan.
-export function bestFragment(fragments) {
-  return [...(fragments || [])].sort((a, b) => b.minutes - a.minutes)[0] || null
-}
-
 // Glue for the app's own shapes: a pool event + googleCalendar.js listEvents()
 // output (both slots) + the user's per-block overrides + the school's transit
 // buffer → freeFragments(). Events with no end default to a 1-hour window.

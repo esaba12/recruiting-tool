@@ -63,8 +63,6 @@ export function setAppearance(next) {
   return state
 }
 
-export function getAppearance() { return state }
-
 function subscribe(l) { listeners.add(l); return () => listeners.delete(l) }
 // Snapshot includes the resolved mode so a System-mode OS flip re-renders subscribers.
 let snap = null

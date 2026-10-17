@@ -27,7 +27,11 @@ export function pipelineViewsFor(profile) {
 }
 
 export default function PipelineTab({ apps, contacts = [], interactions = [], relationships = [], onRefresh, onRefreshApps, onImported = onRefresh, onFindPeople, onRefreshRelationships, views = PIPELINE_VIEWS }) {
-  const [view, setView] = useState('applications')
+  const [view, setViewState] = useState('applications')
+  // Job Boards holds pulled board results + search history in local state, so once
+  // opened it stays mounted (hidden) instead of being thrown away on every switch.
+  const [boardsOpened, setBoardsOpened] = useState(false)
+  const setView = (key) => { if (key === 'jobBoards') setBoardsOpened(true); setViewState(key) }
 
   return (
     <div>
@@ -47,7 +51,11 @@ export default function PipelineTab({ apps, contacts = [], interactions = [], re
 
       {view === 'applications' && <ApplicationsView apps={apps} contacts={contacts} interactions={interactions} relationships={relationships} onRefresh={onRefresh} onFindPeople={onFindPeople} onRefreshRelationships={onRefreshRelationships} />}
       {view === 'sheet' && <ApplicationsSheet apps={apps} contacts={contacts} interactions={interactions} relationships={relationships} onRefresh={onRefresh} onRefreshApps={onRefreshApps} onFindPeople={onFindPeople} onRefreshRelationships={onRefreshRelationships} />}
-      {view === 'jobBoards' && <JobBoardsView apps={apps} onImported={onImported} />}
+      {boardsOpened && (
+        <div hidden={view !== 'jobBoards'}>
+          <JobBoardsView apps={apps} onImported={onImported} />
+        </div>
+      )}
     </div>
   )
 }
