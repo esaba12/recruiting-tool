@@ -1,5 +1,5 @@
 import { parseJobDate } from './helpers.js'
-import BarChart from '../charts/BarChart.jsx'
+import { BarChart } from '../charts/lazy.jsx'
 
 export default function RepoStats({ jobs }) {
   const now     = new Date()

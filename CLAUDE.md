@@ -118,7 +118,6 @@ and Settings (`DEMO_NAV_ITEMS` in `App.jsx`).
 ## Known issues
 
 - Google refresh tokens expire every 7 days while the consent screen is in Testing mode. Fix: publish (v1.3 spec 02 A4).
-- `vite build` warns about a chunk over 500 KB; lazy-loading by tab is written up in v1.3 spec 06 E.
 - Two email pipelines with duplicated classifier prompts (`INTERVIEW_VS_NETWORKING` in both). Keep them in sync until v1.3 spec 08 lands.
 
 ## docs/architecture index

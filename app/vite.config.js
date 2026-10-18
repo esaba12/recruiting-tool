@@ -89,5 +89,16 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3001,
     },
+    build: {
+      rollupOptions: {
+        output: {
+          // React and Supabase change far less often than app code, so they get their own
+          // long-cached chunk (v1.3 spec 09). Everything else is left to Rollup's splitting.
+          manualChunks(id) {
+            if (/node_modules\/(react|react-dom|scheduler|@supabase)\//.test(id)) return 'vendor'
+          },
+        },
+      },
+    },
   }
 })

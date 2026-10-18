@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import { CalendarCheck2, TicketCheck, MessageSquareReply, RadioTower } from 'lucide-react'
 import { eventRequirementsDue, registrationClosingSoon, eventFollowUpsOverdue, degradedEventSources } from '../../lib/attention.js'
 import { REQUIREMENT_LABEL } from '../../lib/eventRequirements.js'
@@ -213,29 +213,29 @@ export function EventDeadlineSections({ attention, pool, onOpenEvents, rise, fol
   return (
     <>
       {steps.length > 0 && (
-        <motion.div variants={rise}>
+        <m.div variants={rise}>
           <Section title={`Signup Steps Due (${steps.length})`} {...fold('evSteps')} accent="warning" icon={CalendarCheck2}
             subtitle="Required steps before a recruiting event lets you in.">
             <RowCap items={steps} tier="warning"
               renderItem={it => <StepRow key={it.requirement.id} item={it} pool={pool} now={now} onOpenEvents={onOpenEvents} />} />
           </Section>
-        </motion.div>
+        </m.div>
       )}
       {registrations.length > 0 && (
-        <motion.div variants={rise}>
+        <m.div variants={rise}>
           <Section title={`Registration Closing (${registrations.length})`} {...fold('evReg')} accent="warning" icon={TicketCheck}>
             <RowCap items={registrations} tier="warning"
               renderItem={it => <RegistrationRow key={it.event.id} item={it} pool={pool} now={now} onOpenEvents={onOpenEvents} />} />
           </Section>
-        </motion.div>
+        </m.div>
       )}
       {followUps.length > 0 && (
-        <motion.div variants={rise}>
+        <m.div variants={rise}>
           <Section title={`Event Follow-Ups Overdue (${followUps.length})`} {...fold('evFollow')} accent="danger" icon={MessageSquareReply}>
             <RowCap items={followUps} tier="danger"
               renderItem={it => <FollowUpRow key={it.userEvent.eventId} item={it} pool={pool} onOpenEvents={onOpenEvents} />} />
           </Section>
-        </motion.div>
+        </m.div>
       )}
     </>
   )
@@ -246,7 +246,7 @@ export function EventFeedHealth({ attention, rise, fold = () => ({}) }) {
   const { degraded } = attention
   if (!degraded.length) return null
   return (
-    <motion.div variants={rise}>
+    <m.div variants={rise}>
       <Section title={`Event Feeds Degraded (${degraded.length})`} {...fold('evFeeds')} accent="ink" icon={RadioTower}
         subtitle="Nothing from these feeds was written — events from them may be missing or stale.">
         {degraded.map(s => (
@@ -259,6 +259,6 @@ export function EventFeedHealth({ attention, rise, fold = () => ({}) }) {
           </div>
         ))}
       </Section>
-    </motion.div>
+    </m.div>
   )
 }

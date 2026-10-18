@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { buildApplicationFlow, flowSummary, GHOST_DAYS } from '../lib/applicationFlow.js'
-import SankeyChart from './charts/SankeyChart.jsx'
+import { SankeyChart } from './charts/lazy.jsx'
 import Mono from './ui/Mono.jsx'
 
 // Headline numbers + the outcome Sankey. Shared by Pipeline → Sheet (where clicking a

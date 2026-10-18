@@ -1,6 +1,6 @@
 # 09 — Split the bundle by tab
 
-**Who:** 🤖. **Needs from owner:** nothing. **Status:** open.
+**Who:** 🤖. **Needs from owner:** nothing. **Status:** done on `feat/bundle-split` (2026-10-18); results at the bottom.
 
 ## Why
 
@@ -63,3 +63,23 @@ so lazy tabs alone won't take Recharts off the landing path. The charts need the
 
 The PR shows the before/after table, every tab loads cold on a preview deploy, and the build
 warning is gone or explained.
+
+## Result (2026-10-18)
+
+| | Before | After |
+|---|---|---|
+| Entry `index-*.js` | 1,985 KB (585 gzip) | 497 KB (154 gzip) |
+| `vendor-*.js` (react, supabase) | in entry | 357 KB (101 gzip) |
+| **What Today downloads** | **1,985 KB (585 gzip)** | **853 KB (255 gzip), −57%** |
+| Build warning | yes | none |
+
+Beyond the plan: the Network table (`@tanstack/table`, 136 KB src), the three quick-add
+modals and the onboarding wizard are lazy too, and animated elements moved to `m.*` under
+`<LazyMotion>` with the features loaded async (`lib/motionFeatures.js`). `Reorder` in Learn's
+CustomizePanel still uses full `motion`, which now lives in the Learn chunk.
+
+Checked on `vite preview` (the prod build) at `/demo`: every tab and sub-view (Network
+Table/Cards/Graph/Flow, Pipeline Applications/Sheet) renders, the idle prefetch loads all
+chunks, the side panel animates, and the console is clean (only the preview's missing favicon).
+**Not checked:** the signed-in-only tabs (Grow, Settings, Outbox, Job Boards) render through the
+same lazy wrappers, but they need a session; check them on the Vercel preview, along with the CSP.

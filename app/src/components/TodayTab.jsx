@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TYPE_COLOR, fmt, daysUntil, daysSince, Badge, EmptyState, isUntriaged } from '../shared.jsx'
 import { updateContact, addInteraction, updateApplicationTriage, archiveApplication, updateApplication, completeActionItem, dismissActionItem, dismissActionItems } from '../db.js'
-import BarChartWrapper from './charts/BarChart.jsx'
-import DonutChart from './charts/DonutChart.jsx'
-import TrendChart from './charts/TrendChart.jsx'
+import { BarChart as BarChartWrapper, DonutChart, TrendChart } from './charts/lazy.jsx'
 import { useChartTheme } from './charts/theme.js'
 import { logMetWithContact } from '../lib/quickLog.js'
 import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue, awaitingReply, openActionItems, learningAttention, funnelConversions, trimActionItems, dedupeAcross } from '../lib/attention.js'
@@ -680,7 +678,7 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
   // a week. Action Items pass `onClearAll` instead (they have a real dismiss).
   const COLLAPSIBLE = ['recap', 'items', 'overdue', 'stale', 'urgent', 'keepInTouch', 'review', 'schedule', 'oa', 'oaCheck', 'prep', 'awaiting', 'activity', 'evSteps', 'evReg', 'evFollow', 'evFeeds']
   const feed = ({ id, title, accent, icon, subtitle, items, renderItem, onClearAll, clearing }) => items.length > 0 && (
-    <motion.div variants={rise}>
+    <m.div variants={rise}>
       <Section title={`${title} (${items.length})`} accent={accent} icon={icon} subtitle={subtitle}
         collapsed={prefs.isCollapsed(id)} onToggle={() => prefs.toggleCollapsed(id)}
         actions={onClearAll
@@ -689,15 +687,15 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
         <RowCap items={items} tier={accent} renderItem={renderItem}
           onHide={onClearAll ? undefined : x => prefs.snooze([`${id}:${SNOOZE_KEY[id](x)}`])} />
       </Section>
-    </motion.div>
+    </m.div>
   )
   const fold = id => ({ collapsed: prefs.isCollapsed(id), onToggle: () => prefs.toggleCollapsed(id) })
   const allCollapsed = COLLAPSIBLE.every(id => prefs.isCollapsed(id))
 
   return (
-    <motion.div className="space-y-3" variants={container} initial="hidden" animate="show">
+    <m.div className="space-y-3" variants={container} initial="hidden" animate="show">
       {!allEmpty && (
-        <motion.div variants={rise} className="flex items-center gap-4 flex-wrap text-xs text-ink-400 px-1">
+        <m.div variants={rise} className="flex items-center gap-4 flex-wrap text-xs text-ink-400 px-1">
           <span><Mono className="text-ink-700 font-semibold">{listCount + prepCount}</Mono> to look at</span>
           {trimmed.hidden > 0 && <span title="Already replied on the thread, long past due, or duplicates">{trimmed.hidden} resolved AI items auto-hidden</span>}
           <span className="ml-auto flex items-center gap-4">
@@ -708,13 +706,13 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
               {allCollapsed ? 'Expand all' : 'Collapse all'}
             </button>
           </span>
-        </motion.div>
+        </m.div>
       )}
 
       {dailyRecap && (
-        <motion.div variants={rise}>
+        <m.div variants={rise}>
           <DailyRecapCard recap={dailyRecap} collapsed={prefs.isCollapsed('recap')} onToggle={() => prefs.toggleCollapsed('recap')} />
-        </motion.div>
+        </m.div>
       )}
 
       {allEmpty && (!isDemoMode && isFreshAccount({ contacts, apps })
@@ -765,30 +763,30 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
       <EventDeadlineSections attention={eventAttention} pool={eventPool} onOpenEvents={onOpenEvents} rise={rise} fold={fold} />
 
       {prepCount > 0 && (
-        <motion.div variants={rise}>
+        <m.div variants={rise}>
           <Section title={`Interview Prep (${prepCount})`} accent="accent" icon={GraduationCap}
             subtitle="From Learn — what to shore up before upcoming assessments and interviews."
             collapsed={prefs.isCollapsed('prep')} onToggle={() => prefs.toggleCollapsed('prep')}>
             <RowCap items={interviewPrepRows({ prep, onOpenLearn })} tier="accent" renderItem={row => row} />
           </Section>
-        </motion.div>
+        </m.div>
       )}
 
       {!isDemoMode && !allEmpty && (
-        <motion.div variants={rise}>
+        <m.div variants={rise}>
           <TimelineFindsPanel
             pending={timelineFinds} running={timelineFindsRunning} error={timelineFindsError} meta={timelineFindsMeta}
             onScan={scanTimelineFinds} onDismiss={dismissTimelineFind} onUpdateField={updateTimelineFindField} onApprove={approveTimelineFind}
           />
-        </motion.div>
+        </m.div>
       )}
 
       <EventFeedHealth attention={eventAttention} rise={rise} fold={fold} />
 
-      <motion.div variants={rise}>
+      <m.div variants={rise}>
         <ActivitySection contacts={contacts} apps={apps} interactions={interactions} calls={calls}
           collapsed={prefs.isCollapsed('activity')} onToggle={() => prefs.toggleCollapsed('activity')} />
-      </motion.div>
+      </m.div>
 
       <SidePanel open={!!selectedContactId} onClose={() => setSelectedContactId(null)}>
         {selectedContactId && (
@@ -829,6 +827,6 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
           />
         )}
       </SidePanel>
-    </motion.div>
+    </m.div>
   )
 }
