@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { Kanban, GitFork, Sheet } from 'lucide-react'
 import ApplicationsView from './ApplicationsView.jsx'
 import ApplicationsSheet from './ApplicationsSheet.jsx'
 import JobBoardsView from './jobBoards/JobBoardsView.jsx'
-import { usesTechSources } from '../lib/tracks.js'
+import { PIPELINE_VIEWS } from './pipelineViews.js'
 
 // Merged Pipeline destination shell delivering PIPE-01: a segmented control over
 // mutually exclusive bodies (Applications | Sheet | Job Boards), so only one body ever mounts
@@ -12,19 +11,6 @@ import { usesTechSources } from '../lib/tracks.js'
 // refresh callbacks (onRefresh vs. onImported) that both resolve to the same App.jsx
 // `load` function; the shell's signature defaults the Job Boards callback from the
 // Applications one so no new prop needs to be threaded from App.jsx.
-
-const PIPELINE_VIEWS = [
-  { key: 'applications', label: 'Applications', icon: Kanban },
-  { key: 'sheet',        label: 'Sheet',         icon: Sheet },
-  { key: 'jobBoards',    label: 'Job Boards',    icon: GitFork },
-]
-
-export const DEMO_PIPELINE_VIEWS = PIPELINE_VIEWS.filter(v => v.key !== 'jobBoards')
-
-// Job Boards is built on GitHub internship repos (tech-only), so non-tech users don't get it.
-export function pipelineViewsFor(profile) {
-  return usesTechSources(profile) ? PIPELINE_VIEWS : DEMO_PIPELINE_VIEWS
-}
 
 export default function PipelineTab({ apps, contacts = [], interactions = [], relationships = [], onRefresh, onRefreshApps, onImported = onRefresh, onFindPeople, onRefreshRelationships, views = PIPELINE_VIEWS }) {
   const [view, setViewState] = useState('applications')

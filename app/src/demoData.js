@@ -4,6 +4,9 @@
 // computed relative to "today" (not hardcoded) so the demo always looks current whenever
 // someone visits, rather than drifting stale.
 //
+// Loaded only on /demo: App.jsx's DemoApp imports this module (its own chunk) and hands it
+// to db.js setDemoData(); everything else reads it through db.js getDemoData().
+//
 // Shapes below intentionally match db.js's fetch* return shapes EXACTLY (camelCase, same
 // keys) — the demo branch in db.js returns these arrays directly with zero mapping, so any
 // component built against real data works unmodified against this data.
@@ -11,6 +14,8 @@
 import { instantiateTemplate } from './lib/learning/templates.js'
 import { PROBLEM_BY_SLUG } from './lib/learning/problemBank.js'
 import { addDaysLocal } from './lib/dates.js'
+import { rankCandidates, DEFAULT_PROFILE, DEFAULT_WEIGHTS } from './lib/discovery.js'
+import { normalizeCompanyName } from './lib/networkGraph.js'
 
 function daysFromNow(n) {
   return addDaysLocal(n)
@@ -85,6 +90,38 @@ export const DEMO_CONTACTS = [
     whatTheyDid: 'First-year analyst in the M&A group, alum of the same program.', referredById: null, followUpDraft: '', followUpDraftTier: null,
     followUpDraftKind: '', isUMichAlum: true, affinity: ['Shared university'], wantsToSchedule: false, scheduleBy: null, scheduleNote: '',
     referralStatus: 'Yes', referredByName: null,
+  },
+  {
+    id: 'demo-c9', name: 'Priya Raman', company: 'Datadog', role: 'SWE', email: 'priya.raman@datadoghq.com',
+    linkedin: '', source: 'Alumni Network', status: '🟢 Warm', urgency: 'MED',
+    lastInteraction: daysFromNow(-1), followUpDate: daysFromNow(3), notes: 'Coffee chat booked from her calendar invite. Ask about the observability intern team.',
+    whatTheyDid: 'SWE on the metrics pipeline, alum of the same program.', referredById: null, followUpDraft: '', followUpDraftTier: null,
+    followUpDraftKind: '', isUMichAlum: true, affinity: ['Shared university'], wantsToSchedule: false, scheduleBy: null, scheduleNote: '',
+    referralStatus: 'Not Asked', referredByName: null,
+  },
+  {
+    id: 'demo-c10', name: 'Marcus Chen', company: 'Linear', role: 'SWE', email: 'marcus@linear.example.com',
+    linkedin: 'https://linkedin.com/in/example', source: 'Cold Outreach', status: '🟡 Cooling', urgency: 'LOW',
+    lastInteraction: daysFromNow(-6), followUpDate: daysFromNow(1), notes: 'Cold email about how Linear runs internships. No reply yet.',
+    whatTheyDid: 'Early engineer on the sync engine.', referredById: null, followUpDraft: '', followUpDraftTier: null,
+    followUpDraftKind: '', isUMichAlum: false, affinity: [], wantsToSchedule: false, scheduleBy: null, scheduleNote: '',
+    referralStatus: 'Not Asked', referredByName: null,
+  },
+  {
+    id: 'demo-c11', name: 'Sofia Alvarez', company: 'Stripe', role: 'SWE', email: 'sofia.alvarez@stripe.com',
+    linkedin: '', source: 'Referral', status: '🟢 Warm', urgency: 'MED',
+    lastInteraction: daysFromNow(-5), followUpDate: null, notes: 'Kelly intro\'d us. Interned on Stripe infra last summer, shared her prep doc.',
+    whatTheyDid: 'Return-offer SWE on the payments infra team.', referredById: 'demo-c1', followUpDraft: '', followUpDraftTier: null,
+    followUpDraftKind: '', isUMichAlum: false, affinity: [], wantsToSchedule: false, scheduleBy: null, scheduleNote: '',
+    referralStatus: 'Not Asked', referredByName: 'Kelly Sanders',
+  },
+  {
+    id: 'demo-c12', name: 'Jordan Lee', company: 'Jane Street', role: 'Recruiter', email: 'jordan.lee@example.com',
+    linkedin: '', source: 'Career Fair', status: '🔴 Cold', urgency: 'LOW',
+    lastInteraction: daysFromNow(-12), followUpDate: null, notes: 'Met at the fair. Applied, then rejected after the OA. Keep warm for next cycle.',
+    whatTheyDid: 'Campus recruiter for SWE and trading internships.', referredById: null, followUpDraft: '', followUpDraftTier: null,
+    followUpDraftKind: '', isUMichAlum: false, affinity: [], wantsToSchedule: false, scheduleBy: null, scheduleNote: '',
+    referralStatus: 'Not Asked', referredByName: null,
   },
 ]
 
@@ -184,6 +221,9 @@ export const DEMO_INTERACTIONS = [
   { id: 'demo-i6', contactId: 'demo-c5', type: 'Meeting', direction: 'Outbound', date: daysFromNow(-32), channelRef: '', summary: 'Coffee chat with Brendan about the Ramp platform team.', body: '' },
   { id: 'demo-i7', contactId: 'demo-c7', type: 'Meeting', direction: 'Outbound', date: daysFromNow(-60), channelRef: '', summary: 'Intro call through the alumni network.', body: '' },
   { id: 'demo-i8', contactId: 'demo-c8', type: 'Call', direction: 'Outbound', date: daysFromNow(-3), channelRef: '', summary: 'Naomi ran me through the Superday format and which technicals to drill (DCF, accretion/dilution).', body: '' },
+  { id: 'demo-i9', contactId: 'demo-c11', type: 'Call', direction: 'Outbound', date: daysFromNow(-5), channelRef: '', summary: 'Sofia walked me through her infra intern project and the Stripe phone-screen format.', body: '' },
+  { id: 'demo-i10', contactId: 'demo-c12', type: 'Meeting', direction: 'Inbound', date: daysFromNow(-40), channelRef: '', summary: 'Met Jordan at the career fair booth — talked about the SWE vs trading tracks.', body: '' },
+  { id: 'demo-i11', contactId: 'demo-c9', type: 'LinkedIn', direction: 'Outbound', date: daysFromNow(-4), channelRef: '', summary: 'Messaged Priya through the alumni group asking for a quick chat.', body: '' },
 ]
 
 // Inbox threads (see lib/inbox.js) — same rows the email pipeline writes: one per message,
@@ -194,12 +234,28 @@ function hoursAgo(h) {
   return new Date(Date.now() - h * 3600000).toISOString()
 }
 const ME = 'you@school.edu'
-function demoEmail(id, thread, hrs, over) {
+function demoEmail(id, thread, hrs, { meeting, ...over }) {
   const sentAt = hoursAgo(hrs)
+  // Same lead lines as api/_lib/emailPipeline.js interactionRow().
+  const lead = meeting ? [meeting.interviewAt, `📅 Meeting link: ${meeting.link}`].filter(Boolean).join('\n') : ''
+  const body = over.body || ''
   return {
     id, type: 'Email', channelRef: thread, date: sentAt.slice(0, 10), sentAt, mailbox: ME,
-    direction: 'Inbound', readAt: null, summary: (over.body || '').slice(0, 300), ...over,
+    direction: 'Inbound', readAt: null, summary: (lead ? `${lead}\n\n${body}` : body).slice(0, 300), ...over,
   }
+}
+
+// Same format as api/_lib/emailPipeline.js interviewLine() (America/New_York default).
+function demoInviteAt(days, hour) {
+  const d = new Date(Date.now() + days * 86400000)
+  d.setHours(hour, 0, 0, 0)
+  return d
+}
+function demoInterviewLine(days, hour) {
+  return `📅 Interview: ${new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(demoInviteAt(days, hour))}`
+}
+function demoInviteDay(days, hour) {
+  return new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(demoInviteAt(days, hour))
 }
 export const DEMO_EMAILS = [
   demoEmail('demo-e1', 'demo-t-anthropic', 3, {
@@ -233,6 +289,47 @@ export const DEMO_EMAILS = [
   demoEmail('demo-e8', 'demo-t-vercel', 4 * 24, {
     contactId: 'demo-c6', direction: 'Outbound', fromAddress: ME, readAt: hoursAgo(96), emailCategory: 'FOLLOW_UP_NEEDED',
     subject: 'Following up — Vercel SWE internship', body: `Hi Amara,\n\nThanks again for walking me through the interview loop last week! I just submitted my application for the SWE internship — if you're comfortable, I'd really appreciate a referral.\n\nBest,\nAlex`,
+  }),
+  // Calendar invites, the way the serverless scan logs them (v1.3 spec 12): an interview's
+  // newest message leads with the 📅 time read from the .ics, plus its meeting link. Priya's
+  // coffee chat also came as an invite, but it's networking, so it gets the link and no time.
+  demoEmail('demo-e9', 'demo-t-stripe-screen', 26, {
+    contactId: 'demo-c1', fromName: 'Kelly Sanders', fromAddress: 'kelly.sanders@stripe.com', emailCategory: 'INTERVIEW_INVITE', readAt: hoursAgo(25),
+    subject: `Invitation: Stripe Recruiter Screen @ ${demoInviteDay(2, 14)}`,
+    body: `Hi Alex,\n\nSending over the invite for your recruiter screen — 30 minutes on Zoom, mostly about your projects and what you'd want from an infra internship. Nothing technical yet.\n\nLooking forward to it!\nKelly`,
+    meeting: { link: 'https://stripe.zoom.us/j/00000000000', interviewAt: demoInterviewLine(2, 14) },
+  }),
+  demoEmail('demo-e10', 'demo-t-stripe-screen', 22, {
+    contactId: 'demo-c1', direction: 'Outbound', fromAddress: ME, readAt: hoursAgo(22), emailCategory: null,
+    subject: `Re: Invitation: Stripe Recruiter Screen @ ${demoInviteDay(2, 14)}`,
+    body: `Hi Kelly — accepted, thanks so much! Talk then.\n\nAlex`,
+  }),
+  demoEmail('demo-e11', 'demo-t-ms-superday', 2 * 24, {
+    contactId: 'demo-c8', fromName: 'Morgan Stanley Campus Recruiting', fromAddress: 'campus.recruiting@example.com', emailCategory: 'INTERVIEW_INVITE', readAt: hoursAgo(46),
+    subject: 'Superday confirmation — Investment Banking Summer Analyst',
+    body: `Dear Alex,\n\nCongratulations — we're pleased to invite you to our Superday. You'll have four 30-minute interviews with members of the M&A and Coverage groups, held on Microsoft Teams. The calendar invite is attached.\n\nPlease join five minutes early to test your audio.\n\nMorgan Stanley Campus Recruiting`,
+    meeting: { link: 'https://teams.microsoft.com/l/meetup-join/demo', interviewAt: demoInterviewLine(3, 9) },
+  }),
+  demoEmail('demo-e12', 'demo-t-datadog', 4 * 24, {
+    contactId: 'demo-c9', direction: 'Outbound', fromAddress: ME, readAt: hoursAgo(96), emailCategory: 'NEW_CONTACT',
+    subject: 'Fellow Demo U alum — quick chat about Datadog?', body: `Hi Priya,\n\nI found you through the alumni directory — I'm a sophomore in CS and really curious about the metrics pipeline team. Would you be up for a 20-minute chat sometime next week?\n\nThanks!\nAlex`,
+  }),
+  demoEmail('demo-e13', 'demo-t-datadog', 18, {
+    contactId: 'demo-c9', fromName: 'Priya Raman', fromAddress: 'priya.raman@datadoghq.com', emailCategory: 'REPLY',
+    subject: 'Invitation: Coffee chat — Priya / Alex', body: `Of course! Sent you an invite for Thursday — it's on Google Meet. Bring any questions about the intern teams.\n\nPriya`,
+    meeting: { link: 'https://meet.google.com/abc-defg-hij' },
+  }),
+  demoEmail('demo-e14', 'demo-t-linear', 6 * 24, {
+    contactId: 'demo-c10', direction: 'Outbound', fromAddress: ME, readAt: hoursAgo(144), emailCategory: 'FOLLOW_UP_NEEDED',
+    subject: 'How does Linear think about interns?', body: `Hi Marcus,\n\nI've been using Linear for my club's projects and loved your post on the sync engine. Linear doesn't list a formal internship — is that something the team would ever consider? I'd love 15 minutes to learn how you all think about it.\n\nBest,\nAlex`,
+  }),
+  demoEmail('demo-e15', 'demo-t-stripe-sofia', 5 * 24, {
+    contactId: 'demo-c11', direction: 'Outbound', fromAddress: ME, readAt: hoursAgo(120), emailCategory: 'REPLY',
+    subject: 'Thank you!', body: `Hi Sofia,\n\nThanks for the call and for sharing your prep doc — the system-design notes are gold. I'll let you know how the screen goes!\n\nAlex`,
+  }),
+  demoEmail('demo-e16', 'demo-t-janestreet', 12 * 24, {
+    contactId: 'demo-c12', fromName: 'Jane Street Recruiting', fromAddress: 'no-reply@example.com', emailCategory: 'REJECTION', readAt: hoursAgo(280),
+    subject: 'Your Jane Street application', body: `Hi Alex,\n\nThank you for completing the online assessment. Unfortunately, we won't be moving forward this cycle. We hope you'll apply again next year.\n\nJane Street Recruiting`,
   }),
 ]
 
@@ -498,4 +595,129 @@ export const DEMO_COMPANY_PREP = {
     ]),
   ],
   unmatched: [], folders: [], loading: false, error: null,
+}
+
+// ── Settings / Grow / Job Boards (signed-in-only surfaces, shown in the demo) ───
+// Grow's caches and Job Boards' tracked boards are read through lib/scopedStorage.js, which
+// DemoApp switches to an in-memory store seeded by buildDemoStorage(). GitHub boards and
+// Gmail/Calendar status come from demo branches in github.js and lib/googleAuth.js. No AI,
+// Exa or GitHub call is made: lib/keyStore.js assertKey() refuses on /demo.
+
+export const DEMO_PROFILE = {
+  full_name: 'Alex Rivera', school: 'Demo University', school_id: 'demo-s1', grad_year: 2028,
+  tracks: ['swe', 'pm'], ai_provider: 'claude',
+}
+
+export function demoGmailConnections() {
+  const lastScannedAt = new Date(Date.now() - 7 * 60000).toISOString()
+  return [
+    { email: ME, lastScannedAt },
+    { email: 'alex.rivera@example.com', lastScannedAt },
+  ]
+}
+
+export const DEMO_TARGET_COMPANIES = ['Stripe', 'Anthropic', 'Figma', 'Datadog', 'Linear', 'Databricks', 'Vercel', 'Jane Street']
+
+// What Explore (Grow → Companies) would have ranked for this profile.
+const DEMO_COMPANY_RESULTS = [
+  { name: 'Modal', website: 'modal.com', oneLiner: 'Serverless GPUs and containers for running AI and data jobs in the cloud.', whyFit: 'Your distributed-systems coursework maps straight onto their scheduler and runtime work.', fitScore: 9, domain: 'Dev tools / Infra', stage: 'startup', badges: ['hiring interns', 'small team'] },
+  { name: 'Mercury', website: 'mercury.com', oneLiner: 'Banking for startups, with a product-heavy engineering culture.', whyFit: 'Fintech like Stripe and Ramp, with a PM-friendly intern program for your second track.', fitScore: 8, domain: 'Fintech', stage: 'growth', badges: ['hiring interns'] },
+  { name: 'Temporal', website: 'temporal.io', oneLiner: 'Open-source durable execution for long-running workflows.', whyFit: 'Open-source and infra-heavy — the kind of codebase you said you want to ship in.', fitScore: 8, domain: 'Dev tools / Infra', stage: 'growth', badges: ['open source'] },
+  { name: 'Supabase', website: 'supabase.com', oneLiner: 'Open-source Postgres platform with auth, storage and realtime.', whyFit: 'You already build on it — an easy, specific opener for outreach.', fitScore: 7, domain: 'Dev tools / Infra', stage: 'growth', badges: ['remote-friendly'] },
+  { name: 'Hex', website: 'hex.tech', oneLiner: 'Collaborative notebooks and data apps for analytics teams.', whyFit: 'Product-minded engineering with real PM overlap, close to Figma\'s collaborative feel.', fitScore: 7, domain: 'Enterprise / B2B', stage: 'growth', badges: [] },
+  { name: 'Sierra', website: 'sierra.ai', oneLiner: 'Conversational AI agents for customer experience.', whyFit: 'AI applied to a concrete product, if you want to lean toward the AI side.', fitScore: 6, domain: 'AI / ML', stage: 'growth', badges: ['new grad + intern'] },
+]
+
+const DEMO_COMPANY_PREFS = {
+  seedCompanies: ['Stripe', 'Vercel', 'Linear'], domains: ['Dev tools / Infra', 'Fintech'], roleLean: 0.7, stage: 'scaleup',
+  priorities: ['Mentorship & learning', 'Ownership & impact'], locations: ['San Francisco', 'New York'], workStyle: 'Hybrid',
+  extras: '', saved: true,
+}
+
+const DEMO_AFFINITY_PROFILE = {
+  ...DEFAULT_PROFILE, university: 'Demo University', gradYear: '2028', pastEmployers: ['Demo U Research Lab'],
+  programs: ['HackDemo'], skills: ['Python', 'TypeScript', 'Distributed systems'], weights: { ...DEFAULT_WEIGHTS },
+}
+
+// People that Discover (Grow → People) would have pulled from Exa, ranked with the real scorer.
+const DEMO_PEOPLE = {
+  Databricks: [
+    { name: 'Hannah Okafor', title: 'Software Engineer, Delta Lake', school: 'Demo University', pastCompanies: ['Demo U Research Lab'], programs: [], linkedinUrl: 'https://linkedin.com/in/example-hannah' },
+    { name: 'Ravi Menon', title: 'University Recruiter', school: null, pastCompanies: ['Google'], programs: [], linkedinUrl: 'https://linkedin.com/in/example-ravi' },
+    { name: 'Chris Novak', title: 'Engineering Manager, Photon', school: 'State Tech', pastCompanies: [], programs: [], linkedinUrl: null },
+  ],
+  Linear: [
+    { name: 'Elena Park', title: 'Product Engineer', school: 'Demo University', pastCompanies: [], programs: ['HackDemo'], linkedinUrl: 'https://linkedin.com/in/example-elena' },
+  ],
+  'Jane Street': [
+    { name: 'Tom Becker', title: 'Software Engineer', school: 'Demo University', pastCompanies: [], programs: [], linkedinUrl: null },
+    { name: 'Mei Lin', title: 'Quantitative Trader', school: 'Coastal College', pastCompanies: [], programs: [], linkedinUrl: null },
+  ],
+  Figma: [
+    { name: 'Daniel Ortiz', title: 'Associate Product Manager', school: 'Demo University', pastCompanies: [], programs: [], linkedinUrl: 'https://linkedin.com/in/example-daniel' },
+    { name: 'Grace Kim', title: 'Software Engineer, Dev Mode', school: null, pastCompanies: ['Notion'], programs: [], linkedinUrl: null },
+  ],
+}
+
+// Two tracked boards; demoRepoJobs() is what github.js serves for them on /demo.
+const DEMO_BOARDS = [
+  { owner: 'SimplifyJobs', repo: 'Summer2027-Internships', label: 'SimplifyJobs — Summer 2027 Internships', enabled: true },
+  { owner: 'speedyapply', repo: '2027-SWE-College-Jobs', label: 'speedyapply — SWE Internships & New Grad', enabled: true },
+]
+
+// [company, role, location, posted (days ago), closed?]
+const BOARD_ROWS = {
+  'simplifyjobs/summer2027-internships': [
+    ['Stripe', 'SWE Intern, Infrastructure', 'San Francisco, CA', 22], ['Datadog', 'Software Engineering Intern', 'New York, NY', 3],
+    ['Databricks', 'Software Engineering Intern', 'San Francisco, CA', 1], ['Modal', 'Software Engineer Intern', 'New York, NY', 2],
+    ['Mercury', 'Software Engineering Intern', 'San Francisco, CA', 5], ['Mercury', 'Product Management Intern', 'San Francisco, CA', 5],
+    ['Figma', 'Product Manager Intern', 'San Francisco, CA', 9], ['Temporal', 'Software Engineer Intern', 'Remote', 11],
+    ['Robinhood', 'Software Engineering Intern, Backend', 'Menlo Park, CA', 60], ['Plaid', 'Software Engineer Intern', 'San Francisco, CA', 58],
+    ['Snowflake', 'Software Engineer Intern', 'Bellevue, WA', 54, true], ['Hex', 'Software Engineering Intern', 'San Francisco, CA', 0],
+    ['Duolingo', 'Software Engineer Intern', 'Pittsburgh, PA', 47, true], ['Sierra', 'Software Engineer Intern', 'San Francisco, CA', 4],
+  ],
+  'speedyapply/2027-swe-college-jobs': [
+    ['Airbnb', 'SWE Intern', 'San Francisco, CA', 1], ['Discord', 'SWE Intern', 'San Francisco, CA', 1],
+    ['Rippling', 'SWE Intern', 'San Francisco, CA', 6], ['Linear', 'SWE Intern', 'Remote', 2],
+    ['Supabase', 'Software Engineer Intern', 'Remote', 3], ['Datadog', 'Software Engineering Intern', 'New York, NY', 3],
+    ['Cloudflare', 'Software Engineer Intern', 'Austin, TX', 43], ['Pinterest', 'Software Engineer Intern', 'San Francisco, CA', 10],
+    ['Coinbase', 'Software Engineer Intern', 'Remote', 49, true], ['Hudson River Trading', 'Software Engineer Intern', 'New York, NY', 8],
+  ],
+}
+
+export function demoRepoJobs(owner, repo) {
+  const key = `${owner}/${repo}`.toLowerCase()
+  const rows = BOARD_ROWS[key]
+  if (!rows) throw new Error('The demo only has its two sample boards — sign up to track any GitHub board.')
+  const board = DEMO_BOARDS.find(b => `${b.owner}/${b.repo}`.toLowerCase() === key)
+  return {
+    repoName: `${board.owner}/${board.repo}`, repoUrl: `https://github.com/${board.owner}/${board.repo}`,
+    description: board.label, stars: key.startsWith('simplify') ? 24800 : 3100, updatedAt: hoursAgo(2),
+    jobs: rows.map(([company, role, location, ago, closed]) => ({
+      company, role, location, applyUrl: `https://example.com/jobs/${normalizeCompanyName(company).replace(/\s+/g, '-')}`,
+      dateAdded: daysFromNow(-ago), notes: '', status: closed ? 'closed' : 'open',
+    })),
+  }
+}
+
+// The scopedStorage seed: the same rec_* keys Explore, Discover and Job Boards read.
+export function buildDemoStorage() {
+  const now = Date.now()
+  const discovered = {}
+  const perCompany = {}
+  for (const [company, people] of Object.entries(DEMO_PEOPLE)) {
+    const key = normalizeCompanyName(company)
+    const atCompany = DEMO_CONTACTS.filter(c => normalizeCompanyName(c.company) === key)
+    discovered[key] = rankCandidates(people.map(p => ({ ...p, company })), DEMO_AFFINITY_PROFILE, atCompany, DEMO_CONTACTS)
+    perCompany[key] = { lastRun: now - 5 * 3600000, resultHash: 'demo', count: people.length }
+  }
+  return {
+    rec_company_prefs: DEMO_COMPANY_PREFS,
+    rec_company_results: DEMO_COMPANY_RESULTS,
+    rec_company_meta: { lastCheck: null, lastRun: now - 5 * 3600000, resultHash: 'demo' },
+    rec_affinity_profile: DEMO_AFFINITY_PROFILE,
+    rec_discovered: discovered,
+    rec_discovery_meta: { lastCheck: null, perCompany },
+    rec_tracked_boards: DEMO_BOARDS.map(b => ({ ...b, addedAt: now - 30 * 86400000 })),
+  }
 }

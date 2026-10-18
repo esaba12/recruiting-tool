@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { buildThreads, filterThreads, filterCounts, gmailThreadUrl, isAutomated } from '../src/lib/inbox.js'
+import { buildThreads, filterThreads, filterCounts, gmailThreadUrl, isAutomated, messageLead, snippet } from '../src/lib/inbox.js'
+import { interactionRow, interviewLine } from '../api/_lib/emailPipeline.js'
 
 const NOW = new Date('2026-10-07T12:00:00Z').getTime()
 const at = daysAgo => new Date(NOW - daysAgo * 86400000).toISOString()
@@ -148,5 +149,38 @@ describe('helpers', () => {
   it('recognises automated senders', () => {
     expect(isAutomated('no-reply@hackerrank.com')).toBe(true)
     expect(isAutomated('priya@stripe.com')).toBe(false)
+  })
+})
+
+// The 📅 lead lines are written by api/_lib/emailPipeline.js interactionRow (and the Apps
+// Script's meeting-link-only variant); build the summary with the real writer so a format
+// change on either side breaks here.
+describe('messageLead', () => {
+  const message = { id: 'm1', from: 'Kelly <kelly@stripe.com>', subject: 'Interview', date: new Date('2026-10-07T12:00:00Z'), plainBody: 'Hi Alex,\nLooking forward to it.' }
+  const invite = { start: new Date('2026-10-21T18:00:00Z'), allDay: false, timeZone: 'America/New_York' }
+  const row = (opts) => {
+    const r = interactionRow('u1', message, { threadId: 't1', myEmail: 'me@x.com', ...opts })
+    return { summary: r.summary, body: r.body }
+  }
+
+  it('splits the interview time and meeting link off the serverless summary', () => {
+    const lead = messageLead(row({ interviewAt: interviewLine(invite), meetingLink: 'https://zoom.us/j/123' }))
+    expect(lead.interview).toBe('Wed, Oct 21, 2:00 PM EDT')
+    expect(lead.meetingLink).toBe('https://zoom.us/j/123')
+    expect(lead.text).toBe('Hi Alex,\nLooking forward to it.')
+  })
+
+  it('reads a meeting link alone (the Apps Script shape)', () => {
+    const lead = messageLead({ summary: '📅 Meeting link: https://meet.google.com/abc-defg-hij\n\nSee you then', body: '' })
+    expect(lead).toEqual({ interview: null, meetingLink: 'https://meet.google.com/abc-defg-hij', text: 'See you then' })
+  })
+
+  it('leaves an ordinary message alone', () => {
+    expect(messageLead(row({}))).toEqual({ interview: null, meetingLink: null, text: 'Hi Alex,\nLooking forward to it.' })
+  })
+
+  it('keeps the lead lines out of the list snippet', () => {
+    expect(snippet({ summary: row({ interviewAt: interviewLine(invite), meetingLink: 'https://zoom.us/j/123' }).summary, body: '' }))
+      .toBe('Hi Alex, Looking forward to it.')
   })
 })

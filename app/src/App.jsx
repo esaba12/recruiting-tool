@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships, fetchActionItems, fetchDailyRecap } from './db.js'
+import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react'
+import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships, fetchActionItems, fetchDailyRecap, setDemoData } from './db.js'
 import { researchOaDeadlines } from './lib/oaResearch.js'
 import { useAuth } from './lib/AuthContext.jsx'
 import useApplicationsLive from './lib/useApplicationsLive.js'
@@ -8,32 +8,21 @@ import useRecruitingEvents from './lib/useRecruitingEvents.js'
 import useEventCalendarSync from './lib/useEventCalendarSync.js'
 import { useTargetCompanies } from './lib/useTargetCompanies.js'
 import LoginPage from './components/LoginPage.jsx'
-import SettingsTab from './components/SettingsTab.jsx'
 import { STATUS_COLOR, URGENCY_COLOR, REFERRAL_STATUS_COLOR, daysSince, daysUntil, fmt, Badge, EmptyState, isOverdue } from './shared.jsx'
 import { statusIconFor, URGENCY_ICON } from './lib/icons.js'
 import AppShell from './components/layout/AppShell.jsx'
 import SidePanel from './components/ui/SidePanel.jsx'
 import ContactPanelBody from './components/panels/ContactPanelBody.jsx'
 import QuickAddContactModal from './components/QuickAddContactModal.jsx'
-import ContactsTable from './components/ContactsTable.jsx'
 import LogInteractionModal from './components/LogInteractionModal.jsx'
 import MetButton from './components/MetButton.jsx'
 import { logMetWithContact } from './lib/quickLog.js'
-import NetworkGraphTab from './components/NetworkGraphTab.jsx'
-import PipelineTab, { DEMO_PIPELINE_VIEWS, pipelineViewsFor } from './components/PipelineTab.jsx'
+import { pipelineViewsFor } from './components/pipelineViews.js'
+import { enableDemoStorage } from './lib/scopedStorage.js'
 import TodayTab from './components/TodayTab.jsx'
-import CalendarTab from './components/CalendarTab.jsx'
-import AddToCalendarModal from './components/AddToCalendarModal.jsx'
-import QuickScheduleModal from './components/QuickScheduleModal.jsx'
-import QuickCaptureModal from './components/QuickCaptureModal.jsx'
-import OutboxTab from './components/OutboxTab.jsx'
-import InboxTab from './components/InboxTab.jsx'
 import { buildThreads } from './lib/inbox.js'
-import GrowTab from './components/GrowTab.jsx'
-import LearnTab from './components/LearnTab.jsx'
 import useLearning from './lib/learning/useLearning.js'
 import NotFoundPage from './components/NotFoundPage.jsx'
-import OnboardingWizard from './components/onboarding/OnboardingWizard.jsx'
 import FeedbackHost from './components/onboarding/FeedbackHost.jsx'
 import { needsOnboarding } from './lib/onboarding.js'
 import { useKeysReady } from './lib/useKeyStatus.js'
@@ -41,6 +30,54 @@ import { NAV_ITEMS } from './components/layout/Sidebar.jsx'
 import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, keepInTouchDue, needsReviewApps } from './lib/attention.js'
 import { Table2, LayoutGrid, Share2, Send, Waypoints } from 'lucide-react'
 import NetworkingFlowPanel from './components/NetworkingFlowPanel.jsx'
+import DelayedFallback from './components/ui/DelayedFallback.jsx'
+import { preloadCharts } from './components/charts/lazy.jsx'
+
+// ── Lazy tabs (v1.3 spec 09) ─────────────────────────────────────────────────────
+// Today is the landing tab and stays in the entry chunk; every other tab (and the
+// Network graph/Outbox views) loads on first open. Once the app is idle after its first
+// load, prefetchTabs() warms all of them so later switches don't wait on the network.
+const TAB_CHUNKS = {
+  pipeline: () => import('./components/PipelineTab.jsx'),
+  inbox:    () => import('./components/InboxTab.jsx'),
+  grow:     () => import('./components/GrowTab.jsx'),
+  learn:    () => import('./components/LearnTab.jsx'),
+  calendar: () => import('./components/CalendarTab.jsx'),
+  settings: () => import('./components/SettingsTab.jsx'),
+  graph:    () => import('./components/NetworkGraphTab.jsx'),
+  outbox:   () => import('./components/OutboxTab.jsx'),
+  contactsTable: () => import('./components/ContactsTable.jsx'), // @tanstack/table
+}
+const PipelineTab     = lazy(TAB_CHUNKS.pipeline)
+const InboxTab        = lazy(TAB_CHUNKS.inbox)
+const GrowTab         = lazy(TAB_CHUNKS.grow)
+const LearnTab        = lazy(TAB_CHUNKS.learn)
+const CalendarTab     = lazy(TAB_CHUNKS.calendar)
+const SettingsTab     = lazy(TAB_CHUNKS.settings)
+const NetworkGraphTab = lazy(TAB_CHUNKS.graph)
+const OutboxTab       = lazy(TAB_CHUNKS.outbox)
+const ContactsTable   = lazy(TAB_CHUNKS.contactsTable)
+// Open-on-demand modals and the new-user wizard: most sessions never render them.
+const AddToCalendarModal = lazy(() => import('./components/AddToCalendarModal.jsx'))
+const QuickScheduleModal = lazy(() => import('./components/QuickScheduleModal.jsx'))
+const QuickCaptureModal  = lazy(() => import('./components/QuickCaptureModal.jsx'))
+const OnboardingWizard   = lazy(() => import('./components/onboarding/OnboardingWizard.jsx'))
+
+let prefetched = false
+function usePrefetchTabs(ready) {
+  useEffect(() => {
+    if (!ready || prefetched) return
+    const idle = window.requestIdleCallback || (cb => setTimeout(cb, 1500))
+    const cancel = window.cancelIdleCallback || clearTimeout
+    const id = idle(() => {
+      prefetched = true
+      // A failed prefetch is harmless: lazy() retries the import on first open.
+      Object.values(TAB_CHUNKS).forEach(load => load().catch(() => {}))
+      preloadCharts().catch(() => {})
+    })
+    return () => cancel(id)
+  }, [ready])
+}
 
 // ── Network Tab ───────────────────────────────────────────────────────────────
 
@@ -51,13 +88,6 @@ const NETWORK_VIEWS = [
   { key: 'flow',     label: 'Flow',     icon: Waypoints },
   { key: 'outbox',   label: 'Outbox',   icon: Send },
 ]
-
-// The public /demo route (see DemoApp below) only shows views that need zero AI/BYOK
-// keys and no deep-links into ones that do — Outbox calls Exa+Claude/GPT (401s
-// with no signed-in user), Keep in Touch's "Log" leans on the same AI extraction.
-// Table/Cards/Graph/Flow are pure local rendering over the seeded demo data, so they
-// work perfectly with no backend at all.
-const DEMO_NETWORK_VIEWS = NETWORK_VIEWS.filter(v => ['table', 'cards', 'graph', 'flow'].includes(v.key))
 
 function NetworkTab({ contacts, apps, interactions, calls = [], contactRelationships = [], onRefresh, onRefreshRelationships, initialView = 'table', views = NETWORK_VIEWS }) {
   const [filter, setFilter]   = useState('ALL')
@@ -125,6 +155,7 @@ function NetworkTab({ contacts, apps, interactions, calls = [], contactRelations
         </div>
       </div>
 
+      <Suspense fallback={<DelayedFallback />}>
       {view === 'flow'
         ? (
           <div className="bg-surface rounded-md p-4 border border-ink-200">
@@ -193,6 +224,7 @@ function NetworkTab({ contacts, apps, interactions, calls = [], contactRelations
             })}
           </div>
         )}
+      </Suspense>
 
       <SidePanel open={!!editing} onClose={() => setEditing(null)}>
         {editing && (
@@ -239,7 +271,7 @@ function AuthGate({ children }) {
     )
   }
   if (!user) return <LoginPage />
-  if (needsOnboarding(profile)) return <OnboardingWizard />
+  if (needsOnboarding(profile)) return <Suspense fallback={<DelayedFallback />}><OnboardingWizard /></Suspense>
   return children
 }
 
@@ -333,6 +365,7 @@ function AppInner() {
   // Google Calendar push for the pool (dedicated "Recruiting" calendar) — auto-pushes
   // relevance-high events, reconciles Google-side deletes; exposes push/unpush to the UI.
   const eventCalendarSync = useEventCalendarSync({ pool: eventPool, enabled: !!profile?.school_id })
+  usePrefetchTabs(!loading)
 
   async function load() {
     setLoading(true); setError(null)
@@ -412,6 +445,7 @@ function AppInner() {
       error={error}
     >
       {loading && <EmptyState msg="Loading your data..." />}
+      <Suspense fallback={<DelayedFallback />}>
       {!loading && tab === 'network'  && (
         <NetworkTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} contactRelationships={contactRelationships} onRefresh={load}
           onRefreshRelationships={refreshContactRelationships}
@@ -423,7 +457,7 @@ function AppInner() {
       )}
       {!loading && tab === 'pipeline' && (
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
-          onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} views={pipelineViewsFor(profile)} />
+          onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} onImported={refreshApps} views={pipelineViewsFor(profile)} />
       )}
       {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} actionItems={actionItems} dailyRecap={dailyRecap} learning={learning} onOpenLearn={() => setTab('learn')} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} />}
       {!loading && tab === 'inbox'    && (
@@ -435,8 +469,10 @@ function AppInner() {
         <SettingsTab onDone={leaveSettings}
           returnLabel={NAV_ITEMS.find(i => i.id === settingsReturnTab)?.label || 'Today'} />
       )}
+      </Suspense>
 
       <FeedbackHost />
+      <Suspense fallback={null}>
       {addEventOpen && <AddToCalendarModal onClose={() => setAddEventOpen(false)} />}
       {addScheduleOpen && (
         <QuickScheduleModal
@@ -453,6 +489,7 @@ function AppInner() {
           onSaved={load}
         />
       )}
+      </Suspense>
     </AppShell>
   )
 }
@@ -462,17 +499,33 @@ function AppInner() {
 // Reuses the exact same tab components as the real app — db.js's isDemoMode() branch
 // (keyed off this same /demo path) means every fetch*/add*/update* call these components
 // already make transparently reads/writes an in-memory seed dataset instead of Supabase,
-// so nothing here needed forking into a separate "read-only" UI. Scope is deliberately
-// trimmed to the tabs that need zero AI/BYOK keys and zero external OAuth (Today,
-// Network table/cards/graph, Pipeline, Learn — Learn's AI plan/explain-back buttons are
-// fail-soft and the tab says so in demo mode) — Grow/Outbox/Job
-// Boards/Calendar/Settings all call Claude/OpenAI/Exa/GitHub/Google proxies that
-// `requireUser()`-gate on a real signed-in session and would just 401 for an anonymous
-// visitor, so they're left out rather than shown half-broken.
-const DEMO_NAV_ITEMS = NAV_ITEMS.filter(item => ['today', 'inbox', 'network', 'pipeline', 'calendar', 'learn'].includes(item.id))
-
+// so nothing here needed forking into a separate "read-only" UI. Every tab is here. The
+// signed-in-only surfaces run on seeds too: Grow's cached results and Job Boards' tracked
+// boards come from scopedStorage's in-memory demo store, GitHub boards and Gmail/Calendar
+// status from demo branches in github.js and lib/googleAuth.js. AI and Exa buttons are
+// disabled (NeedsKey says "sign up"), and lib/keyStore.js assertKey() refuses any call that
+// slips past, so /demo never reaches an auth-gated proxy.
+// demoData.js is its own chunk: load it (and seed the in-memory storage that Grow and Job
+// Boards read through lsGet) before anything calls db.js.
 function DemoApp() {
-  const [tab, setTab] = useState('today')
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    import('./demoData.js').then(mod => {
+      setDemoData(mod)
+      enableDemoStorage(mod.buildDemoStorage())
+      setReady(true)
+    })
+  }, [])
+  if (!ready) return <EmptyState msg="Loading the demo..." />
+  return <DemoAppInner />
+}
+
+function DemoAppInner() {
+  const [tab, setTabState] = useState('today')
+  const [settingsReturnTab, setSettingsReturnTab] = useState('today')
+  const setTab = next => { if (next === 'settings') setSettingsReturnTab(tab); setTabState(next) }
+  const [growFocusCompany, setGrowFocusCompany] = useState(null)
+  const goFindPeople = company => { setGrowFocusCompany({ company, ts: Date.now() }); setTab('grow') }
   const [contacts, setContacts] = useState([])
   const [apps, setApps] = useState([])
   const [interactions, setInteractions] = useState([])
@@ -482,6 +535,7 @@ function DemoApp() {
   // Recruiting events from demoData.js (db.js's demo branch). isDemo skips the AI
   // enrichment pass; there's no Google account, so no calendar sync hook.
   const eventPool = useRecruitingEvents({ enabled: true, isDemo: true, contacts, apps })
+  usePrefetchTabs(!loading)
 
   useEffect(() => { load() }, [])
 
@@ -517,21 +571,26 @@ function DemoApp() {
       onTabChange={setTab}
       counts={counts}
       loading={loading}
-      navItems={DEMO_NAV_ITEMS}
+      navItems={NAV_ITEMS}
       demoMode
     >
       {loading && <EmptyState msg="Loading the demo..." />}
+      <Suspense fallback={<DelayedFallback />}>
       {!loading && tab === 'network' && (
         <NetworkTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={load}
-          onRefreshRelationships={refreshContactRelationships} views={DEMO_NETWORK_VIEWS} />
+          onRefreshRelationships={refreshContactRelationships} />
+      )}
+      {!loading && tab === 'grow' && (
+        <GrowTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={load}
+          onRefreshRelationships={refreshContactRelationships} initialPeopleFocus={growFocusCompany} />
       )}
       {!loading && tab === 'pipeline' && (
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
-          onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} views={DEMO_PIPELINE_VIEWS} />
+          onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} onImported={refreshApps} />
       )}
       {!loading && tab === 'today' && (
         <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships}
-          learning={learning} onOpenLearn={() => setTab('learn')}
+          learning={learning} onOpenLearn={() => setTab('learn')} onFindPeople={goFindPeople}
           onRefresh={load} onRefreshRelationships={refreshContactRelationships} isDemoMode
           eventPool={eventPool} onOpenEvents={() => setTab('calendar')} />
       )}
@@ -542,6 +601,11 @@ function DemoApp() {
         <InboxTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} demoMode />
       )}
       {!loading && tab === 'learn' && <LearnTab learning={learning} apps={apps} isDemoMode />}
+      {tab === 'settings' && (
+        <SettingsTab demoMode onDone={() => setTab(settingsReturnTab)}
+          returnLabel={NAV_ITEMS.find(i => i.id === settingsReturnTab)?.label || 'Today'} />
+      )}
+      </Suspense>
     </AppShell>
   )
 }

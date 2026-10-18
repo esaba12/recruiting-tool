@@ -1,4 +1,4 @@
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import { ArrowLeft, Compass } from 'lucide-react'
 
 const container = {
@@ -29,21 +29,21 @@ export default function NotFoundPage({ path }) {
         style={{ background: 'radial-gradient(circle, var(--color-accent-500), transparent 70%)' }}
       />
 
-      <motion.div
+      <m.div
         variants={container}
         initial="hidden"
         animate="show"
         className="relative w-full max-w-lg"
       >
-        <motion.div variants={rise} className="flex items-center gap-3 mb-10 justify-center">
+        <m.div variants={rise} className="flex items-center gap-3 mb-10 justify-center">
           <div className="h-px flex-1 bg-ink-700" />
           <span className="font-mono text-[11px] tracking-[0.25em] uppercase text-ink-400">
             Application Status
           </span>
           <div className="h-px flex-1 bg-ink-700" />
-        </motion.div>
+        </m.div>
 
-        <motion.div variants={rise} className="relative flex justify-center mb-2">
+        <m.div variants={rise} className="relative flex justify-center mb-2">
           <h1 className="font-heading font-bold text-[8.5rem] leading-none tracking-tight text-ink-50 select-none">
             404
           </h1>
@@ -53,17 +53,17 @@ export default function NotFoundPage({ path }) {
           >
             Closed · no longer accepting
           </div>
-        </motion.div>
+        </m.div>
 
-        <motion.p variants={rise} className="font-heading text-xl md:text-2xl font-semibold text-center mt-8 text-white">
+        <m.p variants={rise} className="font-heading text-xl md:text-2xl font-semibold text-center mt-8 text-white">
           This role isn't open.
-        </motion.p>
-        <motion.p variants={rise} className="text-sm text-ink-400 text-center mt-3 max-w-sm mx-auto leading-relaxed">
+        </m.p>
+        <m.p variants={rise} className="text-sm text-ink-400 text-center mt-3 max-w-sm mx-auto leading-relaxed">
           The page you're chasing got auto-triaged out of the pipeline before you could apply.
           Happens to the best of us.
-        </motion.p>
+        </m.p>
 
-        <motion.div
+        <m.div
           variants={rise}
           className="mt-8 rounded-lg border border-ink-700 bg-ink-800/60 font-mono text-xs overflow-hidden"
         >
@@ -82,9 +82,9 @@ export default function NotFoundPage({ path }) {
             <span className="text-ink-500 shrink-0">status</span>
             <span className="text-accent-400">404 NOT_FOUND</span>
           </div>
-        </motion.div>
+        </m.div>
 
-        <motion.div variants={rise} className="mt-10 flex items-center justify-center gap-3">
+        <m.div variants={rise} className="mt-10 flex items-center justify-center gap-3">
           <a
             href="/"
             className="inline-flex items-center gap-2 rounded-xl bg-accent-500 text-on-accent hover:bg-accent-600 transition-colors px-4 py-2.5 text-sm font-medium"
@@ -99,12 +99,12 @@ export default function NotFoundPage({ path }) {
             <Compass size={15} strokeWidth={2.5} />
             View live demo
           </a>
-        </motion.div>
+        </m.div>
 
-        <motion.p variants={rise} className="mt-12 text-center font-mono text-[11px] tracking-widest uppercase text-ink-600">
+        <m.p variants={rise} className="mt-12 text-center font-mono text-[11px] tracking-widest uppercase text-ink-600">
           Recruiting OS — no offers were rescinded in the making of this error
-        </motion.p>
-      </motion.div>
+        </m.p>
+      </m.div>
     </div>
   )
 }

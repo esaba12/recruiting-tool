@@ -4,6 +4,8 @@ import {
   recruitingShapeHint, networkingShapeHint, extractMeetingLink, extractPlainBody,
   parseGmailMessage, findHeader, candidateFraming, trackGuidance, interviewStage,
   isAutomatedSender, isBulkMail, isGenericNetworking, shouldCreateContact, contactFollowUpDate, keepActionItem,
+  isAlreadyLogged, logThreadMessages,
+  scanQueries, nextCursor, orderConnections, runThreadBudget, MAX_CLASSIFIED_PER_RUN,
 } from '../api/_lib/emailPipeline.js'
 
 describe('parseAddress', () => {
@@ -282,5 +284,164 @@ describe('keepActionItem', () => {
   })
   it('is false when there is no action item', () => {
     expect(keepActionItem({ type: 'REPLY', action_item: null, personal: true }, 'jane@acme.com')).toBe(false)
+  })
+})
+
+// v1.3 spec 11: per-message dedup for logged emails.
+describe('isAlreadyLogged', () => {
+  const msg = { date: new Date('2026-10-10T14:00:00.000Z') }
+  it('matches an exact sent_at', () => {
+    expect(isAlreadyLogged(['2026-10-10T14:00:00.000Z'], msg)).toBe(true)
+  })
+  it('matches within 5 s (GmailApp date vs REST internalDate)', () => {
+    expect(isAlreadyLogged(['2026-10-10T14:00:04.000Z'], msg)).toBe(true)
+  })
+  it('keeps a message 10 s away', () => {
+    expect(isAlreadyLogged(['2026-10-10T14:00:10.000Z'], msg)).toBe(false)
+  })
+  it('keeps everything when nothing is logged (or sent_at is null)', () => {
+    expect(isAlreadyLogged([], msg)).toBe(false)
+    expect(isAlreadyLogged([null], msg)).toBe(false)
+  })
+})
+
+describe('logThreadMessages', () => {
+  const message = (id, iso, from = 'Jane <jane@acme.com>') => ({
+    id, threadId: 't1', subject: 'Hi', from, to: 'me@gmail.com', cc: '',
+    date: new Date(iso), plainBody: `body ${id}`, bulk: false,
+  })
+  function fakeDb(legacy = []) {
+    const calls = { upserts: [], filters: [] }
+    const db = {
+      from: () => ({
+        select: () => {
+          const q = {
+            eq: (col, val) => { calls.filters.push([col, val]); return q },
+            is: (col, val) => { calls.filters.push([col, val]); return Promise.resolve({ data: legacy, error: null }) },
+          }
+          return q
+        },
+        upsert: (rows, opts) => { calls.upserts.push({ rows, opts }); return Promise.resolve({ error: null }) },
+      }),
+    }
+    return { db, calls }
+  }
+  const opts = { contactId: 'c1', threadId: 't1', myEmail: 'me@gmail.com', meetingLink: 'https://zoom.us/j/1', category: 'FOLLOW_UP_NEEDED' }
+
+  it('upserts with gmail_message_id and ignore-duplicates on (user_id, gmail_message_id)', async () => {
+    const { db, calls } = fakeDb()
+    const n = await logThreadMessages(db, 'u1', [message('m1', '2026-10-10T14:00:00Z'), message('m2', '2026-10-11T09:00:00Z', 'me@gmail.com')], opts)
+    expect(n).toBe(2)
+    expect(calls.upserts).toHaveLength(1)
+    const { rows, opts: upsertOpts } = calls.upserts[0]
+    expect(upsertOpts).toEqual({ onConflict: 'user_id,gmail_message_id', ignoreDuplicates: true })
+    expect(rows.map(r => r.gmail_message_id)).toEqual(['m1', 'm2'])
+    expect(rows[1].direction).toBe('Outbound')
+    // meeting link only on the newest message
+    expect(rows[0].summary.startsWith('📅')).toBe(false)
+    expect(rows[1].summary.startsWith('📅 Meeting link: https://zoom.us/j/1')).toBe(true)
+  })
+
+  it('only looks at legacy rows (no gmail_message_id) in this thread', async () => {
+    const { db, calls } = fakeDb()
+    await logThreadMessages(db, 'u1', [message('m1', '2026-10-10T14:00:00Z')], opts)
+    expect(calls.filters).toEqual([['user_id', 'u1'], ['type', 'Email'], ['channel_ref', 't1'], ['gmail_message_id', null]])
+  })
+
+  it('skips messages the Apps Script already logged without an id', async () => {
+    const { db, calls } = fakeDb([{ sent_at: '2026-10-10T14:00:01.000Z' }])
+    const n = await logThreadMessages(db, 'u1', [message('m1', '2026-10-10T14:00:00Z'), message('m2', '2026-10-11T09:00:00Z')], opts)
+    expect(n).toBe(1)
+    expect(calls.upserts[0].rows.map(r => r.gmail_message_id)).toEqual(['m2'])
+  })
+
+  it('writes nothing when every message is already logged', async () => {
+    const { db, calls } = fakeDb([{ sent_at: '2026-10-10T14:00:00.000Z' }])
+    expect(await logThreadMessages(db, 'u1', [message('m1', '2026-10-10T14:00:00Z')], opts)).toBe(0)
+    expect(calls.upserts).toHaveLength(0)
+  })
+
+  it('throws on a write error so the thread is retried next scan', async () => {
+    const { db } = fakeDb()
+    const failing = { from: () => ({ ...db.from(), upsert: () => Promise.resolve({ error: { message: 'boom' } }) }) }
+    await expect(logThreadMessages(failing, 'u1', [message('m1', '2026-10-10T14:00:00Z')], opts)).rejects.toThrow('boom')
+  })
+})
+
+// v1.3 spec 10: scan budget and incremental discovery.
+describe('scanQueries', () => {
+  it('searches the full window when there is no cursor', () => {
+    expect(scanQueries(null)).toEqual({ inbox: 'in:inbox newer_than:45d', sent: 'in:sent newer_than:30d' })
+  })
+  it('adds after:<cursor − 1h> in unix seconds once a pass has completed', () => {
+    const cursor = '2026-10-18T12:00:00.000Z'
+    const after = Math.floor(Date.parse('2026-10-18T11:00:00.000Z') / 1000)
+    expect(scanQueries(cursor)).toEqual({
+      inbox: `in:inbox newer_than:45d after:${after}`,
+      sent: `in:sent newer_than:30d after:${after}`,
+    })
+  })
+})
+
+describe('nextCursor', () => {
+  const base = { prevCursor: '2026-10-17T00:00:00.000Z', scanStartedAt: '2026-10-18T00:00:00.000Z' }
+  it('advances to the scan start after a clean, complete pass', () => {
+    expect(nextCursor({ ...base, partial: false, failed: 0 })).toBe(base.scanStartedAt)
+  })
+  it('stays put when a thread failed', () => {
+    expect(nextCursor({ ...base, partial: false, failed: 1 })).toBe(base.prevCursor)
+  })
+  it('stays put (or null) when the budget cut the pass short', () => {
+    expect(nextCursor({ ...base, partial: true, failed: 0 })).toBe(base.prevCursor)
+    expect(nextCursor({ ...base, prevCursor: undefined, partial: true, failed: 0 })).toBeNull()
+  })
+})
+
+describe('orderConnections', () => {
+  it('puts never-scanned mailboxes first, then the longest-waiting', () => {
+    const conns = [
+      { connected_email: 'b', last_scanned_at: '2026-10-18T10:00:00Z' },
+      { connected_email: 'c', last_scanned_at: null },
+      { connected_email: 'a', last_scanned_at: '2026-10-18T09:00:00Z' },
+    ]
+    expect(orderConnections(conns).map(c => c.connected_email)).toEqual(['c', 'a', 'b'])
+  })
+})
+
+describe('runThreadBudget', () => {
+  const ids = n => Array.from({ length: n }, (_, i) => `t${i}`)
+  it('does nothing once the deadline has passed', async () => {
+    let calls = 0
+    const res = await runThreadBudget(ids(5), async () => { calls++; return 'classified' }, { deadline: 1000, now: () => 2000 })
+    expect(res).toEqual({ classified: 0, failed: 0, partial: true })
+    expect(calls).toBe(0)
+  })
+  it('stops at the classification cap', async () => {
+    const res = await runThreadBudget(ids(60), async () => 'classified', { deadline: null })
+    expect(res).toEqual({ classified: MAX_CLASSIFIED_PER_RUN, failed: 0, partial: true })
+  })
+  it('does not count unchanged threads against the cap', async () => {
+    const res = await runThreadBudget(ids(100), async id => (id === 't99' ? 'classified' : 'unchanged'), { deadline: null })
+    expect(res).toEqual({ classified: 1, failed: 0, partial: false })
+  })
+  it('counts failures and finishes the pass', async () => {
+    const res = await runThreadBudget(ids(3), async id => (id === 't1' ? 'failed' : 'classified'), { deadline: null })
+    expect(res).toEqual({ classified: 2, failed: 1, partial: false })
+  })
+})
+
+describe('logThreadMessages interview line (v1.3 spec 12)', () => {
+  it('puts the 📅 interview time above the meeting link on the newest message only', async () => {
+    const upserts = []
+    const db = { from: () => ({
+      select: () => { const q = { eq: () => q, is: () => Promise.resolve({ data: [], error: null }) }; return q },
+      upsert: rows => { upserts.push(rows); return Promise.resolve({ error: null }) },
+    }) }
+    const msg = (id, iso) => ({ id, threadId: 't', subject: 's', from: 'R <r@acme.com>', to: '', cc: '', date: new Date(iso), plainBody: 'body', bulk: false })
+    await logThreadMessages(db, 'u', [msg('a', '2026-10-10T00:00:00Z'), msg('b', '2026-10-11T00:00:00Z')], {
+      threadId: 't', myEmail: 'me@x.com', meetingLink: 'https://meet.google.com/x', interviewAt: '📅 Interview: Wed, Oct 21, 2:00 PM EDT', category: 'INTERVIEW_INVITE',
+    })
+    expect(upserts[0][0].summary).toBe('body')
+    expect(upserts[0][1].summary).toBe('📅 Interview: Wed, Oct 21, 2:00 PM EDT\n📅 Meeting link: https://meet.google.com/x\n\nbody')
   })
 })

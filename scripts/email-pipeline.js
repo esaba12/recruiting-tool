@@ -1186,17 +1186,21 @@ function logMessageInteraction(keys, message, contactId, threadId, myEmail, meet
   // the one that was actually classified) so it's visible at a glance in the Interactions row.
   const summary   = meetingLink ? `📅 Meeting link: ${meetingLink}\n\n${plainBody}` : plainBody
 
-  supabaseReq(keys, 'post', '/interactions', {
-    user_id:     keys.userId,
-    contact_id:  contactId || null,
-    type:        'Email',
+  // gmail_message_id + ignore-duplicates: the serverless scan (app/api/_lib/emailPipeline.js)
+  // may already have logged this message for the same mailbox (v1.3 spec 11). GmailApp and the
+  // REST API share message ids, so the unique index on (user_id, gmail_message_id) drops it.
+  supabaseReq(keys, 'post', '/interactions?on_conflict=user_id,gmail_message_id', {
+    user_id:          keys.userId,
+    contact_id:       contactId || null,
+    type:             'Email',
     direction,
     date,
-    channel_ref: threadId,
-    summary:     summary.slice(0, 300),
-    body:        plainBody.slice(0, 2000),
+    channel_ref:      threadId,
+    gmail_message_id: message.getId(),
+    summary:          summary.slice(0, 300),
+    body:             plainBody.slice(0, 2000),
     ...inboxFields(message, from, myEmail, category, direction),
-  })
+  }, 'resolution=ignore-duplicates,return=minimal')
 }
 
 // The Inbox tab's per-message fields (see supabase/migrations/20261007000000_inbox.sql).

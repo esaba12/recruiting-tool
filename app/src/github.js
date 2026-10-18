@@ -1,4 +1,6 @@
 import { authHeader } from './lib/supabaseClient.js'
+import { isDemoMode, DemoModeError } from './lib/demoMode.js'
+import { getDemoData } from './db.js'
 
 // ── URL parsing ───────────────────────────────────────────────────────────────
 
@@ -223,6 +225,7 @@ function decodeBase64Utf8(b64) {
 }
 
 export async function fetchRepoJobs(owner, repo, branch) {
+  if (isDemoMode()) return getDemoData().demoRepoJobs(owner, repo)
   const headers = await authHeader()
   const repoRes = await fetch(`/gh-api/repos/${owner}/${repo}`, { headers })
   if (!repoRes.ok) throw new Error(`Repo not found: ${owner}/${repo}`)
@@ -255,6 +258,7 @@ function usernameFromInput(input) {
 }
 
 async function gh(path) {
+  if (isDemoMode()) throw new DemoModeError()
   const res = await fetch(`/gh-api${path}`, { headers: await authHeader() })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -266,6 +270,7 @@ async function gh(path) {
 export async function fetchGitHubProfile(input) {
   const username = usernameFromInput(input)
   if (!username) throw new Error('Could not parse a GitHub username from that input.')
+  if (isDemoMode()) throw new DemoModeError()
 
   const [profile, repos, events, contrib] = await Promise.allSettled([
     gh(`/users/${username}`),

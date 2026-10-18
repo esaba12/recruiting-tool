@@ -2,7 +2,7 @@
 // not a variant of it. The animated axis is chosen in JS because a CSS breakpoint
 // cannot select which motion transform values apply.
 import { useEffect, useRef, createContext, useContext } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, m } from 'motion/react'
 import { cn } from '../../lib/cn.js'
 import useMediaQuery from '../../lib/useMediaQuery.js'
 
@@ -46,13 +46,13 @@ export default function SidePanel({ open = true, onClose, children, className })
     <SidePanelEscapeContext.Provider value={ctxValueRef.current}>
       <AnimatePresence>
         {open && (
-          <motion.div
+          <m.div
             className="fixed inset-0 bg-black/40 z-50 flex items-end md:items-stretch md:justify-end"
             onClick={e => e.target === e.currentTarget && onClose?.()}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
           >
-            <motion.div
+            <m.div
               className={cn(
                 'bg-surface w-full md:w-[480px] md:max-w-[92vw] rounded-t-md md:rounded-none border border-ink-300 max-h-[90vh] md:max-h-none md:h-full overflow-y-auto',
                 className,
@@ -61,8 +61,8 @@ export default function SidePanel({ open = true, onClose, children, className })
               transition={{ duration: 0.22, ease: 'easeOut' }}
             >
               {children}
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
     </SidePanelEscapeContext.Provider>

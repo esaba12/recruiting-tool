@@ -5,19 +5,63 @@
 // instead of one hardcoded ANTHROPIC_API_KEY.
 //
 // Deliberately NOT ported (yet — the Apps Script version still owns these for the personal
-// account): calendar-invite (.ics) parsing / interview calendar-event creation (needs the
-// Calendar API + ICS parsing, a separate chunk of work), ntfy push notifications, and the
+// account): interview calendar-event creation (needs the Calendar API; invite parsing landed in
+// v1.3 spec 12, see ./ics.js), ntfy push notifications, and the
 // daily recap. This module only does discovery → classify → upsert
 // contacts/applications/interactions/action items.
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { decrypt } from './crypto.js'
 import { getUserKey } from './keys.js'
+import { parseInvite, findCalendarPart } from './ics.js'
 import { tracksLabel, isTechOnly } from '../../src/lib/tracks.js'
 
 // ── Discovery queries + recall-hint constants (ported verbatim) ─────────────────────────
 const SENT_SCAN_QUERY = 'in:sent newer_than:30d'
 const INBOX_SCAN_QUERY = 'in:inbox newer_than:45d'
 const SEARCH_CAP = 150
+
+// ── Scan budget (v1.3 spec 10) ──────────────────────────────────────────────────────────
+// Once a mailbox has had one complete pass, searches only ask for mail since that pass
+// (minus an hour of overlap for clock skew and late-indexed messages), instead of
+// re-fetching every thread in the 45-day window every 10 minutes.
+const CURSOR_OVERLAP_MS = 60 * 60 * 1000
+// Per connection per run, so one big first scan can't starve every other mailbox.
+export const MAX_CLASSIFIED_PER_RUN = 40
+
+export function scanQueries(cursor) {
+  if (!cursor) return { inbox: INBOX_SCAN_QUERY, sent: SENT_SCAN_QUERY }
+  const after = ` after:${Math.floor((new Date(cursor).getTime() - CURSOR_OVERLAP_MS) / 1000)}`
+  return { inbox: INBOX_SCAN_QUERY + after, sent: SENT_SCAN_QUERY + after }
+}
+
+// The cursor only moves when a pass saw everything: a budget cut or a failed thread leaves
+// it where it was, so the next run searches the same window again (thread_progress makes
+// that idempotent).
+export function nextCursor({ prevCursor, scanStartedAt, partial, failed }) {
+  return partial || failed > 0 ? (prevCursor || null) : scanStartedAt
+}
+
+// Longest-waiting mailbox first; never-scanned ones before everything.
+export function orderConnections(connections) {
+  const t = c => (c.last_scanned_at ? new Date(c.last_scanned_at).getTime() : -Infinity)
+  return [...connections].sort((a, b) => t(a) - t(b))
+}
+
+// Runs processThread over threadIds (newest first, Gmail's search order) until the deadline
+// or the classification cap. processThread resolves to 'unchanged' | 'classified' | 'failed';
+// only 'classified' counts against the cap, since unchanged threads are a cheap fetch.
+export async function runThreadBudget(threadIds, processThread, { deadline, maxClassified = MAX_CLASSIFIED_PER_RUN, now = Date.now }) {
+  let classified = 0, failed = 0
+  for (let i = 0; i < threadIds.length; i++) {
+    if (classified >= maxClassified || (deadline && now() >= deadline)) {
+      return { classified, failed, partial: true }
+    }
+    const outcome = await processThread(threadIds[i])
+    if (outcome === 'classified') classified++
+    else if (outcome === 'failed') failed++
+  }
+  return { classified, failed, partial: false }
+}
 
 const ATS_DOMAINS = [
   'greenhouse.io', 'lever.co', 'myworkday.com', 'icims.com', 'smartrecruiters.com',
@@ -138,6 +182,55 @@ export function extractMeetingLink(text) {
   return m ? m[0].replace(/[.,)\]]+$/, '') : null
 }
 
+// ── Calendar invites (v1.3 spec 12; parsing lives in ./ics.js) ───────────────────────────
+// An attached invite proves a meeting is scheduled, not that it's an interview: a coffee chat
+// arrives as the same Google Calendar invite. So it never sets the type. It supplies the
+// meeting link, a prompt hint, and the timing once Claude has said INTERVIEW_INVITE.
+const DEFAULT_TIME_ZONE = 'America/New_York' // same default as the events code
+
+export function inviteMeetingLink(invite) {
+  return invite ? (extractMeetingLink(invite.location) || extractMeetingLink(invite.description)) : null
+}
+
+// Wording kept identical to scripts/email-pipeline.js (both copies go away together in 08).
+export function inviteHint(invite, subject) {
+  if (!invite) return ''
+  const when = invite.start.toISOString().slice(0, 16).replace('T', ' ')
+  return `\n\nThis email has a calendar invite attached: "${invite.summary || subject}", scheduled for ${when} UTC${invite.location ? ` at/via ${invite.location}` : ''}. This proves a meeting is scheduled, NOT that it is an interview — decide INTERVIEW_INVITE vs networking from who sent it and what it says (see INTERVIEW_INVITE above).`
+}
+
+function localDate(date, timeZone) {
+  // en-CA formats as YYYY-MM-DD
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
+}
+
+// Mutates the classifier's output: only interviews keep an interview_date, and an invite's
+// start beats Claude's guess from the body text.
+export function applyInviteTiming(data, invite) {
+  if (data.type !== 'INTERVIEW_INVITE') {
+    data.interview_date = null
+    return data
+  }
+  if (invite) {
+    data.interview_date = invite.allDay
+      ? invite.start.toISOString().slice(0, 10)
+      : localDate(invite.start, invite.timeZone || DEFAULT_TIME_ZONE)
+    if (!data.interview_format && data.meeting_link) data.interview_format = 'video'
+    data.invite = invite // for the calendar-event step (08 item 3)
+  }
+  return data
+}
+
+// "📅 Interview: Wed, Oct 21, 2:00 PM EDT", shown first in the Inbox/timeline summary.
+export function interviewLine(invite) {
+  if (!invite) return null
+  const timeZone = invite.allDay ? 'UTC' : (invite.timeZone || DEFAULT_TIME_ZONE)
+  const opts = invite.allDay
+    ? { timeZone, weekday: 'short', month: 'short', day: 'numeric' }
+    : { timeZone, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }
+  return `📅 Interview: ${new Intl.DateTimeFormat('en-US', opts).format(invite.start)}`
+}
+
 // ── Address parsing (ported verbatim) ────────────────────────────────────────────────────
 export function parseAddress(headerStr) {
   if (!headerStr) return null
@@ -229,6 +322,21 @@ export function parseGmailMessage(msg) {
     date: new Date(Number(msg.internalDate)),
     plainBody: extractPlainBody(msg.payload).slice(0, 4000),
     bulk: isBulkMail(headers),
+    calendarPart: findCalendarPart(msg.payload),
+  }
+}
+
+// The newest message's invite, if it has one. Inline parts need no extra call; an attachment
+// costs one. A broken invite never fails the thread: it's treated as no invite.
+async function loadInvite(accessToken, msg) {
+  const part = msg.calendarPart
+  if (!part) return null
+  try {
+    const data = part.data || (await gmailFetch(accessToken, `messages/${msg.id}/attachments/${part.attachmentId}`)).data
+    return data ? parseInvite(Buffer.from(data, 'base64url').toString('utf8')) : null
+  } catch (e) {
+    console.error(`Invite on ${msg.id} unreadable: ${e.message}`)
+    return null
   }
 }
 
@@ -289,7 +397,8 @@ it has a Google Meet/Zoom link or a calendar invite. Calendar notifications ("In
 classified the same way as the original. When unsure, choose networking: a false interview moves
 the application to Phone Screen and puts an interview on the calendar.`
 
-async function classifyEmail(apiKey, { subject, from, body, date, meetingLink, bulk, extraHints, profile }) {
+async function classifyEmail(apiKey, { subject, from, body, date, meetingLink, invite, bulk, extraHints, profile }) {
+  const inviteHintText = inviteHint(invite, subject)
   const linkHint = meetingLink ? `\n\nA video meeting link was found in this email: ${meetingLink}` : ''
   const bulkHint = bulk ? '\n\nThis email has mailing-list headers (List-Unsubscribe / bulk precedence): it was sent to a list, so it is almost certainly not personal outreach — "personal" should be false.' : ''
 
@@ -356,7 +465,7 @@ formal application process.
 
 ${PERSONAL_VS_BULK}
 
-${INTERVIEW_VS_NETWORKING}${trackGuidance(profile)}${linkHint}${bulkHint}${extraHints || ''}
+${INTERVIEW_VS_NETWORKING}${trackGuidance(profile)}${inviteHintText}${linkHint}${bulkHint}${extraHints || ''}
 
 Subject: ${subject}
 From: ${from}
@@ -477,18 +586,31 @@ async function upsertActionItem(db, userId, { gmailMessageId, threadId, contactI
   }, { onConflict: 'user_id,gmail_message_id' })
 }
 
-async function logMessageInteraction(db, userId, message, contactId, threadId, myEmail, meetingLink, category) {
+// Same Gmail message logged by both pipelines, or re-logged after thread_progress was lost:
+// rows written before interactions.gmail_message_id existed have no id to conflict on, so
+// they're matched by thread + timestamp instead (v1.3 spec 11). 5 s absorbs the gap between
+// GmailApp's message date and the REST API's internalDate.
+const SAME_MESSAGE_MS = 5000
+
+export function isAlreadyLogged(existingSentAts, message) {
+  const t = message.date.getTime()
+  return existingSentAts.some(s => s && Math.abs(new Date(s).getTime() - t) <= SAME_MESSAGE_MS)
+}
+
+export function interactionRow(userId, message, { contactId, threadId, myEmail, meetingLink, interviewAt, category }) {
   const from = parseAddress(message.from)
   const direction = (from && from.email === myEmail) ? 'Outbound' : 'Inbound'
-  const summary = meetingLink ? `📅 Meeting link: ${meetingLink}\n\n${message.plainBody}` : message.plainBody
+  const lead = [interviewAt, meetingLink && `📅 Meeting link: ${meetingLink}`].filter(Boolean).join('\n')
+  const summary = lead ? `${lead}\n\n${message.plainBody}` : message.plainBody
 
-  await db.from('interactions').insert({
+  return {
     user_id: userId,
     contact_id: contactId || null,
     type: 'Email',
     direction,
     date: message.date.toISOString().slice(0, 10),
     channel_ref: threadId,
+    gmail_message_id: message.id,
     summary: summary.slice(0, 300),
     body: message.plainBody.slice(0, 2000),
     // Inbox fields (supabase/migrations/20261007000000_inbox.sql) — own sent mail is born read.
@@ -499,18 +621,44 @@ async function logMessageInteraction(db, userId, message, contactId, threadId, m
     mailbox: myEmail,
     email_category: category || null,
     read_at: direction === 'Outbound' ? new Date().toISOString() : null,
-  })
+  }
+}
+
+// Logs a thread's not-yet-seen messages in one write. The meeting link and interview time go
+// on the newest message only (the one that was classified). Duplicates by gmail_message_id are dropped by
+// the unique index; legacy rows by isAlreadyLogged().
+export async function logThreadMessages(db, userId, newMessages, { contactId, threadId, myEmail, meetingLink, interviewAt, category }) {
+  if (!newMessages.length) return 0
+  const { data: legacy } = await db.from('interactions')
+    .select('sent_at')
+    .eq('user_id', userId).eq('type', 'Email').eq('channel_ref', threadId).is('gmail_message_id', null)
+  const legacySentAts = (legacy || []).map(r => r.sent_at)
+
+  const rows = newMessages
+    .map((m, i) => ({ m, isNewest: i === newMessages.length - 1 }))
+    .filter(({ m }) => !isAlreadyLogged(legacySentAts, m))
+    .map(({ m, isNewest }) => interactionRow(userId, m, {
+      contactId, threadId, myEmail, category,
+      meetingLink: isNewest ? meetingLink : null, interviewAt: isNewest ? interviewAt : null,
+    }))
+  if (!rows.length) return 0
+
+  const { error } = await db.from('interactions')
+    .upsert(rows, { onConflict: 'user_id,gmail_message_id', ignoreDuplicates: true })
+  if (error) throw new Error(`Logging thread ${threadId}: ${error.message}`)
+  return rows.length
 }
 
 // ── Entry point — scans one connected Gmail mailbox, returns updated thread_progress ────
-export async function scanGmailConnection(connection) {
+export async function scanGmailConnection(connection, { deadline } = {}) {
+  const scanStartedAt = new Date().toISOString()
   const db = supabaseAdmin()
   const userId = connection.user_id
   const myEmail = connection.connected_email.toLowerCase()
 
   const anthropicKey = await getUserKey(userId, 'anthropic')
   if (!anthropicKey) {
-    return { threadProgress: connection.thread_progress || {}, scanned: 0, skipped: 'no_anthropic_key' }
+    return { threadProgress: connection.thread_progress || {}, cursor: connection.scan_cursor || null, scanned: 0, skipped: 'no_anthropic_key' }
   }
   // Recruiting tracks shape the classifier prompt (candidateFraming / trackGuidance).
   const { data: profile } = await db.from('profiles').select('tracks, focus').eq('id', userId).maybeSingle()
@@ -518,23 +666,24 @@ export async function scanGmailConnection(connection) {
   const refreshToken = decrypt(connection.refresh_token_ciphertext)
   const accessToken = await mintAccessToken(refreshToken)
 
+  const queries = scanQueries(connection.scan_cursor)
   const [inboxIds, sentIds] = await Promise.all([
-    searchMessageIds(accessToken, INBOX_SCAN_QUERY, SEARCH_CAP),
-    searchMessageIds(accessToken, SENT_SCAN_QUERY, SEARCH_CAP),
+    searchMessageIds(accessToken, queries.inbox, SEARCH_CAP),
+    searchMessageIds(accessToken, queries.sent, SEARCH_CAP),
   ])
   const threadIds = [...new Set([...inboxIds, ...sentIds].map(m => m.threadId))]
 
   const threadProgress = { ...(connection.thread_progress || {}) }
-  let scanned = 0
 
-  for (const threadId of threadIds) {
+  const processThread = async threadId => {
     try {
       const messages = await getThreadMessages(accessToken, threadId)
       const seen = threadProgress[threadId] || 0
-      if (messages.length <= seen) continue
+      if (messages.length <= seen) return 'unchanged'
 
       const msg = messages[messages.length - 1]
-      const meetingLink = extractMeetingLink(msg.plainBody)
+      const invite = await loadInvite(accessToken, msg)
+      const meetingLink = inviteMeetingLink(invite) || extractMeetingLink(msg.plainBody)
 
       const applicationHint = APPLICATION_CONFIRMATION_RE.test(msg.subject + ' ' + msg.plainBody)
         ? '\n\nThis email\'s subject/body matches typical automated application-confirmation phrasing ("thank you for applying", "application received", etc.) — likely type APPLICATION_CONFIRMATION unless the content actually indicates a later stage (interview/offer/rejection).'
@@ -551,7 +700,7 @@ export async function scanGmailConnection(connection) {
 
       const data = await classifyEmail(anthropicKey, {
         subject: msg.subject, from: msg.from, body: msg.plainBody,
-        date: msg.date.toISOString().slice(0, 10), meetingLink, bulk: msg.bulk,
+        date: msg.date.toISOString().slice(0, 10), meetingLink, invite, bulk: msg.bulk,
         extraHints: applicationHint + referralHint + oaHint + companyHint + shapeHint + networkingHint,
         profile,
       })
@@ -559,11 +708,11 @@ export async function scanGmailConnection(connection) {
       const counterpart = findCounterpartAddress(messages, myEmail)
       if (!data || data.type === 'UNRELATED' || isGenericNetworking(data, counterpart.email)) {
         threadProgress[threadId] = messages.length
-        scanned++
-        continue
+        return 'classified'
       }
 
       data.meeting_link = meetingLink || data.meeting_link || null
+      applyInviteTiming(data, invite)
       data.contact_email = counterpart.email || null
       if (!data.contact_name && counterpart.displayName) data.contact_name = counterpart.displayName
 
@@ -581,18 +730,21 @@ export async function scanGmailConnection(connection) {
         })
       }
 
-      for (let i = seen; i < messages.length; i++) {
-        const isNewest = i === messages.length - 1
-        await logMessageInteraction(db, userId, messages[i], contactId, threadId, myEmail, isNewest ? data.meeting_link : null, data.type)
-      }
+      await logThreadMessages(db, userId, messages.slice(seen), {
+        contactId, threadId, myEmail, meetingLink: data.meeting_link, category: data.type,
+        interviewAt: data.type === 'INTERVIEW_INVITE' ? interviewLine(invite) : null,
+      })
 
       threadProgress[threadId] = messages.length
-      scanned++
+      return 'classified'
     } catch (e) {
       console.error(`Thread ${threadId} (${myEmail}) failed: ${e.message}`)
       // leave threadProgress untouched for this thread — retried next scan
+      return 'failed'
     }
   }
 
-  return { threadProgress, scanned }
+  const { classified, failed, partial } = await runThreadBudget(threadIds, processThread, { deadline })
+  const cursor = nextCursor({ prevCursor: connection.scan_cursor, scanStartedAt, partial, failed })
+  return { threadProgress, scanned: classified, failed, partial, cursor }
 }

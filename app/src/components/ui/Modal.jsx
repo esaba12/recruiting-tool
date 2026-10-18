@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, m } from 'motion/react'
 import { cn } from '../../lib/cn.js'
 
 const SIZES = {
@@ -19,13 +19,13 @@ export default function Modal({ open = true, onClose, children, size = 'md', cla
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
+        <m.div
           className="fixed inset-0 bg-black/40 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
           onClick={e => e.target === e.currentTarget && onClose?.()}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
         >
-          <motion.div
+          <m.div
             className={cn(
               'bg-surface w-full rounded-t-md md:rounded-md border border-ink-300 max-h-[90vh] overflow-y-auto',
               SIZES[size], className,
@@ -36,8 +36,8 @@ export default function Modal({ open = true, onClose, children, size = 'md', cla
             transition={{ duration: 0.18 }}
           >
             {children}
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   )

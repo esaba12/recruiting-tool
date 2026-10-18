@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { buildNetworkingFlow, networkingSummary, COLD_DAYS } from '../lib/networkingFlow.js'
 import { STATUS_COLOR, Badge } from '../shared.jsx'
-import SankeyChart from './charts/SankeyChart.jsx'
+import { SankeyChart } from './charts/lazy.jsx'
 import Mono from './ui/Mono.jsx'
 
 // Networking twin of ApplicationFlowPanel: headline numbers + the outcome Sankey. On

@@ -39,17 +39,42 @@ export function messageTime(m) {
   return new Date(m.sentAt || m.date || 0).getTime()
 }
 
+// Both pipelines lead the classified message's summary with 📅 lines: "📅 Interview: Wed,
+// Oct 21, 2:00 PM EDT" (from a calendar invite, serverless path only, v1.3 spec 12) and/or
+// "📅 Meeting link: <url>". Split them off so the reader can show them as their own lines.
+const INTERVIEW_LEAD = /^📅 Interview: (.+)$/
+const MEETING_LEAD = /^📅 Meeting link: (\S+)$/
+function stripLead(text) {
+  const lines = (text || '').split('\n')
+  let interview = null, meetingLink = null, i = 0
+  for (; i < lines.length; i++) {
+    const iv = lines[i].match(INTERVIEW_LEAD)
+    const ml = lines[i].match(MEETING_LEAD)
+    if (iv && !interview) interview = iv[1].trim()
+    else if (ml && !meetingLink) meetingLink = ml[1]
+    else break
+  }
+  return { interview, meetingLink, text: lines.slice(i).join('\n').replace(/^\s+/, '') }
+}
+
+// → { interview, meetingLink, text }. The lead lines live only in `summary`; the text is
+// the full body when there is one.
+export function messageLead(m) {
+  const lead = stripLead(m.summary)
+  return { interview: lead.interview, meetingLink: lead.meetingLink, text: m.body ? stripLead(m.body).text : lead.text }
+}
+
 // Rows logged before the inbox columns existed have no subject — fall back to the first
 // line of the summary so the list still reads.
 function subjectFor(messages) {
   const withSubject = messages.find(m => m.subject)
   if (withSubject) return withSubject.subject.replace(/^((re|fwd?):\s*)+/i, '')
-  const first = (messages[0]?.summary || '').replace(/^📅 Meeting link: \S+\s*/, '').split('\n')[0]
+  const first = stripLead(messages[0]?.summary).text.split('\n')[0]
   return first.slice(0, 90) || '(no subject)'
 }
 
 export function snippet(m) {
-  return (m.body || m.summary || '').replace(/^📅 Meeting link: \S+\s*/, '').replace(/\s+/g, ' ').trim().slice(0, 160)
+  return messageLead(m).text.replace(/\s+/g, ' ').trim().slice(0, 160)
 }
 
 export function buildThreads({ interactions = [], contacts = [], apps = [], actionItems = [], now = Date.now() }) {

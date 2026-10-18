@@ -8,12 +8,6 @@
 // imported it (ContactDetailModal, LogInteractionModal, PipelineTab, etc.)
 // needed zero changes beyond the import path.
 import { supabase } from './lib/supabaseClient.js'
-import {
-  DEMO_CONTACTS, DEMO_APPLICATIONS, DEMO_STAGE_EVENTS, DEMO_INTERACTIONS, DEMO_EMAILS, DEMO_CALLS, DEMO_CONTACT_RELATIONSHIPS, nextDemoId,
-  DEMO_SCHOOLS, DEMO_EMPLOYERS, DEMO_EVENTS, DEMO_USER_EVENTS, DEMO_EVENT_RELEVANCE, DEMO_REQUIREMENT_COMPLETIONS, DEMO_INGEST_SOURCES,
-  buildDemoLearning,
-  buildDemoLeetcodeSnapshot,
-} from './demoData.js'
 import { ROLE_OPTIONS } from './shared.jsx'
 import { parseDay, todayLocal, addDaysLocal } from './lib/dates.js'
 import { attachStageHistory } from './lib/stageHistory.js'
@@ -39,23 +33,34 @@ function isDemoMode() {
   return typeof window !== 'undefined' && window.location.pathname.startsWith('/demo')
 }
 
+// demoData.js is its own chunk, so real users never download it: DemoApp imports it and
+// registers it here before rendering any tab.
+let D = null
+export function setDemoData(mod) { D = mod }
+export function getDemoData() {
+  if (!D) throw new Error('Demo data not loaded yet')
+  return D
+}
+
 let demo = null
 function demoStore() {
   if (!demo) {
+    const d = getDemoData()
     demo = {
-      contacts: DEMO_CONTACTS.map(c => ({ ...c })),
-      applications: DEMO_APPLICATIONS.map(a => ({ ...a })),
-      stageEvents: DEMO_STAGE_EVENTS.map(e => ({ ...e })),
-      interactions: [...DEMO_INTERACTIONS, ...DEMO_EMAILS].map(i => ({ ...i })),
-      calls: DEMO_CALLS.map(c => ({ ...c })),
-      contactRelationships: DEMO_CONTACT_RELATIONSHIPS.map(r => ({ ...r })),
-      schools: DEMO_SCHOOLS.map(s => ({ ...s })),
-      employers: DEMO_EMPLOYERS.map(e => ({ ...e })),
-      events: DEMO_EVENTS.map(e => ({ ...e, requirements: e.requirements.map(r => ({ ...r })) })),
-      userEvents: DEMO_USER_EVENTS.map(u => ({ ...u })),
-      eventRelevance: DEMO_EVENT_RELEVANCE.map(r => ({ ...r })),
-      requirementCompletions: DEMO_REQUIREMENT_COMPLETIONS.map(c => ({ ...c })),
-      ingestSources: DEMO_INGEST_SOURCES.map(i => ({ ...i })),
+      contacts: d.DEMO_CONTACTS.map(c => ({ ...c })),
+      applications: d.DEMO_APPLICATIONS.map(a => ({ ...a })),
+      stageEvents: d.DEMO_STAGE_EVENTS.map(e => ({ ...e })),
+      interactions: [...d.DEMO_INTERACTIONS, ...d.DEMO_EMAILS].map(i => ({ ...i })),
+      calls: d.DEMO_CALLS.map(c => ({ ...c })),
+      contactRelationships: d.DEMO_CONTACT_RELATIONSHIPS.map(r => ({ ...r })),
+      schools: d.DEMO_SCHOOLS.map(s => ({ ...s })),
+      employers: d.DEMO_EMPLOYERS.map(e => ({ ...e })),
+      events: d.DEMO_EVENTS.map(e => ({ ...e, requirements: e.requirements.map(r => ({ ...r })) })),
+      userEvents: d.DEMO_USER_EVENTS.map(u => ({ ...u })),
+      eventRelevance: d.DEMO_EVENT_RELEVANCE.map(r => ({ ...r })),
+      requirementCompletions: d.DEMO_REQUIREMENT_COMPLETIONS.map(c => ({ ...c })),
+      ingestSources: d.DEMO_INGEST_SOURCES.map(i => ({ ...i })),
+      targetCompanies: [...d.DEMO_TARGET_COMPANIES],
     }
   }
   return demo
@@ -119,7 +124,7 @@ export async function searchContactByName(name) {
 export async function addContact({ name, company, role, email, phone }) {
   const roleSelect = ROLE_OPTIONS.find(r => role?.toLowerCase().includes(r.toLowerCase())) || 'Other'
   if (isDemoMode()) {
-    const id = nextDemoId()
+    const id = getDemoData().nextDemoId()
     demoStore().contacts.push({
       id, name, company: company || '', role: roleSelect, email: email || '', phone: phone || '', linkedin: null, source: '',
       status: '🟡 Cooling', urgency: 'LOW', lastInteraction: todayStr(), followUpDate: plusDays(3), notes: '',
@@ -224,7 +229,7 @@ export async function archiveContact(id) {
 export async function addCallEntry({ contactId, contactName, company, summary, keyInsights, commitments, followUpDraft }) {
   const title = `${contactName} @ ${company || '?'} — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
   if (isDemoMode()) {
-    const id = nextDemoId()
+    const id = getDemoData().nextDemoId()
     demoStore().calls.push({ id, title, contactId: contactId || null, date: todayStr(), summary: summary || '', keyInsights: keyInsights || '', fullTranscript: '' })
     return { id }
   }
@@ -260,7 +265,7 @@ export async function fetchCalls() {
 
 export async function addApplication({ company, role, jdLink, location, sourceRepo, datePosted, referredById }) {
   if (isDemoMode()) {
-    const id = nextDemoId()
+    const id = getDemoData().nextDemoId()
     demoStore().applications.push({
       id, company, role: role || '', stage: 'Wishlist', triage: 'Needs Review', location: location || '',
       sourceRepo: sourceRepo || '', appliedDate: null, closedDate: null, lastActivity: todayStr(), daysInStage: null,
@@ -416,7 +421,7 @@ export async function addInteraction({ contactId, contactName, type, direction, 
   const date = interactionDate || todayStr()
   const title = `${type} — ${contactName || '?'} — ${parseDay(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
   if (isDemoMode()) {
-    const id = nextDemoId()
+    const id = getDemoData().nextDemoId()
     demoStore().interactions.push({ id, contactId: contactId || null, type: type || '', direction: direction || '', date, channelRef: channelRef || '', summary: summary || '', body: body ? body.slice(0, 2000) : '' })
     return { id, title }
   }
@@ -500,7 +505,7 @@ export async function fetchContactRelationships() {
 
 export async function addContactRelationship({ fromContactId, toContactId, relationshipType, note }) {
   if (isDemoMode()) {
-    const id = nextDemoId()
+    const id = getDemoData().nextDemoId()
     demoStore().contactRelationships.push({ id, fromContactId, toContactId, relationshipType, note: note || '' })
     return { id }
   }
@@ -594,8 +599,7 @@ export async function fetchDailyRecap() {
 // cache. Stored in user_settings (generic per-user KV, already RLS'd, see
 // supabase/migrations/20260723000000_init.sql) under key='target_companies', so the list
 // now syncs across devices instead of resetting every time the user opens a new browser.
-// Demo mode never calls this (Explore/Discover/Coverage aren't in the demo nav), but the
-// branch is here for consistency with every other export in this file.
+// Demo mode serves a seeded list (demoData.js) and keeps edits in memory.
 
 // Generic per-user KV on top of user_settings — small settings blobs (Recruiting
 // calendar id per slot, sync preferences). Demo mode keeps them in memory.
@@ -603,7 +607,7 @@ const demoSettings = new Map()
 export async function getUserSetting(key) {
   if (isDemoMode()) {
     // The demo's LeetCode track is "connected", so serve a seeded sync snapshot.
-    if (key === 'leetcode_snapshot' && !demoSettings.has(key)) demoSettings.set(key, buildDemoLeetcodeSnapshot())
+    if (key === 'leetcode_snapshot' && !demoSettings.has(key)) demoSettings.set(key, getDemoData().buildDemoLeetcodeSnapshot())
     return demoSettings.has(key) ? demoSettings.get(key) : null
   }
   const { data, error } = await supabase.from('user_settings').select('value').eq('key', key).maybeSingle()
@@ -618,14 +622,14 @@ export async function setUserSetting(key, value) {
 }
 
 export async function fetchTargetCompanies() {
-  if (isDemoMode()) return []
+  if (isDemoMode()) return [...demoStore().targetCompanies]
   const { data, error } = await supabase.from('user_settings').select('value').eq('key', 'target_companies').maybeSingle()
   throwIfError(error, 'fetchTargetCompanies')
   return data?.value || []
 }
 
 export async function saveTargetCompanies(companies) {
-  if (isDemoMode()) return
+  if (isDemoMode()) { demoStore().targetCompanies = [...companies]; return }
   const { error } = await supabase.from('user_settings')
     .upsert({ key: 'target_companies', value: companies }, { onConflict: 'user_id,key' })
   throwIfError(error, 'saveTargetCompanies')
@@ -879,7 +883,7 @@ export async function setRequirementCompletion(requirementId, completed) {
 // lives in lib/learning/mastery.js and is a pure function of what fetchLearning() returns.
 let demoLearning = null
 function demoLearn() {
-  if (!demoLearning) demoLearning = buildDemoLearning()
+  if (!demoLearning) demoLearning = getDemoData().buildDemoLearning()
   return demoLearning
 }
 
@@ -961,8 +965,8 @@ export async function fetchLearning() {
 export async function createTrackWithTopics({ track, topics = [] }, sort = 0) {
   if (isDemoMode()) {
     const d = demoLearn()
-    const t = { id: nextDemoId(), ...track, sort, archivedAt: null }
-    const tps = topics.map(tp => ({ id: nextDemoId(), trackId: t.id, hidden: false, selfRating: null, ...tp }))
+    const t = { id: getDemoData().nextDemoId(), ...track, sort, archivedAt: null }
+    const tps = topics.map(tp => ({ id: getDemoData().nextDemoId(), trackId: t.id, hidden: false, selfRating: null, ...tp }))
     d.tracks.push(t); d.topics.push(...tps)
     return { track: t, topics: tps }
   }
@@ -992,7 +996,7 @@ export async function updateTrack(id, fields) {
 
 export async function addTopics(trackId, topics) {
   if (isDemoMode()) {
-    const tps = topics.map(tp => ({ id: nextDemoId(), trackId, hidden: false, selfRating: null, lcTags: [], weight: 1, targetLevel: 3, ...tp }))
+    const tps = topics.map(tp => ({ id: getDemoData().nextDemoId(), trackId, hidden: false, selfRating: null, lcTags: [], weight: 1, targetLevel: 3, ...tp }))
     demoLearn().topics.push(...tps)
     return tps
   }
@@ -1028,7 +1032,7 @@ export async function upsertLearningItems(items) {
     const d = demoLearn()
     return items.map(it => {
       let row = d.items.find(x => x.source === it.source && x.externalRef === it.externalRef)
-      if (!row) { row = { id: nextDemoId(), srs: null, dueAt: null, ...it }; d.items.push(row) }
+      if (!row) { row = { id: getDemoData().nextDemoId(), srs: null, dueAt: null, ...it }; d.items.push(row) }
       return row
     })
   }
@@ -1051,7 +1055,7 @@ export async function updateLearningItem(id, fields) {
 
 export async function addLearningLog(log) {
   if (isDemoMode()) {
-    const row = { id: nextDemoId(), topicIds: [], ...log, occurredAt: log.occurredAt || new Date().toISOString() }
+    const row = { id: getDemoData().nextDemoId(), topicIds: [], ...log, occurredAt: log.occurredAt || new Date().toISOString() }
     demoLearn().logs.unshift(row)
     return row
   }
@@ -1066,7 +1070,7 @@ export async function importLearningLogs(logs) {
   if (isDemoMode()) {
     const d = demoLearn()
     const fresh = logs.filter(l => !d.logs.some(x => x.source === l.source && x.externalRef && x.externalRef === l.externalRef))
-    const rows = fresh.map(l => ({ id: nextDemoId(), topicIds: [], ...l }))
+    const rows = fresh.map(l => ({ id: getDemoData().nextDemoId(), topicIds: [], ...l }))
     d.logs.unshift(...rows)
     return rows
   }

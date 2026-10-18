@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { fetchGitHubProfile, fetchRepoJobs, parseGitHubInput } from '../../github.js'
-import { pullAllBoards } from './boardsRegistry.js'
+import { pullAllBoards, getTrackedBoards } from './boardsRegistry.js'
+import { isDemoMode } from '../../lib/demoMode.js'
 import { recordPostingSnapshot } from '../../lib/hiringVelocity.js'
 import { EmptyState } from '../../shared.jsx'
 import RepoJobsView from './RepoJobsView.jsx'
@@ -32,6 +33,12 @@ export default function JobBoardsView({ apps, onImported }) {
       setPulling(false)
     }
   }
+
+  // /demo opens with its two sample boards already pulled, instead of an empty page.
+  useEffect(() => {
+    if (isDemoMode()) pullAll(getTrackedBoards())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function lookup(raw) {
     const val = (raw || input).trim()

@@ -68,8 +68,8 @@ docs/architecture/     Topic deep dives (moved out of this file 2026-10-16)
 ```
 
 Tabs (`NAV_ITEMS` in `components/layout/Sidebar.jsx`): **Today · Inbox · Network · Grow · Learn ·
-Pipeline · Calendar**, with Settings in the sidebar footer. `/demo` hides Grow, Outbox, Job Boards
-and Settings (`DEMO_NAV_ITEMS` in `App.jsx`).
+Pipeline · Calendar**, with Settings in the sidebar footer. `/demo` shows every tab on seed data
+(`demoData.js`, its own chunk, registered via `db.js` `setDemoData`).
 
 ## Rules (non-negotiable)
 
@@ -86,9 +86,10 @@ and Settings (`DEMO_NAV_ITEMS` in `App.jsx`).
   `claude.js`/`openai.js` directly. The one exception is vision, which uses `claude.js`. UI copy
   names the provider via `aiProviderLabel()`. AI features fail soft without a key: `NeedsKey`
   explains it on buttons, and `lib/keyStore.js`'s `assertKey` guards the clients.
-- **`/demo` must never hit an auth-gated endpoint.** New data paths need a branch in `db.js`
-  `isDemoMode()`; Google calls short-circuit in `googleCalendar.js`. Rename a tab id → update
-  `DEMO_NAV_ITEMS` in the same commit.
+- **`/demo` must never hit an auth-gated endpoint.** New data paths need a demo branch
+  (`lib/demoMode.js` `isDemoMode()`, seeds read via `db.js` `getDemoData()`); Google calls
+  short-circuit in `googleCalendar.js`/`lib/googleAuth.js`, GitHub in `github.js`, and
+  `assertKey` refuses every AI/Exa call on `/demo`. `lsGet`/`lsSet` are in-memory there.
 - **localStorage** goes through `lib/scopedStorage.js` `lsGet`/`lsSet` (namespaced by user id).
   Don't add new `rec_*` keys without a reason; durable or shared state belongs in `user_settings`.
 - **Free-text `company`/`school` stay** alongside the nullable `employer_id`/`school_id`. Never
@@ -111,14 +112,13 @@ and Settings (`DEMO_NAV_ITEMS` in `App.jsx`).
 - Anthropic rejects proxied calls that carry the browser's `Origin`: proxies build fresh headers.
 - `events.umich.edu` (Cloudflare) challenges server fetches at random, so ingestion falls back to a browser relay, and relayed payloads are host-validated.
 - Google OAuth consent screen: unverified apps are capped at 100 users; Testing mode means 7-day refresh tokens. The verification decision is in `docs/architecture/google-calendar.md`.
-- ICS invites: read fields only from the `VEVENT` block (`VTIMEZONE` has its own `DTSTART`).
+- ICS invites: read fields only from the `VEVENT` block (`VTIMEZONE` has its own `DTSTART`). Server-side, convert `TZID` times through `api/_lib/ics.js` (Vercel runs in UTC).
 - Node 20 + Supabase Realtime in scripts/tests: pass `realtime: { transport: ws }`.
 - Apps Script: more than 50 Script Properties makes the UI read-only (set them from code); `UrlFetchApp` to ntfy.sh fails intermittently (retries in place).
 
 ## Known issues
 
 - Google refresh tokens expire every 7 days while the consent screen is in Testing mode. Fix: publish (v1.3 spec 02 A4).
-- `vite build` warns about a chunk over 500 KB; lazy-loading by tab is written up in v1.3 spec 06 E.
 - Two email pipelines with duplicated classifier prompts (`INTERVIEW_VS_NETWORKING` in both). Keep them in sync until v1.3 spec 08 lands.
 
 ## docs/architecture index

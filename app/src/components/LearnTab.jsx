@@ -7,8 +7,8 @@ import Modal from './ui/Modal.jsx'
 import { TEMPLATES, defaultTemplateKeys } from '../lib/learning/templates.js'
 import { useTrackView, activeTrack } from '../lib/learning/useLearning.js'
 import useCompanyPrep from '../lib/learning/useCompanyPrep.js'
-import { DEMO_COMPANY_PREP } from '../demoData.js'
 import { lsGet, lsSet } from '../lib/scopedStorage.js'
+import { getDemoData } from '../db.js'
 import { profileTracks } from '../lib/tracks.js'
 import {
   SummaryWidget, GoalsWidget, GapsWidget, PlanWidget, MasteryWidget, ReviewWidget, ActivityWidget,
@@ -36,7 +36,7 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
   // Company problem lists only matter for tracks that practice on LeetCode.
   const lcTrack = !!track && learning.topics.some(t => t.trackId === track.id && t.lcTags?.length)
   const livePrep = useCompanyPrep(track, apps, { enabled: learning.loaded && lcTrack && !isDemoMode })
-  const companyPrep = isDemoMode && lcTrack ? DEMO_COMPANY_PREP : livePrep
+  const companyPrep = isDemoMode && lcTrack ? getDemoData().DEMO_COMPANY_PREP : livePrep
   const view = useTrackView(learning, trackId, apps, companyPrep.sets)
 
   useEffect(() => { if (view?.track && view.track.id !== trackId) setTrackId(view.track.id) }, [view?.track, trackId])

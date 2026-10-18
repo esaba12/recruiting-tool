@@ -1,10 +1,10 @@
-import { motion } from 'motion/react'
+import { m } from 'motion/react'
 import Mono from './ui/Mono.jsx'
 import { nextDeadlines } from '../lib/statTiles.js'
 import { pickNextDeadline } from '../lib/attention.js'
 
 // Self-contained stagger for the 3 tiles, independent of TodayTab's own Section-list
-// stagger (which wraps this whole component in its own <motion.div variants={rise}>).
+// stagger (which wraps this whole component in its own <m.div variants={rise}>).
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.1 } } }
 const item = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } }
 
@@ -24,24 +24,24 @@ export default function StatTileRow({ triagedApps, apps, trendData }) {
   const activityMax = Math.max(1, ...last6.map(w => w.count))
 
   return (
-    <motion.div
+    <m.div
       variants={container}
       initial="hidden"
       animate="show"
       className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-0 md:divide-x divide-ink-200 pb-4 mb-4 border-b border-ink-200"
     >
       {/* Tile 1: Funnel */}
-      <motion.div variants={item} className="md:px-5 md:first:pl-0 md:last:pr-0">
+      <m.div variants={item} className="md:px-5 md:first:pl-0 md:last:pr-0">
         <p className="text-xs font-semibold text-ink-600">Funnel</p>
         <Mono className="block text-2xl mt-1">{appliedOrBeyond}</Mono>
         <p className="text-xs text-ink-400 mt-0.5">applied of {triagedApps.length} ({pct}%)</p>
         <div className="h-1 bg-ink-100 rounded-sm overflow-hidden mt-3">
           <div className="h-full bg-accent-600 rounded-sm" style={{ width: `${pct}%` }} />
         </div>
-      </motion.div>
+      </m.div>
 
       {/* Tile 2: Next Deadline */}
-      <motion.div variants={item} className="md:px-5 md:first:pl-0 md:last:pr-0">
+      <m.div variants={item} className="md:px-5 md:first:pl-0 md:last:pr-0">
         <p className="text-xs font-semibold text-ink-600">Next Deadline</p>
         {soonest ? (
           <>
@@ -53,10 +53,10 @@ export default function StatTileRow({ triagedApps, apps, trendData }) {
         ) : (
           <p className="text-sm text-ink-400 mt-2">No known deadlines</p>
         )}
-      </motion.div>
+      </m.div>
 
       {/* Tile 3: Activity */}
-      <motion.div variants={item} className="md:px-5 md:first:pl-0 md:last:pr-0">
+      <m.div variants={item} className="md:px-5 md:first:pl-0 md:last:pr-0">
         <p className="text-xs font-semibold text-ink-600">Activity</p>
         <Mono className="block text-2xl mt-1">{activityTotal}</Mono>
         <p className="text-xs text-ink-400 mt-0.5">last 6 weeks</p>
@@ -66,7 +66,7 @@ export default function StatTileRow({ triagedApps, apps, trendData }) {
               style={{ height: `${Math.max(15, (w.count / activityMax) * 100)}%` }} />
           ))}
         </div>
-      </motion.div>
-    </motion.div>
+      </m.div>
+    </m.div>
   )
 }
