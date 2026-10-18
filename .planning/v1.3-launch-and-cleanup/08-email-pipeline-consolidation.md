@@ -23,11 +23,17 @@ the Apps Script copy is only a second place for bugs to hide.
 
 Each feature the Apps Script has and `api/_lib/emailPipeline.js` doesn't, roughly in order of how much it matters:
 
-1. **Push notifications (ntfy).** Immediate pushes for OA/interview/offer/rejection, the daily
-   OA digest, the daily recap, and quiet hours with a queue. Proposed: `profiles.ntfy_topic`
-   (nullable, set in Settings, never logged), with a `sendPush` in `api/_lib/` that keeps the
-   3× retry. Immediate pushes go out from the scan. The digest and recap run from the same cron
-   tick, gated by a per-user "last digest date" in `user_settings`. No new function.
+1. ✅ **Push notifications (ntfy)**, done 2026-10-18 on `feat/v1.3-email-parity`:
+   `api/_lib/pushes.js` (tests: `test/pushes.test.js`). Update pushes (OA/interview/offer/
+   rejection, only for mail under 2 days old) are queued per tick and sent as one; 22:00–08:00
+   holds them; the 11am and midnight digests carry the AI recap (Sonnet, user's own key, also
+   written to `daily_recaps`), open OAs and anything held. Settings → Push notifications stores
+   `{ ntfyTopic, timeZone }` in `user_settings` `push_settings` (not a `profiles` column, so no
+   `db push`); the queue and sent slots live in `push_state`. "Send a test" is
+   `POST /api/gmail?action=test-push`. Pushes use ntfy's JSON publish: Node's fetch rejects the
+   emoji titles as headers (caught by a live test against ntfy.sh).
+   **Overlap:** the Apps Script still pushes to its own `NTFY_TOPIC`. Don't save a topic in
+   Settings for your own account until step 3 of the cutover, or you get every push twice.
 2. ✅ **Calendar invites** → spec [12](12-calendar-invites.md), done. VEVENT-scoped `.ics` parsing (the VTIMEZONE `DTSTART` gotcha), timing
    for real interviews, and skipping our own calendar event when an invite is attached. Port
    `extractCalendarInvite`/`parseIcsDate` as pure functions, with tests from captured `.ics` fixtures.

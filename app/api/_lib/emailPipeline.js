@@ -4,15 +4,14 @@
 // raw PostgREST UrlFetchApp calls, and each user's own BYOK Anthropic key (getUserKey())
 // instead of one hardcoded ANTHROPIC_API_KEY.
 //
-// Deliberately NOT ported (yet — the Apps Script version still owns these for the personal
-// account): interview calendar-event creation (needs the Calendar API; invite parsing landed in
-// v1.3 spec 12, see ./ics.js), ntfy push notifications, and the
-// daily recap. This module only does discovery → classify → upsert
-// contacts/applications/interactions/action items.
+// Invite parsing is v1.3 spec 12 (./ics.js). The scan also returns the update pushes it
+// built (./pushes.js statusPush); api/gmail.js sends them, with the digests and daily recap,
+// after the connection loop.
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { decrypt } from './crypto.js'
 import { getUserKey } from './keys.js'
 import { parseInvite, findCalendarPart } from './ics.js'
+import { statusPush, isFreshEnoughToPush } from './pushes.js'
 import { tracksLabel, isTechOnly } from '../../src/lib/tracks.js'
 
 // ── Discovery queries + recall-hint constants (ported verbatim) ─────────────────────────
@@ -674,6 +673,7 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
   const threadIds = [...new Set([...inboxIds, ...sentIds].map(m => m.threadId))]
 
   const threadProgress = { ...(connection.thread_progress || {}) }
+  const pushes = []
 
   const processThread = async threadId => {
     try {
@@ -736,6 +736,9 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
       })
 
       threadProgress[threadId] = messages.length
+      // Last, so a thread that fails above (and is retried next tick) never pushes twice.
+      const push = isFreshEnoughToPush(msg.date) ? statusPush(data) : null
+      if (push) pushes.push(push)
       return 'classified'
     } catch (e) {
       console.error(`Thread ${threadId} (${myEmail}) failed: ${e.message}`)
@@ -746,5 +749,5 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
 
   const { classified, failed, partial } = await runThreadBudget(threadIds, processThread, { deadline })
   const cursor = nextCursor({ prevCursor: connection.scan_cursor, scanStartedAt, partial, failed })
-  return { threadProgress, scanned: classified, failed, partial, cursor }
+  return { threadProgress, scanned: classified, failed, partial, cursor, pushes }
 }

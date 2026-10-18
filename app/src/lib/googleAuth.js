@@ -87,3 +87,13 @@ export async function disconnectGmail(email) {
   if (!res.ok) throw new Error('Failed to disconnect')
   return res.json()
 }
+
+// Settings → "Send a test push" (api/gmail.js ?action=test-push, ./pushes.js on the server).
+export async function sendTestPush() {
+  if (isDemoMode()) throw new DemoModeError()
+  const res = await fetch('/api/gmail?action=test-push', { method: 'POST', headers: await authHeader() })
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}))
+    throw new Error(e.error?.message || 'Test push failed')
+  }
+}
