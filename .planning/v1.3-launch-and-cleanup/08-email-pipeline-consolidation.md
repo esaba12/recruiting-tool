@@ -37,9 +37,15 @@ Each feature the Apps Script has and `api/_lib/emailPipeline.js` doesn't, roughl
 2. ✅ **Calendar invites** → spec [12](12-calendar-invites.md), done. VEVENT-scoped `.ics` parsing (the VTIMEZONE `DTSTART` gotcha), timing
    for real interviews, and skipping our own calendar event when an invite is attached. Port
    `extractCalendarInvite`/`parseIcsDate` as pure functions, with tests from captured `.ics` fixtures.
-3. **Interview calendar event when there's no invite** (`createCalendarEvent`, with the same-day
-   duplicate check and the 10h cap). Reuse `googleCalendar` server-side through the user's
-   Calendar token, if one is connected.
+3. ✅ **Interview calendar event when there's no invite**, done 2026-10-18 on
+   `feat/v1.3-email-parity`: `api/_lib/interviewEvent.js` (tests: `test/interviewEvent.test.js`).
+   An `INTERVIEW_INVITE` with a date and no invite gets a 2–3pm placeholder event on the
+   connected Calendar's primary calendar (the slot Settings syncs to, else any), in the campus
+   time zone, with a line saying the time is a placeholder. The classifier never returns a
+   time, so the 10h cap had nothing to guard and was dropped. New guards: no events for past
+   dates (first-scan backfill), and the same-day title check also matches events the Apps
+   Script made during the overlap week. Best effort: a Calendar failure is logged and never
+   holds the thread back.
 4. **Backfill** → covered by spec [10](10-scan-budget.md): the first scan's 45-day window already is the backfill. (`runBackfillChunk`, `backfillOaCompletions`, `backfillInboxFields`). These were
    one-offs for your mailbox. For new users, an initial "scan the last 30 days" on connect,
    cursor-paged across cron ticks, is enough.
@@ -49,7 +55,7 @@ Each feature the Apps Script has and `api/_lib/emailPipeline.js` doesn't, roughl
 
 ## Cutover
 
-1. Ship 1–3, with tests (`test/emailPipeline.test.js`).
+1. ✅ Ship 1–3, with tests (done 2026-10-18: `test/pushes.test.js`, `test/interviewEvent.test.js`, `test/ics.test.js`).
 2. Run both pipelines for a week against your mailbox. Both write `gmail_message_id` with a
    unique index (spec [11](11-interaction-dedup.md), which must land first), so the overlap is harmless. Compare the rows each one wrote.
 3. Disable the Apps Script triggers (editor → clock icon); don't delete the project yet.

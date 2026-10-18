@@ -27,7 +27,7 @@ files: the project is at the Vercel Hobby limit of 12 functions.
 | 05 | [Small code follow-ups](05-code-followups.md) | 🤖 | ✅ merged 2026-10-17 (PR #13); Job Boards keep-alive verified on `/demo` 2026-10-18 |
 | 06 | [Prune + refactor](06-prune-and-refactor.md) | 🤖 | ✅ merged 2026-10-17 (PR #13); branch cleanup done except the `demo-refresh` worktree (01 step 4); E items are later |
 | 07 | [Docs restructure (slim CLAUDE.md)](07-docs-restructure.md) | 🤖 | ✅ merged 2026-10-17 (PR #13) |
-| 08 | [Retire the Apps Script email pipeline](08-email-pipeline-consolidation.md) | 🤖 after 02's cron | later; needs the features the serverless scan lacks first |
+| 08 | [Retire the Apps Script email pipeline](08-email-pipeline-consolidation.md) | 🤖 after 02's cron | missing features done 2026-10-18 on `feat/v1.3-email-parity` (pushes, interview events); cutover waits on a week of the cron |
 | 09 | [Split the bundle by tab](09-bundle-split.md) | 🤖 | ✅ merged 2026-10-18 (PR #18): entry 1,985 → 469 KB + 357 KB vendor, no build warning |
 | 10 | [Gmail scan budget + incremental discovery](10-scan-budget.md) | 🤖, one `db push` | ✅ merged 2026-10-18 (PR #18), migration live; prod check waits on 02 D1/D2 |
 | 11 | [Per-message dedup for logged emails](11-interaction-dedup.md) | 🤖, one `db push` + `clasp push` | ✅ merged 2026-10-18 (PR #18), migration + Apps Script live. 02 D2 is now safe |
