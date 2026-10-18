@@ -31,7 +31,7 @@ files: the project is at the Vercel Hobby limit of 12 functions.
 | 09 | [Split the bundle by tab](09-bundle-split.md) | 🤖 | ✅ done on `feat/bundle-split`: entry 1,985 → 497 KB + 357 KB vendor (gzip 585 → 255), no build warning |
 | 10 | [Gmail scan budget + incremental discovery](10-scan-budget.md) | 🤖, one `db push` | code done on `feat/scan-budget` (stacked on 11); shares 11's `db push` (replaces 02 D3 and 08 item 4) |
 | 11 | [Per-message dedup for logged emails](11-interaction-dedup.md) | 🤖, one `db push` + `clasp push` | code done on `feat/interaction-dedup`; needs `db push` → `clasp push` → deploy, in that order. **Must land before 02 D2** |
-| 12 | [Calendar invites on the serverless path](12-calendar-invites.md) | 🤖 | open (08 item 2) |
+| 12 | [Calendar invites on the serverless path](12-calendar-invites.md) | 🤖 | code done on `feat/v1.3-claude-track` (08 item 2); prod check waits on 02 D1/D2 |
 
 Order: 02 → (03 ∥ 04). 01 and 05–07 are merged (PRs #9, #13).
 08 waits until the Gmail cron (in 02) has run cleanly for a week.

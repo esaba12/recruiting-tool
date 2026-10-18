@@ -111,7 +111,7 @@ and Settings (`DEMO_NAV_ITEMS` in `App.jsx`).
 - Anthropic rejects proxied calls that carry the browser's `Origin`: proxies build fresh headers.
 - `events.umich.edu` (Cloudflare) challenges server fetches at random, so ingestion falls back to a browser relay, and relayed payloads are host-validated.
 - Google OAuth consent screen: unverified apps are capped at 100 users; Testing mode means 7-day refresh tokens. The verification decision is in `docs/architecture/google-calendar.md`.
-- ICS invites: read fields only from the `VEVENT` block (`VTIMEZONE` has its own `DTSTART`).
+- ICS invites: read fields only from the `VEVENT` block (`VTIMEZONE` has its own `DTSTART`). Server-side, convert `TZID` times through `api/_lib/ics.js` (Vercel runs in UTC).
 - Node 20 + Supabase Realtime in scripts/tests: pass `realtime: { transport: ws }`.
 - Apps Script: more than 50 Script Properties makes the UI read-only (set them from code); `UrlFetchApp` to ntfy.sh fails intermittently (retries in place).
 

@@ -1,0 +1,14 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//GoodTime//Interview Scheduling//EN
+METHOD:REQUEST
+BEGIN:VEVENT
+UID:gt-123@example.com
+DTSTAMP:20261015T120000Z
+DTSTART:20261023T180000Z
+DTEND:20261023T184500Z
+SUMMARY:Phone Screen: Example Startup
+LOCATION:https://zoom.us/j/1234567890?pwd=EXAMPLE
+DESCRIPTION:Your interviewer will call you. Backup link: https://meet.google.com/zzz-zzzz-zzz
+END:VEVENT
+END:VCALENDAR

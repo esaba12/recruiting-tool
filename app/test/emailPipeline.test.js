@@ -429,3 +429,19 @@ describe('runThreadBudget', () => {
     expect(res).toEqual({ classified: 2, failed: 1, partial: false })
   })
 })
+
+describe('logThreadMessages interview line (v1.3 spec 12)', () => {
+  it('puts the 📅 interview time above the meeting link on the newest message only', async () => {
+    const upserts = []
+    const db = { from: () => ({
+      select: () => { const q = { eq: () => q, is: () => Promise.resolve({ data: [], error: null }) }; return q },
+      upsert: rows => { upserts.push(rows); return Promise.resolve({ error: null }) },
+    }) }
+    const msg = (id, iso) => ({ id, threadId: 't', subject: 's', from: 'R <r@acme.com>', to: '', cc: '', date: new Date(iso), plainBody: 'body', bulk: false })
+    await logThreadMessages(db, 'u', [msg('a', '2026-10-10T00:00:00Z'), msg('b', '2026-10-11T00:00:00Z')], {
+      threadId: 't', myEmail: 'me@x.com', meetingLink: 'https://meet.google.com/x', interviewAt: '📅 Interview: Wed, Oct 21, 2:00 PM EDT', category: 'INTERVIEW_INVITE',
+    })
+    expect(upserts[0][0].summary).toBe('body')
+    expect(upserts[0][1].summary).toBe('📅 Interview: Wed, Oct 21, 2:00 PM EDT\n📅 Meeting link: https://meet.google.com/x\n\nbody')
+  })
+})

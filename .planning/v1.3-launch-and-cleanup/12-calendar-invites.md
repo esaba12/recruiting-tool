@@ -1,6 +1,6 @@
 # 12 — Calendar invites on the serverless Gmail path
 
-**Who:** 🤖. **Needs from owner:** nothing. **Status:** open. This is
+**Who:** 🤖. **Needs from owner:** nothing. **Status:** code done (2026-10-18). Tests: `test/ics.test.js` + fixtures in `test/fixtures/ics/`. The prod check waits on 02 D1/D2. This is
 [08](08-email-pipeline-consolidation.md) item 2. Item 3 (creating the calendar event) builds on it.
 
 ## Why

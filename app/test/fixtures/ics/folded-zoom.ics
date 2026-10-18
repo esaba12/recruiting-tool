@@ -1,0 +1,10 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:folded@example.com
+DTSTART:20261025T160000Z
+SUMMARY:Coffee chat
+DESCRIPTION:Looking forward to chatting about the team! Join Zoom Meeting: https://exam
+ ple.zoom.us/j/9876543210 and feel free to reschedule if needed.
+END:VEVENT
+END:VCALENDAR

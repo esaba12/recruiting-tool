@@ -28,7 +28,7 @@ Each feature the Apps Script has and `api/_lib/emailPipeline.js` doesn't, roughl
    (nullable, set in Settings, never logged), with a `sendPush` in `api/_lib/` that keeps the
    3× retry. Immediate pushes go out from the scan. The digest and recap run from the same cron
    tick, gated by a per-user "last digest date" in `user_settings`. No new function.
-2. **Calendar invites** → spec [12](12-calendar-invites.md). VEVENT-scoped `.ics` parsing (the VTIMEZONE `DTSTART` gotcha), timing
+2. ✅ **Calendar invites** → spec [12](12-calendar-invites.md), done. VEVENT-scoped `.ics` parsing (the VTIMEZONE `DTSTART` gotcha), timing
    for real interviews, and skipping our own calendar event when an invite is attached. Port
    `extractCalendarInvite`/`parseIcsDate` as pure functions, with tests from captured `.ics` fixtures.
 3. **Interview calendar event when there's no invite** (`createCalendarEvent`, with the same-day
