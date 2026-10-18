@@ -12,10 +12,14 @@ import { requireUser, supabaseAdmin } from './_lib/supabaseAdmin.js'
 import { encrypt, decrypt } from './_lib/crypto.js'
 import { checkRateLimit, sendRateLimited } from './_lib/rateLimit.js'
 import { GMAIL_OAUTH_SCOPE, gmailRedirectUri, escapeHtml, issueOAuthNonce, consumeOAuthNonce } from './_lib/googleOAuth.js'
-import { scanGmailConnection } from './_lib/emailPipeline.js'
+import { scanGmailConnection, orderConnections } from './_lib/emailPipeline.js'
 
 const STATE_TTL_MS = 10 * 60 * 1000
 const SCAN_COOLDOWN_MS = 9 * 60 * 1000 // slightly under the ~10-min pinger interval
+// Vercel kills the function at 300 s. Stop starting threads at 240 s and stop starting
+// mailboxes 30 s before that, so every result gets saved (v1.3 spec 10).
+const SCAN_BUDGET_MS = 240 * 1000
+const NEW_CONNECTION_MARGIN_MS = 30 * 1000
 
 function errorPage(res, status, message) {
   res.writeHead(status, { 'Content-Type': 'text/html' })
@@ -107,19 +111,24 @@ async function handleScan(req, res) {
   const { data: connections, error } = await db.from('gmail_tokens').select('*')
   if (error) return res.status(500).json({ error: { message: error.message } })
 
+  const deadline = Date.now() + SCAN_BUDGET_MS
   const results = []
-  for (const conn of connections || []) {
+  for (const conn of orderConnections(connections || [])) {
+    if (Date.now() >= deadline - NEW_CONNECTION_MARGIN_MS) {
+      results.push({ email: conn.connected_email, skipped: 'budget' })
+      continue
+    }
     const sinceLastMs = conn.last_scanned_at ? Date.now() - new Date(conn.last_scanned_at).getTime() : Infinity
     if (sinceLastMs < SCAN_COOLDOWN_MS) {
       results.push({ email: conn.connected_email, skipped: 'cooldown' })
       continue
     }
     try {
-      const { threadProgress, scanned, skipped } = await scanGmailConnection(conn)
+      const { threadProgress, scanned, failed, partial, cursor, skipped } = await scanGmailConnection(conn, { deadline })
       await db.from('gmail_tokens')
-        .update({ thread_progress: threadProgress, last_scanned_at: new Date().toISOString() })
+        .update({ thread_progress: threadProgress, scan_cursor: cursor ?? null, last_scanned_at: new Date().toISOString() })
         .eq('id', conn.id)
-      results.push({ email: conn.connected_email, scanned, ...(skipped ? { skipped } : {}) })
+      results.push({ email: conn.connected_email, scanned, failed, partial, cursor, ...(skipped ? { skipped } : {}) })
     } catch (e) {
       results.push({ email: conn.connected_email, error: e.message })
     }

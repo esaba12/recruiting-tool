@@ -19,6 +19,49 @@ const SENT_SCAN_QUERY = 'in:sent newer_than:30d'
 const INBOX_SCAN_QUERY = 'in:inbox newer_than:45d'
 const SEARCH_CAP = 150
 
+// ── Scan budget (v1.3 spec 10) ──────────────────────────────────────────────────────────
+// Once a mailbox has had one complete pass, searches only ask for mail since that pass
+// (minus an hour of overlap for clock skew and late-indexed messages), instead of
+// re-fetching every thread in the 45-day window every 10 minutes.
+const CURSOR_OVERLAP_MS = 60 * 60 * 1000
+// Per connection per run, so one big first scan can't starve every other mailbox.
+export const MAX_CLASSIFIED_PER_RUN = 40
+
+export function scanQueries(cursor) {
+  if (!cursor) return { inbox: INBOX_SCAN_QUERY, sent: SENT_SCAN_QUERY }
+  const after = ` after:${Math.floor((new Date(cursor).getTime() - CURSOR_OVERLAP_MS) / 1000)}`
+  return { inbox: INBOX_SCAN_QUERY + after, sent: SENT_SCAN_QUERY + after }
+}
+
+// The cursor only moves when a pass saw everything: a budget cut or a failed thread leaves
+// it where it was, so the next run searches the same window again (thread_progress makes
+// that idempotent).
+export function nextCursor({ prevCursor, scanStartedAt, partial, failed }) {
+  return partial || failed > 0 ? (prevCursor || null) : scanStartedAt
+}
+
+// Longest-waiting mailbox first; never-scanned ones before everything.
+export function orderConnections(connections) {
+  const t = c => (c.last_scanned_at ? new Date(c.last_scanned_at).getTime() : -Infinity)
+  return [...connections].sort((a, b) => t(a) - t(b))
+}
+
+// Runs processThread over threadIds (newest first, Gmail's search order) until the deadline
+// or the classification cap. processThread resolves to 'unchanged' | 'classified' | 'failed';
+// only 'classified' counts against the cap, since unchanged threads are a cheap fetch.
+export async function runThreadBudget(threadIds, processThread, { deadline, maxClassified = MAX_CLASSIFIED_PER_RUN, now = Date.now }) {
+  let classified = 0, failed = 0
+  for (let i = 0; i < threadIds.length; i++) {
+    if (classified >= maxClassified || (deadline && now() >= deadline)) {
+      return { classified, failed, partial: true }
+    }
+    const outcome = await processThread(threadIds[i])
+    if (outcome === 'classified') classified++
+    else if (outcome === 'failed') failed++
+  }
+  return { classified, failed, partial: false }
+}
+
 const ATS_DOMAINS = [
   'greenhouse.io', 'lever.co', 'myworkday.com', 'icims.com', 'smartrecruiters.com',
   'ashbyhq.com', 'jobvite.com', 'taleo.net', 'workable.com', 'breezy.hr', 'jazz.co',
@@ -539,14 +582,15 @@ export async function logThreadMessages(db, userId, newMessages, { contactId, th
 }
 
 // ── Entry point — scans one connected Gmail mailbox, returns updated thread_progress ────
-export async function scanGmailConnection(connection) {
+export async function scanGmailConnection(connection, { deadline } = {}) {
+  const scanStartedAt = new Date().toISOString()
   const db = supabaseAdmin()
   const userId = connection.user_id
   const myEmail = connection.connected_email.toLowerCase()
 
   const anthropicKey = await getUserKey(userId, 'anthropic')
   if (!anthropicKey) {
-    return { threadProgress: connection.thread_progress || {}, scanned: 0, skipped: 'no_anthropic_key' }
+    return { threadProgress: connection.thread_progress || {}, cursor: connection.scan_cursor || null, scanned: 0, skipped: 'no_anthropic_key' }
   }
   // Recruiting tracks shape the classifier prompt (candidateFraming / trackGuidance).
   const { data: profile } = await db.from('profiles').select('tracks, focus').eq('id', userId).maybeSingle()
@@ -554,20 +598,20 @@ export async function scanGmailConnection(connection) {
   const refreshToken = decrypt(connection.refresh_token_ciphertext)
   const accessToken = await mintAccessToken(refreshToken)
 
+  const queries = scanQueries(connection.scan_cursor)
   const [inboxIds, sentIds] = await Promise.all([
-    searchMessageIds(accessToken, INBOX_SCAN_QUERY, SEARCH_CAP),
-    searchMessageIds(accessToken, SENT_SCAN_QUERY, SEARCH_CAP),
+    searchMessageIds(accessToken, queries.inbox, SEARCH_CAP),
+    searchMessageIds(accessToken, queries.sent, SEARCH_CAP),
   ])
   const threadIds = [...new Set([...inboxIds, ...sentIds].map(m => m.threadId))]
 
   const threadProgress = { ...(connection.thread_progress || {}) }
-  let scanned = 0
 
-  for (const threadId of threadIds) {
+  const processThread = async threadId => {
     try {
       const messages = await getThreadMessages(accessToken, threadId)
       const seen = threadProgress[threadId] || 0
-      if (messages.length <= seen) continue
+      if (messages.length <= seen) return 'unchanged'
 
       const msg = messages[messages.length - 1]
       const meetingLink = extractMeetingLink(msg.plainBody)
@@ -595,8 +639,7 @@ export async function scanGmailConnection(connection) {
       const counterpart = findCounterpartAddress(messages, myEmail)
       if (!data || data.type === 'UNRELATED' || isGenericNetworking(data, counterpart.email)) {
         threadProgress[threadId] = messages.length
-        scanned++
-        continue
+        return 'classified'
       }
 
       data.meeting_link = meetingLink || data.meeting_link || null
@@ -622,12 +665,15 @@ export async function scanGmailConnection(connection) {
       })
 
       threadProgress[threadId] = messages.length
-      scanned++
+      return 'classified'
     } catch (e) {
       console.error(`Thread ${threadId} (${myEmail}) failed: ${e.message}`)
       // leave threadProgress untouched for this thread — retried next scan
+      return 'failed'
     }
   }
 
-  return { threadProgress, scanned }
+  const { classified, failed, partial } = await runThreadBudget(threadIds, processThread, { deadline })
+  const cursor = nextCursor({ prevCursor: connection.scan_cursor, scanStartedAt, partial, failed })
+  return { threadProgress, scanned: classified, failed, partial, cursor }
 }

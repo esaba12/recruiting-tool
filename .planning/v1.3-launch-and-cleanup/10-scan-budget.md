@@ -1,7 +1,7 @@
 # 10 — Gmail scan budget and incremental discovery
 
 **Who:** 🤖. **Needs from owner:** approval for one `supabase db push` (one column).
-**Status:** open. Replaces [02](02-owner-runbook.md) D3 ("watch the load") and 08 item 4
+**Status:** code done on `feat/scan-budget` (2026-10-18), stacked on 11's branch; the prod checks wait on the push and 02 D1. Replaces [02](02-owner-runbook.md) D3 ("watch the load") and 08 item 4
 (backfill): both turned out to be the same problem.
 
 ## Why

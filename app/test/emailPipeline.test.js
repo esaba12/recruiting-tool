@@ -5,6 +5,7 @@ import {
   parseGmailMessage, findHeader, candidateFraming, trackGuidance, interviewStage,
   isAutomatedSender, isBulkMail, isGenericNetworking, shouldCreateContact, contactFollowUpDate, keepActionItem,
   isAlreadyLogged, logThreadMessages,
+  scanQueries, nextCursor, orderConnections, runThreadBudget, MAX_CLASSIFIED_PER_RUN,
 } from '../api/_lib/emailPipeline.js'
 
 describe('parseAddress', () => {
@@ -364,5 +365,67 @@ describe('logThreadMessages', () => {
     const { db } = fakeDb()
     const failing = { from: () => ({ ...db.from(), upsert: () => Promise.resolve({ error: { message: 'boom' } }) }) }
     await expect(logThreadMessages(failing, 'u1', [message('m1', '2026-10-10T14:00:00Z')], opts)).rejects.toThrow('boom')
+  })
+})
+
+// v1.3 spec 10: scan budget and incremental discovery.
+describe('scanQueries', () => {
+  it('searches the full window when there is no cursor', () => {
+    expect(scanQueries(null)).toEqual({ inbox: 'in:inbox newer_than:45d', sent: 'in:sent newer_than:30d' })
+  })
+  it('adds after:<cursor − 1h> in unix seconds once a pass has completed', () => {
+    const cursor = '2026-10-18T12:00:00.000Z'
+    const after = Math.floor(Date.parse('2026-10-18T11:00:00.000Z') / 1000)
+    expect(scanQueries(cursor)).toEqual({
+      inbox: `in:inbox newer_than:45d after:${after}`,
+      sent: `in:sent newer_than:30d after:${after}`,
+    })
+  })
+})
+
+describe('nextCursor', () => {
+  const base = { prevCursor: '2026-10-17T00:00:00.000Z', scanStartedAt: '2026-10-18T00:00:00.000Z' }
+  it('advances to the scan start after a clean, complete pass', () => {
+    expect(nextCursor({ ...base, partial: false, failed: 0 })).toBe(base.scanStartedAt)
+  })
+  it('stays put when a thread failed', () => {
+    expect(nextCursor({ ...base, partial: false, failed: 1 })).toBe(base.prevCursor)
+  })
+  it('stays put (or null) when the budget cut the pass short', () => {
+    expect(nextCursor({ ...base, partial: true, failed: 0 })).toBe(base.prevCursor)
+    expect(nextCursor({ ...base, prevCursor: undefined, partial: true, failed: 0 })).toBeNull()
+  })
+})
+
+describe('orderConnections', () => {
+  it('puts never-scanned mailboxes first, then the longest-waiting', () => {
+    const conns = [
+      { connected_email: 'b', last_scanned_at: '2026-10-18T10:00:00Z' },
+      { connected_email: 'c', last_scanned_at: null },
+      { connected_email: 'a', last_scanned_at: '2026-10-18T09:00:00Z' },
+    ]
+    expect(orderConnections(conns).map(c => c.connected_email)).toEqual(['c', 'a', 'b'])
+  })
+})
+
+describe('runThreadBudget', () => {
+  const ids = n => Array.from({ length: n }, (_, i) => `t${i}`)
+  it('does nothing once the deadline has passed', async () => {
+    let calls = 0
+    const res = await runThreadBudget(ids(5), async () => { calls++; return 'classified' }, { deadline: 1000, now: () => 2000 })
+    expect(res).toEqual({ classified: 0, failed: 0, partial: true })
+    expect(calls).toBe(0)
+  })
+  it('stops at the classification cap', async () => {
+    const res = await runThreadBudget(ids(60), async () => 'classified', { deadline: null })
+    expect(res).toEqual({ classified: MAX_CLASSIFIED_PER_RUN, failed: 0, partial: true })
+  })
+  it('does not count unchanged threads against the cap', async () => {
+    const res = await runThreadBudget(ids(100), async id => (id === 't99' ? 'classified' : 'unchanged'), { deadline: null })
+    expect(res).toEqual({ classified: 1, failed: 0, partial: false })
+  })
+  it('counts failures and finishes the pass', async () => {
+    const res = await runThreadBudget(ids(3), async id => (id === 't1' ? 'failed' : 'classified'), { deadline: null })
+    expect(res).toEqual({ classified: 2, failed: 1, partial: false })
   })
 })

@@ -29,7 +29,7 @@ files: the project is at the Vercel Hobby limit of 12 functions.
 | 07 | [Docs restructure (slim CLAUDE.md)](07-docs-restructure.md) | 🤖 | ✅ merged 2026-10-17 (PR #13) |
 | 08 | [Retire the Apps Script email pipeline](08-email-pipeline-consolidation.md) | 🤖 after 02's cron | later; needs the features the serverless scan lacks first |
 | 09 | [Split the bundle by tab](09-bundle-split.md) | 🤖 | ✅ done on `feat/bundle-split`: entry 1,985 → 497 KB + 357 KB vendor (gzip 585 → 255), no build warning |
-| 10 | [Gmail scan budget + incremental discovery](10-scan-budget.md) | 🤖, one `db push` | open (replaces 02 D3 and 08 item 4) |
+| 10 | [Gmail scan budget + incremental discovery](10-scan-budget.md) | 🤖, one `db push` | code done on `feat/scan-budget` (stacked on 11); shares 11's `db push` (replaces 02 D3 and 08 item 4) |
 | 11 | [Per-message dedup for logged emails](11-interaction-dedup.md) | 🤖, one `db push` + `clasp push` | code done on `feat/interaction-dedup`; needs `db push` → `clasp push` → deploy, in that order. **Must land before 02 D2** |
 | 12 | [Calendar invites on the serverless path](12-calendar-invites.md) | 🤖 | open (08 item 2) |
 
