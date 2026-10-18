@@ -222,6 +222,20 @@ describe.skipIf(!configured)('shared-pool RLS isolation', () => {
     expect(error).toBeTruthy()
   })
 
+  it('logged emails dedup per (user, gmail_message_id) without crossing users (v1.3 spec 11)', async () => {
+    const row = { type: 'Email', date: '2026-10-10', channel_ref: `t-${run}`, gmail_message_id: `m-${run}`, summary: 'hi' }
+    // The pipelines write with the service role and ignore-duplicates on this key.
+    await must(admin.from('interactions').upsert([{ ...row, user_id: users.A.id }], { onConflict: 'user_id,gmail_message_id', ignoreDuplicates: true }), 'A first')
+    await must(admin.from('interactions').upsert([{ ...row, user_id: users.A.id, summary: 'again' }], { onConflict: 'user_id,gmail_message_id', ignoreDuplicates: true }), 'A again')
+    // The same message id under another user is a different row, not a conflict.
+    await must(admin.from('interactions').upsert([{ ...row, user_id: users.B.id }], { onConflict: 'user_id,gmail_message_id', ignoreDuplicates: true }), 'B same id')
+    const ownA = await must(clients.A.from('interactions').select('summary').eq('gmail_message_id', row.gmail_message_id), 'A reads')
+    expect(ownA).toEqual([{ summary: 'hi' }])
+    expect((await must(clients.B.from('interactions').select('user_id').eq('gmail_message_id', row.gmail_message_id), 'B reads')).map(r => r.user_id)).toEqual([users.B.id])
+    // Rows without a message id (calls, LinkedIn) never collide.
+    await must(clients.A.from('interactions').insert([{ type: 'Call', date: '2026-10-10' }, { type: 'Call', date: '2026-10-10' }]), 'A two calls')
+  })
+
   it('feedback is insert-own only: nobody reads it back, nobody forges another user\'s row', async () => {
     await must(clients.A.from('feedback').insert({ message: 'A secret feedback', page: 'today' }), 'A feedback')
     expect((await must(clients.A.from('feedback').select('*'), 'A reads')).length).toBe(0)

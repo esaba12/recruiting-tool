@@ -69,7 +69,9 @@ would throw on every thread.
 1. `supabase db push` (dry-run on 2026-10-18 showed only this migration pending).
 2. `clasp push` the Apps Script.
 3. Merge and deploy (Vercel auto-deploys `main`).
-4. Then add an RLS-suite case for the new index (`test/rls.test.js` runs against the live DB).
+4. ✅ RLS-suite case added (`test/rls.test.js`, "logged emails dedup per…").
+
+Steps 1–2 done 2026-10-18 (db push applied both 10 and 11 migrations; clasp push ok).
 
 Not covered: legacy email rows with a null `sent_at` (logged before the inbox migration and
 never backfilled) can't be matched. They're older than the 45-day scan window anyway.
