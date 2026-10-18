@@ -477,18 +477,30 @@ async function upsertActionItem(db, userId, { gmailMessageId, threadId, contactI
   }, { onConflict: 'user_id,gmail_message_id' })
 }
 
-async function logMessageInteraction(db, userId, message, contactId, threadId, myEmail, meetingLink, category) {
+// Same Gmail message logged by both pipelines, or re-logged after thread_progress was lost:
+// rows written before interactions.gmail_message_id existed have no id to conflict on, so
+// they're matched by thread + timestamp instead (v1.3 spec 11). 5 s absorbs the gap between
+// GmailApp's message date and the REST API's internalDate.
+const SAME_MESSAGE_MS = 5000
+
+export function isAlreadyLogged(existingSentAts, message) {
+  const t = message.date.getTime()
+  return existingSentAts.some(s => s && Math.abs(new Date(s).getTime() - t) <= SAME_MESSAGE_MS)
+}
+
+export function interactionRow(userId, message, { contactId, threadId, myEmail, meetingLink, category }) {
   const from = parseAddress(message.from)
   const direction = (from && from.email === myEmail) ? 'Outbound' : 'Inbound'
   const summary = meetingLink ? `📅 Meeting link: ${meetingLink}\n\n${message.plainBody}` : message.plainBody
 
-  await db.from('interactions').insert({
+  return {
     user_id: userId,
     contact_id: contactId || null,
     type: 'Email',
     direction,
     date: message.date.toISOString().slice(0, 10),
     channel_ref: threadId,
+    gmail_message_id: message.id,
     summary: summary.slice(0, 300),
     body: message.plainBody.slice(0, 2000),
     // Inbox fields (supabase/migrations/20261007000000_inbox.sql) — own sent mail is born read.
@@ -499,7 +511,31 @@ async function logMessageInteraction(db, userId, message, contactId, threadId, m
     mailbox: myEmail,
     email_category: category || null,
     read_at: direction === 'Outbound' ? new Date().toISOString() : null,
-  })
+  }
+}
+
+// Logs a thread's not-yet-seen messages in one write. The meeting link goes on the newest
+// message only (the one that was classified). Duplicates by gmail_message_id are dropped by
+// the unique index; legacy rows by isAlreadyLogged().
+export async function logThreadMessages(db, userId, newMessages, { contactId, threadId, myEmail, meetingLink, category }) {
+  if (!newMessages.length) return 0
+  const { data: legacy } = await db.from('interactions')
+    .select('sent_at')
+    .eq('user_id', userId).eq('type', 'Email').eq('channel_ref', threadId).is('gmail_message_id', null)
+  const legacySentAts = (legacy || []).map(r => r.sent_at)
+
+  const rows = newMessages
+    .map((m, i) => ({ m, isNewest: i === newMessages.length - 1 }))
+    .filter(({ m }) => !isAlreadyLogged(legacySentAts, m))
+    .map(({ m, isNewest }) => interactionRow(userId, m, {
+      contactId, threadId, myEmail, category, meetingLink: isNewest ? meetingLink : null,
+    }))
+  if (!rows.length) return 0
+
+  const { error } = await db.from('interactions')
+    .upsert(rows, { onConflict: 'user_id,gmail_message_id', ignoreDuplicates: true })
+  if (error) throw new Error(`Logging thread ${threadId}: ${error.message}`)
+  return rows.length
 }
 
 // ── Entry point — scans one connected Gmail mailbox, returns updated thread_progress ────
@@ -581,10 +617,9 @@ export async function scanGmailConnection(connection) {
         })
       }
 
-      for (let i = seen; i < messages.length; i++) {
-        const isNewest = i === messages.length - 1
-        await logMessageInteraction(db, userId, messages[i], contactId, threadId, myEmail, isNewest ? data.meeting_link : null, data.type)
-      }
+      await logThreadMessages(db, userId, messages.slice(seen), {
+        contactId, threadId, myEmail, meetingLink: data.meeting_link, category: data.type,
+      })
 
       threadProgress[threadId] = messages.length
       scanned++

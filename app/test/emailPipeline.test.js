@@ -4,6 +4,7 @@ import {
   recruitingShapeHint, networkingShapeHint, extractMeetingLink, extractPlainBody,
   parseGmailMessage, findHeader, candidateFraming, trackGuidance, interviewStage,
   isAutomatedSender, isBulkMail, isGenericNetworking, shouldCreateContact, contactFollowUpDate, keepActionItem,
+  isAlreadyLogged, logThreadMessages,
 } from '../api/_lib/emailPipeline.js'
 
 describe('parseAddress', () => {
@@ -282,5 +283,86 @@ describe('keepActionItem', () => {
   })
   it('is false when there is no action item', () => {
     expect(keepActionItem({ type: 'REPLY', action_item: null, personal: true }, 'jane@acme.com')).toBe(false)
+  })
+})
+
+// v1.3 spec 11: per-message dedup for logged emails.
+describe('isAlreadyLogged', () => {
+  const msg = { date: new Date('2026-10-10T14:00:00.000Z') }
+  it('matches an exact sent_at', () => {
+    expect(isAlreadyLogged(['2026-10-10T14:00:00.000Z'], msg)).toBe(true)
+  })
+  it('matches within 5 s (GmailApp date vs REST internalDate)', () => {
+    expect(isAlreadyLogged(['2026-10-10T14:00:04.000Z'], msg)).toBe(true)
+  })
+  it('keeps a message 10 s away', () => {
+    expect(isAlreadyLogged(['2026-10-10T14:00:10.000Z'], msg)).toBe(false)
+  })
+  it('keeps everything when nothing is logged (or sent_at is null)', () => {
+    expect(isAlreadyLogged([], msg)).toBe(false)
+    expect(isAlreadyLogged([null], msg)).toBe(false)
+  })
+})
+
+describe('logThreadMessages', () => {
+  const message = (id, iso, from = 'Jane <jane@acme.com>') => ({
+    id, threadId: 't1', subject: 'Hi', from, to: 'me@gmail.com', cc: '',
+    date: new Date(iso), plainBody: `body ${id}`, bulk: false,
+  })
+  function fakeDb(legacy = []) {
+    const calls = { upserts: [], filters: [] }
+    const db = {
+      from: () => ({
+        select: () => {
+          const q = {
+            eq: (col, val) => { calls.filters.push([col, val]); return q },
+            is: (col, val) => { calls.filters.push([col, val]); return Promise.resolve({ data: legacy, error: null }) },
+          }
+          return q
+        },
+        upsert: (rows, opts) => { calls.upserts.push({ rows, opts }); return Promise.resolve({ error: null }) },
+      }),
+    }
+    return { db, calls }
+  }
+  const opts = { contactId: 'c1', threadId: 't1', myEmail: 'me@gmail.com', meetingLink: 'https://zoom.us/j/1', category: 'FOLLOW_UP_NEEDED' }
+
+  it('upserts with gmail_message_id and ignore-duplicates on (user_id, gmail_message_id)', async () => {
+    const { db, calls } = fakeDb()
+    const n = await logThreadMessages(db, 'u1', [message('m1', '2026-10-10T14:00:00Z'), message('m2', '2026-10-11T09:00:00Z', 'me@gmail.com')], opts)
+    expect(n).toBe(2)
+    expect(calls.upserts).toHaveLength(1)
+    const { rows, opts: upsertOpts } = calls.upserts[0]
+    expect(upsertOpts).toEqual({ onConflict: 'user_id,gmail_message_id', ignoreDuplicates: true })
+    expect(rows.map(r => r.gmail_message_id)).toEqual(['m1', 'm2'])
+    expect(rows[1].direction).toBe('Outbound')
+    // meeting link only on the newest message
+    expect(rows[0].summary.startsWith('📅')).toBe(false)
+    expect(rows[1].summary.startsWith('📅 Meeting link: https://zoom.us/j/1')).toBe(true)
+  })
+
+  it('only looks at legacy rows (no gmail_message_id) in this thread', async () => {
+    const { db, calls } = fakeDb()
+    await logThreadMessages(db, 'u1', [message('m1', '2026-10-10T14:00:00Z')], opts)
+    expect(calls.filters).toEqual([['user_id', 'u1'], ['type', 'Email'], ['channel_ref', 't1'], ['gmail_message_id', null]])
+  })
+
+  it('skips messages the Apps Script already logged without an id', async () => {
+    const { db, calls } = fakeDb([{ sent_at: '2026-10-10T14:00:01.000Z' }])
+    const n = await logThreadMessages(db, 'u1', [message('m1', '2026-10-10T14:00:00Z'), message('m2', '2026-10-11T09:00:00Z')], opts)
+    expect(n).toBe(1)
+    expect(calls.upserts[0].rows.map(r => r.gmail_message_id)).toEqual(['m2'])
+  })
+
+  it('writes nothing when every message is already logged', async () => {
+    const { db, calls } = fakeDb([{ sent_at: '2026-10-10T14:00:00.000Z' }])
+    expect(await logThreadMessages(db, 'u1', [message('m1', '2026-10-10T14:00:00Z')], opts)).toBe(0)
+    expect(calls.upserts).toHaveLength(0)
+  })
+
+  it('throws on a write error so the thread is retried next scan', async () => {
+    const { db } = fakeDb()
+    const failing = { from: () => ({ ...db.from(), upsert: () => Promise.resolve({ error: { message: 'boom' } }) }) }
+    await expect(logThreadMessages(failing, 'u1', [message('m1', '2026-10-10T14:00:00Z')], opts)).rejects.toThrow('boom')
   })
 })

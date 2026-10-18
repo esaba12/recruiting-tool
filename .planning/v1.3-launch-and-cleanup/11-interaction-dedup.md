@@ -1,7 +1,7 @@
 # 11 — Per-message dedup for logged emails
 
 **Who:** 🤖. **Needs from owner:** approval for one `supabase db push`, and a `clasp push`
-(🤖 can run it with approval). **Status:** open. **Must land before 02 D2** (connecting your
+(🤖 can run it with approval). **Status:** code done on `feat/interaction-dedup` (2026-10-18); rollout below. **Must land before 02 D2** (connecting your
 own Gmail to the serverless scan).
 
 ## Why
@@ -59,3 +59,17 @@ Network timelines, Today's "last point of contact", and the networking-flow coun
 
 Both pipelines write `gmail_message_id`, the index is live, and connecting your own Gmail
 creates no duplicate rows.
+
+## Rollout (order matters)
+
+The new code writes `gmail_message_id`, so it fails until the column exists. The serverless
+scan then leaves `thread_progress` alone and retries, so nothing is lost, but the Apps Script
+would throw on every thread.
+
+1. `supabase db push` (dry-run on 2026-10-18 showed only this migration pending).
+2. `clasp push` the Apps Script.
+3. Merge and deploy (Vercel auto-deploys `main`).
+4. Then add an RLS-suite case for the new index (`test/rls.test.js` runs against the live DB).
+
+Not covered: legacy email rows with a null `sent_at` (logged before the inbox migration and
+never backfilled) can't be matched. They're older than the 45-day scan window anyway.
