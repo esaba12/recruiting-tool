@@ -1,4 +1,6 @@
 import { supabase, authHeader } from './supabaseClient.js'
+import { isDemoMode, DemoModeError } from './demoMode.js'
+import { getDemoData } from '../db.js'
 
 // "Sign in with Google" — plain login, no extra scopes. Used by LoginPage.jsx.
 export async function signInWithGoogle() {
@@ -33,6 +35,7 @@ export async function linkGoogleIdentity() {
 // just asks Google for calendar.events access and stores the resulting refresh token
 // against whichever slot was requested.
 export async function connectGoogleCalendar(slot = 'personal') {
+  if (isDemoMode()) throw new DemoModeError()
   const res = await fetch(`/api/google-connect?slot=${slot}&action=start`, { headers: await authHeader() })
   if (!res.ok) {
     const e = await res.json().catch(() => ({}))
@@ -43,12 +46,14 @@ export async function connectGoogleCalendar(slot = 'personal') {
 }
 
 export async function getGoogleCalendarStatus(slot = 'personal') {
+  if (isDemoMode()) return { connected: false, email: null } // matches the demo Calendar tab
   const res = await fetch(`/api/google-connect?slot=${slot}`, { headers: await authHeader() })
   if (!res.ok) return { connected: false, email: null }
   return res.json()
 }
 
 export async function disconnectGoogleCalendar(slot = 'personal') {
+  if (isDemoMode()) throw new DemoModeError()
   const res = await fetch(`/api/google-connect?slot=${slot}`, { method: 'DELETE', headers: await authHeader() })
   if (!res.ok) throw new Error('Failed to disconnect')
   return res.json()
@@ -59,6 +64,7 @@ export async function disconnectGoogleCalendar(slot = 'personal') {
 // Gmail accounts, each identified by whichever email Google returns after consent, not a
 // fixed personal/school choice made upfront.
 export async function connectGmail() {
+  if (isDemoMode()) throw new DemoModeError()
   const res = await fetch('/api/gmail?action=start', { headers: await authHeader() })
   if (!res.ok) {
     const e = await res.json().catch(() => ({}))
@@ -69,12 +75,14 @@ export async function connectGmail() {
 }
 
 export async function listGmailConnections() {
+  if (isDemoMode()) return getDemoData().demoGmailConnections()
   const res = await fetch('/api/gmail', { headers: await authHeader() })
   if (!res.ok) return []
   return res.json()
 }
 
 export async function disconnectGmail(email) {
+  if (isDemoMode()) throw new DemoModeError()
   const res = await fetch(`/api/gmail?email=${encodeURIComponent(email)}`, { method: 'DELETE', headers: await authHeader() })
   if (!res.ok) throw new Error('Failed to disconnect')
   return res.json()

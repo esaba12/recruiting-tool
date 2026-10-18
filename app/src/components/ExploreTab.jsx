@@ -6,6 +6,7 @@ import { todayStr } from '../lib/discoveryScheduler.js'
 import { findCompanies, moreLikeThis, prefsFromRecPrefs } from '../lib/companyFinder.js'
 import { hiringVelocity } from '../lib/hiringVelocity.js'
 import { useAuth } from '../lib/AuthContext.jsx'
+import { isDemoMode } from '../lib/demoMode.js'
 import { Badge, EmptyState } from '../shared.jsx'
 import CompanyOnboarding from './CompanyOnboarding.jsx'
 import { RowCap } from './ui/Section.jsx'
@@ -254,7 +255,7 @@ function GhBadge({ website, name }) {
   useEffect(() => {
     const host = hostOf(website)
     const slug = host ? host.split('.')[0] : ''
-    if (!slug) return
+    if (!slug || isDemoMode()) return // /gh-api is auth-gated
     let cancelled = false
     ;(async () => {
       if (ghCache.has(slug)) { if (!cancelled) setInfo(ghCache.get(slug)); return }

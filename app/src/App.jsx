@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react'
-import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships, fetchActionItems, fetchDailyRecap } from './db.js'
+import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships, fetchActionItems, fetchDailyRecap, setDemoData } from './db.js'
 import { researchOaDeadlines } from './lib/oaResearch.js'
 import { useAuth } from './lib/AuthContext.jsx'
 import useApplicationsLive from './lib/useApplicationsLive.js'
@@ -17,7 +17,8 @@ import QuickAddContactModal from './components/QuickAddContactModal.jsx'
 import LogInteractionModal from './components/LogInteractionModal.jsx'
 import MetButton from './components/MetButton.jsx'
 import { logMetWithContact } from './lib/quickLog.js'
-import { DEMO_PIPELINE_VIEWS, pipelineViewsFor } from './components/pipelineViews.js'
+import { pipelineViewsFor } from './components/pipelineViews.js'
+import { enableDemoStorage } from './lib/scopedStorage.js'
 import TodayTab from './components/TodayTab.jsx'
 import { buildThreads } from './lib/inbox.js'
 import useLearning from './lib/learning/useLearning.js'
@@ -87,13 +88,6 @@ const NETWORK_VIEWS = [
   { key: 'flow',     label: 'Flow',     icon: Waypoints },
   { key: 'outbox',   label: 'Outbox',   icon: Send },
 ]
-
-// The public /demo route (see DemoApp below) only shows views that need zero AI/BYOK
-// keys and no deep-links into ones that do — Outbox calls Exa+Claude/GPT (401s
-// with no signed-in user), Keep in Touch's "Log" leans on the same AI extraction.
-// Table/Cards/Graph/Flow are pure local rendering over the seeded demo data, so they
-// work perfectly with no backend at all.
-const DEMO_NETWORK_VIEWS = NETWORK_VIEWS.filter(v => ['table', 'cards', 'graph', 'flow'].includes(v.key))
 
 function NetworkTab({ contacts, apps, interactions, calls = [], contactRelationships = [], onRefresh, onRefreshRelationships, initialView = 'table', views = NETWORK_VIEWS }) {
   const [filter, setFilter]   = useState('ALL')
@@ -463,7 +457,7 @@ function AppInner() {
       )}
       {!loading && tab === 'pipeline' && (
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
-          onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} views={pipelineViewsFor(profile)} />
+          onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} onImported={refreshApps} views={pipelineViewsFor(profile)} />
       )}
       {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} actionItems={actionItems} dailyRecap={dailyRecap} learning={learning} onOpenLearn={() => setTab('learn')} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} />}
       {!loading && tab === 'inbox'    && (
@@ -505,17 +499,33 @@ function AppInner() {
 // Reuses the exact same tab components as the real app — db.js's isDemoMode() branch
 // (keyed off this same /demo path) means every fetch*/add*/update* call these components
 // already make transparently reads/writes an in-memory seed dataset instead of Supabase,
-// so nothing here needed forking into a separate "read-only" UI. Scope is deliberately
-// trimmed to the tabs that need zero AI/BYOK keys and zero external OAuth (Today,
-// Network table/cards/graph, Pipeline, Learn — Learn's AI plan/explain-back buttons are
-// fail-soft and the tab says so in demo mode) — Grow/Outbox/Job
-// Boards/Calendar/Settings all call Claude/OpenAI/Exa/GitHub/Google proxies that
-// `requireUser()`-gate on a real signed-in session and would just 401 for an anonymous
-// visitor, so they're left out rather than shown half-broken.
-const DEMO_NAV_ITEMS = NAV_ITEMS.filter(item => ['today', 'inbox', 'network', 'pipeline', 'calendar', 'learn'].includes(item.id))
-
+// so nothing here needed forking into a separate "read-only" UI. Every tab is here. The
+// signed-in-only surfaces run on seeds too: Grow's cached results and Job Boards' tracked
+// boards come from scopedStorage's in-memory demo store, GitHub boards and Gmail/Calendar
+// status from demo branches in github.js and lib/googleAuth.js. AI and Exa buttons are
+// disabled (NeedsKey says "sign up"), and lib/keyStore.js assertKey() refuses any call that
+// slips past, so /demo never reaches an auth-gated proxy.
+// demoData.js is its own chunk: load it (and seed the in-memory storage that Grow and Job
+// Boards read through lsGet) before anything calls db.js.
 function DemoApp() {
-  const [tab, setTab] = useState('today')
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    import('./demoData.js').then(mod => {
+      setDemoData(mod)
+      enableDemoStorage(mod.buildDemoStorage())
+      setReady(true)
+    })
+  }, [])
+  if (!ready) return <EmptyState msg="Loading the demo..." />
+  return <DemoAppInner />
+}
+
+function DemoAppInner() {
+  const [tab, setTabState] = useState('today')
+  const [settingsReturnTab, setSettingsReturnTab] = useState('today')
+  const setTab = next => { if (next === 'settings') setSettingsReturnTab(tab); setTabState(next) }
+  const [growFocusCompany, setGrowFocusCompany] = useState(null)
+  const goFindPeople = company => { setGrowFocusCompany({ company, ts: Date.now() }); setTab('grow') }
   const [contacts, setContacts] = useState([])
   const [apps, setApps] = useState([])
   const [interactions, setInteractions] = useState([])
@@ -561,22 +571,26 @@ function DemoApp() {
       onTabChange={setTab}
       counts={counts}
       loading={loading}
-      navItems={DEMO_NAV_ITEMS}
+      navItems={NAV_ITEMS}
       demoMode
     >
       {loading && <EmptyState msg="Loading the demo..." />}
       <Suspense fallback={<DelayedFallback />}>
       {!loading && tab === 'network' && (
         <NetworkTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={load}
-          onRefreshRelationships={refreshContactRelationships} views={DEMO_NETWORK_VIEWS} />
+          onRefreshRelationships={refreshContactRelationships} />
+      )}
+      {!loading && tab === 'grow' && (
+        <GrowTab contacts={contacts} apps={apps} interactions={interactions} contactRelationships={contactRelationships} onRefresh={load}
+          onRefreshRelationships={refreshContactRelationships} initialPeopleFocus={growFocusCompany} />
       )}
       {!loading && tab === 'pipeline' && (
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
-          onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} views={DEMO_PIPELINE_VIEWS} />
+          onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} onImported={refreshApps} />
       )}
       {!loading && tab === 'today' && (
         <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships}
-          learning={learning} onOpenLearn={() => setTab('learn')}
+          learning={learning} onOpenLearn={() => setTab('learn')} onFindPeople={goFindPeople}
           onRefresh={load} onRefreshRelationships={refreshContactRelationships} isDemoMode
           eventPool={eventPool} onOpenEvents={() => setTab('calendar')} />
       )}
@@ -587,6 +601,10 @@ function DemoApp() {
         <InboxTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} demoMode />
       )}
       {!loading && tab === 'learn' && <LearnTab learning={learning} apps={apps} isDemoMode />}
+      {tab === 'settings' && (
+        <SettingsTab demoMode onDone={() => setTab(settingsReturnTab)}
+          returnLabel={NAV_ITEMS.find(i => i.id === settingsReturnTab)?.label || 'Today'} />
+      )}
       </Suspense>
     </AppShell>
   )

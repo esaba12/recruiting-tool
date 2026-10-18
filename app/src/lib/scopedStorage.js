@@ -19,10 +19,19 @@ function scopedKey(key) {
   return `${currentUserId}:${key}`
 }
 
+// /demo keeps these in memory instead (seeded by DemoApp from demoData.js), so a visitor's
+// clicks reset on reload like the rest of the demo, and never land in a real user's cache.
+let demoStore = null
+export function enableDemoStorage(seed = {}) {
+  demoStore = new Map(Object.entries(seed).map(([k, v]) => [k, JSON.stringify(v)]))
+}
+
 export function lsGet(key) {
+  if (demoStore) { try { return JSON.parse(demoStore.get(key) ?? 'null') } catch { return null } }
   try { return JSON.parse(localStorage.getItem(scopedKey(key))) || null } catch { return null }
 }
 
 export function lsSet(key, val) {
+  if (demoStore) { demoStore.set(key, JSON.stringify(val)); return }
   localStorage.setItem(scopedKey(key), JSON.stringify(val))
 }

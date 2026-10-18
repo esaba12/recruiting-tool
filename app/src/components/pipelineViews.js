@@ -9,9 +9,9 @@ export const PIPELINE_VIEWS = [
   { key: 'jobBoards',    label: 'Job Boards',    icon: GitFork },
 ]
 
-export const DEMO_PIPELINE_VIEWS = PIPELINE_VIEWS.filter(v => v.key !== 'jobBoards')
+const NON_TECH_PIPELINE_VIEWS = PIPELINE_VIEWS.filter(v => v.key !== 'jobBoards')
 
 // Job Boards is built on GitHub internship repos (tech-only), so non-tech users don't get it.
 export function pipelineViewsFor(profile) {
-  return usesTechSources(profile) ? PIPELINE_VIEWS : DEMO_PIPELINE_VIEWS
+  return usesTechSources(profile) ? PIPELINE_VIEWS : NON_TECH_PIPELINE_VIEWS
 }

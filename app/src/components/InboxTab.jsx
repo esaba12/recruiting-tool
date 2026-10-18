@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, ExternalLink, MailOpen, Mail, Search, Reply, CheckCircle2, Building2, Briefcase } from 'lucide-react'
 import { EmptyState } from '../shared.jsx'
 import { setThreadRead, completeActionItem } from '../db.js'
-import { buildThreads, filterThreads, filterCounts, FILTERS, CATEGORY, snippet, messageTime, gmailThreadUrl } from '../lib/inbox.js'
+import { buildThreads, filterThreads, filterCounts, FILTERS, CATEGORY, snippet, messageLead, messageTime, gmailThreadUrl } from '../lib/inbox.js'
 
 // Recruiting + networking mail only — the pipelines never log what Claude marked UNRELATED,
 // so everything in `interactions` with type='Email' is already the filtered inbox. See
@@ -81,8 +81,7 @@ function ThreadRow({ thread, active, index, onOpen }) {
 function Message({ m, contactName }) {
   const mine = m.direction === 'Outbound'
   const name = mine ? 'You' : (m.fromName || contactName || m.fromAddress || 'Unknown sender')
-  const text = (m.body || m.summary || '').replace(/^📅 Meeting link: \S+\s*/, '')
-  const meeting = (m.summary || '').match(/^📅 Meeting link: (\S+)/)?.[1]
+  const { interview, meetingLink: meeting, text } = messageLead(m)
   return (
     <article className={`border-l-2 pl-4 py-1 ${mine ? 'border-ink-300 ml-6' : 'border-accent-400'}`}>
       <header className="flex items-baseline gap-2 flex-wrap">
@@ -94,11 +93,16 @@ function Message({ m, contactName }) {
             : when(messageTime(m), false)}
         </span>
       </header>
-      {meeting && (
-        <a href={meeting} target="_blank" rel="noreferrer"
-          className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-link hover:underline">
-          📅 Join meeting <ExternalLink size={11} />
-        </a>
+      {(interview || meeting) && (
+        <div className="mt-2 flex items-center gap-3 flex-wrap text-xs">
+          {interview && <span className="font-medium text-ink-800">📅 Interview · <span className="font-mono">{interview}</span></span>}
+          {meeting && (
+            <a href={meeting} target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-1.5 font-medium text-link hover:underline">
+              {interview ? 'Join meeting' : '📅 Join meeting'} <ExternalLink size={11} />
+            </a>
+          )}
+        </div>
       )}
       <p className="mt-2 text-[14px] leading-relaxed text-ink-700 whitespace-pre-wrap break-words">
         {text || <span className="italic text-ink-400">(no text — open in Gmail to see it)</span>}

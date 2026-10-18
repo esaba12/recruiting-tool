@@ -64,6 +64,15 @@ LOCATION beating DESCRIPTION, and `findCalendarPart` on inline vs attachment pay
 Add to `emailPipeline.test.js`: the hint text appears in the prompt when an invite is present,
 and a networking-classified message with an invite ends with `interview_date: null`.
 
+## Follow-up (2026-10-18)
+
+The Inbox reader only recognised `📅 Meeting link:` as the *first* summary line, so with the
+interview line above it the Join link vanished, and the interview time (summary only, not
+`body`) never showed in the reader at all. `lib/inbox.js` `messageLead()` now splits both lead
+lines off (tested against the real `interactionRow()` output in `test/inbox.test.js`), and the
+reader shows "📅 Interview · <time>" next to the Join link. `/demo` has two invite threads
+(Stripe screen, Morgan Stanley Superday) plus a coffee-chat invite with a link and no time.
+
 ## Checks
 
 - `npm test && npm run build`.

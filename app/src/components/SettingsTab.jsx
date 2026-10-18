@@ -3,7 +3,7 @@ import { useAuth } from '../lib/AuthContext.jsx'
 import { authHeader, supabase } from '../lib/supabaseClient.js'
 import { connectGoogleCalendar, disconnectGoogleCalendar, getGoogleCalendarStatus, linkGoogleIdentity, connectGmail, listGmailConnections, disconnectGmail } from '../lib/googleAuth.js'
 import { CALENDAR_SLOTS } from '../googleCalendar.js'
-import { fetchSchools, getUserSetting, setUserSetting } from '../db.js'
+import { fetchSchools, getUserSetting, setUserSetting, getDemoData } from '../db.js'
 import { SYNC_SETTING_KEY, DEFAULT_SYNC } from '../lib/useEventCalendarSync.js'
 import Button from './ui/Button.jsx'
 import AppearanceSection from './AppearanceSection.jsx'
@@ -15,6 +15,7 @@ import { refreshKeyStatus } from '../lib/useKeyStatus.js'
 import GetAKey from './onboarding/GetAKey.jsx'
 import UnverifiedAppNote from './onboarding/UnverifiedAppNote.jsx'
 import { openFeedback } from './onboarding/FeedbackHost.jsx'
+import { DEMO_SIGNUP_MSG } from '../lib/demoMode.js'
 
 const PROVIDERS = [
   { id: 'anthropic', label: 'Anthropic (Claude)', hint: 'console.anthropic.com/settings/keys', href: 'https://console.anthropic.com/settings/keys' },
@@ -25,8 +26,12 @@ const PROVIDERS = [
 
 const SCHOOLS_HINT = 'e.g. University of Michigan'
 
-export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
-  const { profile, refreshProfile, signOut, user } = useAuth()
+// demoMode (App.jsx DemoApp): the same page over a sample profile and the demo's sample Gmail
+// connections. Nothing here can save or connect, so those controls are disabled.
+export default function SettingsTab({ onDone, returnLabel = 'Today', demoMode = false } = {}) {
+  const auth = useAuth()
+  const { refreshProfile, signOut, user } = auth
+  const profile = demoMode ? getDemoData().DEMO_PROFILE : auth.profile
   const [keys, setKeys] = useState([])
   const [keysLoading, setKeysLoading] = useState(true)
   const [drafts, setDrafts] = useState({})
@@ -49,6 +54,7 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
   const [linkingGoogle, setLinkingGoogle] = useState(false)
 
   const loadKeys = useCallback(async () => {
+    if (demoMode) { setKeys([]); setKeysLoading(false); return }
     setKeysLoading(true)
     try {
       const res = await fetch('/api/keys', { headers: await authHeader() })
@@ -56,7 +62,7 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
     } finally {
       setKeysLoading(false)
     }
-  }, [])
+  }, [demoMode])
 
   useEffect(() => { loadKeys() }, [loadKeys])
   useEffect(() => {
@@ -217,8 +223,14 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
           </button>
         )}
         <h2 className="font-heading text-lg font-semibold text-ink-900">Settings</h2>
-        <p className="text-sm text-ink-400 mt-0.5">Signed in as {user?.email}</p>
+        <p className="text-sm text-ink-400 mt-0.5">{demoMode ? 'Demo account · sample data' : `Signed in as ${user?.email}`}</p>
       </div>
+
+      {demoMode && (
+        <p className="p-3 bg-accent-50 border border-accent-200 rounded-xl text-xs text-accent-800">
+          {DEMO_SIGNUP_MSG} Appearance changes still apply.
+        </p>
+      )}
 
       {error && <div className="p-3 bg-danger-50 border border-danger-200 rounded-xl text-xs text-danger-700">{error}</div>}
 
@@ -293,7 +305,7 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
                 <option value="claude">Claude (Anthropic)</option>
                 <option value="openai">GPT (OpenAI)</option>
               </select>
-              {!keys.find(k => k.provider === (profileForm.ai_provider === 'openai' ? 'openai' : 'anthropic'))?.hasKey && (
+              {!demoMode && !keys.find(k => k.provider === (profileForm.ai_provider === 'openai' ? 'openai' : 'anthropic'))?.hasKey && (
                 <p className="text-[11px] text-warning-700 mt-1">
                   {profileForm.ai_provider === 'openai' ? 'Add an OpenAI key below to use GPT.' : 'Add an Anthropic key below to use Claude.'}
                 </p>
@@ -314,8 +326,8 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
           </div>
         )}
         <div className="flex items-center gap-3">
-          <Button size="sm" onClick={saveProfile} disabled={savingProfile}>{savingProfile ? 'Saving...' : 'Save profile'}</Button>
-          <button type="button" onClick={rerunSetup} className="text-xs text-ink-400 hover:text-accent-700">Re-run setup</button>
+          <Button size="sm" onClick={saveProfile} disabled={savingProfile || demoMode}>{savingProfile ? 'Saving...' : 'Save profile'}</Button>
+          {!demoMode && <button type="button" onClick={rerunSetup} className="text-xs text-ink-400 hover:text-accent-700">Re-run setup</button>}
           <button type="button" onClick={() => openFeedback('settings')} className="text-xs text-ink-400 hover:text-accent-700">Send feedback</button>
         </div>
       </section>
@@ -345,6 +357,7 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
                   type="password"
                   placeholder={state?.hasKey ? `Saved — ends in ${state.last4}` : 'Paste your key'}
                   value={drafts[p.id] || ''}
+                  disabled={demoMode}
                   onChange={e => setDrafts(d => ({ ...d, [p.id]: e.target.value }))}
                   className="w-full px-2.5 py-1.5 border border-ink-100 rounded-lg text-sm focus:outline-none focus:border-accent-400"
                 />
@@ -374,7 +387,7 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
             follow-up steps from your email — no setup beyond this one click.
           </p>
         </div>
-        {!keys.find(k => k.provider === 'anthropic')?.hasKey && (
+        {!demoMode && !keys.find(k => k.provider === 'anthropic')?.hasKey && (
           <p className="text-[11px] text-warning-700 bg-warning-50 border border-warning-200 rounded-lg px-2.5 py-1.5">
             ⚠ Add your Anthropic key above first — scanning uses it to classify your email and silently skips
             any connected account until one is set.
@@ -387,10 +400,10 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
             <span className="text-[11px] text-ink-400">
               {c.lastScannedAt ? `Last scanned ${new Date(c.lastScannedAt).toLocaleString()}` : 'Not scanned yet'}
             </span>
-            <Button size="sm" variant="ghost" onClick={() => handleDisconnectGmail(c.email)}>Disconnect</Button>
+            <Button size="sm" variant="ghost" onClick={() => handleDisconnectGmail(c.email)} disabled={demoMode}>Disconnect</Button>
           </div>
         ))}
-        <Button size="sm" variant="secondary" onClick={handleConnectGmail} disabled={connectingGmail}>
+        <Button size="sm" variant="secondary" onClick={handleConnectGmail} disabled={connectingGmail || demoMode}>
           {connectingGmail ? 'Redirecting...' : '+ Connect another Gmail account'}
         </Button>
       </section>
@@ -413,7 +426,7 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
                 {status.connected
                   ? <Badge label={`Connected${status.email ? ` (${status.email})` : ''}`} color="bg-success-50 text-success-700" />
                   : <Badge label="Not connected" color="bg-ink-100 text-ink-500" />}
-                <Button size="sm" variant={status.connected ? 'ghost' : 'secondary'} onClick={() => toggleCalendar(slot)} disabled={connectingSlot === slot}>
+                <Button size="sm" variant={status.connected ? 'ghost' : 'secondary'} onClick={() => toggleCalendar(slot)} disabled={connectingSlot === slot || demoMode}>
                   {connectingSlot === slot ? 'Redirecting...' : status.connected ? 'Disconnect' : `Connect ${label}`}
                 </Button>
               </div>
@@ -457,7 +470,7 @@ export default function SettingsTab({ onDone, returnLabel = 'Today' } = {}) {
         </div>
       </section>
 
-      <Button variant="ghost" onClick={signOut}>Sign out</Button>
+      {!demoMode && <Button variant="ghost" onClick={signOut}>Sign out</Button>}
     </div>
   )
 }
