@@ -28,9 +28,21 @@ files: the project is at the Vercel Hobby limit of 12 functions.
 | 06 | [Prune + refactor](06-prune-and-refactor.md) | 🤖 | ✅ merged 2026-10-17 (PR #13); branch cleanup done except the `demo-refresh` worktree (01 step 4); E items are later |
 | 07 | [Docs restructure (slim CLAUDE.md)](07-docs-restructure.md) | 🤖 | ✅ merged 2026-10-17 (PR #13) |
 | 08 | [Retire the Apps Script email pipeline](08-email-pipeline-consolidation.md) | 🤖 after 02's cron | later; needs the features the serverless scan lacks first |
+| 09 | [Split the bundle by tab](09-bundle-split.md) | 🤖 | open (was 06 E) |
+| 10 | [Gmail scan budget + incremental discovery](10-scan-budget.md) | 🤖, one `db push` | open (replaces 02 D3 and 08 item 4) |
+| 11 | [Per-message dedup for logged emails](11-interaction-dedup.md) | 🤖, one `db push` + `clasp push` | open; **must land before 02 D2** |
+| 12 | [Calendar invites on the serverless path](12-calendar-invites.md) | 🤖 | open (08 item 2) |
 
 Order: 02 → (03 ∥ 04). 01 and 05–07 are merged (PRs #9, #13).
 08 waits until the Gmail cron (in 02) has run cleanly for a week.
+
+**🤖 track (09–12), needs no console work from the owner.** Order: **09 → 11 → 10 → 12**,
+one branch and one commit per spec, `npm test && npm run build` and a browser check each.
+- 09 first: no schema change, nothing waits on it, and it's measurable.
+- 11 before 10: it gates 02 D2. Its migration and 10's ship in **one** `supabase db push`
+  (dry-run shown, owner approves once), after both are written and tested.
+- 12 last: the biggest, it touches the same scan loop as 10 and 11, and it can be tested only
+  offline until 02 D1/D2 are done.
 
 ## Definition of done
 

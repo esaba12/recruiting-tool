@@ -74,9 +74,9 @@ Do this first. B–D don't depend on it, but 03 and the Gmail half of D do.
   `! curl -s -X POST -H "x-cron-secret: $CRON_SECRET" https://<prod-domain>/api/gmail`,
   which should return JSON with a per-connection summary. Then confirm the cron-job.org
   history shows 200s, and Vercel → Logs shows `/api/gmail` every 10 min.
-- [ ] **D2. Connect your own Gmail** (Settings → "+ Connect another Gmail account"). Needs A1–A3.
+- [ ] **D2. Connect your own Gmail** (Settings → "+ Connect another Gmail account"). Needs A1–A3, and **spec [11](11-interaction-dedup.md) merged first**: without it, the first scan re-logs 45 days of threads the Apps Script already logged.
   **Check:** after the next cron tick, Inbox shows the last few days of threads.
-- [ ] **D3. Watch the load** once about 10 accounts are connected. Each scan loops over every
+- [ ] **D3. Watch the load** (the fix is now spec [10](10-scan-budget.md); this box is just the check) once about 10 accounts are connected. Each scan loops over every
   connection, so compare the function duration against the 300s default. If it gets close,
   scan oldest-`last_scan_at`-first with a per-run cap, inside `api/gmail.js`. No new file.
 
