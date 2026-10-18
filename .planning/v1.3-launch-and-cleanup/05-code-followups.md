@@ -25,6 +25,8 @@ persist in `rec_sheet_prefs`.
 
 **Verify by hand:** Pipeline → Job Boards → pull tracked boards → Sheet → Job Boards: the
 results are still there and there's no second pull.
+✅ Verified 2026-10-18 on `/demo` (prod build, headless): 23 listings pulled, search "Mercury" → 2;
+after Sheet → Job Boards, still 2 results and the search text kept.
 
 ## 3. Function budget (standing rule)
 

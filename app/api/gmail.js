@@ -11,8 +11,10 @@ import crypto from 'crypto'
 import { requireUser, supabaseAdmin } from './_lib/supabaseAdmin.js'
 import { encrypt, decrypt } from './_lib/crypto.js'
 import { checkRateLimit, sendRateLimited } from './_lib/rateLimit.js'
-import { GMAIL_OAUTH_SCOPE, gmailRedirectUri, escapeHtml, issueOAuthNonce, consumeOAuthNonce } from './_lib/googleOAuth.js'
+import { GMAIL_OAUTH_SCOPE, gmailRedirectUri, escapeHtml, issueOAuthNonce, consumeOAuthNonce, baseUrl } from './_lib/googleOAuth.js'
 import { scanGmailConnection, orderConnections } from './_lib/emailPipeline.js'
+import { runUserPushes, pushSettingsFor, sendPush } from './_lib/pushes.js'
+import { getUserKey } from './_lib/keys.js'
 
 const STATE_TTL_MS = 10 * 60 * 1000
 const SCAN_COOLDOWN_MS = 9 * 60 * 1000 // slightly under the ~10-min pinger interval
@@ -113,6 +115,9 @@ async function handleScan(req, res) {
 
   const deadline = Date.now() + SCAN_BUDGET_MS
   const results = []
+  // Every user with a connection gets a push pass, even if their scan was skipped this tick:
+  // the digests are time-based, not mail-based.
+  const pushesByUser = new Map((connections || []).map(c => [c.user_id, []]))
   for (const conn of orderConnections(connections || [])) {
     if (Date.now() >= deadline - NEW_CONNECTION_MARGIN_MS) {
       results.push({ email: conn.connected_email, skipped: 'budget' })
@@ -124,7 +129,8 @@ async function handleScan(req, res) {
       continue
     }
     try {
-      const { threadProgress, scanned, failed, partial, cursor, skipped } = await scanGmailConnection(conn, { deadline })
+      const { threadProgress, scanned, failed, partial, cursor, skipped, pushes = [] } = await scanGmailConnection(conn, { deadline })
+      pushesByUser.get(conn.user_id).push(...pushes)
       await db.from('gmail_tokens')
         .update({ thread_progress: threadProgress, scan_cursor: cursor ?? null, last_scanned_at: new Date().toISOString() })
         .eq('id', conn.id)
@@ -133,7 +139,17 @@ async function handleScan(req, res) {
       results.push({ email: conn.connected_email, error: e.message })
     }
   }
-  res.status(200).json({ results })
+  const pushes = []
+  for (const [userId, newPushes] of pushesByUser) {
+    if (Date.now() >= deadline) { pushes.push({ skipped: 'budget' }); continue }
+    try {
+      const anthropicKey = await getUserKey(userId, 'anthropic')
+      pushes.push(await runUserPushes(db, userId, newPushes, { anthropicKey, click: baseUrl(req) }))
+    } catch (e) {
+      pushes.push({ error: e.message })
+    }
+  }
+  res.status(200).json({ results, pushes })
 }
 
 export default async function handler(req, res) {
@@ -142,7 +158,7 @@ export default async function handler(req, res) {
   if (req.query.code || req.query.error) return handleOauthCallback(req, res)
 
   // The external pinger — no user session in this context, gated by shared secret instead.
-  if (req.method === 'POST') return handleScan(req, res)
+  if (req.method === 'POST' && req.query.action !== 'test-push') return handleScan(req, res)
 
   // Everything else is a browser-originated, authenticated request.
   const user = await requireUser(req)
@@ -173,6 +189,16 @@ export default async function handler(req, res) {
       .select('connected_email, last_scanned_at').eq('user_id', user.id).order('created_at', { ascending: true })
     if (error) return res.status(500).json({ error: { message: error.message } })
     return res.status(200).json((data || []).map(r => ({ email: r.connected_email, lastScannedAt: r.last_scanned_at })))
+  }
+
+  // Settings → "Send a test push": proves the saved ntfy topic reaches the user's phone.
+  if (req.method === 'POST' && req.query.action === 'test-push') {
+    const settings = await pushSettingsFor(db, user.id)
+    if (!settings) return res.status(400).json({ error: { message: 'Save an ntfy topic first' } })
+    const sent = await sendPush(settings.ntfyTopic, {
+      title: '✅ Test push', message: 'Recruiting OS push notifications are working.', tags: ['white_check_mark'], click: baseUrl(req),
+    })
+    return sent ? res.status(200).json({ sent: true }) : res.status(502).json({ error: { message: 'ntfy.sh did not accept the push' } })
   }
 
   if (req.method === 'DELETE') {

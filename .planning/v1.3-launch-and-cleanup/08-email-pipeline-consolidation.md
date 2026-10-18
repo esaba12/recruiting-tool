@@ -23,17 +23,29 @@ the Apps Script copy is only a second place for bugs to hide.
 
 Each feature the Apps Script has and `api/_lib/emailPipeline.js` doesn't, roughly in order of how much it matters:
 
-1. **Push notifications (ntfy).** Immediate pushes for OA/interview/offer/rejection, the daily
-   OA digest, the daily recap, and quiet hours with a queue. Proposed: `profiles.ntfy_topic`
-   (nullable, set in Settings, never logged), with a `sendPush` in `api/_lib/` that keeps the
-   3× retry. Immediate pushes go out from the scan. The digest and recap run from the same cron
-   tick, gated by a per-user "last digest date" in `user_settings`. No new function.
+1. ✅ **Push notifications (ntfy)**, done 2026-10-18 on `feat/v1.3-email-parity`:
+   `api/_lib/pushes.js` (tests: `test/pushes.test.js`). Update pushes (OA/interview/offer/
+   rejection, only for mail under 2 days old) are queued per tick and sent as one; 22:00–08:00
+   holds them; the 11am and midnight digests carry the AI recap (Sonnet, user's own key, also
+   written to `daily_recaps`), open OAs and anything held. Settings → Push notifications stores
+   `{ ntfyTopic, timeZone }` in `user_settings` `push_settings` (not a `profiles` column, so no
+   `db push`); the queue and sent slots live in `push_state`. "Send a test" is
+   `POST /api/gmail?action=test-push`. Pushes use ntfy's JSON publish: Node's fetch rejects the
+   emoji titles as headers (caught by a live test against ntfy.sh).
+   **Overlap:** the Apps Script still pushes to its own `NTFY_TOPIC`. Don't save a topic in
+   Settings for your own account until step 3 of the cutover, or you get every push twice.
 2. ✅ **Calendar invites** → spec [12](12-calendar-invites.md), done. VEVENT-scoped `.ics` parsing (the VTIMEZONE `DTSTART` gotcha), timing
    for real interviews, and skipping our own calendar event when an invite is attached. Port
    `extractCalendarInvite`/`parseIcsDate` as pure functions, with tests from captured `.ics` fixtures.
-3. **Interview calendar event when there's no invite** (`createCalendarEvent`, with the same-day
-   duplicate check and the 10h cap). Reuse `googleCalendar` server-side through the user's
-   Calendar token, if one is connected.
+3. ✅ **Interview calendar event when there's no invite**, done 2026-10-18 on
+   `feat/v1.3-email-parity`: `api/_lib/interviewEvent.js` (tests: `test/interviewEvent.test.js`).
+   An `INTERVIEW_INVITE` with a date and no invite gets a 2–3pm placeholder event on the
+   connected Calendar's primary calendar (the slot Settings syncs to, else any), in the campus
+   time zone, with a line saying the time is a placeholder. The classifier never returns a
+   time, so the 10h cap had nothing to guard and was dropped. New guards: no events for past
+   dates (first-scan backfill), and the same-day title check also matches events the Apps
+   Script made during the overlap week. Best effort: a Calendar failure is logged and never
+   holds the thread back.
 4. **Backfill** → covered by spec [10](10-scan-budget.md): the first scan's 45-day window already is the backfill. (`runBackfillChunk`, `backfillOaCompletions`, `backfillInboxFields`). These were
    one-offs for your mailbox. For new users, an initial "scan the last 30 days" on connect,
    cursor-paged across cron ticks, is enough.
@@ -43,7 +55,7 @@ Each feature the Apps Script has and `api/_lib/emailPipeline.js` doesn't, roughl
 
 ## Cutover
 
-1. Ship 1–3, with tests (`test/emailPipeline.test.js`).
+1. ✅ Ship 1–3, with tests (done 2026-10-18: `test/pushes.test.js`, `test/interviewEvent.test.js`, `test/ics.test.js`).
 2. Run both pipelines for a week against your mailbox. Both write `gmail_message_id` with a
    unique index (spec [11](11-interaction-dedup.md), which must land first), so the overlap is harmless. Compare the rows each one wrote.
 3. Disable the Apps Script triggers (editor → clock icon); don't delete the project yet.

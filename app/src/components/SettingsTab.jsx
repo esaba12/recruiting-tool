@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { authHeader, supabase } from '../lib/supabaseClient.js'
-import { connectGoogleCalendar, disconnectGoogleCalendar, getGoogleCalendarStatus, linkGoogleIdentity, connectGmail, listGmailConnections, disconnectGmail } from '../lib/googleAuth.js'
+import { connectGoogleCalendar, disconnectGoogleCalendar, getGoogleCalendarStatus, linkGoogleIdentity, connectGmail, listGmailConnections, disconnectGmail, sendTestPush } from '../lib/googleAuth.js'
 import { CALENDAR_SLOTS } from '../googleCalendar.js'
 import { fetchSchools, getUserSetting, setUserSetting, getDemoData } from '../db.js'
 import { SYNC_SETTING_KEY, DEFAULT_SYNC } from '../lib/useEventCalendarSync.js'
@@ -25,6 +25,7 @@ const PROVIDERS = [
 ]
 
 const SCHOOLS_HINT = 'e.g. University of Michigan'
+const PUSH_SETTING_KEY = 'push_settings'
 
 // demoMode (App.jsx DemoApp): the same page over a sample profile and the demo's sample Gmail
 // connections. Nothing here can save or connect, so those controls are disabled.
@@ -45,6 +46,9 @@ export default function SettingsTab({ onDone, returnLabel = 'Today', demoMode = 
   const [syncSetting, setSyncSetting] = useState(null)
   const [savingProfile, setSavingProfile] = useState(false)
   const [error, setError] = useState(null)
+  const [topic, setTopic] = useState('')
+  const [savedTopic, setSavedTopic] = useState('') // what the server will push to
+  const [pushStatus, setPushStatus] = useState(null) // 'saving' | 'testing' | 'sent'
 
   const isApiKeyAccount = !!user?.email?.endsWith('@byok.local')
   const hasGoogleIdentity = !!user?.identities?.some(i => i.provider === 'google')
@@ -72,6 +76,7 @@ export default function SettingsTab({ onDone, returnLabel = 'Today', demoMode = 
     fetchSchools().then(setSchools).catch(() => setSchools([]))
     getUserSetting(SYNC_SETTING_KEY).then(v => setSyncSetting({ ...DEFAULT_SYNC, ...(v || {}) })).catch(() => setSyncSetting(DEFAULT_SYNC))
     listGmailConnections().then(setGmailConnections).catch(() => setGmailConnections([]))
+    getUserSetting(PUSH_SETTING_KEY).then(v => { if (v?.ntfyTopic) { setTopic(v.ntfyTopic); setSavedTopic(v.ntfyTopic) } }).catch(() => {})
   }, [])
   useEffect(() => {
     if (profile) setProfileForm({
@@ -203,6 +208,25 @@ export default function SettingsTab({ onDone, returnLabel = 'Today', demoMode = 
       setError(e.message)
       setConnectingGmail(false)
     }
+  }
+
+  const topicOk = /^[A-Za-z0-9_-]{1,64}$/.test(topic)
+  async function savePush() {
+    setPushStatus('saving'); setError(null)
+    try {
+      // The digest hours (11am, midnight) and quiet hours run in this zone.
+      await setUserSetting(PUSH_SETTING_KEY, { ntfyTopic: topic, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone })
+      setSavedTopic(topic)
+    } catch (e) { setError(e.message) }
+    setPushStatus(null)
+  }
+  async function removePush() {
+    setPushStatus(null); setError(null)
+    try { await setUserSetting(PUSH_SETTING_KEY, null); setTopic(''); setSavedTopic('') } catch (e) { setError(e.message) }
+  }
+  async function testPush() {
+    setPushStatus('testing'); setError(null)
+    try { await sendTestPush(); setPushStatus('sent') } catch (e) { setError(e.message); setPushStatus(null) }
   }
 
   async function handleDisconnectGmail(email) {
@@ -406,6 +430,44 @@ export default function SettingsTab({ onDone, returnLabel = 'Today', demoMode = 
         <Button size="sm" variant="secondary" onClick={handleConnectGmail} disabled={connectingGmail || demoMode}>
           {connectingGmail ? 'Redirecting...' : '+ Connect another Gmail account'}
         </Button>
+      </section>
+
+      {/* Phone pushes via ntfy.sh — api/_lib/pushes.js sends them from the Gmail scan. */}
+      <section className="bg-surface rounded-2xl border border-ink-100 p-5 space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-ink-900">Push notifications</h3>
+          <p className="text-xs text-ink-400">
+            Your phone buzzes when a scanned email is an OA, interview, offer or rejection, plus a digest at 11am and
+            midnight (open OAs and an AI recap of your day). Nothing between 10pm and 8am. Free, through{' '}
+            <a href="https://ntfy.sh" target="_blank" rel="noreferrer" className="text-link hover:underline">ntfy.sh</a>, no account needed.
+          </p>
+        </div>
+        <ol className="text-xs text-ink-500 list-decimal pl-4 space-y-0.5">
+          <li>Install the ntfy app (iOS or Android).</li>
+          <li>Pick a topic below. Anyone who knows it can read your pushes, so keep the generated one.</li>
+          <li>In the app, subscribe to that topic, then save here and send a test.</li>
+        </ol>
+        <div className="flex items-end gap-2 flex-wrap">
+          <div className="flex-1 min-w-48">
+            <Input label="ntfy topic" value={topic} disabled={demoMode} placeholder="recruiting-…"
+              onChange={e => { setTopic(e.target.value.trim()); setPushStatus(null) }} className="font-mono text-xs" />
+          </div>
+          <Button size="sm" variant="ghost" disabled={demoMode}
+            onClick={() => { setTopic(`recruiting-${crypto.randomUUID().slice(0, 13)}`); setPushStatus(null) }}>
+            Generate
+          </Button>
+          <Button size="sm" variant="secondary" onClick={savePush} disabled={demoMode || !topicOk || topic === savedTopic || pushStatus === 'saving'}>
+            {savedTopic && topic === savedTopic ? 'Saved' : 'Save'}
+          </Button>
+          <Button size="sm" variant="secondary" onClick={testPush} disabled={demoMode || !savedTopic || topic !== savedTopic || pushStatus === 'testing'}>
+            {pushStatus === 'sent' ? 'Sent ✓' : pushStatus === 'testing' ? 'Sending…' : 'Send a test'}
+          </Button>
+          {savedTopic && <Button size="sm" variant="ghost" onClick={removePush}>Turn off</Button>}
+        </div>
+        {topic && !topicOk && <p className="text-[11px] text-warning-700">Letters, numbers, - and _ only, up to 64 characters.</p>}
+        {gmailConnections.length === 0 && !demoMode && (
+          <p className="text-[11px] text-ink-400">Pushes come from the email scan, so connect a Gmail account above for them to start.</p>
+        )}
       </section>
 
       {/* Google Calendar — up to two independent connections (e.g. a personal Gmail

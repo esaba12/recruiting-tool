@@ -4,15 +4,16 @@
 // raw PostgREST UrlFetchApp calls, and each user's own BYOK Anthropic key (getUserKey())
 // instead of one hardcoded ANTHROPIC_API_KEY.
 //
-// Deliberately NOT ported (yet — the Apps Script version still owns these for the personal
-// account): interview calendar-event creation (needs the Calendar API; invite parsing landed in
-// v1.3 spec 12, see ./ics.js), ntfy push notifications, and the
-// daily recap. This module only does discovery → classify → upsert
-// contacts/applications/interactions/action items.
+// Invite parsing is v1.3 spec 12 (./ics.js). The scan also returns the update pushes it
+// built (./pushes.js statusPush); api/gmail.js sends them, with the digests and daily recap,
+// after the connection loop. An interview with a date but no invite gets a calendar event
+// (./interviewEvent.js) when the user has a Calendar connected.
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { decrypt } from './crypto.js'
 import { getUserKey } from './keys.js'
 import { parseInvite, findCalendarPart } from './ics.js'
+import { statusPush, isFreshEnoughToPush } from './pushes.js'
+import { shouldCreateInterviewEvent, createInterviewEvent, calendarRefreshToken } from './interviewEvent.js'
 import { tracksLabel, isTechOnly } from '../../src/lib/tracks.js'
 
 // ── Discovery queries + recall-hint constants (ported verbatim) ─────────────────────────
@@ -661,7 +662,21 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
     return { threadProgress: connection.thread_progress || {}, cursor: connection.scan_cursor || null, scanned: 0, skipped: 'no_anthropic_key' }
   }
   // Recruiting tracks shape the classifier prompt (candidateFraming / trackGuidance).
-  const { data: profile } = await db.from('profiles').select('tracks, focus').eq('id', userId).maybeSingle()
+  const { data: profile } = await db.from('profiles').select('tracks, focus, school_id').eq('id', userId).maybeSingle()
+  // Interview events land in the campus zone when there is one (schools.timezone).
+  const { data: school } = profile?.school_id
+    ? await db.from('schools').select('timezone').eq('id', profile.school_id).maybeSingle()
+    : { data: null }
+  const timeZone = school?.timezone || DEFAULT_TIME_ZONE
+  // Minted on first use: most scans never need the Calendar.
+  let calendarToken
+  const getCalendarToken = async () => {
+    if (calendarToken === undefined) {
+      const rt = await calendarRefreshToken(db, userId)
+      calendarToken = rt ? await mintAccessToken(rt) : null
+    }
+    return calendarToken
+  }
 
   const refreshToken = decrypt(connection.refresh_token_ciphertext)
   const accessToken = await mintAccessToken(refreshToken)
@@ -674,6 +689,7 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
   const threadIds = [...new Set([...inboxIds, ...sentIds].map(m => m.threadId))]
 
   const threadProgress = { ...(connection.thread_progress || {}) }
+  const pushes = []
 
   const processThread = async threadId => {
     try {
@@ -723,6 +739,18 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
         applicationId = await upsertApplication(db, userId, data)
       }
 
+      // Best effort: a Calendar problem (revoked grant, quota) is logged, never retried, so it
+      // can't hold the thread back. The same-day title check keeps a re-classified thread
+      // from adding a second event.
+      if (shouldCreateInterviewEvent(data, { invite, today: localDate(new Date(), timeZone) })) {
+        try {
+          const token = await getCalendarToken()
+          if (token) await createInterviewEvent(token, data, { timeZone })
+        } catch (e) {
+          console.error(`Interview event for ${threadId} (${myEmail}) failed: ${e.message}`)
+        }
+      }
+
       if (keepActionItem(data, data.contact_email)) {
         await upsertActionItem(db, userId, {
           gmailMessageId: msg.id, threadId, contactId, applicationId,
@@ -736,6 +764,9 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
       })
 
       threadProgress[threadId] = messages.length
+      // Last, so a thread that fails above (and is retried next tick) never pushes twice.
+      const push = isFreshEnoughToPush(msg.date) ? statusPush(data) : null
+      if (push) pushes.push(push)
       return 'classified'
     } catch (e) {
       console.error(`Thread ${threadId} (${myEmail}) failed: ${e.message}`)
@@ -746,5 +777,5 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
 
   const { classified, failed, partial } = await runThreadBudget(threadIds, processThread, { deadline })
   const cursor = nextCursor({ prevCursor: connection.scan_cursor, scanStartedAt, partial, failed })
-  return { threadProgress, scanned: classified, failed, partial, cursor }
+  return { threadProgress, scanned: classified, failed, partial, cursor, pushes }
 }
