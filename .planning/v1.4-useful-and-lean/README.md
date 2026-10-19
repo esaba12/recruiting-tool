@@ -59,7 +59,7 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 
 | # | Spec | Kind | Migration | Status |
 |---|------|------|-----------|--------|
-| 01 | [Import what you already have](01-import.md) | 🤖 | no | open |
+| 01 | [Import what you already have](01-import.md) | 🤖 | no | ✅ done 2026-10-19 |
 | 02 | [Interview and offer dates become fields](02-interview-offer-dates.md) | 🤖 + `clasp push` | **yes** | open |
 | 03 | [After the interview: thank-you nudges](03-thank-you.md) | 🤖 | no (uses 02) | open |
 | 04 | [Offer decisions](04-offer-decisions.md) | 🤖 | no (uses 02) | open |

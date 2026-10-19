@@ -58,3 +58,40 @@ export function todayLocal() { return localDateStr(new Date()) }
 export function addDaysLocal(n, from = new Date()) {
   return localDateStr(new Date(from.getFullYear(), from.getMonth(), from.getDate() + n))
 }
+
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+const pad = n => String(n).padStart(2, '0')
+
+function ymd(y, m, d) {
+  const dt = new Date(y, m - 1, d)
+  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null
+  return `${y}-${pad(m)}-${pad(d)}`
+}
+
+// A date as people type it in a sheet ("2026-09-03", "9/3/26", "Sep 3", "15 Oct 2024") →
+// 'YYYY-MM-DD' (a local calendar day) or null. For things that already happened: a date after
+// `today` is rejected, and a yearless date that would land in the future means last year.
+export function parseLooseDate(v, today = todayLocal()) {
+  const s = String(v ?? '').trim()
+  if (!s) return null
+  const ty = Number(today.slice(0, 4))
+  let y = null, m = null, d = null
+  let r
+  if ((r = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) [y, m, d] = [r[1], r[2], r[3]].map(Number)
+  else if ((r = s.match(/^(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?$/))) {
+    m = Number(r[1]); d = Number(r[2])
+    if (r[3]) y = r[3].length === 2 ? 2000 + Number(r[3]) : Number(r[3])
+  } else if ((r = s.match(/^([A-Za-z]{3,9})\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?$/))) {
+    m = MONTHS.indexOf(r[1].slice(0, 3).toLowerCase()) + 1; d = Number(r[2]); y = r[3] ? Number(r[3]) : null
+  } else if ((r = s.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\.?(?:,?\s+(\d{4}))?$/))) {
+    d = Number(r[1]); m = MONTHS.indexOf(r[2].slice(0, 3).toLowerCase()) + 1; y = r[3] ? Number(r[3]) : null
+  } else return null
+  if (!m || m < 1) return null
+  if (y == null) {
+    const guess = ymd(ty, m, d)
+    if (!guess) return null
+    return guess > today ? ymd(ty - 1, m, d) : guess
+  }
+  const out = ymd(y, m, d)
+  return out && out <= today ? out : null
+}

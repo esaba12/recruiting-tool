@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { ArrowUpRight, Columns3, Download, Rows3, Search, Waypoints, X } from 'lucide-react'
+import { ArrowUpRight, Columns3, Download, Rows3, Search, Upload, Waypoints, X } from 'lucide-react'
 import { addApplication, archiveApplication, updateApplication, updateApplicationTriage } from '../db.js'
 import { BUCKET_TO_TRIAGE } from './jobBoards/helpers.js'
 import { STAGE_ORDER, STAGE_COLOR, TERMINAL_STAGES, Badge, fmt } from '../shared.jsx'
@@ -16,6 +16,7 @@ import ApplicationPanelBody from './panels/ApplicationPanelBody.jsx'
 import Mono from './ui/Mono.jsx'
 import ApplicationFlowPanel from './ApplicationFlowPanel.jsx'
 import { ApplicationFunnel } from './charts/ActivityCharts.jsx'
+import ImportModal from './import/ImportPanel.jsx'
 
 // Pipeline → Sheet. A spreadsheet over every application: sort, filter, show/hide
 // columns, edit cells in place (arrows / Enter / Esc / Tab, or just start typing), add
@@ -110,6 +111,7 @@ export default function ApplicationsSheet({ apps, contacts = [], interactions = 
   const [hidden, setHidden] = useState(saved.hidden || DEFAULT_HIDDEN)
   const [grouped, setGrouped] = useState(saved.grouped ?? false)
   const [showFlow, setShowFlow] = useState(saved.showFlow ?? false)
+  const [importOpen, setImportOpen] = useState(false)
   const [pick, setPick] = useState(null)       // a clicked Sankey band/node: { label, appIds }
   const [sort, setSort] = useState(saved.sort || null) // { id, desc }
   const [search, setSearch] = useState('')
@@ -392,6 +394,10 @@ export default function ApplicationsSheet({ apps, contacts = [], interactions = 
               </>
             )}
           </div>
+          <button onClick={() => setImportOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1 border border-ink-300 rounded-sm bg-surface text-xs font-medium text-ink-600 hover:bg-ink-50">
+            <Upload size={13} /> Import
+          </button>
           <div className="flex border border-ink-300 rounded-sm overflow-hidden">
             <button onClick={() => exportFile('xlsx')} disabled={!rows.length}
               className="flex items-center gap-1 px-2.5 py-1 bg-accent-600 text-on-accent text-xs font-semibold hover:bg-accent-700 disabled:opacity-50">
@@ -406,6 +412,11 @@ export default function ApplicationsSheet({ apps, contacts = [], interactions = 
       </div>
 
       {children}
+
+      {importOpen && (
+        <ImportModal kind="tracker" apps={apps} onClose={() => setImportOpen(false)}
+          onImported={() => (onRefreshApps || onRefresh)?.()} />
+      )}
 
       {showFlow && (
         <div className="mb-3 bg-surface border border-ink-300 rounded-sm px-4 pt-3 pb-2">

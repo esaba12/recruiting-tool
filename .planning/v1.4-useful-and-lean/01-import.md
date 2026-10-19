@@ -1,5 +1,17 @@
 # 01 — Import what you already have
 
+**Status:** ✅ done 2026-10-19 on `feat/v1.4-pre-invite`. Built as `lib/trackerImport.js` (pure, tested in
+`test/trackerImport.test.js`) + `components/import/ImportPanel.jsx` (panel for 07's wizard, modal
+for Pipeline → Sheet → **Import** and Network → **Import LinkedIn**). Deviations:
+- No `.xlsx` reader: same as Learn's practice import, an Excel file gets "save as CSV or paste the rows".
+  `lib/csv.js` gained `parseCsvRows` (quoted newlines) instead.
+- `/demo` imports write to the in-memory demo store (reset on reload), so the portfolio shows the
+  whole flow, rather than preview-only.
+- `parseLooseDate` moved to `lib/dates.js` (Learn's `parsePracticeDate` is now an alias), and
+  `roleToOption` moved to `lib/discovery.js` (shared with Quick Add).
+- Imported apps' stage history starts at the import (a creation event, so not a "move");
+  `applied_date`/`last_activity` carry the sheet's date.
+
 **Who:** 🤖. **Migration:** none. **New serverless fn:** none (client-side parse, RLS writes).
 
 ## Why

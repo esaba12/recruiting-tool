@@ -1,6 +1,7 @@
 import { exaSearch } from './exa.js'
 import { aiJSON, AI_MODELS } from './ai.js'
-import { affinityTagsFor, roleCategory, DEFAULT_PROFILE } from './discovery.js'
+import { affinityTagsFor, roleToOption, DEFAULT_PROFILE } from './discovery.js'
+export { roleToOption }
 import { normalizeCompanyName } from './networkGraph.js'
 
 // One-tap contact enrichment for the "add someone I already know" path. This is the
@@ -15,21 +16,6 @@ import { normalizeCompanyName } from './networkGraph.js'
 // wrong web match costs a glance, not a bad Notion row.
 
 const norm = s => (s || '').trim().toLowerCase()
-
-// Extracted/free-text title -> the Contacts Role select vocabulary (ROLE_OPTIONS).
-// Leans on discovery.js's roleCategory so this classification stays consistent with the
-// reachability/seniority logic used everywhere else. Strict mode, since this runs on every
-// Quick Add — including a friend/family member's free-text "what they do" with no job title
-// at all — where the lenient manager/lead catch-all would misfire (e.g. "leads a book club").
-export function roleToOption(title) {
-  switch (roleCategory(title, { strict: true })) {
-    case 'recruiter': return 'Recruiter'
-    case 'pm':        return 'PM'
-    case 'engineer':
-    case 'manager':   return 'SWE'
-    default:          return 'Other' // leader / other — no clean ROLE_OPTIONS bucket
-  }
-}
 
 // Ask the AI to resolve the ONE person the user named out of the Exa result pages, and
 // clean up their title into a plain-English descriptor. Returns null on any failure.

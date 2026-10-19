@@ -55,6 +55,20 @@ export function roleCategory(title, { strict = false } = {}) {
 }
 
 const CATEGORY_LABEL = { engineer: 'Engineer', recruiter: 'Recruiter', manager: 'Eng manager', pm: 'PM', leader: 'Leader', other: 'Other' }
+
+// Extracted/free-text title -> the Contacts Role select vocabulary (ROLE_OPTIONS), for Quick
+// Add and the LinkedIn import. Strict mode, since it runs on free-text "what they do" with no
+// job title at all, where the lenient manager/lead catch-all would misfire ("leads a book club").
+export function roleToOption(title) {
+  switch (roleCategory(title, { strict: true })) {
+    case 'recruiter': return 'Recruiter'
+    case 'pm':        return 'PM'
+    case 'engineer':
+    case 'manager':   return 'SWE'
+    default:          return 'Other' // leader / other — no clean ROLE_OPTIONS bucket
+  }
+}
+
 export function roleCategoryLabel(cat) { return CATEGORY_LABEL[cat] || 'Other' }
 
 // Reachability × relevance: reachable ICs and recruiters reply and can refer; VPs/C-suite

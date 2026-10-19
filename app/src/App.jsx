@@ -59,6 +59,7 @@ const ContactsTable   = lazy(TAB_CHUNKS.contactsTable)
 // Open-on-demand modals and the new-user wizard: most sessions never render them.
 const AddToCalendarModal = lazy(() => import('./components/AddToCalendarModal.jsx'))
 const QuickScheduleModal = lazy(() => import('./components/QuickScheduleModal.jsx'))
+const ImportModal = lazy(() => import('./components/import/ImportPanel.jsx'))
 const QuickCaptureModal  = lazy(() => import('./components/QuickCaptureModal.jsx'))
 const OnboardingWizard   = lazy(() => import('./components/onboarding/OnboardingWizard.jsx'))
 
@@ -94,6 +95,8 @@ function NetworkTab({ contacts, apps, interactions, calls = [], contactRelations
   const [editing, setEditing] = useState(null)   // contact object | 'new' | null
   const [logOpen, setLogOpen] = useState(false)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const importedRef = useRef(false)
 
   const filtered = contacts
     .filter(c => {
@@ -142,6 +145,10 @@ function NetworkTab({ contacts, apps, interactions, calls = [], contactRelations
               </button>
             ))}
           </div>
+          <button onClick={() => setImportOpen(true)}
+            className="px-3 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 whitespace-nowrap">
+            Import LinkedIn
+          </button>
           <button onClick={() => setLogOpen(true)}
             className="px-3 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 whitespace-nowrap">
             + Log Interaction
@@ -199,6 +206,14 @@ function NetworkTab({ contacts, apps, interactions, calls = [], contactRelations
           onClose={() => setQuickAddOpen(false)}
           onSaved={() => { setQuickAddOpen(false); onRefresh() }}
         />
+      )}
+      {importOpen && (
+        <Suspense fallback={null}>
+          {/* Refresh on close, not on import: onRefresh is the full load(), which unmounts this
+              tab and would take the "Added N" confirmation with it. */}
+          <ImportModal kind="linkedin" contacts={contacts} onImported={() => { importedRef.current = true }}
+            onClose={() => { setImportOpen(false); if (importedRef.current) { importedRef.current = false; onRefresh() } }} />
+        </Suspense>
       )}
     </div>
   )

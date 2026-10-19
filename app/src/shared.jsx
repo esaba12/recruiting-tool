@@ -50,7 +50,7 @@ export const INTERVIEW_STAGES = ['Phone Screen','Technical','Onsite']
 export const TERMINAL_STAGES = ['Rejected','Accepted']
 
 export const ROLE_OPTIONS = ['SWE','PM','Recruiter','Alumni','Referral','Other']
-export const SOURCE_OPTIONS = ['Coffee chat','Email','Event','Referral','LinkedIn DM']
+export const SOURCE_OPTIONS = ['Coffee chat','Email','Event','Referral','LinkedIn DM','LinkedIn import']
 export const STATUS_OPTIONS = Object.keys(STATUS_COLOR)
 export const URGENCY_OPTIONS = ['HIGH','MED','LOW']
 // Shared-background signals, distinct from ROLE_OPTIONS's 'Alumni' (which describes this
