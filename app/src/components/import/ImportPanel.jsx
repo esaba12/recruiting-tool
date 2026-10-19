@@ -72,7 +72,7 @@ export function ImportPanel({ kind, apps = [], contacts = [], onImported, compac
       setAdded(n)
       setSession(s => [...s, ...rows])
       setParsed(null); setText('')
-      onImported?.(n)
+      onImported?.(n, rows)
     } catch (e) {
       setError(e.message)
     } finally {

@@ -24,7 +24,8 @@ The attention stack. Sections, in order:
 - Interview Prep (from Learn)
 - Activity: three stat tiles (`StatTileRow.jsx`): Funnel, Next Deadline, weekly Activity
 
-A fresh account sees `onboarding/GettingStarted.jsx` instead of "all clear".
+A fresh account sees `onboarding/GettingStarted.jsx` instead of "all clear": the live Gmail
+first-scan state (`lib/gmailScan.js`) plus rows that open the tracker and LinkedIn importers.
 
 - **Awaiting Reply** (`awaitingReply`): the contact's last Email/LinkedIn interaction was
   Outbound and 5+ days old with nothing back. Contacts with any Follow-Up Date are excluded, so
@@ -159,7 +160,7 @@ Views:
 - Secure your account (sign-in-with-API-key accounts only).
 - Profile (tracks, school, AI provider) and appearance.
 - API keys (Anthropic, OpenAI, Exa, GitHub).
-- Networking email accounts (Gmail connections).
+- Networking email accounts (Gmail connections, **Scan now** → `api/gmail.js ?action=scan-mine`).
 - Push notifications (ntfy topic).
 - Google Calendar slots and Recruiting-calendar sync.
 - Send feedback.

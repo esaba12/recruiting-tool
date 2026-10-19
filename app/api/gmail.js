@@ -6,6 +6,8 @@
 //   POST (x-cron-secret header)       -> periodic scan (external pinger, unauthenticated)
 //   GET  ?action=start                -> requireUser() -> kick off the OAuth redirect
 //   GET  (no action)                  -> requireUser() -> list this user's connections
+//   POST ?action=scan-mine            -> requireUser() -> scan this user's mailboxes now
+//   POST ?action=test-push            -> requireUser() -> send a test ntfy push
 //   DELETE ?email=...                 -> requireUser() -> disconnect one connection
 import crypto from 'crypto'
 import { requireUser, supabaseAdmin } from './_lib/supabaseAdmin.js'
@@ -22,6 +24,10 @@ const SCAN_COOLDOWN_MS = 9 * 60 * 1000 // slightly under the ~10-min pinger inte
 // mailboxes 30 s before that, so every result gets saved (v1.3 spec 10).
 const SCAN_BUDGET_MS = 240 * 1000
 const NEW_CONNECTION_MARGIN_MS = 30 * 1000
+// "Scan now" for one signed-in user (onboarding's first scan, Settings): one mailbox's worth,
+// well under the function limit. Later ticks of the cron continue a partial first pass.
+const USER_SCAN_BUDGET_MS = 60 * 1000
+const USER_ACTIONS = new Set(['test-push', 'scan-mine'])
 
 function errorPage(res, status, message) {
   res.writeHead(status, { 'Content-Type': 'text/html' })
@@ -114,43 +120,59 @@ async function handleScan(req, res) {
   if (error) return res.status(500).json({ error: { message: error.message } })
 
   const deadline = Date.now() + SCAN_BUDGET_MS
+  const { results, pushesByUser } = await scanConnections(db, connections || [], { deadline })
+  const pushes = await flushPushes(db, pushesByUser, { deadline, click: baseUrl(req) })
+  res.status(200).json({ results, pushes })
+}
+
+// Scans each connection that isn't cooling down, within `deadline`, saving progress per
+// mailbox. Shared by the cron tick and a user's own "scan now" (?action=scan-mine).
+// Every user with a connection gets a push pass, even if their scan was skipped this tick:
+// the digests are time-based, not mail-based.
+async function scanConnections(db, connections, { deadline }) {
   const results = []
-  // Every user with a connection gets a push pass, even if their scan was skipped this tick:
-  // the digests are time-based, not mail-based.
-  const pushesByUser = new Map((connections || []).map(c => [c.user_id, []]))
-  for (const conn of orderConnections(connections || [])) {
+  const pushesByUser = new Map(connections.map(c => [c.user_id, []]))
+  for (const conn of orderConnections(connections)) {
     if (Date.now() >= deadline - NEW_CONNECTION_MARGIN_MS) {
       results.push({ email: conn.connected_email, skipped: 'budget' })
       continue
     }
     const sinceLastMs = conn.last_scanned_at ? Date.now() - new Date(conn.last_scanned_at).getTime() : Infinity
     if (sinceLastMs < SCAN_COOLDOWN_MS) {
-      results.push({ email: conn.connected_email, skipped: 'cooldown' })
+      results.push({ email: conn.connected_email, skipped: 'cooldown', lastScannedAt: conn.last_scanned_at })
       continue
     }
     try {
       const { threadProgress, scanned, failed, partial, cursor, skipped, pushes = [] } = await scanGmailConnection(conn, { deadline })
       pushesByUser.get(conn.user_id).push(...pushes)
-      await db.from('gmail_tokens')
-        .update({ thread_progress: threadProgress, scan_cursor: cursor ?? null, last_scanned_at: new Date().toISOString() })
-        .eq('id', conn.id)
+      // A mailbox skipped for want of an AI key wasn't scanned: leave last_scanned_at alone so
+      // Settings and onboarding don't claim otherwise.
+      if (skipped !== 'no_ai_key') {
+        await db.from('gmail_tokens')
+          .update({ thread_progress: threadProgress, scan_cursor: cursor ?? null, last_scanned_at: new Date().toISOString() })
+          .eq('id', conn.id)
+      }
       results.push({ email: conn.connected_email, scanned, failed, partial, cursor, ...(skipped ? { skipped } : {}) })
     } catch (e) {
       results.push({ email: conn.connected_email, error: e.message })
     }
   }
+  return { results, pushesByUser }
+}
+
+async function flushPushes(db, pushesByUser, { deadline, click }) {
   const pushes = []
   for (const [userId, newPushes] of pushesByUser) {
     if (Date.now() >= deadline) { pushes.push({ skipped: 'budget' }); continue }
     try {
       const { data: profile } = await db.from('profiles').select('ai_provider').eq('id', userId).maybeSingle()
       const llm = await llmForUser(userId, profile?.ai_provider)
-      pushes.push(await runUserPushes(db, userId, newPushes, { llm, click: baseUrl(req) }))
+      pushes.push(await runUserPushes(db, userId, newPushes, { llm, click }))
     } catch (e) {
       pushes.push({ error: e.message })
     }
   }
-  res.status(200).json({ results, pushes })
+  return pushes
 }
 
 export default async function handler(req, res) {
@@ -159,7 +181,7 @@ export default async function handler(req, res) {
   if (req.query.code || req.query.error) return handleOauthCallback(req, res)
 
   // The external pinger — no user session in this context, gated by shared secret instead.
-  if (req.method === 'POST' && req.query.action !== 'test-push') return handleScan(req, res)
+  if (req.method === 'POST' && !USER_ACTIONS.has(req.query.action)) return handleScan(req, res)
 
   // Everything else is a browser-originated, authenticated request.
   const user = await requireUser(req)
@@ -190,6 +212,19 @@ export default async function handler(req, res) {
       .select('connected_email, last_scanned_at').eq('user_id', user.id).order('created_at', { ascending: true })
     if (error) return res.status(500).json({ error: { message: error.message } })
     return res.status(200).json((data || []).map(r => ({ email: r.connected_email, lastScannedAt: r.last_scanned_at })))
+  }
+
+  // Onboarding / Settings → scan this user's own mailboxes now instead of waiting for the cron.
+  // The per-mailbox cooldown still applies, so it can't double up with a cron tick.
+  if (req.method === 'POST' && req.query.action === 'scan-mine') {
+    const srl = await checkRateLimit(user.id, 'SCAN')
+    if (srl.limited) return sendRateLimited(res, srl.retryAfter)
+    const { data: connections, error } = await db.from('gmail_tokens').select('*').eq('user_id', user.id)
+    if (error) return res.status(500).json({ error: { message: error.message } })
+    const deadline = Date.now() + USER_SCAN_BUDGET_MS
+    const { results, pushesByUser } = await scanConnections(db, connections || [], { deadline })
+    await flushPushes(db, pushesByUser, { deadline: deadline + 15000, click: baseUrl(req) })
+    return res.status(200).json({ results })
   }
 
   // Settings → "Send a test push": proves the saved ntfy topic reaches the user's phone.

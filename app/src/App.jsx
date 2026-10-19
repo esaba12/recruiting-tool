@@ -376,6 +376,18 @@ function AppInner() {
     setContacts(await fetchContacts())
   }
   useApplicationsLive({ userId: user?.id, onChange: refreshApps })
+  // A Gmail "scan now" or an import outside a tab's own refresh (lib/gmailScan.js,
+  // GettingStarted) → refetch what they write, without load()'s unmount.
+  useEffect(() => {
+    const onChanged = async () => {
+      try {
+        const [c, a, i, ai] = await Promise.all([fetchContacts(), fetchApplications(), fetchInteractions(), fetchActionItems()])
+        setContacts(c); setApps(a); setInteractions(i); setActionItems(ai)
+      } catch { /* the next full load picks it up */ }
+    }
+    window.addEventListener('rec:data-changed', onChanged)
+    return () => window.removeEventListener('rec:data-changed', onChanged)
+  }, [])
 
   const activeApps = apps.filter(a => !['Rejected','Accepted'].includes(a.stage))
   const openActionItemCount = actionItems.filter(i => !i.completedAt && !i.dismissedAt).length

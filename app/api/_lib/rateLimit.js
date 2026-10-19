@@ -56,7 +56,8 @@ export const RATE_LIMITS = {
   GITHUB: { limit: 60, window: '60 s' },   // README/user fetches — cheap but can burn the shared token's rate limit
   CALENDAR: { limit: 60, window: '60 s' }, // list/create/delete events
   CRUD: { limit: 20, window: '60 s' },     // BYOK key + calendar-connect management
-  INGEST: { limit: 10, window: '60 s' },   // Recruiting Events feed pulls / relays / contributions — service-role writes to the shared pool
+  INGEST: { limit: 10, window: '60 s' },
+  SCAN: { limit: 6, window: '1 h' },       // a user's own Gmail "scan now" — long-running, spends their AI key   // Recruiting Events feed pulls / relays / contributions — service-role writes to the shared pool
 }
 
 // Returns { limited: false } if allowed (or if Upstash isn't configured — fail

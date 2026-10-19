@@ -612,7 +612,7 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
       )}
 
       {allEmpty && (!isDemoMode && isFreshAccount({ contacts, apps })
-        ? <GettingStarted hasApps={apps.length > 0} hasContacts={contacts.length > 0} />
+        ? <GettingStarted hasApps={apps.length > 0} hasContacts={contacts.length > 0} apps={apps} contacts={contacts} />
         : <EmptyState msg={snoozedHidden ? `✓ Nothing left — ${snoozedHidden} hidden for now.` : "✓ Nothing needs your attention. You're on top of it."} />)}
       {allEmpty && snoozedHidden > 0 && (
         <p className="text-center -mt-1"><button onClick={prefs.clearSnoozes} className="text-xs text-link hover:underline">Unhide them</button></p>

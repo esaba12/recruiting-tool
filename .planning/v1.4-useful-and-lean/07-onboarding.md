@@ -1,5 +1,16 @@
 # 07 — Onboarding that ends with data on screen
 
+**Status:** code done 2026-10-19 on `feat/v1.4-pre-invite`; tests pass (`test/gmailScanMine.test.js`,
+`test/onboarding.test.js`). **Browser check pending:** the wizard and the getting-started card only
+render for a signed-in, not-yet-onboarded account (not `/demo`), so it needs a throwaway account. Deviations:
+- The Ready screen's push link finishes the wizard and opens Settings via the URL hash (the app
+  isn't mounted yet, so `rec:navigate` can't reach it).
+- A scan skipped for "no AI key" no longer stamps `last_scanned_at` (Settings used to say "Last
+  scanned" for a mailbox that never was).
+- Shared state lives in `lib/gmailScan.js`. A finished scan or a closed importer fires
+  `rec:data-changed`, which AppInner answers with a quiet refetch (no unmount).
+- New rate-limit tier `SCAN` (6/hour per user).
+
 **Who:** 🤖. **Migration:** none. **New serverless fn:** none (one new `?action=` branch in
 `api/gmail.js`). **Depends on:** 01 (import UI) and 06 B (provider-agnostic scan). Land before the invite.
 

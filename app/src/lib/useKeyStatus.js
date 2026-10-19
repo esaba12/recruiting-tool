@@ -51,8 +51,8 @@ export default function useKeyStatus(userId) {
     if (getKeyState().userId !== userId) refreshKeyStatus(userId)
   }, [userId, demo])
   // /demo has no account, so every AI proxy would 401 — NeedsKey explains "sign up" there.
-  if (demo) return { loading: false, ai: false, exa: false, aiProvider: AI_KEY_PROVIDER, demo: true }
-  if (s.userId !== userId) return { loading: true, ai: false, exa: false, aiProvider: AI_KEY_PROVIDER }
+  if (demo) return { loading: false, ai: false, anyAi: false, exa: false, aiProvider: AI_KEY_PROVIDER, demo: true }
+  if (s.userId !== userId) return { loading: true, ai: false, anyAi: false, exa: false, aiProvider: AI_KEY_PROVIDER }
   return keyStatus(s, AI_KEY_PROVIDER)
 }
 

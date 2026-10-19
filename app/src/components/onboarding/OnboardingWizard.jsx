@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Check, ArrowRight, ArrowLeft, Mail, CalendarDays, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Check, ArrowRight, ArrowLeft, Mail, CalendarDays, X, Loader2, AlertTriangle, BellRing } from 'lucide-react'
 import Button from '../ui/Button.jsx'
 import Input from '../ui/Input.jsx'
 import Mono from '../ui/Mono.jsx'
@@ -9,9 +9,11 @@ import { useAuth } from '../../lib/AuthContext.jsx'
 import { supabase } from '../../lib/supabaseClient.js'
 import useKeyStatus from '../../lib/useKeyStatus.js'
 import { TRACKS, profileTracks } from '../../lib/tracks.js'
-import { connectGmail, listGmailConnections, connectGoogleCalendar, getGoogleCalendarStatus } from '../../lib/googleAuth.js'
-import { fetchSchools, getUserSetting, setUserSetting, fetchTargetCompanies, saveTargetCompanies, addContact } from '../../db.js'
-import { resumeStep, STEP_IDS, STEP_SETTING_KEY } from '../../lib/onboarding.js'
+import { connectGmail, connectGoogleCalendar, getGoogleCalendarStatus } from '../../lib/googleAuth.js'
+import { fetchSchools, getUserSetting, setUserSetting, fetchTargetCompanies, saveTargetCompanies, addContact, fetchApplications, fetchContacts } from '../../db.js'
+import { resumeStep, STEP_IDS, STEP_SETTING_KEY, gmailSetupState, targetSuggestions, appendOnboardingLog, ONBOARDING_LOG_KEY } from '../../lib/onboarding.js'
+import { useGmailScan } from '../../lib/gmailScan.js'
+import { ImportPanel } from '../import/ImportPanel.jsx'
 
 // First-run setup (v1.2 spec 02). AuthGate renders this instead of the app while
 // profiles.onboarded_at is null. Only "About you" is required; every later step can be
@@ -22,7 +24,7 @@ const STEPS = [
   { id: 'key',      title: 'AI key',      blurb: 'Powers extraction, drafting, and ranking. Bring your own key.' },
   { id: 'gmail',    title: 'Gmail',       blurb: 'The magic part: applications and contacts fill in from your inbox.' },
   { id: 'calendar', title: 'Calendar',    blurb: 'Interviews, OAs, and recruiting events on your calendar.' },
-  { id: 'seed',     title: 'Targets',     blurb: 'A few companies and people to start from.' },
+  { id: 'data',     title: 'Your data',   blurb: 'Bring in the tracker and network you already have. No AI key needed.' },
   { id: 'done',     title: 'Ready',       blurb: '' },
 ]
 
@@ -34,20 +36,33 @@ const TARGET_HINTS = {
 export default function OnboardingWizard() {
   const { user, profile, refreshProfile, signOut } = useAuth()
   const [stepId, setStepId] = useState(null)
+  const [imported, setImported] = useState({ apps: [], contacts: 0 }) // this session's imports, for targets + Ready
+  const logRef = useRef(null)
 
   useEffect(() => {
     getUserSetting(STEP_SETTING_KEY).then(saved => setStepId(resumeStep(saved))).catch(() => setStepId('about'))
+    getUserSetting(ONBOARDING_LOG_KEY).then(v => { logRef.current = v }).catch(() => {})
   }, [])
 
+  // Every next/skip/back goes into user_settings.onboarding_log, so the owner can see which
+  // steps people skip. Best-effort: a failed write never blocks the wizard.
+  function record(action) {
+    logRef.current = appendOnboardingLog(logRef.current, { step: stepId, action, at: new Date().toISOString() })
+    setUserSetting(ONBOARDING_LOG_KEY, logRef.current).catch(() => {})
+  }
   async function go(id) {
     setStepId(id)
     try { await setUserSetting(STEP_SETTING_KEY, id) } catch { /* resume is best-effort */ }
   }
   const idx = STEP_IDS.indexOf(stepId)
-  const next = () => go(STEP_IDS[Math.min(idx + 1, STEP_IDS.length - 1)])
-  const back = () => go(STEP_IDS[Math.max(idx - 1, 0)])
+  const next = () => { record('next'); go(STEP_IDS[Math.min(idx + 1, STEP_IDS.length - 1)]) }
+  const skip = () => { record('skip'); go(STEP_IDS[Math.min(idx + 1, STEP_IDS.length - 1)]) }
+  const back = () => { record('back'); go(STEP_IDS[Math.max(idx - 1, 0)]) }
 
-  async function finish() {
+  async function finish({ openTab } = {}) {
+    record('finish')
+    // The app opens on the URL hash's tab (App.jsx hashTab), so a Ready-screen link can land there.
+    if (openTab) window.history.replaceState(null, '', `#${openTab}`)
     await supabase.from('profiles').update({ onboarded_at: new Date().toISOString() }).eq('id', user.id)
     try { await setUserSetting(STEP_SETTING_KEY, null) } catch { /* ignore */ }
     await refreshProfile()
@@ -88,11 +103,11 @@ export default function OnboardingWizard() {
           {step.blurb && <p className="text-sm text-ink-500 mt-1 learn-rise" style={{ animationDelay: '80ms' }}>{step.blurb}</p>}
           <div className="mt-6 learn-rise" style={{ animationDelay: '140ms' }}>
             {step.id === 'about'    && <AboutStep user={user} profile={profile} refreshProfile={refreshProfile} onNext={next} />}
-            {step.id === 'key'      && <KeyStep user={user} onNext={next} onBack={back} />}
-            {step.id === 'gmail'    && <GmailStep onNext={next} onBack={back} />}
-            {step.id === 'calendar' && <CalendarStep onNext={next} onBack={back} />}
-            {step.id === 'seed'     && <SeedStep profile={profile} onNext={next} onBack={back} />}
-            {step.id === 'done'     && <DoneStep user={user} onFinish={finish} onBack={back} />}
+            {step.id === 'key'      && <KeyStep user={user} onNext={next} onSkip={skip} onBack={back} />}
+            {step.id === 'gmail'    && <GmailStep user={user} onNext={next} onSkip={skip} onBack={back} />}
+            {step.id === 'calendar' && <CalendarStep onNext={next} onSkip={skip} onBack={back} />}
+            {step.id === 'data'     && <DataStep profile={profile} imported={imported} setImported={setImported} onNext={next} onSkip={skip} onBack={back} />}
+            {step.id === 'done'     && <DoneStep user={user} imported={imported} onFinish={finish} onBack={back} />}
           </div>
           <button onClick={signOut} className="md:hidden mt-10 text-xs text-ink-400 hover:text-ink-700">Sign out</button>
         </div>
@@ -182,7 +197,7 @@ function AboutStep({ user, profile, refreshProfile, onNext }) {
   )
 }
 
-function KeyStep({ user, onNext, onBack }) {
+function KeyStep({ user, onNext, onSkip, onBack }) {
   const status = useKeyStatus(user?.id)
   return (
     <div>
@@ -193,7 +208,7 @@ function KeyStep({ user, onNext, onBack }) {
           show an "add a key" link until you do.
         </p>
       )}
-      <Nav onBack={onBack} onNext={onNext} skip={status.ai ? null : onNext} nextDisabled={!status.ai} />
+      <Nav onBack={onBack} onNext={onNext} skip={status.ai ? null : onSkip} nextDisabled={!status.ai} />
     </div>
   )
 }
@@ -206,15 +221,27 @@ function ConnectedRow({ icon: Icon, label }) {
   )
 }
 
-function GmailStep({ onNext, onBack }) {
-  const [conns, setConns] = useState(null)
+// After the OAuth redirect lands back here, the first scan starts right away (scan-mine)
+// instead of waiting for the cron, and its progress shows on this step.
+function GmailStep({ user, onNext, onSkip, onBack }) {
+  const keys = useKeyStatus(user?.id)
+  const scan = useGmailScan({ autoStart: true })
   const [err, setErr] = useState(null)
-  useEffect(() => { listGmailConnections().then(setConns).catch(() => setConns([])) }, [])
-  const connected = (conns || []).length > 0
+  const g = gmailSetupState({ connections: scan.connections, scanning: scan.scanning, anyAiKey: keys.anyAi, keyLoading: keys.loading })
+  const connected = (scan.connections || []).length > 0
   return (
     <div className="space-y-4">
+      {!keys.loading && !keys.anyAi && (
+        <p className="text-xs text-warning-800 bg-warning-50 border border-warning-200 rounded-md p-3 flex items-start gap-2">
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+          <span>Gmail needs an AI key to read your mail. Go back and add one, or connect now and it starts as soon as you do.</span>
+        </p>
+      )}
       {connected
-        ? conns.map(c => <ConnectedRow key={c.email} icon={Mail} label={c.email} />)
+        ? <>
+            {scan.connections.map(c => <ConnectedRow key={c.email} icon={Mail} label={c.email} />)}
+            <ScanStatus g={g} scan={scan} />
+          </>
         : <>
             <p className="text-sm text-ink-600">
               Every ~10 minutes, recruiting and networking mail (application confirmations, OAs, interview invites,
@@ -227,12 +254,24 @@ function GmailStep({ onNext, onBack }) {
             </Button>
           </>}
       {err && <p className="text-xs text-danger-600">{err}</p>}
-      <Nav onBack={onBack} onNext={onNext} skip={connected ? null : onNext} nextDisabled={!connected} />
+      <Nav onBack={onBack} onNext={onNext} skip={connected ? null : onSkip} nextDisabled={!connected} />
     </div>
   )
 }
 
-function CalendarStep({ onNext, onBack }) {
+// One line on where the inbox scan is: shared by the Gmail step and the Ready screen.
+function ScanStatus({ g, scan }) {
+  if (g.kind === 'scanning') return (
+    <p className="text-sm text-ink-600 flex items-center gap-2"><Loader2 size={14} className="animate-spin text-accent-600" />
+      Reading your inbox (last 45 days). Applications and contacts appear as they're found.</p>
+  )
+  if (g.kind === 'waiting') return <p className="text-sm text-ink-600">First scan in progress. It finishes in the background over the next few minutes.</p>
+  if (g.kind === 'done') return <p className="text-sm text-success-700 flex items-center gap-1.5"><Check size={14} strokeWidth={2.5} /> Inbox scanned. New mail is checked every ~10 minutes.</p>
+  if (g.kind === 'needsKey') return <p className="text-sm text-warning-800">Connected, waiting for an AI key before the first scan.</p>
+  return scan.error ? <p className="text-xs text-danger-600">{scan.error}</p> : null
+}
+
+function CalendarStep({ onNext, onSkip, onBack }) {
   const [status, setStatus] = useState(null)
   const [err, setErr] = useState(null)
   useEffect(() => { getGoogleCalendarStatus('personal').then(setStatus).catch(() => setStatus({ connected: false })) }, [])
@@ -251,24 +290,40 @@ function CalendarStep({ onNext, onBack }) {
             </Button>
           </>}
       {err && <p className="text-xs text-danger-600">{err}</p>}
-      <Nav onBack={onBack} onNext={onNext} skip={status?.connected ? null : onNext} nextDisabled={!status?.connected} />
+      <Nav onBack={onBack} onNext={onNext} skip={status?.connected ? null : onSkip} nextDisabled={!status?.connected} />
     </div>
   )
 }
 
-function SeedStep({ profile, onNext, onBack }) {
+// Bring your data: the v1.4 spec 01 importers, then target companies pre-filled from the
+// imported tracker. Replaced the old Targets step (three hand-typed people).
+function DataStep({ profile, imported, setImported, onNext, onSkip, onBack }) {
+  const [existing, setExisting] = useState({ apps: [], contacts: [] }) // e.g. what a first Gmail scan already found
   const [targets, setTargets] = useState([])
+  const [removed, setRemoved] = useState([]) // suggestions the user took off, so they don't come back
   const [draft, setDraft] = useState('')
   const [people, setPeople] = useState([{ name: '', company: '' }])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
-  useEffect(() => { fetchTargetCompanies().then(setTargets).catch(() => setTargets([])) }, [])
+  useEffect(() => {
+    fetchTargetCompanies().then(setTargets).catch(() => setTargets([]))
+    Promise.all([fetchApplications(), fetchContacts()]).then(([apps, contacts]) => setExisting({ apps, contacts })).catch(() => {})
+  }, [])
+  // Each import adds its companies as target chips (newest applied first, capped).
+  useEffect(() => {
+    setTargets(t => [...t, ...targetSuggestions(imported.apps, [...t, ...removed])])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imported.apps])
   const hint = profileTracks(profile).map(t => TARGET_HINTS[t]).filter(Boolean)[0]
 
   function addTargets(text) {
     const names = text.split(',').map(s => s.trim()).filter(Boolean)
     setTargets(t => [...t, ...names.filter(n => !t.some(x => x.toLowerCase() === n.toLowerCase()))])
     setDraft('')
+  }
+  function removeTarget(t) {
+    setTargets(ts => ts.filter(x => x !== t))
+    setRemoved(r => [...r, t])
   }
 
   async function save() {
@@ -282,11 +337,22 @@ function SeedStep({ profile, onNext, onBack }) {
     finally { setBusy(false) }
   }
 
-  const anything = targets.length || draft.trim() || people.some(p => p.name.trim())
+  const label = 'text-xs font-semibold uppercase tracking-[0.14em] text-ink-500 mb-2'
+  const anything = targets.length || draft.trim() || people.some(p => p.name.trim()) || imported.apps.length || imported.contacts
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-500 mb-2">Target companies</p>
+    <div className="space-y-7">
+      <section>
+        <p className={label}>Application tracker (optional)</p>
+        <ImportPanel kind="tracker" compact apps={existing.apps}
+          onImported={(_n, rows) => setImported(i => ({ ...i, apps: [...i.apps, ...rows] }))} />
+      </section>
+      <section>
+        <p className={label}>LinkedIn connections (optional)</p>
+        <ImportPanel kind="linkedin" compact contacts={existing.contacts}
+          onImported={n => setImported(i => ({ ...i, contacts: i.contacts + n }))} />
+      </section>
+      <section>
+        <p className={label}>Target companies</p>
         <div className="flex gap-2">
           <Input className="bg-surface" value={draft} onChange={e => setDraft(e.target.value)} placeholder={hint ? `e.g. ${hint}` : 'Company names, comma-separated'}
             onKeyDown={e => { if (e.key === 'Enter' && draft.trim()) { e.preventDefault(); addTargets(draft) } }} />
@@ -297,47 +363,54 @@ function SeedStep({ profile, onNext, onBack }) {
             {targets.map(t => (
               <span key={t} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-ink-900 text-on-fill rounded-sm">
                 {t}
-                <button onClick={() => setTargets(ts => ts.filter(x => x !== t))} aria-label={`Remove ${t}`} className="text-ink-300 hover:text-white"><X size={11} /></button>
+                <button onClick={() => removeTarget(t)} aria-label={`Remove ${t}`} className="text-ink-300 hover:text-white"><X size={11} /></button>
               </span>
             ))}
           </div>
         )}
-        <p className="text-[11px] text-ink-400 mt-1.5">Grow uses these to show where you have no contacts yet, then finds people to reach out to.</p>
-      </div>
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-500 mb-2">People you already know (optional)</p>
-        <div className="space-y-2">
-          {people.map((p, i) => (
-            <div key={i} className="grid grid-cols-2 gap-2">
-              <Input className="bg-surface" placeholder="Name" value={p.name} onChange={e => setPeople(ps => ps.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
-              <Input className="bg-surface" placeholder="Company" value={p.company} onChange={e => setPeople(ps => ps.map((x, j) => j === i ? { ...x, company: e.target.value } : x))} />
-            </div>
-          ))}
-        </div>
-        {people.length < 3 && (
-          <button onClick={() => setPeople(ps => [...ps, { name: '', company: '' }])} className="text-xs text-accent-700 hover:underline mt-2">+ another person</button>
-        )}
-      </div>
+        <p className="text-[11px] text-ink-400 mt-1.5">
+          {imported.apps.length ? 'Filled in from your tracker; remove any you\'re not chasing. ' : ''}
+          Grow uses these to show where you have no contacts yet, then finds people to reach out to.
+        </p>
+      </section>
+      {imported.contacts === 0 && (
+        <section>
+          <p className={label}>People you already know (optional)</p>
+          <div className="space-y-2">
+            {people.map((p, i) => (
+              <div key={i} className="grid grid-cols-2 gap-2">
+                <Input className="bg-surface" placeholder="Name" value={p.name} onChange={e => setPeople(ps => ps.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
+                <Input className="bg-surface" placeholder="Company" value={p.company} onChange={e => setPeople(ps => ps.map((x, j) => j === i ? { ...x, company: e.target.value } : x))} />
+              </div>
+            ))}
+          </div>
+          {people.length < 3 && (
+            <button onClick={() => setPeople(ps => [...ps, { name: '', company: '' }])} className="text-xs text-link hover:underline mt-2">+ another person</button>
+          )}
+        </section>
+      )}
       {err && <p className="text-xs text-danger-600">{err}</p>}
-      <Nav onBack={onBack} onNext={save} nextDisabled={busy || !anything} nextLabel={busy ? 'Saving…' : 'Continue'} skip={onNext} />
+      <Nav onBack={onBack} onNext={save} nextDisabled={busy || !anything} nextLabel={busy ? 'Saving…' : 'Continue'} skip={onSkip} />
     </div>
   )
 }
 
-function DoneStep({ user, onFinish, onBack }) {
+function DoneStep({ user, imported, onFinish, onBack }) {
   const status = useKeyStatus(user?.id)
-  const [gmail, setGmail] = useState(null)
+  const scan = useGmailScan()
   const [cal, setCal] = useState(null)
   const [busy, setBusy] = useState(false)
   useEffect(() => {
-    listGmailConnections().then(c => setGmail(c.length > 0)).catch(() => setGmail(false))
     getGoogleCalendarStatus('personal').then(s => setCal(!!s.connected)).catch(() => setCal(false))
   }, [])
+  const g = gmailSetupState({ connections: scan.connections, scanning: scan.scanning, anyAiKey: status.anyAi, keyLoading: status.loading })
+  const gmailOn = g.kind === 'loading' ? null : ['scanning', 'waiting', 'done'].includes(g.kind)
   const rows = [
-    { label: 'AI features', on: status.ai, off: 'Off: add a key in Settings anytime' },
-    { label: 'Gmail auto-tracking', on: gmail, off: 'Off: connect in Settings anytime' },
+    { label: 'AI features', on: status.loading ? null : status.ai, off: 'Off: add a key in Settings anytime' },
+    { label: 'Gmail auto-tracking', on: gmailOn, off: g.kind === 'needsKey' ? 'Connected, waiting for an AI key' : 'Off: connect in Settings anytime' },
     { label: 'Google Calendar', on: cal, off: 'Off: connect in Settings anytime' },
   ]
+  const done = async opts => { setBusy(true); await onFinish(opts) }
   return (
     <div>
       <div className="border-t border-l border-ink-200">
@@ -350,13 +423,27 @@ function DoneStep({ user, onFinish, onBack }) {
           </div>
         ))}
       </div>
+      {(imported.apps.length > 0 || imported.contacts > 0) && (
+        <p className="text-sm text-ink-700 mt-4">
+          Imported
+          {imported.apps.length > 0 && <> <Mono>{imported.apps.length}</Mono> applications</>}
+          {imported.apps.length > 0 && imported.contacts > 0 && ' and'}
+          {imported.contacts > 0 && <> <Mono>{imported.contacts}</Mono> connections</>}.
+        </p>
+      )}
+      {['scanning', 'waiting'].includes(g.kind) && <div className="mt-3"><ScanStatus g={g} scan={scan} /></div>}
+      <button onClick={() => done({ openTab: 'settings' })} disabled={busy}
+        className="mt-4 flex items-start gap-2 text-left text-sm text-ink-700 hover:text-ink-900 group">
+        <BellRing size={15} className="mt-0.5 text-accent-600 shrink-0" />
+        <span>Want a phone alert the moment an OA or interview invite lands? <span className="text-link group-hover:underline">Set up push notifications in Settings</span></span>
+      </button>
       {user?.email?.endsWith('@byok.local') && (
         <p className="text-xs text-warning-800 bg-warning-50 border border-warning-200 rounded-md p-3 mt-4">
           You signed in with an API key, so that key is currently your only way back in. Settings → "Secure your account"
           lets you link Google or set a password.
         </p>
       )}
-      <Nav onBack={onBack} onNext={async () => { setBusy(true); await onFinish() }} nextDisabled={busy} nextLabel="Go to Today" />
+      <Nav onBack={onBack} onNext={() => done()} nextDisabled={busy} nextLabel="Go to Today" />
     </div>
   )
 }
