@@ -14,6 +14,21 @@ The pre-invite set (06, 05, 01, 07) changes what a friend sees in their first fi
 it's worth doing while you finish v1.3 spec 02's console steps, which gate the invite anyway.
 02–04 matter right now for your own season: interviews and offers come in October through December.
 
+## Where we are (2026-10-19)
+
+- **Merged and live:** 06, 05, 01, 07 (PR #20), plus the smoke-test follow-up (PR #21: Activity
+  tiles hidden on an empty account). 07 was smoke-tested on prod with two throwaway accounts,
+  since deleted. Results are in [07](07-onboarding.md).
+- **Not yet verified:** the live first inbox scan after a real Gmail connect. That gets checked
+  when the owner connects their own Gmail (v1.3 spec 02 D2).
+- **Blocking the friends invite:** only the owner console steps in
+  [v1.3 spec 02](../v1.3-launch-and-cleanup/02-owner-runbook.md): Google Cloud A1–A4, cron D1,
+  Gmail D2, SMTP B2, Sentry C2. Then [v1.3 spec 04](../v1.3-launch-and-cleanup/04-launch-week.md).
+- **🤖 can do now, in parallel:** v1.3 spec 02 B1 (`site_url` in `supabase/config.toml`; owner runs
+  `supabase config push`) and C1 (remove dead Vercel env vars; list them for owner approval first).
+- **Next code:** [08](08-custom-today.md) (rearrangeable Today), then 02 → 03 → 04 once the
+  Apps Script cutover (v1.3 spec 08) has happened.
+
 ## Decisions
 
 1. ✅ **Timeline Finds: cut** (owner, 2026-10-19). Folded into 05 C.
