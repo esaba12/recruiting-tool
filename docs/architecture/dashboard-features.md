@@ -1,127 +1,183 @@
 # Dashboard features (tab by tab)
 
-> Moved out of CLAUDE.md on 2026-10-16 (v1.3 spec 07). Dated "shipped" notes are history; check the code before trusting a detail.
+> Current state as of 2026-10-19 (rewritten in v1.4 spec 06 C). History lives in git and
+> `.planning/`. If a detail here disagrees with the code, the code wins.
 
-## The Dashboard (app/)
+Dev server: `cd app && npm run dev` → http://localhost:3001. Tabs come from `NAV_ITEMS` in
+`components/layout/Sidebar.jsx`. Settings sits in the sidebar footer. `/demo` renders every tab
+on seed data (`demoData.js`).
 
-**Dev server:** `cd app && npm run dev` → http://localhost:3001
+## Today (`TodayTab.jsx`, logic in `lib/attention.js`)
 
-### Tabs (as of 2026-10-16 — `NAV_ITEMS` in `components/layout/Sidebar.jsx`)
-- **Today** (`TodayTab.jsx`) — the single attention stack: follow-ups, stale applications, OA due, signup steps / registration closing / event follow-ups (Recruiting Events), interview prep, awaiting reply, then Activity (Application Funnel, **Where Applications Went** and **Where Networking Went** Sankeys, network donut, interactions trend). Replaced the old Overview + Actions tabs. Sections collapse, cap at 3 rows, and can be cleared — see "Today declutter".
-- **Inbox** (`InboxTab.jsx`) — recruiting + networking email threads from `interactions` (see `lib/inbox.js`).
-- **Network** — contact CRM. Views: **Table** (default), **Cards**, **Graph**, **Flow** (networking Sankey — see "Networking flow"), **Outbox**. "+ Contact" opens `QuickAddContactModal.jsx`; editing uses the contact side panel; "+ Log Interaction" opens `LogInteractionModal.jsx`.
-- **Grow** (`GrowTab.jsx`) — Companies (Explore) → Coverage → People (Discover) on one page; sections below still describe each piece.
-- **Learn** — interview-prep tracking (see Learn section above).
-- **Pipeline** — views: **Applications** (board + `DuplicatesPanel`), **Sheet** (spreadsheet + Excel/CSV export + Flow Sankey — see "Pipeline Sheet + outcome Sankey"), **Job Boards** (tech tracks only). Each application can record a referrer (`referred_by_id`), set manually or by the email pipeline, never overwritten once set.
-- **Calendar** — views: **Grid**, **Feed**, **Events** (Recruiting Events pool — see that section). "+ Add Event" writes to Google Calendar.
-- **Settings** — reached from the sidebar footer: BYOK keys, profile/campus, calendars + Recruiting-calendar sync, Gmail accounts, appearance.
+The attention stack. Sections, in order:
+- Action Items (AI-flagged from email)
+- Overdue Follow-Ups
+- Stale Applications (14+ days without movement)
+- OA Due
+- Awaiting Reply
+- High Urgency Contacts
+- Want to Schedule
+- Keep in Touch
+- Job Boards Needs-Review (tech tracks)
+- OA Needs Check
+- The Recruiting Events sections (signup steps, registration closing, event follow-ups, feed health)
+- Interview Prep (from Learn)
+- Activity: three stat tiles (`StatTileRow.jsx`): Funnel, Next Deadline, weekly Activity
 
-### Networking Tracker — unified logging (Stage 7 consolidation, July 2026)
-What used to be 3 separate top-level tabs (Graph, LinkedIn, Calls) plus a Quick Log modal are now one place: **Network**. `LogInteractionModal.jsx` replaced `LinkedInTab.jsx` + `QuickLogModal.jsx` + the old `CallsTab` (all deleted) with a single modal and a channel selector — **Call / LinkedIn / Meeting / Email / Other**:
-- **Call** and **LinkedIn**: paste-box + "Extract with Claude" (same extraction prompts as the old separate tabs). Call additionally shows Key Insights/My Commitments/Follow-Up Draft fields and writes to **both** the Calls DB (`addCallEntry`) and the Interactions DB — the original `CallsTab` only wrote Calls DB and never logged to Interactions, which was an inconsistency with the Interactions DB's own documented purpose ("every call... gets one row here"); the unified modal fixes that gap.
-- **Meeting / Email / Other**: no transcript step, just contact/date/duration/notes → Interactions DB only.
-- LinkedIn logging remains deliberately manual — no scraping/automation tooling (real LinkedIn account-ban risk for automated message capture).
+A fresh account sees `onboarding/GettingStarted.jsx` instead of "all clear".
 
-### Quick Add — one-tap contact enrichment (Network → "+ Contact"; shipped July 2026)
-The fast "add someone I already know" path — the old New-Contact form captured only 4 fields (name/company/role/email) and silently dropped the other 15+. Now you type just **name + where they work + what they do**, hit **✨ Auto-fill & review**, and `lib/enrichment.js` fills in the rest:
-- **Web enrich** (`enrichContact()`): one Exa public-web search + one Claude Haiku extraction → LinkedIn URL, cleaned role, a plain-English "what they do" descriptor, school, past employers, location. This is the mirror of Discover's `discoverPeople()` (same Exa+Claude pipeline, same compliance boundary — never fetches linkedin.com directly) but pointed at one named person instead of sourcing strangers. **Fail-soft**: a missing EXA/ANTHROPIC key or empty result degrades to a Claude-only descriptor cleanup, then to the raw typed values — the add never blocks.
-- **"How they fit"** (deterministic, no extra tokens): reuses `discovery.js`'s `affinityTagsFor()` for shared-background tags (UMich alum, shared employer, hometown), flags whether they're at a `rec_target_companies` **target company**, and surfaces who else you already know there (via `normalizeCompanyName`) — which also seeds the optional "did one of them introduce you?" (Referred By) dropdown.
-- **One-tap-review save flow**: enrichment renders an editable review card (web-sourced fields are honestly labeled), you glance and hit **+ Add to network**. Writes via the DiscoverTab pattern (`addContact` minimal row → `updateContact` with linkedin/affinity/isUMichAlum/notes/referredBy/**Exa Enriched**). Dedups on `searchContactByName` first.
+- **Awaiting Reply** (`awaitingReply`): the contact's last Email/LinkedIn interaction was
+  Outbound and 5+ days old with nothing back. Contacts with any Follow-Up Date are excluded, so
+  they're never double-nagged. "They replied" logs an Inbound; "Draft nudge" uses `DraftPanel`'s
+  `follow_up` kind.
+- **Keep in Touch** (`lib/keepInTouch.js`): reconnect cadence per contact from tie strength
+  (`affinity.js`) × `DEFAULT_CADENCE`. Moderate ties get the tightest interval. Excludes Closed
+  contacts and anyone with a future Follow-Up Date.
+- **Declutter** (`test/declutter.test.js`):
+  - `trimActionItems` hides AI items already answered on the thread, long past due, or duplicated.
+  - `dedupeAcross` keeps each contact in one people section. Priority: Overdue → Awaiting →
+    Schedule → High Urgency → Keep in Touch.
+  - Rows and sections snooze for 7 days. Snoozes and collapsed state live in `user_settings.today_prefs`
+    (`lib/useTodayPrefs.js`), so they follow the account.
+- The charts that used to sit under Activity moved in v1.4 spec 05 D:
+  - The funnel → Pipeline → Sheet → Flow.
+  - Network status and the weekly trend → Network → Flow (`charts/ActivityCharts.jsx`).
 
-### Keep in Touch — reconnect cadence (now rendered in Today; the standalone tab was removed 2026-10-16)
-The passive "who am I drifting out of touch with?" layer, distinct from the Follow-Up Date/Actions system (which owns *explicit* post-interaction to-dos). `lib/keepInTouch.js` computes a reconnect cadence per contact **purely from existing fields — zero Notion migration**: `tieStrengthBucket` (from `affinity.js`) × a `DEFAULT_CADENCE` policy (inverted-U aware — *moderate* ties get the tightest 30d interval, not the strong ties you already talk to constantly). `keepInTouchQueue()` surfaces contacts due/overdue by `Last Interaction + cadence`, **excluding** anyone with a future explicit Follow-Up Date (they already have a plan in Actions, so no double-nag) and Closed relationships. `KeepInTouchTab.jsx` shows each person's **last point of contact** (type/date/summary from the Interactions DB), days overdue, tie strength, and a one-tap **Log** (opens `LogInteractionModal` pre-filled) or click-through to the detail modal.
+## Inbox (`InboxTab.jsx`, `lib/inbox.js`)
 
-### Discover — people discovery (now the People section of Grow; shipped July 2026)
-A **view inside the Network tab** (segmented control, next to Coverage — not a top-level tab). Finds *new* people to reach out to at target companies, ranked by warm-tie signals from Ethan's résumé + reachability. Complements Coverage (which only flags *whether* a gap exists) by actually sourcing the people to close it. Uses the **same** `rec_target_companies` list as Coverage.
+A pure derivation over `interactions`: Email rows grouped by Gmail thread (`channel_ref`).
+- A hand-logged email with no thread is a thread of one (`manual:<id>`). It has no Gmail link and is never unread.
+- Filters: All, Needs a reply, Applications, People, Sent.
+- Application receipts are dropped unless you wrote back or there's an action item.
+- "Reply in Gmail" deep-links to the right account (`gmailThreadUrl`).
 
-**Data source — compliance boundary (important):** all people come from **Exa's public-web search index** (`app/src/lib/exa.js` → `/exa` proxy → `api.exa.ai`). This is a search engine over the open web — it never scrapes or logs into LinkedIn. LinkedIn URLs it surfaces are treated as **reference links only** (the app links out, never programmatically fetches linkedin.com). This is the deliberate extension of the "no LinkedIn scraping/automation" stance above. `EXA_API_KEY` is server-side only (Vercel env + `.env`), like every other key.
+## Network (`NetworkTab` in `App.jsx`)
 
-**Hands-off scheduler (`lib/discoveryScheduler.js`):** the default **✨ Recommended** view auto-refreshes in the background — on mount, if `rec_discovery_meta.lastCheck !== today`, it silently runs discovery for the highest-priority *due* companies and shows a "N new people found" nudge. `dueCompanies()` picks them: coverage `gap`/`weak` only (never `strong`), **applied-to companies first** (matched against the Applications DB), filtered by a per-company **cooldown** (default 7d) and capped at a **daily budget** (default 3) — both editable in the ⚙ settings. A manual **↻ Refresh now** forces a full re-scan (ignores cooldown/budget). Concurrency-limited to 3.
+Views:
+- **People:** `ContactsTable.jsx` at `md` and up, `ContactCards.jsx` below it.
+- **Graph:** `NetworkGraphTab`, using `react-force-graph-2d`, lazy-loaded.
+- **Flow:** the networking Sankey plus the status donut and weekly trend.
 
-**Token minimization (first-class):** the daily *check* is a cheap date compare; real Exa/Claude spend is throttled by cooldown + budget. Biggest saver: `discoverPeople()` hashes the Exa result URLs (`hashUrls`) and **skips the Claude extraction entirely when the same pages come back** (`skippedExtraction`, reusing cached people). It also drops `knownUrls` (profile URLs already in Contacts) before extraction so tokens aren't spent re-structuring people you already have. Typical steady state: 0–3 Exa searches/day (~2¢), often zero Claude calls.
+Header buttons:
+- **+ Contact** opens `QuickAddContactModal.jsx`.
+- **+ Log Interaction** opens `LogInteractionModal.jsx`.
+- Clicking a contact opens `panels/ContactPanelBody.jsx` in the side panel.
 
-**Ranking (`lib/discovery.js` `discoveryScore()`):** a **pre-contact** scorer (affinity.js can't rank strangers: no interaction history → everyone buckets cold/0). Scores résumé-signal overlap (user-weighted: past employer > program > university > hometown), reachability × relevance (reachable ICs/recruiters up, VPs down), and **"next best person"** coverage (first contact at a gap company, or a *different-role* person where you already know someone — name-dedup sinks people already in Contacts). The Recommended list breaks score ties toward applied-to companies.
+- **Logging** (`LogInteractionModal.jsx`): one modal, channel Call / LinkedIn / Meeting / Email /
+  Other.
+  - Call and LinkedIn have paste-and-extract via `lib/ai.js`. A Call writes both a `calls` row and an
+    `interactions` row.
+  - LinkedIn capture is deliberately manual: no scraping, because of account-ban risk.
+- **Quick Add** (`lib/enrichment.js` `enrichContact`): name + company + "what they do" → one Exa
+  people search + one AI extraction (LinkedIn URL, role, descriptor, school, past employers).
+  - It never fetches linkedin.com.
+  - Fail-soft down to the typed values.
+  - "How they fit" is deterministic:
+    - Shared-background tags (`discovery.js` `affinityTagsFor`, scored with `affinityProfileFor`, seeded from the account's school).
+    - Target-company match (`isTargetCompany` against `useTargetCompanies`).
+    - Who else you know there.
+- **`MetButton`**: one tap logs a Meeting and bumps Last Interaction / Follow-Up Date (`lib/quickLog.js`).
+- **Networking flow** (`lib/networkingFlow.js`, `NetworkingFlowPanel.jsx`): one path per contact
+  with anything logged.
+  - Source: They reached out / Cold outreach / Intro / Event or chat / Other.
+  - Then Conversation → Met → Referral asked.
+  - Outcome: Referral / Active / No reply / Gone cold.
+  - Click a band to list its contacts. Colors are `charts/theme.js` `flow.networkOutcome`.
 
-**UI (`components/DiscoverTab.jsx`):** collapsible **background-signals profile** editor (`rec_affinity_profile`, seeded with UMich), the **✨ Recommended** ranked list (across all companies) as default, plus a **By company** view with a per-company "Find people" manual override. Discovered people are a **staging queue** (`rec_discovered`) — nothing hits Notion until **+ Add to Contacts** (dedups via `searchContactByName`, then `addContact` + `updateContact` writing `linkedin`/`Notable Affinity`/`Is UMich Alum`, status Cold). **✎ Draft intro** reuses `lib/drafting.js`'s `draftMessage` (`kind:"cold_open"`, personalization seeded from matched signals). Dismissed/added candidates persist so refreshes don't resurface them. localStorage keys: `rec_discovered`, `rec_discovered_dismissed`, `rec_discovered_added`, `rec_discovery_meta`, `rec_discovery_settings`, `rec_affinity_profile`.
+## Grow (`GrowTab.jsx`)
 
-### Explore — company finder (now the Companies section of Grow; shipped July 2026)
-Top of the funnel: learns Ethan's interests via onboarding, recommends companies he'd like, and — one click — adds them to `rec_target_companies`, so **Coverage** shows the gap and **Discover** finds people there. Funnel: *interests → companies → target list → people*.
+One funnel page:
 
-**Onboarding (`components/CompanyOnboarding.jsx`):** research-backed ~6 skippable questions stored in `rec_company_prefs`. The anchor is example-based seeding — "companies you already love" (YC autocomplete) — since revealed ≫ stated preference. Prefills from the Job Boards `rec_prefs` (`prefsFromRecPrefs`). Fields: seed companies, domains (≤3), SWE↔PM lean, stage, top-2 priorities, location + work style, free-text extras.
+**01 Companies (`ExploreTab.jsx`):**
+- An onboarding quiz (`CompanyOnboarding.jsx`, `rec_company_prefs`).
+- YC directory (`lib/ycDirectory.js`) plus Exa company search, merged and ranked by one AI call (`lib/companyFinder.js`).
+- **Add to targets** writes the shared target list (`user_settings.target_companies` via `useTargetCompanies`).
+- A best-effort GitHub org badge, shown only when the org is confirmed (`/gh-api/orgs/*`).
 
-**Data + ranking:**
-- **`lib/ycDirectory.js`** — free public YC directory (`yc-oss.github.io/api`, no auth, CORS-open, direct browser fetch, in-memory session cache). `/companies/top.json` powers seed-company autocomplete + a structured candidate pool filtered by domain (`DOMAIN_TAGSETS`) and stage (team-size bands). Degrades gracefully offline (Exa still covers).
-- **`lib/exa.js`** — `exaSearch` generalized with a `category` param; `companySearch` (category `company`, same URL-hash **skip** token-saver as people) + `exaFindSimilar` (powers 🔎 More like this).
-- **`lib/companyFinder.js`** — `buildCompanyQuery(prefs)` (descriptive neural query); `mergeCandidates` (YC + Exa, dedup by `normalizeCompanyName`, exclude companies already in targets/Applications); one Claude Haiku **ranking call** (mirrors `generateJobAnalysis`) that returns `[{name,website,oneLiner,whyFit,fitScore,domain,stage,badges}]` and deliberately **re-injects the signals students under-weight** (mentorship, return-offer reputation, domain interest) rather than the prestige/pay they over-weight.
+**02 Coverage (`ReferralCoverageTab.jsx`):** which target companies you have no or weak contacts at.
 
-**UI (`components/ExploreTab.jsx`):** onboarding gate → ranked **company cards** (fit score, why-you, domain/stage/badges, website). **❤ Add to targets** writes `rec_target_companies` (dedup) → then the button becomes **Find people →** (deep-links to Network → Discover via `onFindPeople`). **🔎 More like this** (`findSimilar`), **✕ Dismiss** (persisted). **Hands-off** like Discover: daily `lastCheck` gate + URL-hash skip (zero Claude tokens when unchanged) + manual ↻ Refresh; nudge "N companies match you." A lazy, best-effort **GitHub eng-signal badge** (`GhBadge`) resolves a company's org from its domain and shows a public-repo count **only when it can confirm the org belongs to the company** (blog/name match) — hidden when unsure, to avoid asserting wrong data. localStorage keys: `rec_company_prefs`, `rec_company_results`, `rec_company_meta`, `rec_company_added`, `rec_company_dismissed`.
+**03 People (`DiscoverTab.jsx`, `lib/discovery.js`, `lib/discoveryScheduler.js`):**
+- Exa public-web people search at gap companies, ranked by `discoveryScore`: résumé-signal overlap, reachability, and "next best person".
+- A daily background pass is capped by a per-company cooldown (7d) and a daily budget (3).
+- Exa result URLs are hashed, and the AI extraction is skipped when the pages haven't changed.
+- Found people are a staging queue (`rec_discovered`) until **+ Add to Contacts**. "Draft intro" uses `drafting.js` `cold_open`.
 
-### Job Boards Tab (most-developed feature)
+Explore/Discover state is in `rec_*` localStorage keys (per device). The target list is not.
 
-**Overhauled 2026-07-22** in response to direct feedback that the existing GitHub-poll-style boards weren't good enough: the parser silently returned **zero jobs** from SimplifyJobs/Summer2026-Internships (the single biggest board — it renders its table as literal HTML `<table>`, not a markdown pipe table, which the old parser never understood), companies-with-multiple-roles' "↳" ditto rows were dropped as junk on every board that uses them, and — more subtly — the GitHub README `content` field's base64 was decoded with plain `atob()`, which mangles every multi-byte UTF-8 character (emoji status markers, the "↳" glyph itself, accented names) into garbage. All three were real correctness bugs, not just missing features, fixed in `github.js`.
+## Learn (`LearnTab.jsx`, see `learn.md`)
 
-**Multi-board aggregation (`components/jobBoards/boardsRegistry.js`):** the core ask — "find the companies for me, don't make me paste one link at a time." **Tracked boards** are a small localStorage-persisted list (`rec_tracked_boards`); **✚ Pull all tracked boards** fetches every one in parallel, tags each job with its source repo, and merges into one deduped list (exact Company+Role+Location match — cross-posting the same internship on 2+ boards is common). One board failing (bad repo, README moved) surfaces its own error and never blocks the others. Nothing is pre-tracked by default (deliberate choice — the user wanted to pick sources, not have 3 repos silently force-added), but `SUGGESTED_BOARDS` (SimplifyJobs/Summer2026-Internships, vanshb03/Summer2026-Internships, speedyapply/2027-SWE-College-Jobs — all verified live) renders as one-click "+ add" chips in `TrackedBoardsPanel.jsx`, so finding good sources still costs zero research. The single-repo/username ad-hoc lookup (original flow) still exists, collapsed under "or look up a single repo/profile."
-- Parses both markdown pipe tables AND real HTML `<table>` blocks (via `DOMParser`, since this all runs client-side) — same row→job logic serves both, so a board can mix formats or switch formats without breaking.
-- **Auto-import (hands-off):** every open (non-closed) listing not already in the Applications DB is created there automatically with Triage='Needs Review', Location, and Source Repo set — concurrency-limited (4 at a time), with a progress banner. Dedup is keyed on exact Company+Role text against already-fetched `apps`, guarded by an in-flight `claimedKeysRef` so a rapid re-pull or React StrictMode's dev-mode double-effect-invocation can't double-import the same job (this bug shipped once and had to be cleaned up — see `DuplicatesPanel` below).
-- Card grid with bucket system: Needs Review / Applying / Maybe / Applied / Pass — now backed by the Applications DB `Triage` field (not localStorage). Marking "Applied" bumps the real `Stage` to Applied (if still Wishlist) and sets Applied Date; marking "Pass" just tags Triage (no Stage change). `ContactDetailModal`-style optimistic local overlay (`optimistic` state) keeps bucket clicks instant without waiting on the Notion round-trip.
-- Needs-Review/Pass rows (still at Stage=Wishlist) are excluded from Overview/Pipeline/Actions "active" stats via `isUntriaged()` in `shared.jsx`, so a big board import doesn't drown out real pipeline activity. Overview shows an amber "N jobs need review" nudge when the queue is non-empty.
-- AI fit analysis per job (uses preferences panel) — provider follows the AI Provider Switch above
-- Calendar view by posting date
-- Filter bar: free-text search (company + role + location), location text input, quick chips (Remote, Bay Area, NYC, etc.), plus a **⏰ Closing soon** urgency filter
-- Stats bar: new this week, remote count, top locations, multi-role companies
+Per-track interview prep: mastery engine, FSRS review queue, LeetCode sync and company prep,
+practice import (sheet, paste, screenshot), coach. Today's Interview Prep reads it through
+`learningAttention`.
 
-**Real deadline extraction (`lib/deadlines.js`, `useJobDeadlines.js`) — "I never want to miss a deadline":** none of these board repos carry a real deadline, only "days since posted" — the only way to get an actual close-date is to visit the real apply page and read one off, if the company even states one (most don't; postings are commonly rolling). Runs automatically for **every** open job with an apply link (chosen scope: broad coverage over cost-minimization) — batched (6 apply URLs per pass, 3 pipelines in parallel) so it's still bounded: Exa's `/contents` endpoint fetches the real page text for a batch directly (no search needed, we already have the URL) → one AI call reads the whole batch and reports a deadline **only if the page actually states one** (explicitly told not to guess/invent a date for rolling postings) → cached forever in localStorage (`rec_job_deadlines`) keyed by job, so it's a one-time cost per job, with a manual **↻ recheck** in the detail modal to force a re-read. Feeds the sort order (see below) and a badge on both the card and detail modal (⏰ "Closes in Nd" / "Rolling — no stated deadline" / "Checking…" while in flight).
-- **Sort priority, closest deadlines first (the literal ask):** a confirmed real deadline sorts soonest-first ahead of everything else; within Needs Review, ties then fall back to preference-relevance ranking; everything else falls back to freshest-posted-first with ghost/stale listings sunk to the bottom of that group (`urgencyComparator`/`urgencyTier` in `helpers.js`).
+## Pipeline (`PipelineTab.jsx`, views in `pipelineViews.js`)
 
-### Duplicate tracker (Pipeline tab)
-`DuplicatesPanel` in `components/PipelineTab.jsx` groups Applications by normalized (trim+lowercase) Company+Role via `findDuplicateGroups()` in `shared.jsx`, shows counts + a reviewable list, and an explicit "Archive N duplicates" button (native `confirm()` gate, keeps the oldest row per group, archives the rest via `archiveApplication()`). Only catches exact-text duplicates, not fuzzily-worded ones across sources.
+Views:
+- **Applications:** a board plus `DuplicatesPanel`.
+- **Sheet:** `ApplicationsSheet.jsx`.
+- **Job Boards:** tech tracks only.
 
-### Proxy routes (auth-gated; per-user BYOK keys injected server-side, never in the browser bundle)
-Same handlers in dev (`vite.config.js`'s `mountApiHandler()`) and prod (`app/vercel.json` rewrites → `api/*.js`).
+Applications open in `panels/ApplicationPanelBody.jsx`, with stage timeline, OA fields (editable),
+referrer (`referred_by_id`, never overwritten once set) and warm paths (`lib/warmIntro.js`).
+
+**Sheet** (model in `lib/applicationSheet.js`):
+- Keyboard editing, with an optimistic overlay then `refreshApps()`.
+- Stage edits apply `stageSideEffects`.
+- Filters, columns, sort, grouping and Flow persist in `rec_sheet_prefs`.
+- Exports `.xlsx` (`lib/xlsx.js`, dependency-free) and CSV of exactly the visible rows and columns.
+- **Flow** shows the funnel and the application Sankey (`lib/applicationFlow.js`). The Sankey runs source → Applied → OA → interview stages → Accepted / In process / Ghosted (30+ days quiet) / Rejected, and clicking a band filters the grid.
+
+**Stage history** (`application_stage_events`):
+- Written only by a trigger on `applications.stage`. `source` is `pipeline` for service-role writes and `user` otherwise.
+- Clients can only SELECT.
+- `lib/stageHistory.js` attaches `stageEvents` and `daysInStage`, and synthesizes the path when there are no events.
+
+**Live updates:** `lib/useApplicationsLive.js` subscribes to Supabase Realtime on both tables,
+debounced into `refreshApps()`, plus a refresh on re-focus after 60s.
+
+**Job Boards** (`components/jobBoards/`):
+- Tracked boards (`rec_tracked_boards`, with suggested chips) are pulled in parallel and deduped on Company+Role+Location (`boardsRegistry.js`). A single-repo lookup sits under the board list.
+- `github.js` parses markdown pipe tables and HTML `<table>`s, handles "↳" ditto rows, and decodes README base64 as UTF-8.
+- Open listings auto-import into Applications as Triage = Needs Review, with an in-flight claim set against double imports.
+- Needs-Review rows don't count as active (`isUntriaged`).
+- Real deadlines (`lib/deadlines.js`, `useJobDeadlines.js`): Exa `/contents` reads the apply page, and the AI reports a date only if the page states one. Cached forever in `rec_job_deadlines`. Sorted closest-deadline first (`urgencyComparator`).
+- Hidden for non-tech tracks: there's no comparable public feed for IB or consulting.
+
+**Duplicates:** `findDuplicateGroups` (exact normalized Company+Role). "Archive N duplicates" keeps the oldest.
+
+## Calendar (`CalendarTab.jsx`, see `google-calendar.md` and `recruiting-events.md`)
+
+Views:
+- **Grid:** month view of events, follow-ups and application dates.
+- **Feed:** `lib/timeline.js`, Overdue / Next 7 Days / Later.
+- **Events:** the shared Recruiting Events pool.
+
+"+ Add Event" writes to Google Calendar (vision extraction from a screenshot uses Claude).
+
+## Settings (`SettingsTab.jsx`)
+
+- Secure your account (sign-in-with-API-key accounts only).
+- Profile (tracks, school, AI provider) and appearance.
+- API keys (Anthropic, OpenAI, Exa, GitHub).
+- Networking email accounts (Gmail connections).
+- Push notifications (ntfy topic).
+- Google Calendar slots and Recruiting-calendar sync.
+- Send feedback.
+
+## Proxy routes
+
+All are auth-gated, with BYOK keys injected server-side. The same handlers serve dev
+(`vite.config.js` `mountApiHandler`) and prod (`app/vercel.json` rewrites → `api/*.js`).
+
 ```
-/gh-api          → api.github.com    (requireUser(); optional per-user GitHub token, else unauthenticated)
-/gh-contrib      → api/gh-api.js ?upstream=contrib → github-contributions-api.jogruber.de
-/leetcode        → api/gh-api.js ?upstream=leetcode → LeetCode GraphQL (auth-gated, rate-limited, query allowlist)
-/claude-api      → api.anthropic.com (requireUser(); per-user key; fresh headers, no browser Origin/Referer) — default AI provider + always vision
-/openai-api      → api.openai.com    (same pattern) — used when the user/env picks OpenAI
-/google-calendar → googleapis.com    (requireUser(); mints an access token from that user's slot token; allowlist in api/_lib/calendarAllowlist.js)
-/exa             → api.exa.ai        (requireUser(); per-user key)
-/api/keys, /api/google-connect, /api/google-oauth-callback, /api/gmail, /api/events-* → not passthroughs; see each file's header
+/gh-api          → api.github.com (repos/*, orgs/* only; optional per-user GitHub token)
+/leetcode        → api/gh-api.js ?upstream=leetcode → LeetCode GraphQL (server-owned queries only)
+/claude-api      → api.anthropic.com (v1/messages; fresh headers, no browser Origin)
+/openai-api      → api.openai.com (v1/chat/completions)
+/google-calendar → googleapis.com (allowlist in api/_lib/calendarAllowlist.js)
+/exa             → api.exa.ai (search, findSimilar, contents)
+/api/keys, /api/google-connect, /api/google-oauth-callback, /api/gmail, /api/events-* → see each file's header
 ```
-`/notion` was deleted 2026-07-23 (see Multi-Tenant Auth + BYOK) — `db.js` talks to Supabase directly, no proxy needed.
 
-## Today Tab — Awaiting Reply (shipped 2026-09-17)
-
-Closes a real gap in email-networking tracking: `OutboxTab.jsx` showed every sent email but never flagged which ones went unanswered. `lib/attention.js`'s `awaitingReply(contacts, interactions)` is a pure derivation — for each contact, find their most recent Email/LinkedIn interaction; if it was Outbound and `thresholdDays` (default 5) have passed with nothing back, surface it. Deliberately distinct from `keepInTouchDue` (relationships going cold over weeks/months, tie-strength cadence) and `overdueFollowUps` (an explicit to-do the user set) — this is the one purely inferred from the interaction ledger itself, and specifically excludes anyone with any Follow-Up Date set (past or future) so it doesn't double-nag alongside the explicit to-do system. Rendered as a new "Awaiting Reply" section in `TodayTab.jsx` (`AwaitingReplyRow` — "They replied" logs an Inbound interaction to clear it, "Draft nudge" reuses `DraftPanel`'s `follow_up` kind).
-
-Same phase also added manual OA editing to `ApplicationPanelBody.jsx` — OA due date/link/completed were previously only ever set by the email pipeline (`OA_INVITE` extraction) or toggled off from Today's "Mark completed," with no way to add or correct one from the application's own detail panel (e.g. an OA that arrived via a portal notification instead of email). Now editable directly there, writing through the same `updateApplication()` fields the pipeline and Today already use.
-
-## Pipeline Sheet + outcome Sankey (shipped 2026-10-16)
-
-**Stage history (`supabase/migrations/20261016000000_application_stage_events.sql`, pushed 2026-10-16):** `application_stage_events` is written only by an `after insert or update of stage` trigger on `applications` (`security definer`; `source` comes from the JWT role — `service_role` → `pipeline`, `authenticated` → `user`, else `system`). Clients get SELECT only (RLS `auth.uid() = user_id`), no write policies; `test/rls.test.js` proves it. Existing rows were backfilled with `source='backfill'` (null→Applied at the applied date, Applied→current stage at closed/last-activity). Both tables are in the `supabase_realtime` publication. `db.js`'s `fetchApplications` reads events in parallel and fails soft; `lib/stageHistory.js`'s `attachStageHistory` adds `stageEvents`, `stageChangedAt`, `historyEstimated`, and recomputes `daysInStage` from the last real move (it used to count from the applied date). When there are no events (demo, or table unreadable) it synthesizes the same path the SQL backfill would.
-
-**Sheet (Pipeline → Sheet, `components/ApplicationsSheet.jsx`, model in `lib/applicationSheet.js`):** custom grid, not TanStack. Keyboard editing (arrows/Tab/Enter/F2/type-to-edit/Esc/Backspace), optimistic overlay, then `App.jsx`'s quiet `refreshApps()` (only reloads apps — `load()` toggles `loading`, which unmounts tabs and would lose the active cell). Stage edits apply `stageSideEffects` (applied date + triage on leaving Wishlist, closed date on Rejected/Accepted, cleared on reopen). Filters, hidden columns, sort, grouping and the Flow toggle persist in `rec_sheet_prefs`. **Export:** `lib/xlsx.js` is a dependency-free .xlsx writer (stored zip + CRC32 + SpreadsheetML: real date cells, HYPERLINK cells, frozen bold header, autofilter); CSV too. Both export exactly the visible rows and columns. A stage dot + "Moved · 48h" filter (`recentStageChange`) mark real moves in the last 48h ("from email" when the pipeline did it); the application side panel shows the full stage timeline.
-
-**Live updates (`lib/useApplicationsLive.js`, mounted in `AppInner`):** Supabase Realtime `postgres_changes` on both tables filtered by `user_id`, debounced into `refreshApps()`, plus a refresh on tab re-focus after >60s. CSP `connect-src` now allows `wss://*.supabase.co`. Verified live 2026-10-16 against the real project: a service-role stage update (what the email pipeline does) reached a signed-in user's channel as both an `applications` UPDATE and a stage-event INSERT. Gotcha when testing from Node 20: pass `realtime: { transport: ws }`, and wait for the `system` "Subscribed to PostgreSQL" message, not just `SUBSCRIBED`, before writing.
-
-**Sankey (`lib/applicationFlow.js` pure + tested, `charts/SankeyChart.jsx`, `ApplicationFlowPanel.jsx`):** each non-Wishlist app is one path: source (Job board / Referral / Direct, from `appSource`) → Applied → OA (if any `oa_*` field) → interview stages it reached, in pipeline order (first visits only, so corrections can't create cycles) → outcome (Accepted / In process / Ghosted = open with no activity for 30+ days / Rejected). Shown under Pipeline → Sheet → Flow (drawn from the sheet's current filter + search; clicking a band or node filters the grid to those apps) and on Today under the Application Funnel ("Where Applications Went"). Colors went through the `dataviz` validator — see `charts/theme.js`'s `flow` block: stages wear the scheme accent; outcomes are success/danger plus two neutrals, ordered so green never sits next to red (deutan ΔE 5.3 when adjacent); every node is direct-labeled with its count as the contrast relief for Ghosted. The demo seeds 24 extra applications plus `DEMO_STAGE_EVENTS`, and demo stage edits log events like the trigger does.
-
-## Today declutter (2026-10-17)
-
-Today had grown to a dozen sections that often repeated the same person. Three passes now run before anything renders (`TodayTab.jsx`, pure helpers in `lib/attention.js`, tested in `test/declutter.test.js`):
-
-1. **`trimActionItems(items, interactions)`** hides AI action items that resolved themselves: you sent an Outbound message on the item's thread (`interactions.channelRef === item.threadId`) after it was created; the due date is more than 7 days past; there is no due date and it is older than 21 days; or it duplicates an item already kept (same contact/thread + summary). It only hides (count shown at the top), it never writes back.
-2. **`dedupeAcross(lists)`** keeps each contact in one people section, by priority: Overdue Follow-Ups → Awaiting Reply → Want to Schedule → High Urgency → Keep in Touch.
-3. **Snoozes.** Each snoozable row has a ✕ (hide for 7 days), each section a **Clear all** (hide every row in it for 7 days), and **Unhide N** at the top restores them. Action Items get **Dismiss all** instead (`db.js` `dismissActionItems(ids)`, one `.in('id', ids)` update, confirm first), since they have a real dismissed state.
-
-Every section (including the event sections, recap, interview prep and Activity) collapses from its heading, with **Collapse all / Expand all** at the top. Snoozes (`{ '<section>:<id>': untilMs }`) and collapsed section ids live in `user_settings` under `today_prefs` via `lib/useTodayPrefs.js`, so they follow the account across devices; expired snoozes are pruned on load. `RowCap` now defaults to 3 rows.
-
-## Networking flow (2026-10-17)
-
-The networking twin of the application Sankey (`lib/networkingFlow.js` pure + tested in `test/networkingFlow.test.js`, `components/NetworkingFlowPanel.jsx`, reusing `charts/SankeyChart.jsx` with `palette="network"` and `unit="contact"`). Each contact with at least one logged interaction or call is one path:
-
-- **Source:** *They reached out* (first logged interaction was Inbound), else from `contacts.source`: Email / LinkedIn DM → *Cold outreach*, Referral → *Intro*, Coffee chat / Event → *Event or chat*, anything else → *Other*.
-- **Stages:** *Conversation* (both directions logged, or any call/meeting), *Met* (a Call/Meeting interaction or a `calls` transcript), *Referral asked* (`referralStatus` is not "Not Asked").
-- **Outcome:** *Referral* (`referralStatus` Confirmed) / *Active* / *No reply* (never became a conversation) / *Gone cold* (status Cold or Closed, or no touch for 60+ days unless Champion).
-
-Contacts with nothing logged are left out and counted in the caption. Headline numbers: contacted, reply rate (Conversation ÷ contacted), met, asked, referrals, no reply. On **Network → Flow**, clicking a band or node lists its contacts and clicking one opens the contact panel; Today's copy (Activity → "Where Networking Went") is read-only. Outcome colors are `charts/theme.js`'s `flow.networkOutcome`: the same four slots, in the same order, as the validated application outcomes (verdict, neutral, neutral, verdict), so the earlier validator runs still hold. Works in `/demo` (pure local rendering).
+The server-side Gmail scan and the push recap call the AI providers directly through
+`api/_lib/llm.js` (see `ai-provider.md`).

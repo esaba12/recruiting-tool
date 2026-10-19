@@ -1,6 +1,6 @@
 # 06 — Fixes from the review
 
-**Status:** A and B ✅ done 2026-10-19 (`e323879`); C (docs rewrite) next, after 05.
+**Status:** ✅ done 2026-10-19. A and B in `e323879`, C after 05 (also fixed stale Outbox/Timeline Finds references in three other docs).
 
 **Who:** 🤖. **Migration:** none. Land first: small, and A is a bug friends would hit.
 
