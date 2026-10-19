@@ -14,7 +14,7 @@ export default function BarChart({ data, dataKey = 'value', labelKey = 'label', 
       <RBarChart
         data={data}
         layout={horizontal ? 'vertical' : 'horizontal'}
-        margin={{ top: 8, right: horizontal ? 32 : 8, left: 0, bottom: 0 }}
+        margin={{ top: horizontal ? 8 : 20, right: horizontal ? 32 : 8, left: 0, bottom: 0 }}
       >
         <CartesianGrid stroke={CHART_GRID} strokeDasharray="0" vertical={horizontal} horizontal={!horizontal} />
         {horizontal ? (

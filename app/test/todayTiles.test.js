@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pickNextDeadline, funnelConversions } from '../src/lib/attention.js'
+import { pickNextDeadline, funnelConversions, weeklyTrend } from '../src/lib/attention.js'
 
 const now = new Date(2026, 9, 9, 12).getTime()
 
@@ -43,5 +43,20 @@ describe('funnelConversions', () => {
   })
   it('omits stages with no one reaching them', () => {
     expect(funnelConversions(mk(['Wishlist']))).toEqual([{ from: 'Wishlist', to: 'Applied', pct: 0 }])
+  })
+})
+
+// v1.4 spec 05 D: the trend moved out of TodayTab so the stat tile and Network → Flow share it.
+describe('weeklyTrend', () => {
+  it('buckets interactions into Monday-start weeks, oldest first, empty weeks as 0', () => {
+    // now = Fri Oct 9 2026 → current week starts Mon Oct 5.
+    const out = weeklyTrend([
+      { date: '2026-10-05' }, { date: '2026-10-09' }, // this week
+      { date: '2026-09-28' },                         // last week
+      { date: '2026-01-01' },                         // outside the window
+      { date: null },
+    ], now, 3)
+    expect(out.map(w => w.count)).toEqual([0, 1, 2])
+    expect(out[2].label).toBe('Oct 5')
   })
 })

@@ -6,7 +6,7 @@ import { todayStr } from './ingest/scheduler.js'
 const META_KEY = 'rec_events_ingest_meta'   // { lastCheck, lastResult }
 
 // Hands-off daily pull of the caller's school's event feeds into the shared
-// pool. Same daily-gate idiom as useTimelineFinds/DiscoverTab (ranRef +
+// pool. Same daily-gate idiom as DiscoverTab (ranRef +
 // lastCheck !== today, `enabled` so demo mode can no-op while still calling the
 // hook unconditionally). The server owns cost control (a source is re-pulled at
 // most every 12h school-wide), so the first person at a campus to open the app

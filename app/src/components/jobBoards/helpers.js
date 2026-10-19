@@ -2,23 +2,6 @@ import { aiJSON, AI_MODELS } from '../../lib/ai.js'
 import { parseDay } from '../../lib/dates.js'
 export { lsGet, lsSet } from '../../lib/scopedStorage.js'
 
-export const LEVEL_COLOR = ['var(--t-ink-100)', '#9be9a8', '#40c463', '#30a14e', '#216e39']
-export const LANG_COLOR  = ['bg-blue-500','bg-purple-500','bg-yellow-500','bg-green-500','bg-red-500','bg-orange-500']
-
-export const EVENT_LABELS = {
-  PushEvent:                  'Pushed',
-  PullRequestEvent:           'Pull request',
-  IssuesEvent:                'Issue',
-  WatchEvent:                 'Starred',
-  ForkEvent:                  'Forked',
-  CreateEvent:                'Created',
-  DeleteEvent:                'Deleted',
-  IssueCommentEvent:          'Commented',
-  PullRequestReviewEvent:     'Reviewed PR',
-  ReleaseEvent:               'Released',
-  PublicEvent:                'Made public',
-}
-
 export function timeAgo(iso) {
   const s = Math.floor((Date.now() - new Date(iso)) / 1000)
   if (s < 60)   return `${s}s ago`

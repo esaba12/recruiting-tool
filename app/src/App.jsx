@@ -8,14 +8,14 @@ import useRecruitingEvents from './lib/useRecruitingEvents.js'
 import useEventCalendarSync from './lib/useEventCalendarSync.js'
 import { useTargetCompanies } from './lib/useTargetCompanies.js'
 import LoginPage from './components/LoginPage.jsx'
-import { STATUS_COLOR, URGENCY_COLOR, REFERRAL_STATUS_COLOR, daysSince, daysUntil, fmt, Badge, EmptyState, isOverdue } from './shared.jsx'
-import { statusIconFor, URGENCY_ICON } from './lib/icons.js'
+import { EmptyState } from './shared.jsx'
 import AppShell from './components/layout/AppShell.jsx'
 import SidePanel from './components/ui/SidePanel.jsx'
 import ContactPanelBody from './components/panels/ContactPanelBody.jsx'
 import QuickAddContactModal from './components/QuickAddContactModal.jsx'
 import LogInteractionModal from './components/LogInteractionModal.jsx'
-import MetButton from './components/MetButton.jsx'
+import ContactCards from './components/ContactCards.jsx'
+import useMediaQuery from './lib/useMediaQuery.js'
 import { logMetWithContact } from './lib/quickLog.js'
 import { pipelineViewsFor } from './components/pipelineViews.js'
 import { enableDemoStorage } from './lib/scopedStorage.js'
@@ -28,14 +28,15 @@ import { needsOnboarding } from './lib/onboarding.js'
 import { useKeysReady } from './lib/useKeyStatus.js'
 import { NAV_ITEMS } from './components/layout/Sidebar.jsx'
 import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, keepInTouchDue, needsReviewApps } from './lib/attention.js'
-import { Table2, LayoutGrid, Share2, Send, Waypoints } from 'lucide-react'
+import { Table2, Share2, Waypoints } from 'lucide-react'
 import NetworkingFlowPanel from './components/NetworkingFlowPanel.jsx'
+import { NetworkCharts } from './components/charts/ActivityCharts.jsx'
 import DelayedFallback from './components/ui/DelayedFallback.jsx'
 import { preloadCharts } from './components/charts/lazy.jsx'
 
 // ── Lazy tabs (v1.3 spec 09) ─────────────────────────────────────────────────────
 // Today is the landing tab and stays in the entry chunk; every other tab (and the
-// Network graph/Outbox views) loads on first open. Once the app is idle after its first
+// Network graph view) loads on first open. Once the app is idle after its first
 // load, prefetchTabs() warms all of them so later switches don't wait on the network.
 const TAB_CHUNKS = {
   pipeline: () => import('./components/PipelineTab.jsx'),
@@ -45,7 +46,6 @@ const TAB_CHUNKS = {
   calendar: () => import('./components/CalendarTab.jsx'),
   settings: () => import('./components/SettingsTab.jsx'),
   graph:    () => import('./components/NetworkGraphTab.jsx'),
-  outbox:   () => import('./components/OutboxTab.jsx'),
   contactsTable: () => import('./components/ContactsTable.jsx'), // @tanstack/table
 }
 const PipelineTab     = lazy(TAB_CHUNKS.pipeline)
@@ -55,11 +55,11 @@ const LearnTab        = lazy(TAB_CHUNKS.learn)
 const CalendarTab     = lazy(TAB_CHUNKS.calendar)
 const SettingsTab     = lazy(TAB_CHUNKS.settings)
 const NetworkGraphTab = lazy(TAB_CHUNKS.graph)
-const OutboxTab       = lazy(TAB_CHUNKS.outbox)
 const ContactsTable   = lazy(TAB_CHUNKS.contactsTable)
 // Open-on-demand modals and the new-user wizard: most sessions never render them.
 const AddToCalendarModal = lazy(() => import('./components/AddToCalendarModal.jsx'))
 const QuickScheduleModal = lazy(() => import('./components/QuickScheduleModal.jsx'))
+const ImportModal = lazy(() => import('./components/import/ImportPanel.jsx'))
 const QuickCaptureModal  = lazy(() => import('./components/QuickCaptureModal.jsx'))
 const OnboardingWizard   = lazy(() => import('./components/onboarding/OnboardingWizard.jsx'))
 
@@ -82,20 +82,21 @@ function usePrefetchTabs(ready) {
 // ── Network Tab ───────────────────────────────────────────────────────────────
 
 const NETWORK_VIEWS = [
-  { key: 'table',    label: 'Table',    icon: Table2 },
-  { key: 'cards',    label: 'Cards',    icon: LayoutGrid },
+  { key: 'table',    label: 'People',   icon: Table2 },
   { key: 'graph',    label: 'Graph',    icon: Share2 },
   { key: 'flow',     label: 'Flow',     icon: Waypoints },
-  { key: 'outbox',   label: 'Outbox',   icon: Send },
 ]
 
 function NetworkTab({ contacts, apps, interactions, calls = [], contactRelationships = [], onRefresh, onRefreshRelationships, initialView = 'table', views = NETWORK_VIEWS }) {
   const [filter, setFilter]   = useState('ALL')
   const [search, setSearch]   = useState('')
-  const [view, setView]       = useState(initialView) // 'table' | 'cards' | 'graph'
+  const [view, setView]       = useState(initialView) // 'table' | 'graph' | 'flow'
+  const isWide = useMediaQuery('(min-width: 768px)') // the table below md scrolls sideways, so phones get cards
   const [editing, setEditing] = useState(null)   // contact object | 'new' | null
   const [logOpen, setLogOpen] = useState(false)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const importedRef = useRef(false)
 
   const filtered = contacts
     .filter(c => {
@@ -144,6 +145,10 @@ function NetworkTab({ contacts, apps, interactions, calls = [], contactRelations
               </button>
             ))}
           </div>
+          <button onClick={() => setImportOpen(true)}
+            className="px-3 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 whitespace-nowrap">
+            Import LinkedIn
+          </button>
           <button onClick={() => setLogOpen(true)}
             className="px-3 py-1 bg-surface border border-ink-200 rounded-full text-xs font-medium text-ink-600 hover:border-accent-300 whitespace-nowrap">
             + Log Interaction
@@ -161,69 +166,16 @@ function NetworkTab({ contacts, apps, interactions, calls = [], contactRelations
           <div className="bg-surface rounded-md p-4 border border-ink-200">
             <h2 className="text-sm font-semibold text-ink-700 mb-3">Where Networking Went</h2>
             <NetworkingFlowPanel contacts={contacts} interactions={interactions} calls={calls} height={320} onOpenContact={c => setEditing(c)} />
+            <NetworkCharts contacts={contacts} interactions={interactions} />
           </div>
         )
         : view === 'graph'
         ? <NetworkGraphTab contacts={contacts} contactRelationships={contactRelationships} />
-        : view === 'outbox'
-        ? <OutboxTab contacts={contacts} interactions={interactions} />
         : filtered.length === 0
         ? <EmptyState msg={contacts.length === 0 ? 'No contacts yet — the email pipeline will add them as recruiting emails come in.' : 'No contacts match this filter.'} />
-        : view === 'table'
+        : isWide
         ? <ContactsTable contacts={filtered} onEdit={c => setEditing(c)} onMet={handleMet} />
-        : (
-          <div className="space-y-2">
-            {filtered.map(c => {
-              const overdue = isOverdue(c)
-              const lastSeen = daysSince(c.lastInteraction)
-              return (
-                <div key={c.id} onClick={() => setEditing(c)}
-                  className={`bg-surface rounded-xl px-4 py-3 shadow-sm border transition-shadow hover:shadow-md cursor-pointer ${overdue ? 'border-danger-200' : 'border-ink-100'}`}>
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-ink-900">{c.name}</span>
-                        {c.company && <span className="text-sm text-ink-500">@ {c.company}</span>}
-                        {c.role && <span className="text-xs text-ink-400">· {c.role}</span>}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        <Badge label={c.status} color={STATUS_COLOR[c.status]} icon={statusIconFor(c.status)} />
-                        {c.urgency && c.urgency !== 'LOW' && <Badge label={c.urgency} color={URGENCY_COLOR[c.urgency]} icon={URGENCY_ICON[c.urgency]} />}
-                        {c.referredByName && <Badge label={`↩ ${c.referredByName}`} color="bg-indigo-50 text-indigo-600" />}
-                        {c.referralStatus && c.referralStatus !== 'Not Asked' && <Badge label={c.referralStatus} color={REFERRAL_STATUS_COLOR[c.referralStatus]} />}
-                        {c.email && (
-                          <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="text-xs text-link hover:underline">{c.email}</a>
-                        )}
-                        {c.linkedin && (
-                          <a href={c.linkedin} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-xs text-link hover:underline">LinkedIn ↗</a>
-                        )}
-                      </div>
-                      {c.whatTheyDid && (
-                        <p className="text-xs text-ink-500 mt-1 line-clamp-1 italic">"{c.whatTheyDid}"</p>
-                      )}
-                      {!c.whatTheyDid && c.notes && (
-                        <p className="text-xs text-ink-400 mt-1 line-clamp-1">{c.notes}</p>
-                      )}
-                    </div>
-                    <div className="text-right shrink-0 space-y-1 text-xs">
-                      {lastSeen !== null && (
-                        <p className="text-ink-400">Last: {fmt(c.lastInteraction)}</p>
-                      )}
-                      {c.followUpDate && (
-                        <p className={`font-medium ${overdue ? 'text-danger-600' : 'text-ink-500'}`}>
-                          {overdue
-                            ? `⚠ ${Math.abs(daysUntil(c.followUpDate))}d overdue`
-                            : `Due ${fmt(c.followUpDate)}`}
-                        </p>
-                      )}
-                      <MetButton contact={c} onMet={handleMet} className="mt-1" />
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+        : <ContactCards contacts={filtered} onEdit={c => setEditing(c)} onMet={handleMet} />}
       </Suspense>
 
       <SidePanel open={!!editing} onClose={() => setEditing(null)}>
@@ -254,6 +206,14 @@ function NetworkTab({ contacts, apps, interactions, calls = [], contactRelations
           onClose={() => setQuickAddOpen(false)}
           onSaved={() => { setQuickAddOpen(false); onRefresh() }}
         />
+      )}
+      {importOpen && (
+        <Suspense fallback={null}>
+          {/* Refresh on close, not on import: onRefresh is the full load(), which unmounts this
+              tab and would take the "Added N" confirmation with it. */}
+          <ImportModal kind="linkedin" contacts={contacts} onImported={() => { importedRef.current = true }}
+            onClose={() => { setImportOpen(false); if (importedRef.current) { importedRef.current = false; onRefresh() } }} />
+        </Suspense>
       )}
     </div>
   )
@@ -416,6 +376,18 @@ function AppInner() {
     setContacts(await fetchContacts())
   }
   useApplicationsLive({ userId: user?.id, onChange: refreshApps })
+  // A Gmail "scan now" or an import outside a tab's own refresh (lib/gmailScan.js,
+  // GettingStarted) → refetch what they write, without load()'s unmount.
+  useEffect(() => {
+    const onChanged = async () => {
+      try {
+        const [c, a, i, ai] = await Promise.all([fetchContacts(), fetchApplications(), fetchInteractions(), fetchActionItems()])
+        setContacts(c); setApps(a); setInteractions(i); setActionItems(ai)
+      } catch { /* the next full load picks it up */ }
+    }
+    window.addEventListener('rec:data-changed', onChanged)
+    return () => window.removeEventListener('rec:data-changed', onChanged)
+  }, [])
 
   const activeApps = apps.filter(a => !['Rejected','Accepted'].includes(a.stage))
   const openActionItemCount = actionItems.filter(i => !i.completedAt && !i.dismissedAt).length
@@ -459,7 +431,7 @@ function AppInner() {
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
           onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} onImported={refreshApps} views={pipelineViewsFor(profile)} />
       )}
-      {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} relationships={contactRelationships} actionItems={actionItems} dailyRecap={dailyRecap} learning={learning} onOpenLearn={() => setTab('learn')} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} />}
+      {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships} actionItems={actionItems} dailyRecap={dailyRecap} learning={learning} onOpenLearn={() => setTab('learn')} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} />}
       {!loading && tab === 'inbox'    && (
         <InboxTab contacts={contacts} apps={apps} interactions={interactions} actionItems={actionItems} onRefresh={load} />
       )}

@@ -1,6 +1,6 @@
 // Shared staleness + cost-control primitives for every feed-ingestion / batched
-// AI-extraction path in the app (timelineFinder, Recruiting Events ingestion +
-// attribute extraction, paste-import). Lifted from lib/timelineFinder.js so the
+// AI-extraction path in the app (Recruiting Events ingestion +
+// attribute extraction, paste-import). First written for the (since removed) Timeline Finds scan, so the
 // pattern lives once:
 //
 //   hashText      — FNV-1a content hash: "did this record's text change since last run?"

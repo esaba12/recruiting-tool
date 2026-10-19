@@ -1,6 +1,7 @@
 import { exaSearch } from './exa.js'
 import { aiJSON, AI_MODELS } from './ai.js'
-import { affinityTagsFor, roleCategory, DEFAULT_PROFILE } from './discovery.js'
+import { affinityTagsFor, roleToOption, DEFAULT_PROFILE } from './discovery.js'
+export { roleToOption }
 import { normalizeCompanyName } from './networkGraph.js'
 
 // One-tap contact enrichment for the "add someone I already know" path. This is the
@@ -15,21 +16,6 @@ import { normalizeCompanyName } from './networkGraph.js'
 // wrong web match costs a glance, not a bad Notion row.
 
 const norm = s => (s || '').trim().toLowerCase()
-
-// Extracted/free-text title -> the Contacts Role select vocabulary (ROLE_OPTIONS).
-// Leans on discovery.js's roleCategory so this classification stays consistent with the
-// reachability/seniority logic used everywhere else. Strict mode, since this runs on every
-// Quick Add — including a friend/family member's free-text "what they do" with no job title
-// at all — where the lenient manager/lead catch-all would misfire (e.g. "leads a book club").
-export function roleToOption(title) {
-  switch (roleCategory(title, { strict: true })) {
-    case 'recruiter': return 'Recruiter'
-    case 'pm':        return 'PM'
-    case 'engineer':
-    case 'manager':   return 'SWE'
-    default:          return 'Other' // leader / other — no clean ROLE_OPTIONS bucket
-  }
-}
 
 // Ask the AI to resolve the ONE person the user named out of the Exa result pages, and
 // clean up their title into a plain-English descriptor. Returns null on any failure.
@@ -83,9 +69,17 @@ what they do: "${whatTheyDo || ''}"
 }
 
 // name + company + free-text "what they do" -> a review-ready contact draft.
-// profile: the rec_affinity_profile (merged with DEFAULT_PROFILE) so shared-background
-//   tags (school alum, shared employer, hometown) are computed the same way Discover does.
-// targetCompanies: rec_target_companies — used to flag "this person is at a target company".
+// Is this company on the user's target list? Exported so a caller whose enrichment threw
+// (no key, network down) can still flag the match on its fallback card.
+export function isTargetCompany(company, targetCompanies = []) {
+  const c = (company || '').trim()
+  return !!c && (targetCompanies || []).some(t => normalizeCompanyName(t) === normalizeCompanyName(c))
+}
+
+// profile: affinityProfileFor(...) (discovery.js) so shared-background tags (school alum,
+//   shared employer, hometown) are computed the same way Discover does.
+// targetCompanies: the user_settings target list (useTargetCompanies) — used to flag "this
+//   person is at a target company".
 // existingContacts: your Contacts — used to surface who else you already know there.
 export async function enrichContact({
   name, company, whatTheyDo,
@@ -124,9 +118,7 @@ export async function enrichContact({
   const { tags, isUMichAlum, schoolTagLabel } = affinityTagsFor(person, profile)
 
   // 4. How they fit into YOUR network (deterministic — no extra tokens, always reliable).
-  const targetMatch = trimmedCompany
-    ? targetCompanies.some(t => normalizeCompanyName(t) === normalizeCompanyName(trimmedCompany))
-    : false
+  const targetMatch = isTargetCompany(trimmedCompany, targetCompanies)
   const alsoAt = trimmedCompany
     ? existingContacts
         .filter(c => c.company &&

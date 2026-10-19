@@ -1,5 +1,5 @@
 import { authHeader } from './lib/supabaseClient.js'
-import { isDemoMode, DemoModeError } from './lib/demoMode.js'
+import { isDemoMode } from './lib/demoMode.js'
 import { getDemoData } from './db.js'
 
 // ── URL parsing ───────────────────────────────────────────────────────────────
@@ -8,7 +8,6 @@ export function parseGitHubInput(input) {
   input = input.trim().replace(/^https?:\/\//, '').replace(/^github\.com\//, '').replace(/\/$/, '')
   const parts = input.split('/').filter(Boolean)
   if (parts.length >= 2) return { type: 'repo', owner: parts[0], repo: parts[1] }
-  if (parts.length === 1) return { type: 'user', username: parts[0] }
   return null
 }
 
@@ -246,80 +245,4 @@ export async function fetchRepoJobs(owner, repo, branch) {
     updatedAt:   repoData.pushed_at,
     jobs,
   }
-}
-
-// ── User profile ──────────────────────────────────────────────────────────────
-
-function usernameFromInput(input) {
-  input = input.trim()
-  // Accept: "torvalds", "github.com/torvalds", "https://github.com/torvalds", "https://github.com/torvalds/"
-  const match = input.match(/(?:github\.com\/)?([a-zA-Z0-9-]+)\/?$/)
-  return match ? match[1] : null
-}
-
-async function gh(path) {
-  if (isDemoMode()) throw new DemoModeError()
-  const res = await fetch(`/gh-api${path}`, { headers: await authHeader() })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.message || `GitHub API ${res.status}`)
-  }
-  return res.json()
-}
-
-export async function fetchGitHubProfile(input) {
-  const username = usernameFromInput(input)
-  if (!username) throw new Error('Could not parse a GitHub username from that input.')
-  if (isDemoMode()) throw new DemoModeError()
-
-  const [profile, repos, events, contrib] = await Promise.allSettled([
-    gh(`/users/${username}`),
-    gh(`/users/${username}/repos?sort=pushed&per_page=8&type=owner`),
-    gh(`/users/${username}/events?per_page=50`),
-    fetch(`/gh-contrib/v4/${username}?y=last`).then(r => r.ok ? r.json() : null),
-  ])
-
-  return {
-    username,
-    profile:       profile.status       === 'fulfilled' ? profile.value       : null,
-    repos:         repos.status         === 'fulfilled' ? repos.value         : [],
-    events:        events.status        === 'fulfilled' ? events.value        : [],
-    contributions: contrib.status       === 'fulfilled' ? contrib.value       : null,
-  }
-}
-
-export function topLanguages(repos) {
-  const counts = {}
-  repos.forEach(r => { if (r.language) counts[r.language] = (counts[r.language] || 0) + 1 })
-  return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 6)
-}
-
-export function parseEvents(events) {
-  const byType = {}
-  const recent = []
-  events.forEach(e => {
-    byType[e.type] = (byType[e.type] || 0) + 1
-    if (recent.length < 10) recent.push(e)
-  })
-  return { byType, recent }
-}
-
-export function buildWeeks(contributions) {
-  if (!contributions?.contributions?.length) return []
-
-  const days = contributions.contributions
-  const weeks = []
-  let week = []
-
-  // pad first week so Sunday is index 0
-  const firstDow = new Date(days[0].date + 'T12:00:00Z').getUTCDay()
-  for (let i = 0; i < firstDow; i++) week.push(null)
-
-  days.forEach(day => {
-    const dow = new Date(day.date + 'T12:00:00Z').getUTCDay()
-    if (dow === 0 && week.length > 0) { weeks.push(week); week = [] }
-    week.push(day)
-  })
-  if (week.length) weeks.push(week)
-  return weeks
 }

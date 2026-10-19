@@ -2,6 +2,8 @@
 
 > Moved out of CLAUDE.md on 2026-10-16 (v1.3 spec 07). Dated "shipped" notes are history; check the code before trusting a detail.
 
+> **Server side (2026-10-19, v1.4 spec 06 B):** the Gmail scan's classifier and the push recap run with no browser, so they use `api/_lib/llm.js` instead of `lib/ai.js`. Same tiers (`mini`/`standard`) and the same OpenAI request shape. It picks `profiles.ai_provider`'s key and falls back to the user's other key, so a scan only skips (`skipped: 'no_ai_key'`) when the user has neither.
+
 ## AI Provider Switch (shipped 2026-07-22, defaults flipped 2026-07-23)
 
 > **Current (2026-10-12+):** the provider is per user, picked in Settings → AI provider (`profiles.ai_provider` → `lib/aiProvider.js` → `setAiProvider()` from `AuthContext`). `VITE_AI_PROVIDER` is only the default for users who haven't chosen one. The env-var instructions below still work but are no longer the main switch.

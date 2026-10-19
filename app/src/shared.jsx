@@ -17,8 +17,7 @@ export const URGENCY_COLOR = {
   LOW:  'bg-ink-100 text-ink-500',
 }
 
-// Interaction channel colors — shared by ContactDetailModal's per-contact History panel
-// and OutboxTab's cross-contact sent-mail list.
+// Interaction channel colors (the contact panel's per-contact history, Today's rows).
 export const TYPE_COLOR = {
   Email: 'bg-accent-100 text-accent-700', LinkedIn: 'bg-warning-800 text-warning-100',
   Call: 'bg-success-100 text-success-700', Meeting: 'bg-ink-200 text-ink-700', Other: 'bg-ink-100 text-ink-600',
@@ -51,7 +50,7 @@ export const INTERVIEW_STAGES = ['Phone Screen','Technical','Onsite']
 export const TERMINAL_STAGES = ['Rejected','Accepted']
 
 export const ROLE_OPTIONS = ['SWE','PM','Recruiter','Alumni','Referral','Other']
-export const SOURCE_OPTIONS = ['Coffee chat','Email','Event','Referral','LinkedIn DM']
+export const SOURCE_OPTIONS = ['Coffee chat','Email','Event','Referral','LinkedIn DM','LinkedIn import']
 export const STATUS_OPTIONS = Object.keys(STATUS_COLOR)
 export const URGENCY_OPTIONS = ['HIGH','MED','LOW']
 // Shared-background signals, distinct from ROLE_OPTIONS's 'Alumni' (which describes this

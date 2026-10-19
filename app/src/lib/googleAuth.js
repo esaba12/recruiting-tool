@@ -88,6 +88,19 @@ export async function disconnectGmail(email) {
   return res.json()
 }
 
+// Scan the signed-in user's own mailboxes now (api/gmail.js ?action=scan-mine) instead of
+// waiting for the cron tick. → { results: [{ email, scanned?, skipped?, partial?, error? }] }.
+export async function scanMyGmail() {
+  if (isDemoMode()) throw new DemoModeError()
+  const res = await fetch('/api/gmail?action=scan-mine', { method: 'POST', headers: await authHeader() })
+  if (res.status === 429) throw new Error('Scanned recently. The next automatic scan runs within 10 minutes.')
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}))
+    throw new Error(e.error?.message || 'Scan failed')
+  }
+  return res.json()
+}
+
 // Settings → "Send a test push" (api/gmail.js ?action=test-push, ./pushes.js on the server).
 export async function sendTestPush() {
   if (isDemoMode()) throw new DemoModeError()

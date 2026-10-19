@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { authHeader, supabase } from '../lib/supabaseClient.js'
 import { connectGoogleCalendar, disconnectGoogleCalendar, getGoogleCalendarStatus, linkGoogleIdentity, connectGmail, listGmailConnections, disconnectGmail, sendTestPush } from '../lib/googleAuth.js'
+import { useGmailScan, scanGmailNow } from '../lib/gmailScan.js'
 import { CALENDAR_SLOTS } from '../googleCalendar.js'
 import { fetchSchools, getUserSetting, setUserSetting, getDemoData } from '../db.js'
 import { SYNC_SETTING_KEY, DEFAULT_SYNC } from '../lib/useEventCalendarSync.js'
@@ -40,6 +41,7 @@ export default function SettingsTab({ onDone, returnLabel = 'Today', demoMode = 
   const [calStatus, setCalStatus] = useState(() => Object.fromEntries(Object.keys(CALENDAR_SLOTS).map(k => [k, { connected: false, email: null }])))
   const [connectingSlot, setConnectingSlot] = useState(null)
   const [gmailConnections, setGmailConnections] = useState([])
+  const gmailScan = useGmailScan()
   const [connectingGmail, setConnectingGmail] = useState(false)
   const [profileForm, setProfileForm] = useState(null)
   const [schools, setSchools] = useState([])
@@ -411,9 +413,9 @@ export default function SettingsTab({ onDone, returnLabel = 'Today', demoMode = 
             follow-up steps from your email — no setup beyond this one click.
           </p>
         </div>
-        {!demoMode && !keys.find(k => k.provider === 'anthropic')?.hasKey && (
+        {!demoMode && !keys.some(k => (k.provider === 'anthropic' || k.provider === 'openai') && k.hasKey) && (
           <p className="text-[11px] text-warning-700 bg-warning-50 border border-warning-200 rounded-lg px-2.5 py-1.5">
-            ⚠ Add your Anthropic key above first — scanning uses it to classify your email and silently skips
+            ⚠ Add an Anthropic or OpenAI key above first — scanning uses it to classify your email and skips
             any connected account until one is set.
           </p>
         )}
@@ -427,9 +429,24 @@ export default function SettingsTab({ onDone, returnLabel = 'Today', demoMode = 
             <Button size="sm" variant="ghost" onClick={() => handleDisconnectGmail(c.email)} disabled={demoMode}>Disconnect</Button>
           </div>
         ))}
-        <Button size="sm" variant="secondary" onClick={handleConnectGmail} disabled={connectingGmail || demoMode}>
-          {connectingGmail ? 'Redirecting...' : '+ Connect another Gmail account'}
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button size="sm" variant="secondary" onClick={handleConnectGmail} disabled={connectingGmail || demoMode}>
+            {connectingGmail ? 'Redirecting...' : '+ Connect another Gmail account'}
+          </Button>
+          {gmailConnections.length > 0 && (
+            <Button size="sm" variant="ghost" disabled={gmailScan.scanning || demoMode}
+              onClick={async () => { await scanGmailNow(); listGmailConnections().then(setGmailConnections).catch(() => {}) }}>
+              {gmailScan.scanning ? 'Scanning…' : 'Scan now'}
+            </Button>
+          )}
+          {gmailScan.error && <span className="text-[11px] text-danger-600">{gmailScan.error}</span>}
+          {!gmailScan.scanning && gmailScan.lastScan && (
+            <span className="text-[11px] text-ink-400">
+              Scanned {gmailScan.lastScan.results.reduce((n, r) => n + (r.scanned || 0), 0)} new threads
+              {gmailScan.lastScan.results.some(r => r.skipped === 'cooldown') ? ' (scanned in the last 10 minutes, so some were skipped)' : ''}
+            </span>
+          )}
+        </div>
       </section>
 
       {/* Phone pushes via ntfy.sh — api/_lib/pushes.js sends them from the Gmail scan. */}

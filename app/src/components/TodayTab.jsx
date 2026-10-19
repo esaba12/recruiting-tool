@@ -2,16 +2,12 @@ import { useState } from 'react'
 import { m } from 'motion/react'
 import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TYPE_COLOR, fmt, daysUntil, daysSince, Badge, EmptyState, isUntriaged } from '../shared.jsx'
 import { updateContact, addInteraction, updateApplicationTriage, archiveApplication, updateApplication, completeActionItem, dismissActionItem, dismissActionItems } from '../db.js'
-import { BarChart as BarChartWrapper, DonutChart, TrendChart } from './charts/lazy.jsx'
-import { useChartTheme } from './charts/theme.js'
 import { logMetWithContact } from '../lib/quickLog.js'
-import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue, awaitingReply, openActionItems, learningAttention, funnelConversions, trimActionItems, dedupeAcross } from '../lib/attention.js'
+import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue, awaitingReply, openActionItems, learningAttention, weeklyTrend, trimActionItems, dedupeAcross } from '../lib/attention.js'
 import useTodayPrefs from '../lib/useTodayPrefs.js'
-import NetworkingFlowPanel from './NetworkingFlowPanel.jsx'
 import { lastPointOfContact } from '../lib/keepInTouch.js'
 import { tieStrengthBucket } from '../lib/affinity.js'
 import { statusIconFor } from '../lib/icons.js'
-import useTimelineFinds from '../lib/useTimelineFinds.js'
 import { BUCKET_CONFIG, BUCKET_TAG, BUCKET_TO_TRIAGE } from './jobBoards/helpers.js'
 import DraftPanel from './DraftPanel.jsx'
 import TextDraftPanel from './TextDraftPanel.jsx'
@@ -20,9 +16,7 @@ import ContactPanelBody from './panels/ContactPanelBody.jsx'
 import ApplicationPanelBody from './panels/ApplicationPanelBody.jsx'
 import LogInteractionModal from './LogInteractionModal.jsx'
 import MetButton from './MetButton.jsx'
-import TimelineFindsPanel from './TimelineFindsPanel.jsx'
 import StatTileRow from './StatTileRow.jsx'
-import ApplicationFlowPanel from './ApplicationFlowPanel.jsx'
 import Mono from './ui/Mono.jsx'
 import { Section, SectionAction, RowCap } from './ui/Section.jsx'
 import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity, MailQuestion, ListTodo, Sparkles, GraduationCap } from 'lucide-react'
@@ -465,98 +459,13 @@ function DailyRecapCard({ recap, collapsed, onToggle }) {
   )
 }
 
-// Monday-anchored ISO week start, used to bucket interactions for the trend chart.
-function weekStart(d) {
-  const date = new Date(d)
-  const day = (date.getDay() + 6) % 7 // 0=Monday
-  date.setDate(date.getDate() - day)
-  date.setHours(0, 0, 0, 0)
-  return date
-}
-
-function ActivitySection({ contacts, apps, interactions, calls, collapsed, onToggle }) {
-  const chartTheme = useChartTheme()
-  const triagedApps  = apps.filter(a => !isUntriaged(a))
-  const hasRecruitingActivity = apps.length > 0
-
-  const stageCounts = {}
-  triagedApps.forEach(a => { stageCounts[a.stage] = (stageCounts[a.stage] || 0) + 1 })
-  const funnelStages = ['Wishlist','Applied','Phone Screen','Technical','Onsite','Offer']
-  const funnelData = funnelStages.map(stage => ({ label: stage, value: stageCounts[stage] || 0 }))
-
-  // Cumulative reached-stage conversion (see funnelConversions) — raw per-stage counts can exceed 100%.
-  const conversions = funnelConversions(triagedApps)
-
-  const donutData = Object.keys(STATUS_COLOR)
-    .map(status => ({ label: status, value: contacts.filter(c => c.status === status).length, color: chartTheme.status[status] }))
-    .filter(d => d.value > 0)
-
-  // Interactions over the trailing 10 weeks — a signal not visualized anywhere else today.
-  const trendWeeks = []
-  const now = weekStart(new Date())
-  for (let i = 9; i >= 0; i--) {
-    const start = new Date(now)
-    start.setDate(start.getDate() - i * 7)
-    trendWeeks.push(start)
-  }
-  const trendData = trendWeeks.map(start => {
-    const label = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    const count = interactions.filter(x => x.date && weekStart(x.date).getTime() === start.getTime()).length
-    return { label, count }
-  })
-  const hasInteractions = interactions.length > 0
-
+// The at-a-glance tiles. The charts that used to follow them moved to Pipeline → Sheet →
+// Flow and Network → Flow (v1.4 spec 05 D, charts/ActivityCharts.jsx).
+function ActivitySection({ apps, interactions, collapsed, onToggle }) {
+  const triagedApps = apps.filter(a => !isUntriaged(a))
   return (
     <Section title="Activity" accent="ink" icon={Activity} collapsed={collapsed} onToggle={onToggle}>
-      <StatTileRow triagedApps={triagedApps} apps={apps} trendData={trendData} />
-      {hasRecruitingActivity && (
-        <div className="py-3">
-          <h3 className="text-xs font-semibold text-ink-500 mb-3">Application Funnel</h3>
-          <BarChartWrapper data={funnelData} height={180} />
-          {conversions.length > 0 && (
-            <p className="text-xs text-ink-400 mt-2 flex flex-wrap gap-x-3 gap-y-1">
-              {conversions.map(c => (
-                <span key={c.to}>{c.from} → {c.to}: <span className="font-medium text-ink-600">{c.pct}%</span></span>
-              ))}
-            </p>
-          )}
-          {(stageCounts.Rejected || stageCounts.Accepted) && (
-            <p className="text-xs text-ink-400 mt-2">
-              {stageCounts.Rejected ? `${stageCounts.Rejected} rejected` : ''}
-              {stageCounts.Rejected && stageCounts.Accepted ? ' · ' : ''}
-              {stageCounts.Accepted ? `${stageCounts.Accepted} accepted` : ''}
-            </p>
-          )}
-        </div>
-      )}
-      {triagedApps.some(a => a.stage !== 'Wishlist') && (
-        <div className="py-3">
-          <h3 className="text-xs font-semibold text-ink-500 mb-3">Where Applications Went</h3>
-          <ApplicationFlowPanel apps={triagedApps} height={240}
-            footer={<span>Pipeline → Sheet → Flow to filter by any band.</span>} />
-        </div>
-      )}
-      {interactions.length > 0 && (
-        <div className="py-3">
-          <h3 className="text-xs font-semibold text-ink-500 mb-3">Where Networking Went</h3>
-          <NetworkingFlowPanel contacts={contacts} interactions={interactions} calls={calls} height={240}
-            footer={<span>Network → Flow to see who's in each band.</span>} />
-        </div>
-      )}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-3">
-        <div>
-          <h3 className="text-xs font-semibold text-ink-500 mb-3">Network by Status</h3>
-          {contacts.length === 0
-            ? <p className="text-sm text-ink-400">No contacts yet.</p>
-            : <DonutChart data={donutData} centerLabel="contacts" />}
-        </div>
-        <div>
-          <h3 className="text-xs font-semibold text-ink-500 mb-3">Networking Activity</h3>
-          {!hasInteractions
-            ? <p className="text-sm text-ink-400">No logged interactions yet — use "+ Log Interaction" in Network.</p>
-            : <TrendChart data={trendData} />}
-        </div>
-      </div>
+      <StatTileRow triagedApps={triagedApps} apps={apps} trendData={weeklyTrend(interactions)} />
     </Section>
   )
 }
@@ -593,7 +502,7 @@ function interviewPrepRows({ prep, onOpenLearn }) {
   ]
 }
 
-export default function TodayTab({ contacts, apps, interactions = [], calls = [], relationships = [], actionItems = [], dailyRecap = null, learning = null, onOpenLearn, onLogOa, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, isDemoMode = false }) {
+export default function TodayTab({ contacts, apps, interactions = [], relationships = [], actionItems = [], dailyRecap = null, learning = null, onOpenLearn, onLogOa, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, isDemoMode = false }) {
   const prefs = useTodayPrefs()
   // Declutter pass 1: AI action items that already resolved themselves (replied on the
   // thread, long expired, duplicates) never reach the list.
@@ -633,10 +542,6 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
   const [selectedAppId, setSelectedAppId] = useState(null)
   const [logContact, setLogContact] = useState(null)
   const [dismissingAll, setDismissingAll] = useState(false)
-  const {
-    pending: timelineFinds, running: timelineFindsRunning, error: timelineFindsError, meta: timelineFindsMeta,
-    scan: scanTimelineFinds, dismiss: dismissTimelineFind, updateField: updateTimelineFindField, approve: approveTimelineFind,
-  } = useTimelineFinds({ apps, calls, interactions, contacts, enabled: !isDemoMode })
 
   async function handleMet(contact) {
     await logMetWithContact(contact)
@@ -660,19 +565,10 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
 
   const selectedApp = selectedAppId ? apps.find(a => a.id === selectedAppId) : null
 
-  // useTimelineFinds is called unconditionally near the top of this component (above this
-  // gate), so its internal daily-scan effect always fires on every mount of this component
-  // regardless of which branch this function's return ultimately takes — TimelineFindsPanel
-  // itself may never mount below, but the hook's effect already ran. The gate's Timeline
-  // Finds clause reads the hook's live pending array length directly, with no separate
-  // state-synchronization step needed (unlike Plan 02-05's synced-count-state workaround,
-  // which this replaces). Timeline Finds is still short-circuited/ignored in demo mode,
-  // matching the section's own demo-mode exclusion below.
   const listCount = openItems.length + overdueContacts.length + staleApps.length + highUrgency.length
     + keepInTouch.length + needsReview.length + scheduleContacts.length + oaDueList.length
     + oaNeedsCheckList.length + awaitingReplyList.length
   const allEmpty = listCount === 0 && prepCount === 0 && eventAttention.count === 0
-    && (isDemoMode || timelineFinds.length === 0)
 
   // One snoozable feed section: collapsible heading, per-row ✕, "Clear all" hides the lot for
   // a week. Action Items pass `onClearAll` instead (they have a real dismiss).
@@ -716,7 +612,7 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
       )}
 
       {allEmpty && (!isDemoMode && isFreshAccount({ contacts, apps })
-        ? <GettingStarted hasApps={apps.length > 0} hasContacts={contacts.length > 0} />
+        ? <GettingStarted hasApps={apps.length > 0} hasContacts={contacts.length > 0} apps={apps} contacts={contacts} />
         : <EmptyState msg={snoozedHidden ? `✓ Nothing left — ${snoozedHidden} hidden for now.` : "✓ Nothing needs your attention. You're on top of it."} />)}
       {allEmpty && snoozedHidden > 0 && (
         <p className="text-center -mt-1"><button onClick={prefs.clearSnoozes} className="text-xs text-link hover:underline">Unhide them</button></p>
@@ -772,19 +668,10 @@ export default function TodayTab({ contacts, apps, interactions = [], calls = []
         </m.div>
       )}
 
-      {!isDemoMode && !allEmpty && (
-        <m.div variants={rise}>
-          <TimelineFindsPanel
-            pending={timelineFinds} running={timelineFindsRunning} error={timelineFindsError} meta={timelineFindsMeta}
-            onScan={scanTimelineFinds} onDismiss={dismissTimelineFind} onUpdateField={updateTimelineFindField} onApprove={approveTimelineFind}
-          />
-        </m.div>
-      )}
-
       <EventFeedHealth attention={eventAttention} rise={rise} fold={fold} />
 
       <m.div variants={rise}>
-        <ActivitySection contacts={contacts} apps={apps} interactions={interactions} calls={calls}
+        <ActivitySection apps={apps} interactions={interactions}
           collapsed={prefs.isCollapsed('activity')} onToggle={() => prefs.toggleCollapsed('activity')} />
       </m.div>
 

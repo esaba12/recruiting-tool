@@ -205,6 +205,32 @@ export function pickNextDeadline(apps, jobDeadlines = [], now = Date.now()) {
 
 export const FUNNEL_STAGES = ['Wishlist', 'Applied', 'Phone Screen', 'Technical', 'Onsite', 'Offer']
 
+// Monday-anchored local week start.
+function weekStart(d) {
+  const date = new Date(d)
+  date.setDate(date.getDate() - (date.getDay() + 6) % 7)
+  date.setHours(0, 0, 0, 0)
+  return date
+}
+
+// Interactions per week over the trailing `weeks` weeks, oldest first: [{ label, count }].
+// Feeds Today's Activity tile and Network → Flow's trend chart.
+export function weeklyTrend(interactions, now = Date.now(), weeks = 10) {
+  const current = weekStart(now)
+  const starts = Array.from({ length: weeks }, (_, i) => {
+    const d = new Date(current)
+    d.setDate(d.getDate() - (weeks - 1 - i) * 7)
+    return d
+  })
+  const counts = new Map(starts.map(d => [d.getTime(), 0]))
+  for (const x of interactions || []) {
+    if (!x.date) continue
+    const key = weekStart(String(x.date).length === 10 ? `${x.date}T12:00:00` : x.date).getTime()
+    if (counts.has(key)) counts.set(key, counts.get(key) + 1)
+  }
+  return starts.map(d => ({ label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), count: counts.get(d.getTime()) }))
+}
+
 // Stage-to-stage conversion on a cumulative "reached at least this stage" basis: an app at
 // Phone Screen has also reached Wishlist and Applied, so every count is >= the next one and
 // no ratio can exceed 100%. Accepted implies Offer was reached. Rejected apps are left out

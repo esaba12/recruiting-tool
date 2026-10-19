@@ -34,7 +34,7 @@ async function readJsonBody(req) {
 // mode 'direct': req.query is just this request's own query string (used for
 //   api/keys.js, api/google-connect.js — not `?path=` proxies).
 // extraParams: static query params merged in (mirrors a vercel.json rewrite's own extra
-//   params, e.g. gh-contrib's `&upstream=contrib` — see api/gh-api.js's dual-upstream branch).
+//   params, e.g. `/leetcode`'s `upstream=leetcode` — see api/gh-api.js).
 function mountApiHandler(mountPath, apiFile, mode = 'proxy', extraParams = {}) {
   const absPath = path.join(__dirname, 'api', apiFile)
   return {
@@ -75,7 +75,6 @@ export default defineConfig(({ mode }) => {
       mountApiHandler('/openai-api', 'openai.js'),
       mountApiHandler('/exa', 'exa.js'),
       mountApiHandler('/gh-api', 'gh-api.js'),
-      mountApiHandler('/gh-contrib', 'gh-api.js', 'proxy', { upstream: 'contrib' }),
       mountApiHandler('/leetcode', 'gh-api.js', 'direct', { upstream: 'leetcode' }),
       mountApiHandler('/google-calendar', 'google-calendar.js'),
       mountApiHandler('/api/keys', 'keys.js', 'direct'),

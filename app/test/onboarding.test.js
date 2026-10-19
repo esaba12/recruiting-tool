@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resumeStep, needsOnboarding, isFreshAccount, STEP_IDS } from '../src/lib/onboarding.js'
+import { resumeStep, needsOnboarding, isFreshAccount, STEP_IDS, gmailSetupState, targetSuggestions, appendOnboardingLog, ONBOARDING_LOG_MAX } from '../src/lib/onboarding.js'
 import { keyStatus } from '../src/lib/keyStatus.js'
 
 describe('onboarding helpers', () => {
@@ -42,5 +42,51 @@ describe('keyStore', () => {
     setKeyState({ userId: 'u', loading: false, keys: { exa: true } })
     expect(keyKnownMissing('exa')).toBe(false)
     expect(() => assertKey('anthropic')).toThrow(MissingKeyError)
+  })
+})
+
+// v1.4 spec 07: onboarding that ends with data on screen.
+describe('onboarding v1.4', () => {
+  it('maps the old Targets step to the new data step', () => {
+    expect(STEP_IDS).toContain('data')
+    expect(resumeStep('seed')).toBe('data')
+  })
+
+  it('gmailSetupState: none / needs a key / scanning / waiting / done', () => {
+    const never = [{ email: 'a@x.com', lastScannedAt: null }]
+    const done = [{ email: 'a@x.com', lastScannedAt: '2026-10-19T10:00:00Z' }]
+    expect(gmailSetupState({ connections: [], anyAiKey: true }).kind).toBe('none')
+    expect(gmailSetupState({ connections: null, anyAiKey: true }).kind).toBe('loading')
+    expect(gmailSetupState({ connections: never, anyAiKey: false }).kind).toBe('needsKey')
+    expect(gmailSetupState({ connections: never, anyAiKey: true, scanning: true }).kind).toBe('scanning')
+    expect(gmailSetupState({ connections: never, anyAiKey: true }).kind).toBe('waiting')
+    expect(gmailSetupState({ connections: done, anyAiKey: true })).toMatchObject({ kind: 'done', emails: ['a@x.com'] })
+    // A key status that's still loading never claims the key is missing.
+    expect(gmailSetupState({ connections: never, anyAiKey: false, keyLoading: true }).kind).toBe('waiting')
+  })
+
+  it('targetSuggestions: companies from imported apps, most recent first, deduped, capped', () => {
+    const apps = [
+      { company: 'Evercore', appliedDate: '2026-09-10' },
+      { company: 'Goldman Sachs', appliedDate: '2026-09-03' },
+      { company: 'goldman sachs ', appliedDate: '2026-09-12' },
+      { company: 'Lazard', appliedDate: null },
+      ...Array.from({ length: 20 }, (_, i) => ({ company: `Co ${i}`, appliedDate: '2026-01-01' })),
+    ]
+    const out = targetSuggestions(apps, ['Evercore'])
+    // Newest applied date first (the 9/12 Goldman row, trimmed); undated rows sort last.
+    expect(out[0]).toBe('goldman sachs')
+    expect(out[1]).toBe('Co 0')
+    expect(out).not.toContain('Evercore') // already a target
+    expect(out.filter(c => c.toLowerCase() === 'goldman sachs')).toHaveLength(1)
+    expect(out).toHaveLength(15)
+    expect(out).not.toContain('Lazard') // undated, so past the cap
+  })
+
+  it('appendOnboardingLog appends and caps', () => {
+    let log = null
+    for (let i = 0; i < ONBOARDING_LOG_MAX + 5; i++) log = appendOnboardingLog(log, { step: 'key', action: 'skip', at: i })
+    expect(log).toHaveLength(ONBOARDING_LOG_MAX)
+    expect(log.at(-1).at).toBe(ONBOARDING_LOG_MAX + 4)
   })
 })

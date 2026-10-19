@@ -11,6 +11,7 @@ import { supabase } from './lib/supabaseClient.js'
 import { ROLE_OPTIONS } from './shared.jsx'
 import { parseDay, todayLocal, addDaysLocal } from './lib/dates.js'
 import { attachStageHistory } from './lib/stageHistory.js'
+import { IMPORTED_CONNECTION_SOURCE } from './lib/keepInTouch.js'
 
 // Local calendar day, not UTC (toISOString flips to tomorrow after ~8pm Eastern).
 function todayStr() { return todayLocal() }
@@ -288,6 +289,80 @@ export async function addApplication({ company, role, jdLink, location, sourceRe
   }).select('id').single()
   throwIfError(error, 'addApplication')
   return data
+}
+
+// Bulk insert for the tracker import (lib/trackerImport.js rows), 50 per request. Imported
+// apps count as triaged (never Needs Review); the stage trigger logs each creation.
+const IMPORT_CHUNK = 50
+export async function addApplications(rows, { onProgress } = {}) {
+  const today = todayStr()
+  const record = r => {
+    const terminal = r.stage === 'Rejected' || r.stage === 'Accepted'
+    return {
+      company: r.company, role: r.role || null, stage: r.stage,
+      triage: r.stage === 'Wishlist' ? 'Applying' : 'Applied',
+      applied_date: r.appliedDate || null,
+      closed_date: terminal ? today : null,
+      last_activity: r.appliedDate || today,
+      jd_link: r.jdLink || null, location: r.location || null, notes: r.notes || null,
+    }
+  }
+  if (isDemoMode()) {
+    for (const r of rows) {
+      const rec = record(r)
+      const id = getDemoData().nextDemoId()
+      demoStore().applications.push({
+        id, company: rec.company, role: rec.role || '', stage: rec.stage, triage: rec.triage, location: rec.location || '',
+        sourceRepo: '', appliedDate: rec.applied_date, closedDate: rec.closed_date, lastActivity: rec.last_activity,
+        daysInStage: null, jdLink: rec.jd_link || '', notes: rec.notes || '', createdTime: today, referredById: null,
+      })
+      demoStore().stageEvents.push({ applicationId: id, fromStage: null, toStage: rec.stage, changedAt: new Date().toISOString(), source: 'user' })
+    }
+    onProgress?.(rows.length)
+    return rows.length
+  }
+  let done = 0
+  for (let i = 0; i < rows.length; i += IMPORT_CHUNK) {
+    const { error } = await supabase.from('applications').insert(rows.slice(i, i + IMPORT_CHUNK).map(record))
+    throwIfError(error, 'addApplications')
+    done += Math.min(IMPORT_CHUNK, rows.length - i)
+    onProgress?.(done)
+  }
+  return done
+}
+
+// Bulk insert for the LinkedIn import (parseLinkedInCsv rows). Cold, no last interaction and no
+// follow-up date: a connection isn't a conversation (lib/trackerImport.js isUntouchedImport).
+export async function addImportedContacts(rows, { onProgress } = {}) {
+  const record = r => ({
+    name: r.name, company: r.company || null, role: r.role || 'Other',
+    email: r.email || null, linkedin: r.linkedin || null,
+    source: IMPORTED_CONNECTION_SOURCE, status: '🔴 Cold', life_domain: ['Professional'],
+    notes: [r.title, r.connectedOn && `Connected on LinkedIn ${r.connectedOn}`].filter(Boolean).join(' · ') || null,
+    last_interaction: null, follow_up_date: null,
+  })
+  if (isDemoMode()) {
+    for (const r of rows) {
+      const rec = record(r)
+      demoStore().contacts.push({
+        id: getDemoData().nextDemoId(), name: rec.name, company: rec.company || '', role: rec.role, email: rec.email || '', phone: '',
+        linkedin: rec.linkedin, source: rec.source, status: rec.status, urgency: 'LOW', lastInteraction: null, followUpDate: null,
+        notes: rec.notes || '', whatTheyDid: '', referredById: null, followUpDraft: '', followUpDraftTier: null, followUpDraftKind: '',
+        isUMichAlum: false, affinity: [], lifeDomain: rec.life_domain, wantsToSchedule: false, scheduleBy: null, scheduleNote: '',
+        referralStatus: 'Not Asked', referredByName: null,
+      })
+    }
+    onProgress?.(rows.length)
+    return rows.length
+  }
+  let done = 0
+  for (let i = 0; i < rows.length; i += IMPORT_CHUNK) {
+    const { error } = await supabase.from('contacts').insert(rows.slice(i, i + IMPORT_CHUNK).map(record))
+    throwIfError(error, 'addImportedContacts')
+    done += Math.min(IMPORT_CHUNK, rows.length - i)
+    onProgress?.(done)
+  }
+  return done
 }
 
 export async function updateApplicationTriage(id, triage, currentStage) {

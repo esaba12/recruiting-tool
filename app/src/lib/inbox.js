@@ -1,7 +1,8 @@
 // Inbox — pure derivation over `interactions`. The email pipelines only log threads Claude
 // classified as recruiting/networking (UNRELATED threads are never written), so grouping the
-// type='Email' rows by Gmail thread id (channel_ref) IS the filtered inbox; nothing here
-// re-classifies. See supabase/migrations/20261007000000_inbox.sql for the per-message fields.
+// type='Email' rows by Gmail thread id (channel_ref) IS the filtered inbox (a hand-logged email
+// with no thread is a thread of one); nothing here re-classifies. See
+// supabase/migrations/20261007000000_inbox.sql for the per-message fields.
 
 import { normalizeCompanyName } from './networkGraph.js'
 
@@ -82,9 +83,11 @@ export function buildThreads({ interactions = [], contacts = [], apps = [], acti
   const appById = new Map(apps.map(a => [a.id, a]))
   const byThread = new Map()
   for (const i of interactions) {
-    if (i.type !== 'Email' || !i.channelRef) continue
-    if (!byThread.has(i.channelRef)) byThread.set(i.channelRef, [])
-    byThread.get(i.channelRef).push(i)
+    if (i.type !== 'Email') continue
+    // A hand-logged email has no Gmail thread: it's a thread of one (`manual:<id>`).
+    const key = i.channelRef || `manual:${i.id}`
+    if (!byThread.has(key)) byThread.set(key, [])
+    byThread.get(key).push(i)
   }
   const openItemsByThread = new Map()
   for (const item of actionItems) {
@@ -132,8 +135,10 @@ export function buildThreads({ interactions = [], contacts = [], apps = [], acti
     const needsReply = actionItems.length > 0 || (lastIsHumanInbound && recent && category !== 'REJECTION')
 
     const lastInbound = inbound[inbound.length - 1]
+    const manual = id.startsWith('manual:')
     threads.push({
       id,
+      manual,
       subject: subjectFor(messages),
       messages,
       last,
@@ -143,7 +148,7 @@ export function buildThreads({ interactions = [], contacts = [], apps = [], acti
       group,
       actionItems,
       needsReply,
-      unread: inbound.some(m => !m.readAt),
+      unread: !manual && inbound.some(m => !m.readAt), // you typed a manual one in, so you've read it
       hasSent,
       mailbox: messages.find(m => m.mailbox)?.mailbox || null,
       // Who to show in the list: an automated sender as itself ("Ramp Recruiting", not the
@@ -183,7 +188,9 @@ export function filterCounts(threads) {
 }
 
 // Deep link to the thread in Gmail, in the right account when several are connected.
+// Null for a hand-logged email, which has no Gmail thread.
 export function gmailThreadUrl(thread) {
+  if (thread.manual) return null
   const account = thread.mailbox ? `?authuser=${encodeURIComponent(thread.mailbox)}` : ''
   return `https://mail.google.com/mail/${account}#all/${thread.id}`
 }

@@ -3,7 +3,7 @@ import { lsGet, lsSet, timeAgo } from './jobBoards/helpers.js'
 import { normalizeCompanyName } from '../lib/networkGraph.js'
 import { discoverPeople, normUrl } from '../lib/exa.js'
 import { dueCompanies, coverageStatus, todayStr } from '../lib/discoveryScheduler.js'
-import { rankCandidates, DEFAULT_PROFILE, DEFAULT_WEIGHTS, roleCategory, affinityTagsFor } from '../lib/discovery.js'
+import { rankCandidates, DEFAULT_WEIGHTS, roleCategory, affinityTagsFor, affinityProfileFor } from '../lib/discovery.js'
 import { draftMessage } from '../lib/drafting.js'
 import { addContact, updateContact, searchContactByName } from '../db.js'
 import { useAuth } from '../lib/AuthContext.jsx'
@@ -42,8 +42,7 @@ export default function DiscoverTab({ contacts, apps, interactions, onRefresh, f
   const { profile: userProfile } = useAuth()
   // First-run seed: use the account's Settings profile (school/grad year) rather
   // than a hardcoded default, so a fresh signup's affinity scoring reflects THEM.
-  const seed = { ...DEFAULT_PROFILE, university: userProfile?.school || '', gradYear: userProfile?.grad_year || '' }
-  const [profile, setProfile]     = useState(() => ({ ...seed, ...(lsGet(PROFILE_KEY) || {}), weights: { ...DEFAULT_WEIGHTS, ...(lsGet(PROFILE_KEY)?.weights || {}) } }))
+  const [profile, setProfile]     = useState(() => affinityProfileFor(lsGet(PROFILE_KEY), userProfile))
   const [editingProfile, setEditingProfile] = useState(false)
   const [discovered, setDiscovered] = useState(() => lsGet(DISCOVERED_KEY) || {})
   const [dismissed, setDismissed] = useState(() => new Set(lsGet(DISMISSED_KEY) || []))

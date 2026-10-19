@@ -46,6 +46,17 @@ export function reconnectStatus(contact, interactions, settings = DEFAULT_CADENC
   return { cadence, dueDate, overdueDays, never: false }
 }
 
+// contacts.source for a LinkedIn connection brought in by the import (lib/trackerImport.js).
+export const IMPORTED_CONNECTION_SOURCE = 'LinkedIn import'
+
+// An imported connection you've never logged anything with: kept out of Keep in Touch and the
+// networking flow, so 400 connections don't become 400 "reconnect" nudges. Logging anything
+// with them makes them a normal contact.
+export function isUntouchedImport(contact, interactions = []) {
+  return contact.source === IMPORTED_CONNECTION_SOURCE && !contact.lastInteraction
+    && !interactions.some(i => i.contactId === contact.id)
+}
+
 // The resurfacing queue: contacts due or overdue to reconnect, most-overdue first.
 // Contacts with an explicit future Follow-Up Date are skipped — they already have a
 // concrete plan owned by the Actions tab, so surfacing them here too would double-nag.
@@ -55,6 +66,7 @@ export function keepInTouchQueue(contacts, interactions, settings = DEFAULT_CADE
     .map(c => ({ contact: c, status: reconnectStatus(c, interactions, settings) }))
     .filter(({ contact, status }) => {
       if (!status) return false
+      if (isUntouchedImport(contact, interactions)) return false // a LinkedIn connection, not a relationship yet
       if (contact.followUpDate && startOfDay(contact.followUpDate) > today) return false // has a plan
       if (status.never) return true            // never logged a touch → surface
       return status.overdueDays >= 0           // due today or overdue

@@ -1,8 +1,7 @@
 // Today's instrument-panel stat tiles (STAT-01) — small, presentation-adjacent derivations
 // built entirely on data pipelines the app already maintains (no new Supabase queries, no
 // new AI calls). This module owns the Next Deadline tile's cross-reference logic; the Funnel
-// and Activity tiles derive their numbers directly from data ActivitySection already computes,
-// so they don't need a helper here.
+// tile counts apps directly and the Activity tile reads attention.js's weeklyTrend.
 import { lsGet, jobId, daysUntilDeadline } from '../components/jobBoards/helpers.js'
 
 const DEADLINE_KEY = 'rec_job_deadlines'

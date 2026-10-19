@@ -9,7 +9,8 @@ single-tenant Notion version is legacy, kept only for the one-time migration scr
 > Personal profile and real deployment identifiers (prod URL, Supabase ref, Vercel team, secrets)
 > are in `CLAUDE.local.md` (gitignored). **This repo is public**: never put those in a tracked file.
 
-**Open work:** `.planning/v1.3-launch-and-cleanup/README.md` (status table). Roadmap history:
+**Open work:** `.planning/v1.4-useful-and-lean/README.md` (import, onboarding, custom Today,
+interview/offer dates) and `.planning/v1.3-launch-and-cleanup/README.md` (launch owner steps). Roadmap history:
 `.planning/ROADMAP.md`. Deep dives by topic: `docs/architecture/` (index at the bottom).
 
 ---
@@ -56,7 +57,8 @@ app/
     lib/               Pure logic + hooks. ai.js is the only AI entry point; ingest/ (event feeds),
                        learning/ (Learn engine), use*.js hooks mounted in AppInner
     components/        One file per tab + modals; ui/ primitives, layout/, charts/, jobBoards/,
-                       events/, learning/, onboarding/, panels/ (side-panel bodies), today/
+                       events/, import/ (tracker + LinkedIn importers), learning/, onboarding/,
+                       panels/ (side-panel bodies), today/
   api/                 12 Vercel functions (see "Rules"); _lib/ = shared server code (doesn't count toward the cap)
   test/                vitest suites + fixtures
   public/              privacy.html, terms.html, theme-init.js, Search Console file (never delete google*.html)
@@ -83,7 +85,8 @@ Pipeline · Calendar**, with Settings in the sidebar footer. `/demo` shows every
 - **No new `api/*.js` files.** Fold new routes into an existing handler (`gh-api.js ?upstream=`,
   `google-connect.js ?action=`, `gmail.js` by method) or upgrade to Vercel Pro first.
 - **AI calls** go through `lib/ai.js` (`aiJSON`/`aiText`, `AI_MODELS.MINI|STANDARD`), never
-  `claude.js`/`openai.js` directly. The one exception is vision, which uses `claude.js`. UI copy
+  `claude.js`/`openai.js` directly. The one exception is vision, which uses `claude.js`.
+  Server code with no browser (Gmail scan, push recap) uses `api/_lib/llm.js`, same tiers. UI copy
   names the provider via `aiProviderLabel()`. AI features fail soft without a key: `NeedsKey`
   explains it on buttons, and `lib/keyStore.js`'s `assertKey` guards the clients.
 - **`/demo` must never hit an auth-gated endpoint.** New data paths need a demo branch
