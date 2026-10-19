@@ -9,10 +9,10 @@ const container = { hidden: {}, show: { transition: { staggerChildren: 0.1 } } }
 const item = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } }
 
 // Read-only readouts, deliberately unboxed: a bordered tile reads as a clickable card.
-// Instrument-panel "dashboard glance" summary — 3 tiles, additive above ActivitySection's
-// existing Funnel/Donut/Trend charts, built entirely on data pipelines the caller already
-// computes (triagedApps, apps, trendData) plus the rec_job_deadlines cache. No new
-// Supabase/AI calls (STAT-01).
+// Instrument-panel "dashboard glance" summary — 3 tiles, the whole of Today's Activity section
+// since its charts moved to the Flow views (v1.4 spec 05 D). Built on data the caller already
+// has (triagedApps, apps, trendData) plus the rec_job_deadlines cache. No new Supabase/AI
+// calls (STAT-01).
 export default function StatTileRow({ triagedApps, apps, trendData }) {
   const appliedOrBeyond = triagedApps.filter(a => a.stage !== 'Wishlist').length
   const pct = triagedApps.length ? Math.round((appliedOrBeyond / triagedApps.length) * 100) : 0
@@ -28,7 +28,7 @@ export default function StatTileRow({ triagedApps, apps, trendData }) {
       variants={container}
       initial="hidden"
       animate="show"
-      className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-0 md:divide-x divide-ink-200 pb-4 mb-4 border-b border-ink-200"
+      className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-0 md:divide-x divide-ink-200 py-1"
     >
       {/* Tile 1: Funnel */}
       <m.div variants={item} className="md:px-5 md:first:pl-0 md:last:pr-0">

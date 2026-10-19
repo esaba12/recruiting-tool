@@ -63,8 +63,8 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 | 02 | [Interview and offer dates become fields](02-interview-offer-dates.md) | 🤖 + `clasp push` | **yes** | open |
 | 03 | [After the interview: thank-you nudges](03-thank-you.md) | 🤖 | no (uses 02) | open |
 | 04 | [Offer decisions](04-offer-decisions.md) | 🤖 | no (uses 02) | open |
-| 05 | [Cut duplicates](05-cuts.md) | 🤖 | no | open |
-| 06 | [Fixes from the review](06-fixes.md) | 🤖 | no | open |
+| 05 | [Cut duplicates](05-cuts.md) | 🤖 | no | ✅ done 2026-10-19 |
+| 06 | [Fixes from the review](06-fixes.md) | 🤖 | no | A, B ✅; C in progress |
 | 07 | [Onboarding that ends with data on screen](07-onboarding.md) | 🤖 | no | open |
 | 08 | [A Today you arrange yourself](08-custom-today.md) | 🤖, one new dependency (@dnd-kit) | no | open |
 

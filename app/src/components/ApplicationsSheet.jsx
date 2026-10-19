@@ -15,6 +15,7 @@ import SidePanel from './ui/SidePanel.jsx'
 import ApplicationPanelBody from './panels/ApplicationPanelBody.jsx'
 import Mono from './ui/Mono.jsx'
 import ApplicationFlowPanel from './ApplicationFlowPanel.jsx'
+import { ApplicationFunnel } from './charts/ActivityCharts.jsx'
 
 // Pipeline → Sheet. A spreadsheet over every application: sort, filter, show/hide
 // columns, edit cells in place (arrows / Enter / Esc / Tab, or just start typing), add
@@ -408,6 +409,7 @@ export default function ApplicationsSheet({ apps, contacts = [], interactions = 
 
       {showFlow && (
         <div className="mb-3 bg-surface border border-ink-300 rounded-sm px-4 pt-3 pb-2">
+          <ApplicationFunnel apps={base} />
           <ApplicationFlowPanel apps={base}
             selectedLabel={pick?.label}
             onSelect={p => { setPick(cur => cur?.label === p.label ? null : p); setActive(null) }}

@@ -1,5 +1,7 @@
 # 06 — Fixes from the review
 
+**Status:** A and B ✅ done 2026-10-19 (`e323879`); C (docs rewrite) next, after 05.
+
 **Who:** 🤖. **Migration:** none. Land first: small, and A is a bug friends would hit.
 
 ## A. Quick Add never flags target companies

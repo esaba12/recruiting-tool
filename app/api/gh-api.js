@@ -2,11 +2,8 @@
 // public 60/hr ceiling) — unlike the AI/Exa proxies, this still works with no
 // BYOK key set, just at the lower unauthenticated rate limit.
 //
-// Also handles the old api/gh-contrib.js proxy (github-contributions-api.jogruber.de,
-// public, no auth) — folded in here (via vercel.json's rewrite passing `?upstream=contrib`)
-// to stay under Vercel Hobby's 12-serverless-function cap. That upstream is fully public,
-// so its branch below deliberately skips requireUser()/rate-limiting/the path allowlist —
-// same no-auth-gate behavior the standalone file always had.
+// The unauthenticated `?upstream=contrib` branch (a third-party contribution-graph API) went
+// with the Job Boards GitHub profile lookup in v1.4 spec 05 B.
 import { requireUser } from './_lib/supabaseAdmin.js'
 import { getUserKey } from './_lib/keys.js'
 import { checkRateLimit, sendRateLimited } from './_lib/rateLimit.js'
@@ -19,15 +16,6 @@ function extraQuery(query) {
 }
 
 export default async function handler(req, res) {
-  if (req.query.upstream === 'contrib') {
-    const target = `https://github-contributions-api.jogruber.de/${req.query.path || ''}${extraQuery(req.query)}`
-    const upstream = await fetch(target)
-    const data = await upstream.text()
-    res.status(upstream.status)
-    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'application/json')
-    return res.send(data)
-  }
-
   const user = await requireUser(req)
   if (!user) return res.status(401).json({ error: { message: 'Not authenticated' } })
 
@@ -35,7 +23,7 @@ export default async function handler(req, res) {
   if (rl.limited) return sendRateLimited(res, rl.retryAfter)
 
   // LeetCode public GraphQL (Learn tab import) — also folded in here for the function cap.
-  // Unlike contrib it IS auth-gated + rate-limited, and only runs server-owned queries
+  // Auth-gated + rate-limited like the rest, and only runs server-owned queries
   // (see _lib/leetcode.js) — the client sends { op, username | slugs }, never GraphQL.
   if (req.query.upstream === 'leetcode') {
     if (req.method !== 'POST') return res.status(405).json({ error: { message: 'POST only' } })
@@ -56,7 +44,8 @@ export default async function handler(req, res) {
   }
 
   const path = req.query.path || ''
-  if (!/^(repos|users|orgs)\//.test(path)) {
+  // repos/ (job boards, company prep) and orgs/ (Explore's GitHub badge) only.
+  if (!/^(repos|orgs)\//.test(path)) {
     return res.status(403).json({ error: { message: 'Path not allowed' } })
   }
 

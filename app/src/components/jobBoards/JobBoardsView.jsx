@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
-import { fetchGitHubProfile, fetchRepoJobs, parseGitHubInput } from '../../github.js'
+import { fetchRepoJobs, parseGitHubInput } from '../../github.js'
 import { pullAllBoards, getTrackedBoards } from './boardsRegistry.js'
 import { isDemoMode } from '../../lib/demoMode.js'
 import { recordPostingSnapshot } from '../../lib/hiringVelocity.js'
 import { EmptyState } from '../../shared.jsx'
 import RepoJobsView from './RepoJobsView.jsx'
-import UserProfileView from './UserProfileView.jsx'
 import TrackedBoardsPanel from './TrackedBoardsPanel.jsx'
 
 export default function JobBoardsView({ apps, onImported }) {
@@ -44,17 +43,11 @@ export default function JobBoardsView({ apps, onImported }) {
     const val = (raw || input).trim()
     if (!val) return
     const parsed = parseGitHubInput(val)
-    if (!parsed) { setError('Could not parse that GitHub URL.'); return }
+    if (!parsed) { setError('Paste a repo, e.g. SimplifyJobs/Summer2026-Internships'); return }
     setLoading(true); setError(null); setData(null)
     try {
-      let result
-      if (parsed.type === 'repo') {
-        result = { mode: 'repo', ...(await fetchRepoJobs(parsed.owner, parsed.repo)) }
-      } else {
-        result = { mode: 'user', ...(await fetchGitHubProfile(val)) }
-      }
-      setData(result)
-      const key = parsed.type === 'repo' ? `${parsed.owner}/${parsed.repo}` : parsed.username
+      setData({ mode: 'repo', ...(await fetchRepoJobs(parsed.owner, parsed.repo)) })
+      const key = `${parsed.owner}/${parsed.repo}`
       setHistory(h => [key, ...h.filter(x => x !== key)].slice(0, 8))
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
@@ -66,14 +59,14 @@ export default function JobBoardsView({ apps, onImported }) {
 
       <div>
         <button onClick={() => setShowAdHoc(s => !s)} className="text-xs text-ink-400 hover:text-ink-600">
-          {showAdHoc ? '▲ hide' : '▼ or look up a single repo / GitHub profile'}
+          {showAdHoc ? '▲ hide' : '▼ or look up a single repo'}
         </button>
         {showAdHoc && (
           <div className="mt-2 space-y-3">
             <div className="flex gap-2">
               <input value={input} onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && lookup()}
-                placeholder="github.com/speedyapply/2027-SWE-College-Jobs  or  github.com/username"
+                placeholder="github.com/speedyapply/2027-SWE-College-Jobs"
                 className="flex-1 px-4 py-2.5 border border-ink-200 rounded-xl text-sm focus:outline-none focus:border-accent-400 focus:ring-1 focus:ring-accent-200" />
               <button onClick={() => lookup()} disabled={loading || !input.trim()}
                 className="px-5 py-2.5 bg-ink-900 text-on-fill text-sm rounded-xl hover:bg-ink-800 disabled:opacity-40 font-medium transition-colors">
@@ -99,7 +92,6 @@ export default function JobBoardsView({ apps, onImported }) {
 
       {(data?.mode === 'repo' || data?.mode === 'boards') &&
         <RepoJobsView data={data} apps={apps} onImported={onImported} onClear={() => { setData(null); setInput('') }} />}
-      {data?.mode === 'user'  && <UserProfileView data={data} onClear={() => { setData(null); setInput('') }} />}
     </div>
   )
 }

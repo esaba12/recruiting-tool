@@ -14,16 +14,32 @@ const contacts = [{ id: 'c1', name: 'Priya Shah', company: 'Stripe' }]
 const apps = [{ id: 'a1', company: ' stripe ', role: 'SWE Intern', stage: 'Phone Screen' }]
 
 describe('buildThreads', () => {
-  it('groups by thread, ignores non-email and threadless rows, newest thread first', () => {
+  it('groups by thread, ignores non-email rows, newest thread first', () => {
     const threads = buildThreads({ now: NOW, contacts, interactions: [
       email({ channelRef: 'old', sentAt: at(5) }),
       email({ channelRef: 'new', sentAt: at(1) }),
       email({ channelRef: 'new', sentAt: at(2), direction: 'Outbound', fromAddress: 'me@x.com' }),
       { id: 'x', type: 'Call', channelRef: 'new' },
-      email({ channelRef: '' }),
     ] })
     expect(threads.map(t => t.id)).toEqual(['new', 'old'])
     expect(threads[0].messages.map(m => m.direction)).toEqual(['Outbound', 'Inbound'])
+  })
+
+  // v1.4 spec 05 A: Outbox is gone, so hand-logged emails (no Gmail thread) live in Inbox.
+  it('turns each hand-logged email into its own manual thread: no Gmail link, never unread', () => {
+    const threads = buildThreads({ now: NOW, contacts, interactions: [
+      email({ channelRef: 't1', sentAt: at(1) }),
+      email({ id: 'm1', channelRef: '', direction: 'Outbound', sentAt: at(3), summary: 'Sent my resume to Priya' }),
+      email({ id: 'm2', channelRef: null, direction: 'Inbound', sentAt: at(4) }),
+    ] })
+    expect(threads.map(t => t.id)).toEqual(['t1', 'manual:m1', 'manual:m2'])
+    const [, sent, received] = threads
+    expect(sent.manual).toBe(true)
+    expect(sent.hasSent).toBe(true)
+    expect(sent.subject).toBe('Hello')
+    expect(received.unread).toBe(false)
+    expect(gmailThreadUrl(sent)).toBeNull()
+    expect(filterThreads(threads, 'sent').map(t => t.id)).toEqual(['manual:m1'])
   })
 
   it('uses the newest classification and strips Re:/Fwd: from the subject', () => {

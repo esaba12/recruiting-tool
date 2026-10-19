@@ -1,5 +1,10 @@
 # 05 — Cut duplicates
 
+**Status:** ✅ done 2026-10-19 on `feat/v1.4-pre-invite`. Deviations: Inbox now shows hand-logged
+emails as one-message threads (Outbox was their only list); the `gh-api` allowlist dropped `users/`;
+Network's Table view is now labelled "People" (it's cards on phones); the bar chart got top headroom
+for its value labels.
+
 **Who:** 🤖, plus one owner decision (C). **Migration:** none. Land before the invite goes out.
 
 Each cut lists its evidence. Nothing here removes a capability that has no other home.
@@ -42,8 +47,9 @@ key, for a section most days will show empty. It's about 400 lines (`timelineFin
 `useTimelineFinds.js`, `timeline.js` if it's only used here, `TimelineFindsPanel.jsx`) plus
 `rec_timeline_*` keys.
 
-Delete it and its Today wiring (`TodayTab.jsx:14,23`). Drop `rec_timeline_*` via `lsSet(key, null)`
-once on load, so stale keys don't linger.
+Delete it and its Today wiring (`TodayTab.jsx:14,23`). `lib/timeline.js` stays: Calendar's Feed
+view uses it. The two orphaned `rec_timeline_*` keys are left alone, since `scopedStorage` has no
+remove, and they're harmless.
 
 ## D. Today's Activity block (move, don't delete)
 

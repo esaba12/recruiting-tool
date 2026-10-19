@@ -118,14 +118,20 @@ function Reader({ thread, onBack, onToggleRead, onCompleteItem }) {
         <button onClick={onBack} className="md:hidden -ml-2 p-1.5 rounded text-ink-500 hover:bg-ink-100" aria-label="Back to inbox">
           <ArrowLeft size={18} />
         </button>
-        <button onClick={() => onToggleRead(thread, thread.unread)}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-ink-600 border border-ink-200 hover:border-ink-400">
-          {thread.unread ? <><MailOpen size={13} /> Mark read</> : <><Mail size={13} /> Mark unread</>}
-        </button>
-        <a href={gmailThreadUrl(thread)} target="_blank" rel="noreferrer"
-          className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold bg-accent-500 text-on-accent hover:bg-accent-600">
-          <Reply size={13} /> Reply in Gmail
-        </a>
+        {thread.manual ? (
+          <span className="ml-auto text-xs text-ink-400">Logged by hand</span>
+        ) : (
+          <>
+            <button onClick={() => onToggleRead(thread, thread.unread)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-ink-600 border border-ink-200 hover:border-ink-400">
+              {thread.unread ? <><MailOpen size={13} /> Mark read</> : <><Mail size={13} /> Mark unread</>}
+            </button>
+            <a href={gmailThreadUrl(thread)} target="_blank" rel="noreferrer"
+              className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold bg-accent-500 text-on-accent hover:bg-accent-600">
+              <Reply size={13} /> Reply in Gmail
+            </a>
+          </>
+        )}
       </div>
 
       <div className="px-6 py-6 max-w-2xl">

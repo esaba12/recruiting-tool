@@ -83,7 +83,7 @@ export default function useRecruitingEvents({ enabled = true, profile, targets =
   const userEventsById = useMemo(() => new Map(myState.userEvents.map(u => [u.eventId, u])), [myState.userEvents])
   const sorted = useMemo(() => sortByRelevance(events, relevanceView), [events, relevanceView])
 
-  // ── actions (functional state updates — same WR-09 discipline as useTimelineFinds) ──
+  // ── actions (functional state updates — so a mid-flight update never clobbers a newer one) ──
   async function setStatus(eventId, status) {
     const ev = events.find(e => e.id === eventId)
     if (!canSetStatus(status, ev?.requirements || [], myState.completions)) {

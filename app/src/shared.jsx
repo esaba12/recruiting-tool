@@ -17,8 +17,7 @@ export const URGENCY_COLOR = {
   LOW:  'bg-ink-100 text-ink-500',
 }
 
-// Interaction channel colors — shared by ContactDetailModal's per-contact History panel
-// and OutboxTab's cross-contact sent-mail list.
+// Interaction channel colors (the contact panel's per-contact history, Today's rows).
 export const TYPE_COLOR = {
   Email: 'bg-accent-100 text-accent-700', LinkedIn: 'bg-warning-800 text-warning-100',
   Call: 'bg-success-100 text-success-700', Meeting: 'bg-ink-200 text-ink-700', Other: 'bg-ink-100 text-ink-600',
