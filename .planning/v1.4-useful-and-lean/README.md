@@ -65,7 +65,7 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 | 04 | [Offer decisions](04-offer-decisions.md) | 🤖 | no (uses 02) | open |
 | 05 | [Cut duplicates](05-cuts.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20) |
 | 06 | [Fixes from the review](06-fixes.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20) |
-| 07 | [Onboarding that ends with data on screen](07-onboarding.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20); browser check of the wizard pending (needs a fresh account) |
+| 07 | [Onboarding that ends with data on screen](07-onboarding.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20), smoke-tested on prod; live first scan untested until a real Gmail connect |
 | 08 | [A Today you arrange yourself](08-custom-today.md) | 🤖, one new dependency (@dnd-kit) | no | open |
 
 **Order:** 06 → 05 → 01 → 07 → *invite* → 08 → 02 → 03 → 04.
