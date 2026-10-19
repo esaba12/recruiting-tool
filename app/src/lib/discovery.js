@@ -27,6 +27,14 @@ export const DEFAULT_PROFILE = {
   weights: { ...DEFAULT_WEIGHTS },
 }
 
+// The affinity profile every caller should score with: the stored Discover profile
+// (rec_affinity_profile) over a seed from the account's own school/grad year, so a user
+// who has never opened Discover still gets their school's alum tag.
+export function affinityProfileFor(stored, authProfile) {
+  const seed = { ...DEFAULT_PROFILE, university: authProfile?.school || '', gradYear: authProfile?.grad_year || '' }
+  return { ...seed, ...(stored || {}), weights: { ...DEFAULT_WEIGHTS, ...(stored?.weights || {}) } }
+}
+
 const norm = s => (s || '').trim().toLowerCase()
 
 // Coarse seniority/role bucket from a job title (or a Contacts Role select). Drives both

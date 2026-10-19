@@ -14,7 +14,7 @@ import { checkRateLimit, sendRateLimited } from './_lib/rateLimit.js'
 import { GMAIL_OAUTH_SCOPE, gmailRedirectUri, escapeHtml, issueOAuthNonce, consumeOAuthNonce, baseUrl } from './_lib/googleOAuth.js'
 import { scanGmailConnection, orderConnections } from './_lib/emailPipeline.js'
 import { runUserPushes, pushSettingsFor, sendPush } from './_lib/pushes.js'
-import { getUserKey } from './_lib/keys.js'
+import { llmForUser } from './_lib/llm.js'
 
 const STATE_TTL_MS = 10 * 60 * 1000
 const SCAN_COOLDOWN_MS = 9 * 60 * 1000 // slightly under the ~10-min pinger interval
@@ -143,8 +143,9 @@ async function handleScan(req, res) {
   for (const [userId, newPushes] of pushesByUser) {
     if (Date.now() >= deadline) { pushes.push({ skipped: 'budget' }); continue }
     try {
-      const anthropicKey = await getUserKey(userId, 'anthropic')
-      pushes.push(await runUserPushes(db, userId, newPushes, { anthropicKey, click: baseUrl(req) }))
+      const { data: profile } = await db.from('profiles').select('ai_provider').eq('id', userId).maybeSingle()
+      const llm = await llmForUser(userId, profile?.ai_provider)
+      pushes.push(await runUserPushes(db, userId, newPushes, { llm, click: baseUrl(req) }))
     } catch (e) {
       pushes.push({ error: e.message })
     }

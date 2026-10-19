@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Sparkles, Loader2, Target, GraduationCap, Users, Globe, Link2 } from 'lucide-react'
 import { searchContactByName, addContact, updateContact } from '../db.js'
-import { enrichContact, fitSummary } from '../lib/enrichment.js'
-import { DEFAULT_PROFILE, DEFAULT_WEIGHTS } from '../lib/discovery.js'
+import { enrichContact, fitSummary, isTargetCompany } from '../lib/enrichment.js'
+import { affinityProfileFor } from '../lib/discovery.js'
+import { useTargetCompanies } from '../lib/useTargetCompanies.js'
+import { useAuth } from '../lib/AuthContext.jsx'
 import { ROLE_OPTIONS, LIFE_DOMAIN_OPTIONS } from '../shared.jsx'
 import { lsGet } from '../lib/scopedStorage.js'
 import Modal from './ui/Modal.jsx'
@@ -10,7 +12,6 @@ import Button from './ui/Button.jsx'
 import ChipToggleGroup from './ui/ChipToggleGroup.jsx'
 
 const PROFILE_KEY = 'rec_affinity_profile'   // shared with DiscoverTab
-const TARGETS_KEY = 'rec_target_companies'   // shared with Coverage/Discover
 
 // The fastest possible "add someone I know" path: type name + where they work + what they
 // do, hit ✨ Auto-fill, and the enrichment engine (Exa public-web + Claude) fills in the
@@ -29,6 +30,8 @@ export default function QuickAddContactModal({ contacts = [], onClose, onSaved, 
   const [draft, setDraft]     = useState(null)    // enriched, editable
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState(null)
+  const { profile: authProfile } = useAuth()
+  const { targets } = useTargetCompanies()
 
   const set = (key, val) => setDraft(d => ({ ...d, [key]: val }))
   function toggleLifeDomain(tag) {
@@ -45,12 +48,10 @@ export default function QuickAddContactModal({ contacts = [], onClose, onSaved, 
     if (!name.trim()) { setError('Name is required'); return }
     setStep('enriching'); setError(null)
     try {
-      const stored = lsGet(PROFILE_KEY)
-      const profile = { ...DEFAULT_PROFILE, ...(stored || {}), weights: { ...DEFAULT_WEIGHTS, ...(stored?.weights || {}) } }
-      const targetCompanies = lsGet(TARGETS_KEY) || []
+      const profile = affinityProfileFor(lsGet(PROFILE_KEY), authProfile)
       const result = await enrichContact({
         name, company, whatTheyDo: role,
-        profile, targetCompanies, existingContacts: contacts,
+        profile, targetCompanies: targets, existingContacts: contacts,
       })
       setDraft({ ...result, email: '', referredById: '', lifeDomain: defaultLifeDomain(result.targetMatch, result.company) })
       setStep('review')
@@ -60,8 +61,8 @@ export default function QuickAddContactModal({ contacts = [], onClose, onSaved, 
       setDraft({
         name: name.trim(), company: company.trim(), role: 'Other', title: role.trim(),
         descriptor: '', linkedin: '', email: '', affinity: [], isUMichAlum: false,
-        targetMatch: false, alsoAt: [], enrichedFromWeb: false, exaError: e.message, referredById: '',
-        lifeDomain: defaultLifeDomain(false, company.trim()),
+        targetMatch: isTargetCompany(company, targets), alsoAt: [], enrichedFromWeb: false, exaError: e.message, referredById: '',
+        lifeDomain: defaultLifeDomain(isTargetCompany(company, targets), company.trim()),
       })
       setStep('review')
     }

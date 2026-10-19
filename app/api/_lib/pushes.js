@@ -8,6 +8,8 @@
 // The queue and the sent-slot marks live in user_settings 'push_state', so no schema change.
 // Fail-soft everywhere: a push problem never fails the email scan.
 
+import { completeJSON } from './llm.js'
+
 const NTFY_BASE = 'https://ntfy.sh'
 const PUSH_RETRY_ATTEMPTS = 3
 const PUSH_RETRY_DELAY_MS = 1500
@@ -22,7 +24,6 @@ const PUSH_QUEUE_MAX = 40
 const PRIORITY_RANK = { min: 0, low: 1, default: 2, high: 3, urgent: 4 }
 const NTFY_PRIORITY = { min: 1, low: 2, default: 3, high: 4, urgent: 5 }
 const DEFAULT_TIME_ZONE = 'America/New_York'
-const RECAP_MODEL = 'claude-sonnet-4-6'
 
 // ntfy topic names: letters, digits, _ and -, up to 64 chars. Anything else could reach a
 // different ntfy path, so it's refused rather than escaped.
@@ -180,9 +181,9 @@ async function openOas(db, userId) {
   return data || []
 }
 
-// One Sonnet call over the day's raw facts → { summary, todos }, also written to daily_recaps
+// One standard-tier call (the user's provider, see llm.js) over the day's raw facts → { summary, todos }, also written to daily_recaps
 // for Today's recap card. Null when there's nothing to recap.
-async function dailyRecap(db, userId, apiKey, { now, today, fetch }) {
+async function dailyRecap(db, userId, llm, { now, today, fetch }) {
   const since = new Date(now - 86400000).toISOString()
   const cutoff = new Date(now - 60 * 86400000).toISOString().slice(0, 10)
   const q = (table, cols) => db.from(table).select(cols).eq('user_id', userId)
@@ -208,22 +209,13 @@ async function dailyRecap(db, userId, apiKey, { now, today, fetch }) {
 
 Today's raw data (JSON):
 ${JSON.stringify(bundle)}`
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: RECAP_MODEL, max_tokens: 800, messages: [{ role: 'user', content: prompt }] }),
-  })
-  if (!res.ok) throw new Error(`recap: Claude ${res.status}`)
-  const text = (await res.json()).content?.[0]?.text || ''
-  const match = text.match(/\{[\s\S]*\}/)
-  if (!match) throw new Error('recap: no JSON in response')
-  const { summary, todos = [] } = JSON.parse(match[0])
+  const { summary, todos = [] } = await completeJSON(llm, { tier: 'standard', prompt, maxTokens: 800, fetch })
   await db.from('daily_recaps').upsert({ user_id: userId, date: today, summary_text: summary, todo_json: todos }, { onConflict: 'user_id,date' })
   return { summary, todos }
 }
 
 // One user's pushes for this cron tick. `newPushes` are the update pushes the scan built.
-export async function runUserPushes(db, userId, newPushes, { anthropicKey, click, now = Date.now(), fetch = globalThis.fetch, sleep } = {}) {
+export async function runUserPushes(db, userId, newPushes, { llm, click, now = Date.now(), fetch = globalThis.fetch, sleep } = {}) {
   const settings = await pushSettingsFor(db, userId)
   if (!settings) return { skipped: 'no_topic' }
   const state = (await getSetting(db, userId, 'push_state')) || {}
@@ -239,8 +231,8 @@ export async function runUserPushes(db, userId, newPushes, { anthropicKey, click
     const today = localClock(now, settings.timeZone).date
     const oa = oaDigest(await openOas(db, userId), today)
     let recap = null
-    if (anthropicKey) {
-      try { recap = await dailyRecap(db, userId, anthropicKey, { now, today, fetch }) } catch (e) { console.error(e.message) }
+    if (llm) {
+      try { recap = await dailyRecap(db, userId, llm, { now, today, fetch }) } catch (e) { console.error(e.message) }
     }
     const push = buildDigest({ slot: plan.slot, recap, oa, updates: queue, click })
     const sent = push ? await send(push) : true

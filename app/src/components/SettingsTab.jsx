@@ -411,9 +411,9 @@ export default function SettingsTab({ onDone, returnLabel = 'Today', demoMode = 
             follow-up steps from your email — no setup beyond this one click.
           </p>
         </div>
-        {!demoMode && !keys.find(k => k.provider === 'anthropic')?.hasKey && (
+        {!demoMode && !keys.some(k => (k.provider === 'anthropic' || k.provider === 'openai') && k.hasKey) && (
           <p className="text-[11px] text-warning-700 bg-warning-50 border border-warning-200 rounded-lg px-2.5 py-1.5">
-            ⚠ Add your Anthropic key above first — scanning uses it to classify your email and silently skips
+            ⚠ Add an Anthropic or OpenAI key above first — scanning uses it to classify your email and skips
             any connected account until one is set.
           </p>
         )}

@@ -1,8 +1,8 @@
 // Multi-tenant port of scripts/email-pipeline.js (Google Apps Script) — same discovery
 // queries, same networking-aware classification prompt, same upsert/dedup logic, just a
 // different transport: Gmail REST API instead of GmailApp, @supabase/supabase-js instead of
-// raw PostgREST UrlFetchApp calls, and each user's own BYOK Anthropic key (getUserKey())
-// instead of one hardcoded ANTHROPIC_API_KEY.
+// raw PostgREST UrlFetchApp calls, and each user's own BYOK key (Anthropic or OpenAI, via
+// ./llm.js) instead of one hardcoded ANTHROPIC_API_KEY.
 //
 // Invite parsing is v1.3 spec 12 (./ics.js). The scan also returns the update pushes it
 // built (./pushes.js statusPush); api/gmail.js sends them, with the digests and daily recap,
@@ -10,7 +10,7 @@
 // (./interviewEvent.js) when the user has a Calendar connected.
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { decrypt } from './crypto.js'
-import { getUserKey } from './keys.js'
+import { llmForUser, completeJSON } from './llm.js'
 import { parseInvite, findCalendarPart } from './ics.js'
 import { statusPush, isFreshEnoughToPush } from './pushes.js'
 import { shouldCreateInterviewEvent, createInterviewEvent, calendarRefreshToken } from './interviewEvent.js'
@@ -398,7 +398,7 @@ it has a Google Meet/Zoom link or a calendar invite. Calendar notifications ("In
 classified the same way as the original. When unsure, choose networking: a false interview moves
 the application to Phone Screen and puts an interview on the calendar.`
 
-async function classifyEmail(apiKey, { subject, from, body, date, meetingLink, invite, bulk, extraHints, profile }) {
+async function classifyEmail(llm, { subject, from, body, date, meetingLink, invite, bulk, extraHints, profile }) {
   const inviteHintText = inviteHint(invite, subject)
   const linkHint = meetingLink ? `\n\nA video meeting link was found in this email: ${meetingLink}` : ''
   const bulkHint = bulk ? '\n\nThis email has mailing-list headers (List-Unsubscribe / bulk precedence): it was sent to a list, so it is almost certainly not personal outreach — "personal" should be false.' : ''
@@ -474,25 +474,7 @@ Date: ${date}
 Body:
 ${body}`
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 700,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  })
-  if (!resp.ok) throw new Error(`Claude ${resp.status}: ${(await resp.text()).slice(0, 200)}`)
-  const json = await resp.json()
-  const text = json.content[0].text
-  const match = text.match(/\{[\s\S]*\}/)
-  if (!match) throw new Error('No JSON in Claude response')
-  return JSON.parse(match[0])
+  return completeJSON(llm, { tier: 'mini', prompt, maxTokens: 700 })
 }
 
 // ── Supabase writes (ported from the raw-PostgREST version to real supabase-js calls) ───
@@ -657,12 +639,13 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
   const userId = connection.user_id
   const myEmail = connection.connected_email.toLowerCase()
 
-  const anthropicKey = await getUserKey(userId, 'anthropic')
-  if (!anthropicKey) {
-    return { threadProgress: connection.thread_progress || {}, cursor: connection.scan_cursor || null, scanned: 0, skipped: 'no_anthropic_key' }
+  // Recruiting tracks shape the classifier prompt (candidateFraming / trackGuidance);
+  // ai_provider picks which of the user's keys classifies (either works, see llm.js).
+  const { data: profile } = await db.from('profiles').select('tracks, focus, school_id, ai_provider').eq('id', userId).maybeSingle()
+  const llm = await llmForUser(userId, profile?.ai_provider)
+  if (!llm) {
+    return { threadProgress: connection.thread_progress || {}, cursor: connection.scan_cursor || null, scanned: 0, skipped: 'no_ai_key' }
   }
-  // Recruiting tracks shape the classifier prompt (candidateFraming / trackGuidance).
-  const { data: profile } = await db.from('profiles').select('tracks, focus, school_id').eq('id', userId).maybeSingle()
   // Interview events land in the campus zone when there is one (schools.timezone).
   const { data: school } = profile?.school_id
     ? await db.from('schools').select('timezone').eq('id', profile.school_id).maybeSingle()
@@ -714,7 +697,7 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
       const shapeHint = recruitingShapeHint(msg.from, msg.subject, msg.plainBody)
       const networkingHint = networkingShapeHint(msg.subject, msg.plainBody)
 
-      const data = await classifyEmail(anthropicKey, {
+      const data = await classifyEmail(llm, {
         subject: msg.subject, from: msg.from, body: msg.plainBody,
         date: msg.date.toISOString().slice(0, 10), meetingLink, invite, bulk: msg.bulk,
         extraHints: applicationHint + referralHint + oaHint + companyHint + shapeHint + networkingHint,

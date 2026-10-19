@@ -83,9 +83,17 @@ what they do: "${whatTheyDo || ''}"
 }
 
 // name + company + free-text "what they do" -> a review-ready contact draft.
-// profile: the rec_affinity_profile (merged with DEFAULT_PROFILE) so shared-background
-//   tags (school alum, shared employer, hometown) are computed the same way Discover does.
-// targetCompanies: rec_target_companies — used to flag "this person is at a target company".
+// Is this company on the user's target list? Exported so a caller whose enrichment threw
+// (no key, network down) can still flag the match on its fallback card.
+export function isTargetCompany(company, targetCompanies = []) {
+  const c = (company || '').trim()
+  return !!c && (targetCompanies || []).some(t => normalizeCompanyName(t) === normalizeCompanyName(c))
+}
+
+// profile: affinityProfileFor(...) (discovery.js) so shared-background tags (school alum,
+//   shared employer, hometown) are computed the same way Discover does.
+// targetCompanies: the user_settings target list (useTargetCompanies) — used to flag "this
+//   person is at a target company".
 // existingContacts: your Contacts — used to surface who else you already know there.
 export async function enrichContact({
   name, company, whatTheyDo,
@@ -124,9 +132,7 @@ export async function enrichContact({
   const { tags, isUMichAlum, schoolTagLabel } = affinityTagsFor(person, profile)
 
   // 4. How they fit into YOUR network (deterministic — no extra tokens, always reliable).
-  const targetMatch = trimmedCompany
-    ? targetCompanies.some(t => normalizeCompanyName(t) === normalizeCompanyName(trimmedCompany))
-    : false
+  const targetMatch = isTargetCompany(trimmedCompany, targetCompanies)
   const alsoAt = trimmedCompany
     ? existingContacts
         .filter(c => c.company &&
