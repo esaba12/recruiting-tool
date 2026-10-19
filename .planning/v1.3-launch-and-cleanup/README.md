@@ -9,8 +9,8 @@ and worktree, plus a dead-code scan of `app/src` and `app/api`.
 files: the project is at the Vercel Hobby limit of 12 functions.
 
 > **Next milestone:** [v1.4 — useful on day one, lean everywhere](../v1.4-useful-and-lean/README.md).
-> Its pre-invite set (specs 06, 05, 01, 07) is merged; the invite (spec 04 here) now waits on 02's
-> console steps and a browser check of v1.4 spec 07's wizard.
+> Its pre-invite set (specs 06, 05, 01, 07) is merged and smoke-tested on prod; the invite (spec 04
+> here) now waits only on 02's console steps.
 
 ## Where things stand
 

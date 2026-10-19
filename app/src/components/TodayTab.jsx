@@ -670,10 +670,13 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
 
       <EventFeedHealth attention={eventAttention} rise={rise} fold={fold} />
 
-      <m.div variants={rise}>
-        <ActivitySection apps={apps} interactions={interactions}
-          collapsed={prefs.isCollapsed('activity')} onToggle={() => prefs.toggleCollapsed('activity')} />
-      </m.div>
+      {/* Nothing to glance at yet: three zeros (and a full-looking empty sparkline) just add noise. */}
+      {(apps.length > 0 || interactions.length > 0) && (
+        <m.div variants={rise}>
+          <ActivitySection apps={apps} interactions={interactions}
+            collapsed={prefs.isCollapsed('activity')} onToggle={() => prefs.toggleCollapsed('activity')} />
+        </m.div>
+      )}
 
       <SidePanel open={!!selectedContactId} onClose={() => setSelectedContactId(null)}>
         {selectedContactId && (

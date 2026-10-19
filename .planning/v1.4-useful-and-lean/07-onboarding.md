@@ -1,8 +1,18 @@
 # 07 — Onboarding that ends with data on screen
 
-**Status:** code done 2026-10-19 on `feat/v1.4-pre-invite`; tests pass (`test/gmailScanMine.test.js`,
-`test/onboarding.test.js`). **Browser check pending:** the wizard and the getting-started card only
-render for a signed-in, not-yet-onboarded account (not `/demo`), so it needs a throwaway account. Deviations:
+**Status:** ✅ merged 2026-10-19 (PR #20). Smoke-tested on prod the same day with two throwaway accounts
+(deleted afterwards):
+- IB, no key: the Gmail step shows the key warning; both importers write through RLS; target chips
+  fill from the tracker; the Ready screen shows the import counts; Today has no Keep in Touch rows
+  for the imported connections.
+- Consulting, every step skipped: the push link lands on Settings; the getting-started card's
+  import row adds apps and the card updates on close without a reload.
+- `onboarding_log` read back as e.g. `about:next → key:skip → gmail:skip → calendar:skip → data:skip → done:finish`.
+- Not covered: the live first scan (needs a real Google consent), so check it when you connect your own Gmail (v1.3 02 D2).
+- Fixed from the smoke test: Today hid nothing on an empty account, so the Activity tiles showed
+  zeros; they now wait for the first application or interaction.
+
+Deviations:
 - The Ready screen's push link finishes the wizard and opens Settings via the URL hash (the app
   isn't mounted yet, so `rec:navigate` can't reach it).
 - A scan skipped for "no AI key" no longer stamps `last_scanned_at` (Settings used to say "Last
