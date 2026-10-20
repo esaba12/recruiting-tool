@@ -14,20 +14,51 @@ The pre-invite set (06, 05, 01, 07) changes what a friend sees in their first fi
 it's worth doing while you finish v1.3 spec 02's console steps, which gate the invite anyway.
 02–04 matter right now for your own season: interviews and offers come in October through December.
 
-## Where we are (2026-10-19)
+## Where we are (2026-10-20): checklist
 
-- **Merged and live:** 06, 05, 01, 07 (PR #20), plus the smoke-test follow-up (PR #21: Activity
-  tiles hidden on an empty account). 07 was smoke-tested on prod with two throwaway accounts,
-  since deleted. Results are in [07](07-onboarding.md).
-- **Not yet verified:** the live first inbox scan after a real Gmail connect. That gets checked
-  when the owner connects their own Gmail (v1.3 spec 02 D2).
-- **Blocking the friends invite:** only the owner console steps in
-  [v1.3 spec 02](../v1.3-launch-and-cleanup/02-owner-runbook.md): Google Cloud A1–A4, cron D1,
-  Gmail D2, SMTP B2, Sentry C2. Then [v1.3 spec 04](../v1.3-launch-and-cleanup/04-launch-week.md).
-- **🤖 can do now, in parallel:** v1.3 spec 02 B1 (`site_url` in `supabase/config.toml`; owner runs
-  `supabase config push`) and C1 (remove dead Vercel env vars; list them for owner approval first).
-- **Next code:** [08](08-custom-today.md) (rearrangeable Today), then 02 → 03 → 04 once the
-  Apps Script cutover (v1.3 spec 08) has happened.
+🤖 = Claude can do it · 👤 = owner (console, inbox, approvals)
+
+### Done
+- [x] 06, 05, 01, 07 merged and live (PR #20), plus the smoke-test follow-up (PR #21). 07
+  was smoke-tested on prod with two throwaway accounts, since deleted ([07](07-onboarding.md)).
+- [x] 09 résumé + 10 drafted replies built on `feat/v1.4-resume-reply-drafts` (3 commits)
+- [x] Migration `20261020000000_resume_and_email_drafts.sql` pushed (owner approved 2026-10-20). Live RLS suite 14/14
+- [x] `/demo` checked: Today "Replies Drafted" → Inbox composer, desktop and phone, no API/Supabase calls
+- [x] Wizard checked on a throwaway account (deleted): résumé PDF → text saved, call hours saved, Ready shows both
+
+### 09 + 10: ship it
+- [ ] 🤖 Push the branch and open the PR
+- [ ] 🤖 On the Vercel preview, upload a résumé PDF under the **production CSP** (the pdf.js
+  worker and no-eval path). Local dev doesn't send the CSP headers.
+- [ ] 👤 Review and merge (prod auto-deploys `main`)
+- [ ] 👤 Settings → Drafted replies: set your call hours (and add your résumé if you skipped it)
+- [ ] 👤 Live check. It needs Gmail connected (v1.3 spec 02 D2) and ideally a calendar.
+  - [ ] From another account, email your connected Gmail: "could we find 30 min next week?"
+  - [ ] Settings → **Scan now**. Inbox should show a drafted reply with 3 times that avoid your
+    calendar events, and Today should list it.
+  - [ ] Reply in Gmail. The next scan should mark the draft done, and it leaves Today.
+  - [ ] A receipt or rejection in the same scan gets **no** draft.
+- [ ] 🤖 After a week: check the cost (drafts run on the standard tier, ≤8 per mailbox per run) and
+  how many drafts get dismissed vs. used. Tune the `needs_reply` wording if it over-drafts.
+
+### Blocking the friends invite (unchanged)
+- [ ] 👤 [v1.3 spec 02](../v1.3-launch-and-cleanup/02-owner-runbook.md) console steps: Google
+  Cloud A1–A4, cron D1, Gmail D2, SMTP B2, Sentry C2
+- [ ] 🤖 v1.3 spec 02 B1: `site_url` in `supabase/config.toml` (👤 then runs `supabase config push`)
+- [ ] 🤖 v1.3 spec 02 C1: list dead Vercel env vars for approval, then remove them
+- [ ] 👤 Live first inbox scan after a real Gmail connect (07's last unverified item)
+- [ ] Then [v1.3 spec 04](../v1.3-launch-and-cleanup/04-launch-week.md) (launch week)
+
+### Next code
+- [ ] 🤖 [08](08-custom-today.md) rearrangeable Today. Convert "Replies Drafted" into a registry card while there.
+- [ ] 🤖 02 → 03 → 04 after the Apps Script cutover (v1.3 spec 08)
+
+### Later (not planned yet)
+- [ ] Real Gmail drafts: `gmail.compose` (a restricted scope, so it needs consent-screen
+  changes and every mailbox has to reconnect), using the reserved `email_drafts.gmail_draft_id`
+- [ ] Book the calendar event when they accept one of the offered times
+- [ ] Regenerate a draft in the app. A push for new drafts only if asked (`pushes.js` keeps
+  three kinds for now)
 
 ## Decisions
 
