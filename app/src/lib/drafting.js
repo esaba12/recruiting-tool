@@ -1,5 +1,6 @@
 import { aiJSON, AI_MODELS } from './ai.js'
 import { tracksLabel } from './tracks.js'
+import { resumePromptBlock } from './resume.js'
 
 // Sentence fragment describing who's sending the message, built from the signed-in
 // user's profile instead of a hardcoded student persona — empty when the user hasn't
@@ -72,7 +73,7 @@ Rules:
     return `Draft a short cold-outreach LinkedIn message / email${from} to a new contact. Return ONLY valid JSON, no explanation, no markdown.
 
 Contact: ${contact.name}${contact.company ? ` (${contact.company}${contact.role ? `, ${contact.role}` : ''})` : ''}
-Personalization / reason for reaching out to them specifically: ${personalizationContext}
+Personalization / reason for reaching out to them specifically: ${personalizationContext}${clause ? resumePromptBlock(profile?.resume_text) : ''}
 
 {
   "draft": "3-5 sentence message. Open with the specific personalization detail, not a generic greeting. State clearly and briefly what you're hoping for (advice, a short chat, a referral if it comes up naturally) without being pushy. No subject line needed for a LinkedIn DM.",
