@@ -6,6 +6,8 @@
 
 The live app's tables are `contacts`, `applications`, `calls`, `interactions` in Supabase Postgres (`supabase/migrations/*.sql`), each with a `user_id` column + RLS policy scoping every read/write to `auth.uid() = user_id`. Column names are snake_case; `db.js` maps them to the same camelCase JS shapes the app has always used.
 
+**Résumé and reply drafts (v1.4 specs 09–10, `20261020000000_resume_and_email_drafts.sql`):** `profiles.resume_text` holds the text of the user's résumé (parsed from a PDF in the browser, never stored as a file). `email_drafts` holds one suggested reply per inbound Gmail message that needs an answer, unique on `(user_id, reply_to_message_id)`. Only the service-role Gmail scan inserts rows (there is no client insert policy). The owner can read, edit (`body`, `status`: pending → done | dismissed) and delete their own drafts. `gmail_draft_id` is reserved for writing real Gmail drafts later. Call-time availability lives in `user_settings` (`availability`), and the drafting switch in `auto_draft_replies` (unset means on).
+
 The table below is the **original Notion schema** — still accurate as the *field mapping reference* for `scripts/migrate-notion-to-supabase.js` (and for anyone migrating their own old workspace), but these Notion DBs are no longer read/written by the deployed app itself.
 
 | Notion DB | ID | Purpose | Maps to |

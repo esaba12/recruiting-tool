@@ -16,6 +16,7 @@ import { refreshKeyStatus } from '../lib/useKeyStatus.js'
 import GetAKey from './onboarding/GetAKey.jsx'
 import UnverifiedAppNote from './onboarding/UnverifiedAppNote.jsx'
 import { openFeedback } from './onboarding/FeedbackHost.jsx'
+import DraftingSettings from './onboarding/DraftingSettings.jsx'
 import { DEMO_SIGNUP_MSG } from '../lib/demoMode.js'
 
 const PROVIDERS = [
@@ -448,6 +449,10 @@ export default function SettingsTab({ onDone, returnLabel = 'Today', demoMode = 
           )}
         </div>
       </section>
+
+      {/* Résumé + drafted replies (v1.4 specs 09 + 10) */}
+      <DraftingSettings profile={profile} refreshProfile={refreshProfile} demoMode={demoMode}
+        hasAiKey={keys.some(k => (k.provider === 'anthropic' || k.provider === 'openai') && k.hasKey)} />
 
       {/* Phone pushes via ntfy.sh — api/_lib/pushes.js sends them from the Gmail scan. */}
       <section className="bg-surface rounded-2xl border border-ink-100 p-5 space-y-3">

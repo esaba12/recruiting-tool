@@ -18,7 +18,8 @@ import LogInteractionModal from './LogInteractionModal.jsx'
 import MetButton from './MetButton.jsx'
 import Mono from './ui/Mono.jsx'
 import { SectionAction, RowCap } from './ui/Section.jsx'
-import { HeartHandshake, ClipboardCheck, Clock, MessageSquarePlus, ListTodo } from 'lucide-react'
+import { HeartHandshake, ClipboardCheck, Clock, MessageSquarePlus, ListTodo, PenLine } from 'lucide-react'
+import { draftPreview, DRAFT_INTENT_LABEL } from '../lib/replyDrafts.js'
 import { DashCard, Group, Label } from './today/DashCard.jsx'
 import { PipelineCard, NetworkCard, OutreachCard } from './today/MetricCards.jsx'
 import GettingStarted from './onboarding/GettingStarted.jsx'
@@ -412,7 +413,26 @@ function ActionItemRow({ item, contacts, onRefresh, onOpen }) {
   )
 }
 
-export default function TodayTab({ contacts, apps, interactions = [], relationships = [], actionItems = [], onLogOa, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, isDemoMode = false }) {
+// A reply the Gmail scan drafted (v1.4 spec 10). Opens the thread in Inbox, where it's edited
+// and copied into Gmail; nothing is sent from Today.
+function DraftRow({ draft, contacts, onOpen }) {
+  const to = String(draft.toAddress || '').toLowerCase()
+  const contact = to ? contacts.find(c => String(c.email || '').toLowerCase() === to) : null
+  return (
+    <div className={`py-2.5 flex items-start gap-3 ${ROW_HIT}`} onClick={() => onOpen(draft.threadId)}>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-ink-900 truncate">
+          {contact ? [contact.name, contact.company].filter(Boolean).join(' · ') : draft.toAddress}
+          <span className="text-ink-400 font-normal"> · {draft.subject}</span>
+        </p>
+        <p className="text-xs text-ink-500 truncate">{draftPreview(draft.body)}</p>
+      </div>
+      <span className="shrink-0 font-mono text-[10px] uppercase tracking-wide text-accent-700">{DRAFT_INTENT_LABEL[draft.intent] || 'Reply'}</span>
+    </div>
+  )
+}
+
+export default function TodayTab({ contacts, apps, interactions = [], relationships = [], actionItems = [], onLogOa, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, emailDrafts = [], onOpenDraft, isDemoMode = false }) {
   const prefs = useTodayPrefs()
   // Declutter pass 1: AI action items that already resolved themselves (replied on the
   // thread, long expired, duplicates) never reach the list.
@@ -426,7 +446,7 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
     keepInTouch: keepInTouchDue(contacts, interactions),
   })
   // Pass 3: rows the user hid (✕ / Clear all) stay hidden for a week.
-  const SNOOZE_KEY = { overdue: c => c.id, awaiting: x => x.contact.id, schedule: c => c.id, urgent: c => c.id, keepInTouch: x => x.contact.id, stale: a => a.id, review: a => a.id, oa: a => a.id, oaCheck: a => a.id }
+  const SNOOZE_KEY = { overdue: c => c.id, awaiting: x => x.contact.id, schedule: c => c.id, urgent: c => c.id, keepInTouch: x => x.contact.id, stale: a => a.id, review: a => a.id, oa: a => a.id, oaCheck: a => a.id, replies: d => d.id }
   let snoozedHidden = 0
   const visible = (id, rows) => {
     const out = rows.filter(r => !prefs.isSnoozed(`${id}:${SNOOZE_KEY[id](r)}`))
@@ -434,6 +454,7 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
     return out
   }
   const openItems = trimmed.items
+  const replyDrafts = visible('replies', emailDrafts)
   const peopleGroups = {
     overdue: visible('overdue', people.overdue),
     awaiting: visible('awaiting', people.awaiting),
@@ -482,7 +503,7 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
   const total = groups => Object.values(groups).reduce((n, rows) => n + rows.length, 0)
   const peopleCount = total(peopleGroups)
   const appCount = total(appGroups)
-  const openCount = openItems.length + peopleCount + appCount + eventAttention.count
+  const openCount = replyDrafts.length + openItems.length + peopleCount + appCount + eventAttention.count
   const allEmpty = openCount === 0
   const hasData = apps.length > 0 || contacts.length > 0 || interactions.length > 0
 
@@ -495,6 +516,13 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
   )
 
   const cards = {
+    replies: replyDrafts.length > 0 && (
+      <DashCard label="Replies drafted" tone="accent" icon={PenLine} count={replyDrafts.length} actions={clearAll({ replies: replyDrafts })}>
+        <p className="text-[11px] text-ink-400 mt-1">Written from the thread and your résumé. Review in Inbox, then send from Gmail.</p>
+        <RowCap items={replyDrafts} tier="accent" onHide={hide('replies')}
+          renderItem={d => <DraftRow key={d.id} draft={d} contacts={contacts} onOpen={id => onOpenDraft?.(id)} />} />
+      </DashCard>
+    ),
     email: openItems.length > 0 && (
       <DashCard label="From your email" tone="warning" icon={ListTodo} count={openItems.length}
         actions={<SectionAction onClick={dismissAllItems} disabled={dismissingAll}>{dismissingAll ? 'Clearing…' : 'Dismiss all'}</SectionAction>}>
@@ -544,6 +572,7 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
   // a lone card takes the full width.
   const shown = groups => Object.values(groups).reduce((n, rows) => n + (rows.length ? Math.min(rows.length, 3) + 0.5 : 0), 1)
   const weighted = [
+    [cards.replies, shown({ items: replyDrafts })],
     [cards.email, shown({ items: openItems })],
     [cards.people, shown(peopleGroups)],
     [cards.apps, shown(appGroups)],

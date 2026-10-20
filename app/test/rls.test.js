@@ -247,6 +247,25 @@ describe.skipIf(!configured)('shared-pool RLS isolation', () => {
     const rows = await must(admin.from('feedback').select('user_id, message').in('user_id', [users.A.id, users.B.id]), 'admin reads')
     expect(rows).toEqual([{ user_id: users.A.id, message: 'A secret feedback' }])
   })
+
+  it('reply drafts are scan-written, private, and owner-editable only (v1.4 spec 10)', async () => {
+    const row = { thread_id: `t-${run}`, reply_to_message_id: `m-${run}`, body: 'Hi Jane, Tuesday works.', intent: 'confirm' }
+    // Only the service-role scan writes drafts.
+    const { error: clientInsert } = await clients.A.from('email_drafts').insert({ ...row, user_id: users.A.id })
+    expect(clientInsert).toBeTruthy()
+    await must(admin.from('email_drafts').upsert({ ...row, user_id: users.A.id }, { onConflict: 'user_id,reply_to_message_id', ignoreDuplicates: true }), 'scan writes')
+    // A re-scan never overwrites a draft the user already touched.
+    await must(clients.A.from('email_drafts').update({ status: 'dismissed' }).eq('reply_to_message_id', row.reply_to_message_id), 'A dismisses')
+    await must(admin.from('email_drafts').upsert({ ...row, user_id: users.A.id, body: 'again' }, { onConflict: 'user_id,reply_to_message_id', ignoreDuplicates: true }), 'rescan')
+    expect(await must(clients.A.from('email_drafts').select('body, status'), 'A reads')).toEqual([{ body: row.body, status: 'dismissed' }])
+    // Nobody else sees or edits it.
+    expect(await must(clients.B.from('email_drafts').select('id'), 'B reads')).toEqual([])
+    const { data: forged } = await clients.B.from('email_drafts').update({ body: 'forged' }).eq('reply_to_message_id', row.reply_to_message_id).select('id')
+    expect(forged || []).toHaveLength(0)
+    // Résumé text is the owner's to write, invisible to others.
+    await must(clients.A.from('profiles').update({ resume_text: 'A résumé' }).eq('id', users.A.id), 'A résumé')
+    expect(await must(clients.B.from('profiles').select('resume_text').eq('id', users.A.id), 'B reads résumé')).toEqual([])
+  })
 })
 
 if (!configured) {

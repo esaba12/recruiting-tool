@@ -16,6 +16,7 @@ import { PROBLEM_BY_SLUG } from './lib/learning/problemBank.js'
 import { addDaysLocal } from './lib/dates.js'
 import { rankCandidates, DEFAULT_PROFILE, DEFAULT_WEIGHTS } from './lib/discovery.js'
 import { normalizeCompanyName } from './lib/networkGraph.js'
+import { suggestSlots, formatSlot } from './lib/availability.js'
 
 function daysFromNow(n) {
   return addDaysLocal(n)
@@ -721,3 +722,22 @@ export function buildDemoStorage() {
     rec_tracked_boards: DEMO_BOARDS.map(b => ({ ...b, addedAt: now - 30 * 86400000 })),
   }
 }
+
+// Suggested replies (v1.4 spec 10) — what the Gmail scan writes to email_drafts for threads
+// that need an answer. Deepak asked for times, so his draft offers free slots; Emma offered
+// hers, so that draft just picks one.
+const DEMO_SLOTS = suggestSlots({ availability: { days: [2, 3, 4], start: 10, end: 17, slotMin: 45, timeZone: 'America/New_York' } })
+export const DEMO_EMAIL_DRAFTS = [
+  {
+    id: 'demo-d1', threadId: 'demo-t-anthropic', replyToMessageId: 'demo-e1', mailbox: ME, toAddress: 'deepak.nair@anthropic.com',
+    subject: 'Re: Next round — final interviews', intent: 'schedule_call', status: 'pending', createdAt: hoursAgo(3),
+    proposedSlots: DEMO_SLOTS, slotsChecked: true,
+    body: `Hi Deepak,\n\nThat's great news, thank you! I'd be glad to do the final interviews. Here are a few times that work for me (Eastern):\n\n${DEMO_SLOTS.map(s => `• ${formatSlot(s, 'America/New_York')}`).join('\n')}\n\nHappy to adjust if none of those fit the team.\n\nBest,\nAlex`,
+  },
+  {
+    id: 'demo-d2', threadId: 'demo-t-figma', replyToMessageId: 'demo-e3', mailbox: ME, toAddress: 'emma.whitfield@figma.com',
+    subject: 'Re: Quick question about the PM internship', intent: 'confirm', status: 'pending', createdAt: hoursAgo(6),
+    proposedSlots: [], slotsChecked: false,
+    body: `Hi Emma,\n\nThank you so much, and thanks for the rotation doc! Thursday afternoon works great. I just grabbed a slot on your calendar and I'm looking forward to it.\n\nBest,\nAlex`,
+  },
+]

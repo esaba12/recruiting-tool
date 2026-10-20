@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ExternalLink, MailOpen, Mail, Search, Reply, CheckCircle2, Building2, Briefcase } from 'lucide-react'
+import { ArrowLeft, ExternalLink, MailOpen, Mail, Search, Reply, CheckCircle2, Building2, Briefcase, PenLine, Copy, X, CalendarClock } from 'lucide-react'
 import { EmptyState } from '../shared.jsx'
-import { setThreadRead, completeActionItem } from '../db.js'
+import { setThreadRead, completeActionItem, updateEmailDraft } from '../db.js'
+import { aiProviderLabel } from '../lib/ai.js'
+import { DRAFT_INTENT_LABEL } from '../lib/replyDrafts.js'
 import { buildThreads, filterThreads, filterCounts, FILTERS, CATEGORY, snippet, messageLead, messageTime, gmailThreadUrl } from '../lib/inbox.js'
 
 // Recruiting + networking mail only — the pipelines never log what Claude marked UNRELATED,
@@ -64,7 +66,11 @@ function ThreadRow({ thread, active, index, onOpen }) {
         </span>
         <span className="flex items-center gap-2 mt-1.5">
           <CategoryTag category={thread.category} group={thread.group} />
-          {thread.needsReply && (
+          {thread.draft ? (
+            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide ${active ? 'text-accent-300' : 'text-accent-700'}`}>
+              <PenLine size={11} strokeWidth={2.5} /> Reply drafted
+            </span>
+          ) : thread.needsReply && (
             <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide ${active ? 'text-accent-300' : 'text-link'}`}>
               <Reply size={11} strokeWidth={2.5} /> Needs a reply
             </span>
@@ -111,7 +117,7 @@ function Message({ m, contactName }) {
   )
 }
 
-function Reader({ thread, onBack, onToggleRead, onCompleteItem }) {
+function Reader({ thread, onBack, onToggleRead, onCompleteItem, onDraftChange }) {
   return (
     <div key={thread.id} className="inbox-rise h-full overflow-y-auto">
       <div className="sticky top-0 z-10 bg-surface/95 backdrop-blur border-b border-ink-100 px-6 py-3 flex items-center gap-2">
@@ -126,10 +132,14 @@ function Reader({ thread, onBack, onToggleRead, onCompleteItem }) {
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-ink-600 border border-ink-200 hover:border-ink-400">
               {thread.unread ? <><MailOpen size={13} /> Mark read</> : <><Mail size={13} /> Mark unread</>}
             </button>
-            <a href={gmailThreadUrl(thread)} target="_blank" rel="noreferrer"
-              className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold bg-accent-500 text-on-accent hover:bg-accent-600">
-              <Reply size={13} /> Reply in Gmail
-            </a>
+            {thread.draft
+              ? <a href="#suggested-reply" className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold bg-accent-500 text-on-accent hover:bg-accent-600">
+                  <PenLine size={13} /> See drafted reply
+                </a>
+              : <a href={gmailThreadUrl(thread)} target="_blank" rel="noreferrer"
+                  className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold bg-accent-500 text-on-accent hover:bg-accent-600">
+                  <Reply size={13} /> Reply in Gmail
+                </a>}
           </>
         )}
       </div>
@@ -178,24 +188,97 @@ function Reader({ thread, onBack, onToggleRead, onCompleteItem }) {
         <div className="mt-6 space-y-6">
           {thread.messages.map(m => <Message key={m.id} m={m} contactName={thread.contact?.name} />)}
         </div>
+
+        {thread.draft && <SuggestedReply key={thread.draft.id} draft={thread.draft} thread={thread} onChange={onDraftChange} />}
       </div>
     </div>
   )
 }
 
-export default function InboxTab({ contacts, apps, interactions, actionItems = [], onRefresh, demoMode = false }) {
+// The scan's drafted reply (v1.4 spec 10), as a composer under the thread. Edits save on
+// blur. Nothing is sent from here: "Copy & open Gmail" puts the text on the clipboard and
+// opens the thread, where you paste and send it yourself.
+function SuggestedReply({ draft, thread, onChange }) {
+  const [body, setBody] = useState(draft.body)
+  const [copied, setCopied] = useState(false)
+  const [err, setErr] = useState(null)
+  const gmailUrl = gmailThreadUrl(thread)
+
+  async function save(fields) {
+    setErr(null)
+    try { await onChange(draft, fields) } catch (e) { setErr(e.message) }
+  }
+  async function copy() {
+    try { await navigator.clipboard.writeText(body); setCopied(true); setTimeout(() => setCopied(false), 1800); return true }
+    catch { setErr('Couldn\'t copy. Select the text and copy it yourself.'); return false }
+  }
+  async function copyAndOpen() {
+    if (!(await copy())) return
+    window.open(gmailUrl, '_blank', 'noopener')
+    save({ body, status: 'done' })
+  }
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const slotLabel = s => new Date(s.start).toLocaleString('en-US', { timeZone: zone, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+
+  return (
+    <section id="suggested-reply" className="mt-8 scroll-mt-16 border border-ink-200 rounded-md bg-surface overflow-hidden inbox-rise">
+      <header className="flex items-center gap-2 px-4 py-2.5 border-b border-ink-100 bg-ink-50">
+        <PenLine size={14} className="text-accent-600" />
+        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-ink-700">Drafted reply</span>
+        <span className="truncate text-[10px] font-semibold uppercase tracking-wide text-ink-400">· {DRAFT_INTENT_LABEL[draft.intent] || 'Reply'}</span>
+        {draft.toAddress && <span className="hidden sm:inline ml-auto truncate font-mono text-[11px] text-ink-400">to {draft.toAddress}</span>}
+      </header>
+      {draft.proposedSlots.length > 0 && (
+        <div className="px-4 pt-3">
+          <p className="flex items-center gap-1.5 text-[11px] text-ink-500">
+            <CalendarClock size={12} />
+            {draft.slotsChecked ? 'Free on your calendar, inside your call hours:' : 'Inside your call hours (no calendar connected to check):'}
+          </p>
+          <div className="flex flex-wrap gap-1.5 mt-1.5">
+            {draft.proposedSlots.map(s => (
+              <span key={s.start} className="px-2 py-1 font-mono text-[11px] border border-accent-200 bg-accent-50 text-accent-800 rounded-sm">{slotLabel(s)}</span>
+            ))}
+          </div>
+        </div>
+      )}
+      <textarea value={body} onChange={e => setBody(e.target.value)}
+        onBlur={() => { if (body !== draft.body) save({ body }) }}
+        rows={Math.min(16, Math.max(6, body.split('\n').length + 1))}
+        aria-label="Drafted reply"
+        className="block w-full px-4 py-3 text-[14px] leading-relaxed text-ink-800 bg-surface resize-y focus:outline-none focus:bg-accent-50/40" />
+      <footer className="flex items-center gap-2 flex-wrap px-4 py-2.5 border-t border-ink-100">
+        <button onClick={copyAndOpen}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold bg-accent-500 text-on-accent hover:bg-accent-600">
+          <Reply size={13} /> Copy &amp; open in Gmail
+        </button>
+        <button onClick={copy}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium text-ink-600 border border-ink-200 hover:border-ink-400">
+          <Copy size={12} /> {copied ? 'Copied' : 'Copy'}
+        </button>
+        <button onClick={() => save({ status: 'dismissed' })}
+          className="inline-flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium text-ink-500 hover:text-ink-800">
+          <X size={13} /> Dismiss
+        </button>
+        <span className="ml-auto text-[11px] text-ink-400">Drafted by {aiProviderLabel()}. Nothing is sent until you send it.</span>
+      </footer>
+      {err && <p className="px-4 pb-2.5 text-xs text-danger-600">{err}</p>}
+    </section>
+  )
+}
+
+export default function InboxTab({ contacts, apps, interactions, actionItems = [], drafts = [], onDraftsChange, initialThreadId = null, onRefresh, demoMode = false }) {
   const [filter, setFilter] = useState('all')
   const [query, setQuery] = useState('')
-  const [openId, setOpenId] = useState(null)
+  const [openId, setOpenId] = useState(initialThreadId)
   // Optimistic overlays so read toggles and "Done" feel instant without a full reload.
   const [readOverride, setReadOverride] = useState({})
   const [doneItems, setDoneItems] = useState(() => new Set())
 
   const threads = useMemo(() => {
     const items = actionItems.filter(i => !doneItems.has(i.id))
-    return buildThreads({ interactions, contacts, apps, actionItems: items })
+    return buildThreads({ interactions, contacts, apps, actionItems: items, drafts })
       .map(t => (t.id in readOverride ? { ...t, unread: !readOverride[t.id] } : t))
-  }, [interactions, contacts, apps, actionItems, readOverride, doneItems])
+  }, [interactions, contacts, apps, actionItems, drafts, readOverride, doneItems])
 
   const counts = filterCounts(threads)
   const visible = filterThreads(threads, filter, query)
@@ -212,6 +295,13 @@ export default function InboxTab({ contacts, apps, interactions, actionItems = [
     catch { setReadOverride(o => ({ ...o, [thread.id]: !read })) }
   }
 
+  // Opened from Today's "Replies Drafted": counts as reading it, same as a click here.
+  useEffect(() => {
+    const t = initialThreadId && threads.find(x => x.id === initialThreadId)
+    if (t?.unread) toggleRead(t, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   function openThread(thread) {
     setOpenId(thread.id)
     if (thread.unread) toggleRead(thread, true)
@@ -221,6 +311,15 @@ export default function InboxTab({ contacts, apps, interactions, actionItems = [
     setDoneItems(s => new Set(s).add(item.id))
     try { await completeActionItem(item.id); onRefresh?.() }
     catch { setDoneItems(s => { const n = new Set(s); n.delete(item.id); return n }) }
+  }
+
+  // Optimistic: the app-level list updates first, and a failed write puts the draft back.
+  async function changeDraft(draft, fields) {
+    const apply = list => list.map(d => (d.id === draft.id ? { ...d, ...fields } : d)).filter(d => d.status === 'pending')
+    const before = drafts
+    onDraftsChange?.(apply(drafts))
+    try { await updateEmailDraft(draft.id, fields) }
+    catch (e) { onDraftsChange?.(before); throw e }
   }
 
   if (!threads.length) {
@@ -272,7 +371,7 @@ export default function InboxTab({ contacts, apps, interactions, actionItems = [
         </div>
         <div className={`${open ? 'block' : 'hidden md:block'} flex-1 min-w-0 bg-surface`}>
           {open
-            ? <Reader thread={open} onBack={() => setOpenId(null)} onToggleRead={toggleRead} onCompleteItem={completeItem} />
+            ? <Reader thread={open} onBack={() => setOpenId(null)} onToggleRead={toggleRead} onCompleteItem={completeItem} onDraftChange={changeDraft} />
             : <p className="h-full flex items-center justify-center text-sm text-ink-400">Pick a conversation.</p>}
         </div>
       </div>

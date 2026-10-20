@@ -15,6 +15,9 @@ import { parseInvite, findCalendarPart } from './ics.js'
 import { statusPush, isFreshEnoughToPush } from './pushes.js'
 import { shouldCreateInterviewEvent, createInterviewEvent, calendarRefreshToken } from './interviewEvent.js'
 import { tracksLabel, isTechOnly } from '../../src/lib/tracks.js'
+import { shouldDraftReply, replyIntent, replySubject, draftReply, slotsFor, calendarRefreshTokens, saveReplyDraft, settleThreadDrafts } from './replyDraft.js'
+import { AUTO_DRAFT_SETTING_KEY } from '../../src/lib/replyDrafts.js'
+import { AVAILABILITY_SETTING_KEY } from '../../src/lib/availability.js'
 
 // ── Discovery queries + recall-hint constants (ported verbatim) ─────────────────────────
 const SENT_SCAN_QUERY = 'in:sent newer_than:30d'
@@ -428,6 +431,8 @@ Otherwise return:
   "urgency": "HIGH|MED|LOW",
   "next_action": "one concrete action the candidate should take",
   "follow_up_draft": "3-sentence reply the candidate could send, or null",
+  "needs_reply": "true only if a specific person wrote this and is waiting on the candidate to write back (asked a question, asked for availability, offered times, made an intro the candidate should answer); false for notices, receipts, assessments, rejections and anything the candidate sent last",
+  "reply_intent": "if needs_reply: schedule_call (they want to find a time to talk or interview) | answer (they asked something) | confirm (they proposed a time or plan to accept) | thank (they helped and a thank-you is the reply) | other; else null",
   "interview_date": "YYYY-MM-DD if an interview is scheduled, or null",
   "interview_format": "phone|video|onsite|null",
   "interview_round": "first|second|final|null — for INTERVIEW_INVITE only: which round this invite is for (a final-round/onsite/superday invite is 'final'); null if not stated",
@@ -474,7 +479,7 @@ Date: ${date}
 Body:
 ${body}`
 
-  return completeJSON(llm, { tier: 'mini', prompt, maxTokens: 700 })
+  return completeJSON(llm, { tier: 'mini', prompt, maxTokens: 800 })
 }
 
 // ── Supabase writes (ported from the raw-PostgREST version to real supabase-js calls) ───
@@ -633,6 +638,14 @@ export async function logThreadMessages(db, userId, newMessages, { contactId, th
 }
 
 // ── Entry point — scans one connected Gmail mailbox, returns updated thread_progress ────
+// user_settings the drafter needs: whether it's on (unset = on) and the call-time window.
+async function draftSettings(db, userId) {
+  const { data } = await db.from('user_settings').select('key, value').eq('user_id', userId)
+    .in('key', [AUTO_DRAFT_SETTING_KEY, AVAILABILITY_SETTING_KEY])
+  const byKey = Object.fromEntries((data || []).map(r => [r.key, r.value]))
+  return { enabled: byKey[AUTO_DRAFT_SETTING_KEY] !== false, availability: byKey[AVAILABILITY_SETTING_KEY] || null }
+}
+
 export async function scanGmailConnection(connection, { deadline } = {}) {
   const scanStartedAt = new Date().toISOString()
   const db = supabaseAdmin()
@@ -641,7 +654,7 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
 
   // Recruiting tracks shape the classifier prompt (candidateFraming / trackGuidance);
   // ai_provider picks which of the user's keys classifies (either works, see llm.js).
-  const { data: profile } = await db.from('profiles').select('tracks, focus, school_id, ai_provider').eq('id', userId).maybeSingle()
+  const { data: profile } = await db.from('profiles').select('tracks, focus, school_id, ai_provider, full_name, resume_text').eq('id', userId).maybeSingle()
   const llm = await llmForUser(userId, profile?.ai_provider)
   if (!llm) {
     return { threadProgress: connection.thread_progress || {}, cursor: connection.scan_cursor || null, scanned: 0, skipped: 'no_ai_key' }
@@ -660,6 +673,15 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
     }
     return calendarToken
   }
+
+  // Reply drafts (v1.4 spec 10): settings read once per mailbox, free slots fetched at most
+  // once per scan and only when some email asks to find a time.
+  const settings = await draftSettings(db, userId)
+  let draftsThisRun = 0
+  let slotsPromise
+  const getSlots = () => (slotsPromise ??= calendarRefreshTokens(db, userId)
+    .then(refreshTokens => slotsFor({ availability: settings.availability, refreshTokens, mintToken: mintAccessToken }))
+    .catch(e => { console.error(`Free slots for ${myEmail} failed: ${e.message}`); return { slots: [], checked: false } }))
 
   const refreshToken = decrypt(connection.refresh_token_ciphertext)
   const accessToken = await mintAccessToken(refreshToken)
@@ -705,6 +727,9 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
       })
 
       const counterpart = findCounterpartAddress(messages, myEmail)
+      const fromMe = parseAddress(msg.from)?.email === myEmail
+      // You wrote back yourself, so any draft waiting on this thread is done.
+      if (fromMe) await settleThreadDrafts(db, userId, threadId)
       if (!data || data.type === 'UNRELATED' || isGenericNetworking(data, counterpart.email)) {
         threadProgress[threadId] = messages.length
         return 'classified'
@@ -745,6 +770,31 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
         contactId, threadId, myEmail, meetingLink: data.meeting_link, category: data.type,
         interviewAt: data.type === 'INTERVIEW_INVITE' ? interviewLine(invite) : null,
       })
+
+      // Best effort, like the calendar event: a failed draft never holds the thread back.
+      const draftable = shouldDraftReply(data, {
+        fromMe, automatedSender: isAutomatedSender(counterpart.email), bulk: msg.bulk, sentAt: msg.date,
+        enabled: settings.enabled, draftsThisRun,
+      })
+      if (draftable) {
+        draftsThisRun++
+        try {
+          const intent = replyIntent(data)
+          const { slots, checked } = intent === 'schedule_call' ? await getSlots() : { slots: [], checked: false }
+          const slotZone = settings.availability?.timeZone || timeZone
+          const body = await draftReply(llm, {
+            messages, myEmail, data, framing: candidateFraming(profile), profile,
+            resumeText: profile?.resume_text, slots, timeZone: slotZone,
+          })
+          await saveReplyDraft(db, userId, {
+            mailbox: myEmail, thread_id: threadId, reply_to_message_id: msg.id, to_address: counterpart.email,
+            subject: replySubject(msg.subject), body, intent,
+            proposed_slots: slots.length ? slots : null, slots_checked: checked,
+          })
+        } catch (e) {
+          console.error(`Reply draft for ${threadId} (${myEmail}) failed: ${e.message}`)
+        }
+      }
 
       threadProgress[threadId] = messages.length
       // Last, so a thread that fails above (and is retried next tick) never pushes twice.

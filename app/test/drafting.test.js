@@ -22,3 +22,16 @@ describe('buildDraftPrompt — text_follow_up', () => {
     expect(() => buildDraftPrompt({ contact, kind: 'text_follow_up', tier: 1, profile: {} })).not.toThrow()
   })
 })
+
+describe('buildDraftPrompt — résumé (v1.4 spec 09)', () => {
+  const profile = { school: 'State U', tracks: ['swe'], resume_text: 'SWE intern at Acme, built the billing pipeline' }
+  it('cold opens draw on the résumé', () => {
+    const prompt = buildDraftPrompt({ contact, kind: 'cold_open', personalizationContext: 'Same school', profile })
+    expect(prompt).toContain('billing pipeline')
+  })
+  it('leaves it out for personal contacts and follow-ups', () => {
+    const friend = { ...contact, lifeDomain: ['Friend'] }
+    expect(buildDraftPrompt({ contact: friend, kind: 'cold_open', personalizationContext: 'x', profile })).not.toContain('billing pipeline')
+    expect(buildDraftPrompt({ contact, kind: 'follow_up', tier: 1, profile })).not.toContain('billing pipeline')
+  })
+})

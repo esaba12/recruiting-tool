@@ -10,7 +10,7 @@ single-tenant Notion version is legacy, kept only for the one-time migration scr
 > are in `CLAUDE.local.md` (gitignored). **This repo is public**: never put those in a tracked file.
 
 **Open work:** `.planning/v1.4-useful-and-lean/README.md` (import, onboarding, custom Today,
-interview/offer dates) and `.planning/v1.3-launch-and-cleanup/README.md` (launch owner steps). Roadmap history:
+interview/offer dates, résumé + drafted replies; its "Where we are" checklist is the live status) and `.planning/v1.3-launch-and-cleanup/README.md` (launch owner steps). Roadmap history:
 `.planning/ROADMAP.md`. Deep dives by topic: `docs/architecture/` (index at the bottom).
 
 ---
@@ -29,6 +29,7 @@ interview/offer dates) and `.planning/v1.3-launch-and-cleanup/README.md` (launch
 | Google Apps Script (`scripts/email-pipeline.js`) | Owner-only Gmail pipeline + ntfy pushes. Being replaced by `api/gmail.js` (v1.3 spec 08) |
 | Upstash Redis | Per-user rate limiting (fails open when unset) |
 | Recharts, motion, lucide-react, ts-fsrs, Sentry | Charts, the 3 animation moments, icons, spaced repetition, error reporting (inert without `VITE_SENTRY_DSN`) |
+| pdfjs-dist (lazy chunk) | Résumé PDF → text in the browser (`lib/resumePdf.js`); the file is never uploaded |
 
 ## Commands
 
@@ -115,6 +116,8 @@ Pipeline · Calendar**, with Settings in the sidebar footer. `/demo` shows every
 - Anthropic rejects proxied calls that carry the browser's `Origin`: proxies build fresh headers.
 - `events.umich.edu` (Cloudflare) challenges server fetches at random, so ingestion falls back to a browser relay, and relayed payloads are host-validated.
 - Google OAuth consent screen: unverified apps are capped at 100 users; Testing mode means 7-day refresh tokens. The verification decision is in `docs/architecture/google-calendar.md`.
+- pdf.js under the CSP: no `unsafe-eval`, so `getDocument` needs `isEvalSupported: false`. The worker comes from a same-origin `?url` import, and cleanup is `loadingTask.destroy()` (pdf.js 6 has no `doc.destroy()`).
+- Reply drafts are scan-written only (`email_drafts` has no client insert policy). Slot math is pure in `src/lib/availability.js` and shared by server and client.
 - ICS invites: read fields only from the `VEVENT` block (`VTIMEZONE` has its own `DTSTART`). Server-side, convert `TZID` times through `api/_lib/ics.js` (Vercel runs in UTC).
 - Node 20 + Supabase Realtime in scripts/tests: pass `realtime: { transport: ws }`.
 - Apps Script: more than 50 Script Properties makes the UI read-only (set them from code); `UrlFetchApp` to ntfy.sh fails intermittently (retries in place).

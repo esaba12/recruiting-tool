@@ -52,6 +52,12 @@ describe('onboarding v1.4', () => {
     expect(resumeStep('seed')).toBe('data')
   })
 
+  it('asks for a résumé right after About you (v1.4 spec 09)', () => {
+    expect(STEP_IDS.slice(0, 3)).toEqual(['about', 'resume', 'key'])
+    expect(resumeStep('resume')).toBe('resume')
+    expect(resumeStep('key')).toBe('key') // someone parked on a later step stays there
+  })
+
   it('gmailSetupState: none / needs a key / scanning / waiting / done', () => {
     const never = [{ email: 'a@x.com', lastScannedAt: null }]
     const done = [{ email: 'a@x.com', lastScannedAt: '2026-10-19T10:00:00Z' }]

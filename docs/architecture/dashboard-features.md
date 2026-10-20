@@ -10,6 +10,7 @@ on seed data (`demoData.js`).
 ## Today (`TodayTab.jsx`, logic in `lib/attention.js`)
 
 The attention stack. Sections, in order:
+- "Replies drafted" card (v1.4 spec 10, first in the attention stacks): replies the Gmail scan wrote for you, each opening its Inbox thread
 - Action Items (AI-flagged from email)
 - Overdue Follow-Ups
 - Stale Applications (14+ days without movement)
@@ -51,6 +52,13 @@ A pure derivation over `interactions`: Email rows grouped by Gmail thread (`chan
 - Filters: All, Needs a reply, Applications, People, Sent.
 - Application receipts are dropped unless you wrote back or there's an action item.
 - "Reply in Gmail" deep-links to the right account (`gmailThreadUrl`).
+- **Drafted replies** (v1.4 spec 10, `email_drafts`, written by the scan; see `email-pipeline.md`).
+  `buildThreads` attaches `thread.draft`, and the row shows "Reply drafted". Under the messages there's a composer:
+  - proposed time chips, with "checked against your calendar" or not;
+  - editable text, saved on blur;
+  - **Copy & open in Gmail** (marks it done), **Copy**, **Dismiss**.
+
+  Nothing is sent from the app. Today's "Replies Drafted" opens the thread here (`initialThreadId`).
 
 ## Network (`NetworkTab` in `App.jsx`)
 
@@ -159,6 +167,10 @@ Views:
 
 - Secure your account (sign-in-with-API-key accounts only).
 - Profile (tracks, school, AI provider) and appearance.
+- Résumé (v1.4 spec 09): a PDF parsed in the browser (`lib/resumePdf.js`, lazy pdf.js), with only the text saved
+  (`profiles.resume_text`). Shared `ResumeEditor` with the onboarding step.
+- Drafted replies (v1.4 spec 10): the on/off switch (`user_settings.auto_draft_replies`) and call hours
+  (`user_settings.availability`, shared `AvailabilityEditor` with the onboarding Calendar step).
 - API keys (Anthropic, OpenAI, Exa, GitHub).
 - Networking email accounts (Gmail connections, **Scan now** → `api/gmail.js ?action=scan-mine`).
 - Push notifications (ntfy topic).

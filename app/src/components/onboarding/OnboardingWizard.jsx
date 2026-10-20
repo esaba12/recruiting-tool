@@ -5,12 +5,15 @@ import Input from '../ui/Input.jsx'
 import Mono from '../ui/Mono.jsx'
 import GetAKey from './GetAKey.jsx'
 import UnverifiedAppNote from './UnverifiedAppNote.jsx'
+import ResumeEditor from './ResumeEditor.jsx'
+import AvailabilityEditor from './AvailabilityEditor.jsx'
 import { useAuth } from '../../lib/AuthContext.jsx'
 import { supabase } from '../../lib/supabaseClient.js'
 import useKeyStatus from '../../lib/useKeyStatus.js'
 import { TRACKS, profileTracks } from '../../lib/tracks.js'
 import { connectGmail, connectGoogleCalendar, getGoogleCalendarStatus } from '../../lib/googleAuth.js'
-import { fetchSchools, getUserSetting, setUserSetting, fetchTargetCompanies, saveTargetCompanies, addContact, fetchApplications, fetchContacts } from '../../db.js'
+import { fetchSchools, getUserSetting, setUserSetting, fetchTargetCompanies, saveTargetCompanies, addContact, fetchApplications, fetchContacts, saveResumeText } from '../../db.js'
+import { AVAILABILITY_SETTING_KEY, defaultAvailability, normalizeAvailability } from '../../lib/availability.js'
 import { resumeStep, STEP_IDS, STEP_SETTING_KEY, gmailSetupState, targetSuggestions, appendOnboardingLog, ONBOARDING_LOG_KEY } from '../../lib/onboarding.js'
 import { useGmailScan } from '../../lib/gmailScan.js'
 import { ImportPanel } from '../import/ImportPanel.jsx'
@@ -21,9 +24,10 @@ import { ImportPanel } from '../import/ImportPanel.jsx'
 // back from Google (the callbacks always redirect to "/") lands on the same step.
 const STEPS = [
   { id: 'about',    title: 'About you',   blurb: 'So everything is tuned to what you\'re recruiting for.' },
+  { id: 'resume',   title: 'Résumé',      blurb: 'Drafted replies and outreach draw on your real experience instead of guessing.' },
   { id: 'key',      title: 'AI key',      blurb: 'Powers extraction, drafting, and ranking. Bring your own key.' },
   { id: 'gmail',    title: 'Gmail',       blurb: 'The magic part: applications and contacts fill in from your inbox.' },
-  { id: 'calendar', title: 'Calendar',    blurb: 'Interviews, OAs, and recruiting events on your calendar.' },
+  { id: 'calendar', title: 'Calendar',    blurb: 'Interviews, OAs, recruiting events, and when you\'re free for calls.' },
   { id: 'data',     title: 'Your data',   blurb: 'Bring in the tracker and network you already have. No AI key needed.' },
   { id: 'done',     title: 'Ready',       blurb: '' },
 ]
@@ -103,11 +107,12 @@ export default function OnboardingWizard() {
           {step.blurb && <p className="text-sm text-ink-500 mt-1 learn-rise" style={{ animationDelay: '80ms' }}>{step.blurb}</p>}
           <div className="mt-6 learn-rise" style={{ animationDelay: '140ms' }}>
             {step.id === 'about'    && <AboutStep user={user} profile={profile} refreshProfile={refreshProfile} onNext={next} />}
+            {step.id === 'resume'   && <ResumeStep profile={profile} refreshProfile={refreshProfile} onNext={next} onSkip={skip} onBack={back} />}
             {step.id === 'key'      && <KeyStep user={user} onNext={next} onSkip={skip} onBack={back} />}
             {step.id === 'gmail'    && <GmailStep user={user} onNext={next} onSkip={skip} onBack={back} />}
             {step.id === 'calendar' && <CalendarStep onNext={next} onSkip={skip} onBack={back} />}
             {step.id === 'data'     && <DataStep profile={profile} imported={imported} setImported={setImported} onNext={next} onSkip={skip} onBack={back} />}
-            {step.id === 'done'     && <DoneStep user={user} imported={imported} onFinish={finish} onBack={back} />}
+            {step.id === 'done'     && <DoneStep user={user} profile={profile} imported={imported} onFinish={finish} onBack={back} />}
           </div>
           <button onClick={signOut} className="md:hidden mt-10 text-xs text-ink-400 hover:text-ink-700">Sign out</button>
         </div>
@@ -197,6 +202,32 @@ function AboutStep({ user, profile, refreshProfile, onNext }) {
   )
 }
 
+// Résumé (v1.4 spec 09): the PDF is read in the browser and only its text is saved.
+function ResumeStep({ profile, refreshProfile, onNext, onSkip, onBack }) {
+  const [text, setText] = useState(profile?.resume_text || '')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
+  async function save() {
+    setBusy(true); setErr(null)
+    try {
+      await saveResumeText(text)
+      await refreshProfile()
+      onNext()
+    } catch (e) { setErr(e.message) }
+    finally { setBusy(false) }
+  }
+  return (
+    <div>
+      <ResumeEditor value={text} onChange={setText} disabled={busy} />
+      <p className="text-[11px] text-ink-400 mt-3">
+        Only the text is kept, on your account. The PDF never leaves your browser. Replace or remove it any time in Settings.
+      </p>
+      {err && <p className="text-xs text-danger-600 mt-2">{err}</p>}
+      <Nav onBack={onBack} onNext={save} nextDisabled={busy || !text.trim()} nextLabel={busy ? 'Saving…' : 'Continue'} skip={onSkip} />
+    </div>
+  )
+}
+
 function KeyStep({ user, onNext, onSkip, onBack }) {
   const status = useKeyStatus(user?.id)
   return (
@@ -271,10 +302,28 @@ function ScanStatus({ g, scan }) {
   return scan.error ? <p className="text-xs text-danger-600">{scan.error}</p> : null
 }
 
+// Calendar, plus when you're open to calls (v1.4 spec 10). Availability is asked whether or
+// not a calendar gets connected: drafted replies offer times inside it, skipping anything
+// already on a connected calendar. Skipping the step leaves it unset.
 function CalendarStep({ onNext, onSkip, onBack }) {
   const [status, setStatus] = useState(null)
   const [err, setErr] = useState(null)
-  useEffect(() => { getGoogleCalendarStatus('personal').then(setStatus).catch(() => setStatus({ connected: false })) }, [])
+  const [offerTimes, setOfferTimes] = useState(true)
+  const [availability, setAvailability] = useState(() => defaultAvailability())
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    getGoogleCalendarStatus('personal').then(setStatus).catch(() => setStatus({ connected: false }))
+    getUserSetting(AVAILABILITY_SETTING_KEY).then(v => { if (v) setAvailability(v) }).catch(() => {})
+  }, [])
+  const valid = normalizeAvailability(availability)
+  async function save() {
+    setBusy(true); setErr(null)
+    try {
+      await setUserSetting(AVAILABILITY_SETTING_KEY, offerTimes ? valid : null)
+      onNext()
+    } catch (e) { setErr(e.message) }
+    finally { setBusy(false) }
+  }
   return (
     <div className="space-y-4">
       {status?.connected
@@ -289,8 +338,20 @@ function CalendarStep({ onNext, onSkip, onBack }) {
               <CalendarDays size={14} /> Connect Google Calendar
             </Button>
           </>}
+      <section className="pt-5 border-t border-ink-200">
+        <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-ink-500 mb-1 cursor-pointer">
+          <input type="checkbox" checked={offerTimes} onChange={e => setOfferTimes(e.target.checked)} />
+          When are you free for calls?
+        </label>
+        <p className="text-xs text-ink-500 mb-3">
+          When someone asks to find a time, the drafted reply offers three slots inside these hours.
+          {status?.connected ? ' Anything already on your calendar is skipped.' : ' Connect a calendar and it skips anything already on it.'}
+        </p>
+        {offerTimes && <AvailabilityEditor value={availability} onChange={setAvailability} disabled={busy} />}
+      </section>
       {err && <p className="text-xs text-danger-600">{err}</p>}
-      <Nav onBack={onBack} onNext={onNext} skip={status?.connected ? null : onSkip} nextDisabled={!status?.connected} />
+      <Nav onBack={onBack} onNext={save} skip={onSkip} nextLabel={busy ? 'Saving…' : 'Continue'}
+        nextDisabled={busy || (offerTimes ? !valid : !status?.connected)} />
     </div>
   )
 }
@@ -395,13 +456,15 @@ function DataStep({ profile, imported, setImported, onNext, onSkip, onBack }) {
   )
 }
 
-function DoneStep({ user, imported, onFinish, onBack }) {
+function DoneStep({ user, profile, imported, onFinish, onBack }) {
   const status = useKeyStatus(user?.id)
   const scan = useGmailScan()
   const [cal, setCal] = useState(null)
+  const [callTimes, setCallTimes] = useState(null)
   const [busy, setBusy] = useState(false)
   useEffect(() => {
     getGoogleCalendarStatus('personal').then(s => setCal(!!s.connected)).catch(() => setCal(false))
+    getUserSetting(AVAILABILITY_SETTING_KEY).then(v => setCallTimes(!!normalizeAvailability(v))).catch(() => setCallTimes(false))
   }, [])
   const g = gmailSetupState({ connections: scan.connections, scanning: scan.scanning, anyAiKey: status.anyAi, keyLoading: status.loading })
   const gmailOn = g.kind === 'loading' ? null : ['scanning', 'waiting', 'done'].includes(g.kind)
@@ -409,6 +472,8 @@ function DoneStep({ user, imported, onFinish, onBack }) {
     { label: 'AI features', on: status.loading ? null : status.ai, off: 'Off: add a key in Settings anytime' },
     { label: 'Gmail auto-tracking', on: gmailOn, off: g.kind === 'needsKey' ? 'Connected, waiting for an AI key' : 'Off: connect in Settings anytime' },
     { label: 'Google Calendar', on: cal, off: 'Off: connect in Settings anytime' },
+    { label: 'Résumé', on: !!profile?.resume_text, off: 'Not added: add it in Settings anytime' },
+    { label: 'Call times in drafted replies', on: callTimes, off: 'Not set: drafts ask them for times instead' },
   ]
   const done = async opts => { setBusy(true); await onFinish(opts) }
   return (
