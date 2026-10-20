@@ -14,7 +14,7 @@ The pre-invite set (06, 05, 01, 07) changes what a friend sees in their first fi
 it's worth doing while you finish v1.3 spec 02's console steps, which gate the invite anyway.
 02–04 matter right now for your own season: interviews and offers come in October through December.
 
-## Where we are (2026-10-20): checklist
+## Where we are (2026-10-20, after PR #23): checklist
 
 🤖 = Claude can do it · 👤 = owner (console, inbox, approvals)
 
@@ -31,7 +31,7 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 - [x] 🤖 Résumé PDF upload under the **production CSP**: no violations, and the text extracted.
   The preview is behind Vercel deployment protection, so this ran on the production build
   served locally with `vercel.json`'s headers, using a throwaway account (deleted).
-- [ ] 👤 Review and merge (prod auto-deploys `main`)
+- [x] 👤 Review and merge: PR #23 merged 2026-10-20, after merging main (PR #22's Today dashboard; drafts became a card). Prod deployed, and the `/demo` Today → Inbox draft was checked live
 - [ ] 👤 Settings → Drafted replies: set your call hours (and add your résumé if you skipped it)
 - [ ] 👤 Live check. It needs Gmail connected (v1.3 spec 02 D2) and ideally a calendar.
   - [ ] From another account, email your connected Gmail: "could we find 30 min next week?"
@@ -114,8 +114,8 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 | 06 | [Fixes from the review](06-fixes.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20) |
 | 07 | [Onboarding that ends with data on screen](07-onboarding.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20), smoke-tested on prod; live first scan untested until a real Gmail connect |
 | 08 | [A Today you arrange yourself](08-custom-today.md) | 🤖, one new dependency (@dnd-kit) | no | open |
-| 09 | [Résumé in onboarding](09-resume.md) | 🤖, one new dependency (pdfjs-dist) | **yes** (shared with 10) | built 2026-10-20, migration pushed, wizard verified |
-| 10 | [Drafted replies with suggested call times](10-reply-drafts.md) | 🤖 | **yes** (shared with 09) | built 2026-10-20, migration pushed; live mailbox check pending |
+| 09 | [Résumé in onboarding](09-resume.md) | 🤖, one new dependency (pdfjs-dist) | **yes** (shared with 10) | ✅ merged 2026-10-20 (PR #23), live |
+| 10 | [Drafted replies with suggested call times](10-reply-drafts.md) | 🤖 | **yes** (shared with 09) | ✅ merged 2026-10-20 (PR #23), live; real-mailbox check pending |
 
 **Order:** 06 → 05 → 01 → 07 → *invite* → 08 → 02 → 03 → 04.
 - 06, 05, 01 and 07 are the pre-invite set: 07 hosts 01's importers in the wizard and needs 06 B's
