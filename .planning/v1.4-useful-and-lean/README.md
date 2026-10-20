@@ -51,7 +51,7 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 - [ ] Then [v1.3 spec 04](../v1.3-launch-and-cleanup/04-launch-week.md) (launch week)
 
 ### Next code
-- [ ] 🤖 [08](08-custom-today.md) rearrangeable Today. Convert "Replies Drafted" into a registry card while there.
+- [ ] 🤖 [08](08-custom-today.md) rearrangeable Today. Fold the "Replies drafted" card (added on top of PR #22's dashboard) into the registry.
 - [ ] 🤖 02 → 03 → 04 after the Apps Script cutover (v1.3 spec 08)
 
 ### Later (not planned yet)

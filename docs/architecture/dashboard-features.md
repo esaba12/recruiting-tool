@@ -10,7 +10,7 @@ on seed data (`demoData.js`).
 ## Today (`TodayTab.jsx`, logic in `lib/attention.js`)
 
 The attention stack. Sections, in order:
-- Replies Drafted (v1.4 spec 10): replies the Gmail scan wrote for you, each opening its Inbox thread
+- "Replies drafted" card (v1.4 spec 10, first in the attention stacks): replies the Gmail scan wrote for you, each opening its Inbox thread
 - Action Items (AI-flagged from email)
 - Overdue Follow-Ups
 - Stale Applications (14+ days without movement)

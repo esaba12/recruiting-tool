@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react'
-import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships, fetchActionItems, fetchDailyRecap, fetchEmailDrafts, setDemoData } from './db.js'
+import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships, fetchActionItems, fetchEmailDrafts, setDemoData } from './db.js'
 import { researchOaDeadlines } from './lib/oaResearch.js'
 import { useAuth } from './lib/AuthContext.jsx'
 import useApplicationsLive from './lib/useApplicationsLive.js'
@@ -296,7 +296,6 @@ function AppInner() {
   const [actionItems, setActionItems] = useState([])
   const [emailDrafts, setEmailDrafts] = useState([])
   const [inboxThread, setInboxThread] = useState(null) // Today → a drafted reply's thread
-  const [dailyRecap, setDailyRecap] = useState(null)
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
   const [lastLoaded, setLastLoaded] = useState(null)
@@ -333,12 +332,12 @@ function AppInner() {
   async function load() {
     setLoading(true); setError(null)
     try {
-      const [c, a, i, cl, cr, ai, dr, ed] = await Promise.all([
+      const [c, a, i, cl, cr, ai, ed] = await Promise.all([
         fetchContacts(), fetchApplications(), fetchInteractions(), fetchCalls(), fetchContactRelationships(),
-        fetchActionItems(), fetchDailyRecap(), fetchEmailDrafts().catch(() => []), // drafts are extra: never block the app
+        fetchActionItems(), fetchEmailDrafts().catch(() => []), // drafts are extra: never block the app
       ])
       setContacts(c); setApps(a); setInteractions(i); setCalls(cl); setContactRelationships(cr)
-      setActionItems(ai); setDailyRecap(dr); setEmailDrafts(ed)
+      setActionItems(ai); setEmailDrafts(ed)
       setLastLoaded(new Date().toLocaleTimeString())
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
@@ -434,7 +433,7 @@ function AppInner() {
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
           onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} onImported={refreshApps} views={pipelineViewsFor(profile)} />
       )}
-      {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships} actionItems={actionItems} dailyRecap={dailyRecap} learning={learning} onOpenLearn={() => setTab('learn')} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} emailDrafts={emailDrafts} onOpenDraft={openDraft} />}
+      {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships} actionItems={actionItems} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} emailDrafts={emailDrafts} onOpenDraft={openDraft} />}
       {!loading && tab === 'inbox'    && (
         <InboxTab contacts={contacts} apps={apps} interactions={interactions} actionItems={actionItems} onRefresh={load}
           drafts={emailDrafts} onDraftsChange={setEmailDrafts} initialThreadId={inboxThread} />
@@ -569,8 +568,7 @@ function DemoAppInner() {
       )}
       {!loading && tab === 'today' && (
         <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships}
-          learning={learning} onOpenLearn={() => setTab('learn')} onFindPeople={goFindPeople}
-          onRefresh={load} onRefreshRelationships={refreshContactRelationships} isDemoMode
+          onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} isDemoMode
           eventPool={eventPool} onOpenEvents={() => setTab('calendar')} emailDrafts={emailDrafts} onOpenDraft={openDraft} />
       )}
       {!loading && tab === 'calendar' && (

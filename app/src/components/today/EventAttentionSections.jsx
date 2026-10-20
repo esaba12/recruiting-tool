@@ -1,13 +1,12 @@
 import { useState } from 'react'
-import { m } from 'motion/react'
-import { CalendarCheck2, TicketCheck, MessageSquareReply, RadioTower } from 'lucide-react'
+import { CalendarCheck2, RadioTower } from 'lucide-react'
 import { eventRequirementsDue, registrationClosingSoon, eventFollowUpsOverdue, degradedEventSources } from '../../lib/attention.js'
 import { REQUIREMENT_LABEL } from '../../lib/eventRequirements.js'
 import Mono from '../ui/Mono.jsx'
-import { Section, RowCap } from '../ui/Section.jsx'
+import { DashCard, Group } from './DashCard.jsx'
 
-// Recruiting Events attention on Today (v1.1 Phase 14). Four more sections in Today's
-// existing Section stack — the same lib/attention.js derivations, no second action queue.
+// Recruiting Events attention on Today (v1.1 Phase 14), one card on the dashboard — the same
+// lib/attention.js derivations, no second action queue.
 // Pure helpers are exported for test/todayEvents.test.js.
 
 const DAY = 86400000
@@ -206,59 +205,31 @@ function FollowUpRow({ item, pool, onOpenEvents }) {
   )
 }
 
-// The three deadline sections, rendered as siblings in TodayTab's stagger stack.
-// `fold(id)` (optional) → { collapsed, onToggle } so Today's collapse controls reach these too.
-export function EventDeadlineSections({ attention, pool, onOpenEvents, rise, fold = () => ({}), now = Date.now() }) {
-  const { steps, registrations, followUps } = attention
+// The Events card: signup steps, closing registrations and overdue follow-ups as groups in
+// one Today card, with degraded feeds as a footnote (informational, not a to-do).
+export function EventsCard({ attention, pool, onOpenEvents, now = Date.now() }) {
+  const { steps, registrations, followUps, degraded } = attention
+  if (!attention.count && !degraded.length) return null
   return (
-    <>
-      {steps.length > 0 && (
-        <m.div variants={rise}>
-          <Section title={`Signup Steps Due (${steps.length})`} {...fold('evSteps')} accent="warning" icon={CalendarCheck2}
-            subtitle="Required steps before a recruiting event lets you in.">
-            <RowCap items={steps} tier="warning"
-              renderItem={it => <StepRow key={it.requirement.id} item={it} pool={pool} now={now} onOpenEvents={onOpenEvents} />} />
-          </Section>
-        </m.div>
-      )}
-      {registrations.length > 0 && (
-        <m.div variants={rise}>
-          <Section title={`Registration Closing (${registrations.length})`} {...fold('evReg')} accent="warning" icon={TicketCheck}>
-            <RowCap items={registrations} tier="warning"
-              renderItem={it => <RegistrationRow key={it.event.id} item={it} pool={pool} now={now} onOpenEvents={onOpenEvents} />} />
-          </Section>
-        </m.div>
-      )}
-      {followUps.length > 0 && (
-        <m.div variants={rise}>
-          <Section title={`Event Follow-Ups Overdue (${followUps.length})`} {...fold('evFollow')} accent="danger" icon={MessageSquareReply}>
-            <RowCap items={followUps} tier="danger"
-              renderItem={it => <FollowUpRow key={it.userEvent.eventId} item={it} pool={pool} onOpenEvents={onOpenEvents} />} />
-          </Section>
-        </m.div>
-      )}
-    </>
-  )
-}
-
-// Quiet feed-health notice: one line per degraded source. Informational, not a to-do.
-export function EventFeedHealth({ attention, rise, fold = () => ({}) }) {
-  const { degraded } = attention
-  if (!degraded.length) return null
-  return (
-    <m.div variants={rise}>
-      <Section title={`Event Feeds Degraded (${degraded.length})`} {...fold('evFeeds')} accent="ink" icon={RadioTower}
-        subtitle="Nothing from these feeds was written — events from them may be missing or stale.">
-        {degraded.map(s => (
-          <div key={s.id} className="py-2 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
-            <span className="text-sm text-ink-800 font-medium shrink-0">{s.label || s.ref || 'Feed'}</span>
-            <span className="text-xs text-ink-500 min-w-0 break-words">
-              {s.degradedReason || 'Feed looks stale'}
+    <DashCard label="Events" tone="warning" icon={CalendarCheck2} count={attention.count || null}>
+      <Group label="Signup steps due" tone="warning" items={steps}
+        renderItem={it => <StepRow key={it.requirement.id} item={it} pool={pool} now={now} onOpenEvents={onOpenEvents} />} />
+      <Group label="Registration closing" tone="warning" items={registrations}
+        renderItem={it => <RegistrationRow key={it.event.id} item={it} pool={pool} now={now} onOpenEvents={onOpenEvents} />} />
+      <Group label="Follow-ups overdue" tone="danger" items={followUps}
+        renderItem={it => <FollowUpRow key={it.userEvent.eventId} item={it} pool={pool} onOpenEvents={onOpenEvents} />} />
+      {degraded.length > 0 && (
+        <div className="mt-3 pt-2 border-t border-ink-100 space-y-1">
+          <p className="flex items-center gap-1.5 text-xs text-ink-500"><RadioTower size={12} /> Feeds degraded, so events from them may be missing:</p>
+          {degraded.map(s => (
+            <p key={s.id} className="text-xs text-ink-500 break-words">
+              <span className="text-ink-800 font-medium">{s.label || s.ref || 'Feed'}</span>
+              {' · '}{s.degradedReason || 'Feed looks stale'}
               {s.degradedAt && <> · since <Mono className="text-ink-500">{fmtWhen(s.degradedAt)}</Mono></>}
-            </span>
-          </div>
-        ))}
-      </Section>
-    </m.div>
+            </p>
+          ))}
+        </div>
+      )}
+    </DashCard>
   )
 }
