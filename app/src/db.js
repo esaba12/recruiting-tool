@@ -62,6 +62,7 @@ function demoStore() {
       requirementCompletions: d.DEMO_REQUIREMENT_COMPLETIONS.map(c => ({ ...c })),
       ingestSources: d.DEMO_INGEST_SOURCES.map(i => ({ ...i })),
       targetCompanies: [...d.DEMO_TARGET_COMPANIES],
+      emailDrafts: d.DEMO_EMAIL_DRAFTS.map(x => ({ ...x, proposedSlots: [...x.proposedSlots] })),
     }
   }
   return demo
@@ -659,6 +660,50 @@ export async function dismissActionItems(ids) {
   throwIfError(error, 'dismissActionItems')
 }
 
+// ── Reply drafts (v1.4 spec 10) ──────────────────────────────────────────────────
+// email_drafts is written only by the Gmail scan (service role; no client insert policy).
+// The client reads pending drafts and edits, completes or dismisses them. Demo mode serves
+// the seeded drafts from demoData.js and keeps edits in memory.
+
+function mapEmailDraftRow(r) {
+  return {
+    id: r.id,
+    threadId: r.thread_id,
+    replyToMessageId: r.reply_to_message_id,
+    mailbox: r.mailbox || null,
+    toAddress: r.to_address || null,
+    subject: r.subject || '',
+    body: r.body || '',
+    intent: r.intent || null,
+    proposedSlots: Array.isArray(r.proposed_slots) ? r.proposed_slots : [],
+    slotsChecked: !!r.slots_checked,
+    status: r.status,
+    createdAt: r.created_at,
+  }
+}
+
+export async function fetchEmailDrafts() {
+  if (isDemoMode()) return demoStore().emailDrafts.filter(d => d.status === 'pending').map(d => ({ ...d }))
+  const { data, error } = await supabase.from('email_drafts').select('*').eq('status', 'pending')
+    .order('created_at', { ascending: false })
+  throwIfError(error, 'fetchEmailDrafts')
+  return (data || []).map(mapEmailDraftRow)
+}
+
+// fields: { body?, status? } — status 'done' (replied) or 'dismissed'.
+export async function updateEmailDraft(id, fields) {
+  if (isDemoMode()) {
+    const d = demoStore().emailDrafts.find(x => x.id === id)
+    if (d) Object.assign(d, fields)
+    return
+  }
+  const row = { updated_at: new Date().toISOString() }
+  if (fields.body !== undefined) row.body = fields.body
+  if (fields.status !== undefined) row.status = fields.status
+  const { error } = await supabase.from('email_drafts').update(row).eq('id', id)
+  throwIfError(error, 'updateEmailDraft')
+}
+
 export async function fetchDailyRecap() {
   if (isDemoMode()) return null
   const { data, error } = await supabase.from('daily_recaps').select('*')
@@ -694,6 +739,22 @@ export async function setUserSetting(key, value) {
   if (isDemoMode()) { demoSettings.set(key, value); return }
   const { error } = await supabase.from('user_settings').upsert({ key, value }, { onConflict: 'user_id,key' })
   throwIfError(error, `setUserSetting(${key})`)
+}
+
+// Résumé text (v1.4 spec 09) lives on profiles; AuthContext's profile row carries it back
+// as resume_text after refreshProfile(). Demo mode keeps it in memory with the settings.
+export async function saveResumeText(text) {
+  const resumeText = text?.trim() ? text.trim() : null
+  if (isDemoMode()) { demoSettings.set('resume_text', resumeText); return }
+  const { data: { user } } = await supabase.auth.getUser()
+  const { error } = await supabase.from('profiles')
+    .update({ resume_text: resumeText, resume_updated_at: resumeText ? new Date().toISOString() : null })
+    .eq('id', user.id)
+  throwIfError(error, 'saveResumeText')
+}
+
+export function demoResumeText() {
+  return isDemoMode() && demoSettings.has('resume_text') ? demoSettings.get('resume_text') : null
 }
 
 export async function fetchTargetCompanies() {

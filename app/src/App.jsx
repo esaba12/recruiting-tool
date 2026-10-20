@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react'
-import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships, fetchActionItems, fetchDailyRecap, setDemoData } from './db.js'
+import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships, fetchActionItems, fetchDailyRecap, fetchEmailDrafts, setDemoData } from './db.js'
 import { researchOaDeadlines } from './lib/oaResearch.js'
 import { useAuth } from './lib/AuthContext.jsx'
 import useApplicationsLive from './lib/useApplicationsLive.js'
@@ -294,6 +294,8 @@ function AppInner() {
   const [calls, setCalls]       = useState([])
   const [contactRelationships, setContactRelationships] = useState([])
   const [actionItems, setActionItems] = useState([])
+  const [emailDrafts, setEmailDrafts] = useState([])
+  const [inboxThread, setInboxThread] = useState(null) // Today → a drafted reply's thread
   const [dailyRecap, setDailyRecap] = useState(null)
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
@@ -305,6 +307,7 @@ function AppInner() {
   const learning = useLearning({ enabled: true })
   const [learnLogRequest, setLearnLogRequest] = useState(null)
   const logOa = app => { setLearnLogRequest({ kind: 'assessment', applicationId: app.id, title: `${app.company} OA` }); setTab('learn') }
+  const openDraft = threadId => { setInboxThread(threadId); setTab('inbox') }
 
   useEffect(() => { load() }, [])
 
@@ -330,12 +333,12 @@ function AppInner() {
   async function load() {
     setLoading(true); setError(null)
     try {
-      const [c, a, i, cl, cr, ai, dr] = await Promise.all([
+      const [c, a, i, cl, cr, ai, dr, ed] = await Promise.all([
         fetchContacts(), fetchApplications(), fetchInteractions(), fetchCalls(), fetchContactRelationships(),
-        fetchActionItems(), fetchDailyRecap(),
+        fetchActionItems(), fetchDailyRecap(), fetchEmailDrafts().catch(() => []), // drafts are extra: never block the app
       ])
       setContacts(c); setApps(a); setInteractions(i); setCalls(cl); setContactRelationships(cr)
-      setActionItems(ai); setDailyRecap(dr)
+      setActionItems(ai); setDailyRecap(dr); setEmailDrafts(ed)
       setLastLoaded(new Date().toLocaleTimeString())
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
@@ -381,8 +384,8 @@ function AppInner() {
   useEffect(() => {
     const onChanged = async () => {
       try {
-        const [c, a, i, ai] = await Promise.all([fetchContacts(), fetchApplications(), fetchInteractions(), fetchActionItems()])
-        setContacts(c); setApps(a); setInteractions(i); setActionItems(ai)
+        const [c, a, i, ai, ed] = await Promise.all([fetchContacts(), fetchApplications(), fetchInteractions(), fetchActionItems(), fetchEmailDrafts().catch(() => [])])
+        setContacts(c); setApps(a); setInteractions(i); setActionItems(ai); setEmailDrafts(ed)
       } catch { /* the next full load picks it up */ }
     }
     window.addEventListener('rec:data-changed', onChanged)
@@ -431,9 +434,10 @@ function AppInner() {
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
           onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} onImported={refreshApps} views={pipelineViewsFor(profile)} />
       )}
-      {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships} actionItems={actionItems} dailyRecap={dailyRecap} learning={learning} onOpenLearn={() => setTab('learn')} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} />}
+      {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships} actionItems={actionItems} dailyRecap={dailyRecap} learning={learning} onOpenLearn={() => setTab('learn')} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} emailDrafts={emailDrafts} onOpenDraft={openDraft} />}
       {!loading && tab === 'inbox'    && (
-        <InboxTab contacts={contacts} apps={apps} interactions={interactions} actionItems={actionItems} onRefresh={load} />
+        <InboxTab contacts={contacts} apps={apps} interactions={interactions} actionItems={actionItems} onRefresh={load}
+          drafts={emailDrafts} onDraftsChange={setEmailDrafts} initialThreadId={inboxThread} />
       )}
       {!loading && tab === 'learn'    && <LearnTab learning={learning} apps={apps} profile={profile} logRequest={learnLogRequest} onLogRequestHandled={() => setLearnLogRequest(null)} />}
       {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} eventPool={eventPool} eventCalendarSync={eventCalendarSync} onRefreshContacts={refreshContacts} />}
@@ -502,6 +506,9 @@ function DemoAppInner() {
   const [apps, setApps] = useState([])
   const [interactions, setInteractions] = useState([])
   const [contactRelationships, setContactRelationships] = useState([])
+  const [emailDrafts, setEmailDrafts] = useState([])
+  const [inboxThread, setInboxThread] = useState(null)
+  const openDraft = threadId => { setInboxThread(threadId); setTab('inbox') }
   const [loading, setLoading] = useState(true)
   const learning = useLearning({ enabled: true })
   // Recruiting events from demoData.js (db.js's demo branch). isDemo skips the AI
@@ -514,8 +521,8 @@ function DemoAppInner() {
 
   async function load() {
     setLoading(true)
-    const [c, a, i, cr] = await Promise.all([fetchContacts(), fetchApplications(), fetchInteractions(), fetchContactRelationships()])
-    setContacts(c); setApps(a); setInteractions(i); setContactRelationships(cr)
+    const [c, a, i, cr, ed] = await Promise.all([fetchContacts(), fetchApplications(), fetchInteractions(), fetchContactRelationships(), fetchEmailDrafts()])
+    setContacts(c); setApps(a); setInteractions(i); setContactRelationships(cr); setEmailDrafts(ed)
     setLoading(false)
   }
 
@@ -564,13 +571,14 @@ function DemoAppInner() {
         <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships}
           learning={learning} onOpenLearn={() => setTab('learn')} onFindPeople={goFindPeople}
           onRefresh={load} onRefreshRelationships={refreshContactRelationships} isDemoMode
-          eventPool={eventPool} onOpenEvents={() => setTab('calendar')} />
+          eventPool={eventPool} onOpenEvents={() => setTab('calendar')} emailDrafts={emailDrafts} onOpenDraft={openDraft} />
       )}
       {!loading && tab === 'calendar' && (
         <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={[]} onRefresh={load} eventPool={eventPool} eventCalendarSync={null} isDemoMode onRefreshContacts={refreshContacts} />
       )}
       {!loading && tab === 'inbox' && (
-        <InboxTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} demoMode />
+        <InboxTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} demoMode
+          drafts={emailDrafts} onDraftsChange={setEmailDrafts} initialThreadId={inboxThread} />
       )}
       {!loading && tab === 'learn' && <LearnTab learning={learning} apps={apps} isDemoMode />}
       {tab === 'settings' && (

@@ -200,3 +200,21 @@ describe('messageLead', () => {
       .toBe('Hi Alex, Looking forward to it.')
   })
 })
+
+describe('reply drafts (v1.4 spec 10)', () => {
+  const draft = (over) => ({ id: 'd1', threadId: 't1', status: 'pending', body: 'Hi Priya,\nTuesday at 2 works great.', createdAt: at(0), ...over })
+
+  it('attaches the newest pending draft to its thread and counts it as needing a reply', () => {
+    const [t] = buildThreads({ now: NOW, contacts, drafts: [draft({ id: 'old', createdAt: at(2) }), draft(), draft({ id: 'gone', status: 'dismissed' })], interactions: [
+      // old enough that it wouldn't need a reply on its own
+      email({ date: at(20).slice(0, 10), sentAt: at(20) }),
+    ] })
+    expect(t.draft.id).toBe('d1')
+    expect(t.needsReply).toBe(true)
+  })
+
+  it('threads without a draft have none', () => {
+    const [t] = buildThreads({ now: NOW, contacts, drafts: [draft({ threadId: 'other' })], interactions: [email({})] })
+    expect(t.draft).toBeNull()
+  })
+})

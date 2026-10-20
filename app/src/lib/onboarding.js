@@ -1,6 +1,6 @@
 // Pure helpers for the first-run wizard (components/onboarding/OnboardingWizard.jsx).
 
-export const STEP_IDS = ['about', 'key', 'gmail', 'calendar', 'data', 'done']
+export const STEP_IDS = ['about', 'resume', 'key', 'gmail', 'calendar', 'data', 'done']
 export const STEP_SETTING_KEY = 'onboarding_step'
 
 // The saved step (user_settings.onboarding_step) or the first one. An unknown value (a step

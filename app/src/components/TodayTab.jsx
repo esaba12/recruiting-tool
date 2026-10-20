@@ -19,7 +19,8 @@ import MetButton from './MetButton.jsx'
 import StatTileRow from './StatTileRow.jsx'
 import Mono from './ui/Mono.jsx'
 import { Section, SectionAction, RowCap } from './ui/Section.jsx'
-import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity, MailQuestion, ListTodo, Sparkles, GraduationCap } from 'lucide-react'
+import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity, MailQuestion, ListTodo, Sparkles, GraduationCap, PenLine } from 'lucide-react'
+import { draftPreview, DRAFT_INTENT_LABEL } from '../lib/replyDrafts.js'
 import GettingStarted from './onboarding/GettingStarted.jsx'
 import { isFreshAccount } from '../lib/onboarding.js'
 import { addDaysLocal, todayLocal } from '../lib/dates.js'
@@ -389,6 +390,25 @@ function OaRow({ app: a, needsCheck, onOpen, onRefresh, onLogOa }) {
 // in that Claude authored the summary text directly at classification time, rather than it
 // being inferred after the fact from a stale date. Two ways off the list: mark it done, or
 // dismiss it as not actually actionable.
+// A reply the Gmail scan drafted (v1.4 spec 10). Opens the thread in Inbox, where it's edited
+// and copied into Gmail; nothing is sent from Today.
+function DraftRow({ draft, contacts, onOpen }) {
+  const to = String(draft.toAddress || '').toLowerCase()
+  const contact = to ? contacts.find(c => String(c.email || '').toLowerCase() === to) : null
+  return (
+    <div className={`py-2.5 flex items-start gap-3 ${ROW_HIT}`} onClick={() => onOpen(draft.threadId)}>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-ink-900 truncate">
+          {contact ? [contact.name, contact.company].filter(Boolean).join(' · ') : draft.toAddress}
+          <span className="text-ink-400 font-normal"> · {draft.subject}</span>
+        </p>
+        <p className="text-xs text-ink-500 truncate">{draftPreview(draft.body)}</p>
+      </div>
+      <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-accent-700">{DRAFT_INTENT_LABEL[draft.intent] || 'Reply'}</span>
+    </div>
+  )
+}
+
 function ActionItemRow({ item, contacts, onRefresh, onOpen }) {
   const [busy, setBusy] = useState(false)
   const contact = item.contactId ? contacts.find(c => c.id === item.contactId) : null
@@ -502,7 +522,7 @@ function interviewPrepRows({ prep, onOpenLearn }) {
   ]
 }
 
-export default function TodayTab({ contacts, apps, interactions = [], relationships = [], actionItems = [], dailyRecap = null, learning = null, onOpenLearn, onLogOa, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, isDemoMode = false }) {
+export default function TodayTab({ contacts, apps, interactions = [], relationships = [], actionItems = [], dailyRecap = null, learning = null, onOpenLearn, onLogOa, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, emailDrafts = [], onOpenDraft, isDemoMode = false }) {
   const prefs = useTodayPrefs()
   // Declutter pass 1: AI action items that already resolved themselves (replied on the
   // thread, long expired, duplicates) never reach the list.
@@ -516,7 +536,7 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
     keepInTouch: keepInTouchDue(contacts, interactions),
   })
   // Pass 3: rows the user hid (✕ / Clear all) stay hidden for a week.
-  const SNOOZE_KEY = { overdue: c => c.id, awaiting: x => x.contact.id, schedule: c => c.id, urgent: c => c.id, keepInTouch: x => x.contact.id, stale: a => a.id, review: a => a.id, oa: a => a.id, oaCheck: a => a.id }
+  const SNOOZE_KEY = { overdue: c => c.id, awaiting: x => x.contact.id, schedule: c => c.id, urgent: c => c.id, keepInTouch: x => x.contact.id, stale: a => a.id, review: a => a.id, oa: a => a.id, oaCheck: a => a.id, replies: d => d.id }
   let snoozedHidden = 0
   const visible = (id, rows) => {
     const out = rows.filter(r => !prefs.isSnoozed(`${id}:${SNOOZE_KEY[id](r)}`))
@@ -524,6 +544,7 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
     return out
   }
   const openItems = trimmed.items
+  const replyDrafts = visible('replies', emailDrafts)
   const overdueContacts = visible('overdue', people.overdue)
   const awaitingReplyList = visible('awaiting', people.awaiting)
   const scheduleContacts = visible('schedule', people.schedule)
@@ -565,14 +586,14 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
 
   const selectedApp = selectedAppId ? apps.find(a => a.id === selectedAppId) : null
 
-  const listCount = openItems.length + overdueContacts.length + staleApps.length + highUrgency.length
+  const listCount = replyDrafts.length + openItems.length + overdueContacts.length + staleApps.length + highUrgency.length
     + keepInTouch.length + needsReview.length + scheduleContacts.length + oaDueList.length
     + oaNeedsCheckList.length + awaitingReplyList.length
   const allEmpty = listCount === 0 && prepCount === 0 && eventAttention.count === 0
 
   // One snoozable feed section: collapsible heading, per-row ✕, "Clear all" hides the lot for
   // a week. Action Items pass `onClearAll` instead (they have a real dismiss).
-  const COLLAPSIBLE = ['recap', 'items', 'overdue', 'stale', 'urgent', 'keepInTouch', 'review', 'schedule', 'oa', 'oaCheck', 'prep', 'awaiting', 'activity', 'evSteps', 'evReg', 'evFollow', 'evFeeds']
+  const COLLAPSIBLE = ['recap', 'replies', 'items', 'overdue', 'stale', 'urgent', 'keepInTouch', 'review', 'schedule', 'oa', 'oaCheck', 'prep', 'awaiting', 'activity', 'evSteps', 'evReg', 'evFollow', 'evFeeds']
   const feed = ({ id, title, accent, icon, subtitle, items, renderItem, onClearAll, clearing }) => items.length > 0 && (
     <m.div variants={rise}>
       <Section title={`${title} (${items.length})`} accent={accent} icon={icon} subtitle={subtitle}
@@ -617,6 +638,10 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
       {allEmpty && snoozedHidden > 0 && (
         <p className="text-center -mt-1"><button onClick={prefs.clearSnoozes} className="text-xs text-link hover:underline">Unhide them</button></p>
       )}
+
+      {feed({ id: 'replies', title: 'Replies Drafted', accent: 'accent', icon: PenLine, items: replyDrafts,
+        subtitle: 'Written from the thread and your résumé. Review, then send from Gmail.',
+        renderItem: d => <DraftRow key={d.id} draft={d} contacts={contacts} onOpen={id => onOpenDraft?.(id)} /> })}
 
       {feed({ id: 'items', title: 'Action Items', accent: 'warning', icon: ListTodo, items: openItems,
         subtitle: 'Flagged by AI from your email.',
