@@ -27,9 +27,10 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 - [x] Wizard checked on a throwaway account (deleted): résumé PDF → text saved, call hours saved, Ready shows both
 
 ### 09 + 10: ship it
-- [ ] 🤖 Push the branch and open the PR
-- [ ] 🤖 On the Vercel preview, upload a résumé PDF under the **production CSP** (the pdf.js
-  worker and no-eval path). Local dev doesn't send the CSP headers.
+- [x] 🤖 Push the branch and open the PR ([#23](https://github.com/esaba12/recruiting-tool/pull/23); the Vercel preview built)
+- [x] 🤖 Résumé PDF upload under the **production CSP**: no violations, and the text extracted.
+  The preview is behind Vercel deployment protection, so this ran on the production build
+  served locally with `vercel.json`'s headers, using a throwaway account (deleted).
 - [ ] 👤 Review and merge (prod auto-deploys `main`)
 - [ ] 👤 Settings → Drafted replies: set your call hours (and add your résumé if you skipped it)
 - [ ] 👤 Live check. It needs Gmail connected (v1.3 spec 02 D2) and ideally a calendar.
