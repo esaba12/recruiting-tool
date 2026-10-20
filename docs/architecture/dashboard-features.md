@@ -1,6 +1,6 @@
 # Dashboard features (tab by tab)
 
-> Current state as of 2026-10-19 (rewritten in v1.4 spec 06 C). History lives in git and
+> Current state as of 2026-10-20 (rewritten in v1.4 spec 06 C; Today updated for PR #22). History lives in git and
 > `.planning/`. If a detail here disagrees with the code, the code wins.
 
 Dev server: `cd app && npm run dev` → http://localhost:3001. Tabs come from `NAV_ITEMS` in
@@ -9,21 +9,28 @@ on seed data (`demoData.js`).
 
 ## Today (`TodayTab.jsx`, logic in `lib/attention.js`)
 
-The attention stack. Sections, in order:
-- "Replies drafted" card (v1.4 spec 10, first in the attention stacks): replies the Gmail scan wrote for you, each opening its Inbox thread
-- Action Items (AI-flagged from email)
-- Overdue Follow-Ups
-- Stale Applications (14+ days without movement)
-- OA Due
-- Awaiting Reply
-- High Urgency Contacts
-- Want to Schedule
-- Keep in Touch
-- Job Boards Needs-Review (tech tracks)
-- OA Needs Check
-- The Recruiting Events sections (signup steps, registration closing, event follow-ups, feed health)
-- Interview Prep (from Learn)
-- Activity: three stat tiles (`StatTileRow.jsx`): Funnel, Next Deadline, weekly Activity
+A dashboard (PR #22, 2026-10-20). Cards share one shell, `today/DashCard.jsx`: a mono caps
+label with a status dot and a count. `Group` stacks labeled lists inside a card, and each list
+shows 3 rows before "+N more".
+
+A header line gives the date and the open count, plus "Unhide N" when anything is snoozed.
+
+**Metric cards** (`today/MetricCards.jsx`), side by side. Each one is a headline number over its
+chart, with no separate stat tiles repeating the same numbers. They're hidden until there's data.
+- **Pipeline:** applied count and %, funnel bars, next deadline (`pickNextDeadline`), and Applied → Phone Screen conversion.
+- **Network:** contact count and how many are warm, plus the status donut.
+- **Outreach:** this week's interactions, the change from last week, and the 10-week trend.
+
+**Attention cards**, in two columns balanced by visible row count (one column if there's only one card):
+- **Replies drafted** (v1.4 spec 10): replies the Gmail scan wrote for you, each opening its Inbox thread.
+- **From your email:** AI action items, with "Dismiss all".
+- **People:** groups for Overdue follow-up, Awaiting reply, High urgency, Want to schedule and Keep in touch.
+- **Applications:** groups for OA due, Stale (14+ days without movement), Job boards to review (tech tracks) and OA deadline unknown.
+- **Events** (`today/EventAttentionSections.jsx` `EventsCard`): groups for signup steps due,
+  registration closing and event follow-ups overdue, plus a footnote listing degraded feeds.
+
+Interview Prep, the daily AI recap card and the collapse controls were removed in PR #22.
+`learningAttention` and `fetchDailyRecap` still exist, but Today no longer calls them.
 
 A fresh account sees `onboarding/GettingStarted.jsx` instead of "all clear": the live Gmail
 first-scan state (`lib/gmailScan.js`) plus rows that open the tracker and LinkedIn importers.
@@ -37,13 +44,12 @@ first-scan state (`lib/gmailScan.js`) plus rows that open the tracker and Linked
   contacts and anyone with a future Follow-Up Date.
 - **Declutter** (`test/declutter.test.js`):
   - `trimActionItems` hides AI items already answered on the thread, long past due, or duplicated.
-  - `dedupeAcross` keeps each contact in one people section. Priority: Overdue → Awaiting →
+  - `dedupeAcross` keeps each contact in one People group. Priority: Overdue → Awaiting →
     Schedule → High Urgency → Keep in Touch.
-  - Rows and sections snooze for 7 days. Snoozes and collapsed state live in `user_settings.today_prefs`
-    (`lib/useTodayPrefs.js`), so they follow the account.
-- The charts that used to sit under Activity moved in v1.4 spec 05 D:
-  - The funnel → Pipeline → Sheet → Flow.
-  - Network status and the weekly trend → Network → Flow (`charts/ActivityCharts.jsx`).
+  - A row's ✕ snoozes it for 7 days, and a card's "Clear all" snoozes every row in the card.
+    Snoozes live in `user_settings.today_prefs` (`lib/useTodayPrefs.js`), so they follow the account.
+- Full-size versions of the metric charts are also on Pipeline → Sheet → Flow (funnel) and
+  Network → Flow (status donut, weekly trend), in `charts/ActivityCharts.jsx`.
 
 ## Inbox (`InboxTab.jsx`, `lib/inbox.js`)
 
@@ -116,8 +122,8 @@ Explore/Discover state is in `rec_*` localStorage keys (per device). The target 
 ## Learn (`LearnTab.jsx`, see `learn.md`)
 
 Per-track interview prep: mastery engine, FSRS review queue, LeetCode sync and company prep,
-practice import (sheet, paste, screenshot), coach. Today's Interview Prep reads it through
-`learningAttention`.
+practice import (sheet, paste, screenshot), coach. Today no longer shows an Interview Prep
+section (removed in PR #22). OA rows still offer "Done — log how it went →" into Learn.
 
 ## Pipeline (`PipelineTab.jsx`, views in `pipelineViews.js`)
 
