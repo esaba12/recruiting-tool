@@ -61,6 +61,10 @@ needs the migration pushed.
 - `/demo`: Today shows Replies Drafted. Clicking through opens the Inbox thread with the
   composer, at desktop and phone widths. No `/api` or Supabase requests.
 - Settings renders both sections (disabled on `/demo`).
-- **Not yet (needs the migration and a live mailbox):** send a "could we find 30 min next week?"
+- Migration pushed 2026-10-20. The `email_drafts` RLS case passes (no client insert, re-scan never
+  overwrites a dismissed draft, invisible to and not editable by another user).
+- Wizard Calendar step on a throwaway account: the availability editor and its preview show,
+  `user_settings.availability` saves (Mon–Thu, 9–6, 30 min, the browser zone), and Ready shows Call times ON.
+- **Not yet (needs a live mailbox):** send a "could we find 30 min next week?"
   email from a second account to a connected mailbox, then Scan now. Inbox should show a draft
   with 3 free slots that avoid calendar events. Reply in Gmail; the next scan should mark it done.

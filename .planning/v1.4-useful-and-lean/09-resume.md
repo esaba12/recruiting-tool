@@ -40,4 +40,6 @@ already has, and it turns "I'm a CS student" into "I built the billing pipeline 
 - A Chrome-generated résumé PDF goes through `extractResumeText` under the dev server and
   comes out clean, line by line.
 - `npm run build`: pdf.js is in its own lazy chunk.
-- **Not yet:** the wizard step on a fresh account (it needs the migration pushed).
+- Migration pushed 2026-10-20 (owner approved). The live RLS suite passes 14/14.
+- Wizard on a throwaway account (local dev against the hosted project, deleted afterwards):
+  upload the PDF, the text appears, Continue saves `resume_text` + `resume_updated_at`, and Ready shows Résumé ON.
