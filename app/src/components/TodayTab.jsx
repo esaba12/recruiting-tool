@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { m } from 'motion/react'
-import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TYPE_COLOR, fmt, daysUntil, daysSince, Badge, EmptyState, isUntriaged } from '../shared.jsx'
+import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TYPE_COLOR, fmt, daysUntil, daysSince, Badge, EmptyState } from '../shared.jsx'
 import { updateContact, addInteraction, updateApplicationTriage, archiveApplication, updateApplication, completeActionItem, dismissActionItem, dismissActionItems } from '../db.js'
 import { logMetWithContact } from '../lib/quickLog.js'
-import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue, awaitingReply, openActionItems, learningAttention, weeklyTrend, trimActionItems, dedupeAcross } from '../lib/attention.js'
+import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue, awaitingReply, openActionItems, trimActionItems, dedupeAcross } from '../lib/attention.js'
 import useTodayPrefs from '../lib/useTodayPrefs.js'
 import { lastPointOfContact } from '../lib/keepInTouch.js'
 import { tieStrengthBucket } from '../lib/affinity.js'
@@ -16,14 +16,15 @@ import ContactPanelBody from './panels/ContactPanelBody.jsx'
 import ApplicationPanelBody from './panels/ApplicationPanelBody.jsx'
 import LogInteractionModal from './LogInteractionModal.jsx'
 import MetButton from './MetButton.jsx'
-import StatTileRow from './StatTileRow.jsx'
 import Mono from './ui/Mono.jsx'
-import { Section, SectionAction, RowCap } from './ui/Section.jsx'
-import { CalendarClock, Hourglass, AlertTriangle, HeartHandshake, Inbox, UserPlus, ClipboardCheck, Search, Clock, MessageSquarePlus, Activity, MailQuestion, ListTodo, Sparkles, GraduationCap } from 'lucide-react'
+import { SectionAction, RowCap } from './ui/Section.jsx'
+import { HeartHandshake, ClipboardCheck, Clock, MessageSquarePlus, ListTodo } from 'lucide-react'
+import { DashCard, Group, Label } from './today/DashCard.jsx'
+import { PipelineCard, NetworkCard, OutreachCard } from './today/MetricCards.jsx'
 import GettingStarted from './onboarding/GettingStarted.jsx'
 import { isFreshAccount } from '../lib/onboarding.js'
 import { addDaysLocal, todayLocal } from '../lib/dates.js'
-import { deriveEventAttention, EventDeadlineSections, EventFeedHealth } from './today/EventAttentionSections.jsx'
+import { deriveEventAttention, EventsCard } from './today/EventAttentionSections.jsx'
 
 // Hover/cursor for any row region that opens a panel — every clickable thing on Today
 // answers the mouse, and nothing else does (docs/architecture/design-system.md, Affordances).
@@ -32,9 +33,9 @@ const ROW_HIT = 'cursor-pointer rounded-sm -mx-1.5 px-1.5 hover:bg-ink-50 transi
 // Originally from the retired KeepInTouchTab.jsx; Today is its only home now.
 const TIE_LABEL = { strong: 'Close tie', moderate: 'Moderate tie', weak: 'Weak tie', cold: 'Not yet connected' }
 
-// Mount-time stagger for the whole Section list (D-04) — same shape as NotFoundPage.jsx's
-// container/rise precedent, lighter values matching UI-SPEC's "~100ms per section" cue.
-const container = { hidden: {}, show: { transition: { staggerChildren: 0.1 } } }
+// Mount-time stagger across the dashboard's cards — same shape as NotFoundPage.jsx's
+// container/rise precedent, tightened so seven-ish cards land in well under a second.
+const container = { hidden: {}, show: { transition: { staggerChildren: 0.07 } } }
 const rise = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } }
 
 // A contact whose Follow-Up Date already passed, but who has a logged interaction newer
@@ -238,49 +239,28 @@ function KeepInTouchRow({ contact: c, status, interactions, onOpen, onLog, onMet
   const last = lastPointOfContact(c, interactions)
   const bucket = tieStrengthBucket(c, interactions)
   const overdue = !status.never && status.overdueDays > 0
+  // A plain divided row now that it sits in the People card, like every other row there.
   return (
-    <div className={`bg-surface rounded-md px-4 py-3 border ${overdue ? 'border-warning-300' : 'border-ink-300'}`}>
-      <div className="flex items-start gap-3">
-        <button onClick={() => onOpen(c)} className={`flex-1 min-w-0 text-left py-1 ${ROW_HIT}`}>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-ink-900">{c.name}</span>
-            {c.company && <span className="text-sm text-ink-500">@ {c.company}</span>}
-            {c.role && <span className="text-xs text-ink-400">· {c.role}</span>}
-          </div>
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            <Badge label={c.status} color={STATUS_COLOR[c.status]} icon={statusIconFor(c.status)} />
-            <span className="inline-flex items-center gap-1 text-[11px] text-ink-400">
-              <Clock size={11} /> {TIE_LABEL[bucket]} · every <Mono>{status.cadence}</Mono>d
-            </span>
-          </div>
-          <div className="mt-2 text-xs text-ink-500">
-            {last ? (
-              <span className="flex items-center gap-1.5 flex-wrap">
-                <Badge label={last.type} color={TYPE_COLOR[last.type] || TYPE_COLOR.Other} />
-                <span className="text-ink-400"><Mono>{fmt(last.date)}</Mono></span>
-                {last.summary && <span className="text-ink-500 line-clamp-1 italic">— "{last.summary}"</span>}
-              </span>
-            ) : (
-              <span className="text-ink-400">No interaction logged yet — say hello to start the thread.</span>
-            )}
-          </div>
-        </button>
-
-        <div className="text-right shrink-0 flex flex-col items-end gap-2">
-          <span className={`text-xs font-semibold ${overdue ? 'text-accent-700' : 'text-ink-400'}`}>
-            {status.never
-              ? 'Never contacted'
-              : status.overdueDays > 0
-                ? <><Mono>{status.overdueDays}d</Mono> overdue</>
-                : 'Due today'}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <MetButton contact={c} onMet={onMet} />
-            <button onClick={() => onLog(c)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700">
-              <MessageSquarePlus size={12} /> Log
-            </button>
-          </div>
+    <div className="py-2.5 flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+      <div className={`min-w-0 max-w-full ${ROW_HIT}`} onClick={() => onOpen(c)}>
+        <p className="text-sm font-medium text-ink-900">{c.name}</p>
+        <p className="text-xs text-ink-500">{[c.company, c.role].filter(Boolean).join(' · ')}</p>
+        <p className="mt-0.5 flex items-center gap-1 flex-wrap text-[11px] text-ink-400">
+          <Clock size={11} /> {TIE_LABEL[bucket]} · every <Mono>{status.cadence}</Mono>d
+          {last && <> · last {last.type} <Mono>{fmt(last.date)}</Mono></>}
+        </p>
+      </div>
+      <div className="sm:text-right sm:shrink-0 space-y-1">
+        <Badge label={c.status} color={STATUS_COLOR[c.status]} icon={statusIconFor(c.status)} />
+        <p className={`text-xs font-medium ${overdue ? 'text-warning-700' : 'text-ink-500'}`}>
+          {status.never ? 'Never contacted' : overdue ? <><Mono className="font-medium">{status.overdueDays}d</Mono> overdue</> : 'Due today'}
+        </p>
+        <div className="flex items-center gap-1.5 sm:justify-end">
+          <MetButton contact={c} onMet={onMet} />
+          <button onClick={() => onLog(c)}
+            className="inline-flex items-center gap-1 px-2.5 py-1 bg-accent-600 text-on-accent rounded-full text-xs font-medium hover:bg-accent-700">
+            <MessageSquarePlus size={12} /> Log
+          </button>
         </div>
       </div>
     </div>
@@ -432,82 +412,12 @@ function ActionItemRow({ item, contacts, onRefresh, onOpen }) {
   )
 }
 
-// Read-only display of the pipeline's daily AI recap (generateDailyRecap() in
-// scripts/email-pipeline.js) — the same content already pushed via ntfy, mirrored here so
-// it's still visible in-app after the push notification is gone. Deliberately no
-// interactive state here (no checkboxes on todo_json's bullets) — the actionable version of
-// the same information lives in the Action Items section above, so nothing is duplicated
-// across two independently-clickable surfaces.
-function DailyRecapCard({ recap, collapsed, onToggle }) {
-  if (!recap) return null
-  return (
-    <Section title="Today's Recap" accent="ink" icon={Sparkles} collapsed={collapsed} onToggle={onToggle}>
-      <div className="py-2 space-y-3">
-        <p className="text-sm text-ink-600">{recap.summaryText}</p>
-        {recap.todos?.length > 0 && (
-          <ul className="space-y-1.5">
-            {recap.todos.map((t, i) => (
-              <li key={i} className="text-sm text-ink-700 flex items-start gap-2">
-                <span className="text-link mt-0.5">•</span>
-                <span>{typeof t === 'string' ? t : t.text}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </Section>
-  )
-}
-
-// The at-a-glance tiles. The charts that used to follow them moved to Pipeline → Sheet →
-// Flow and Network → Flow (v1.4 spec 05 D, charts/ActivityCharts.jsx).
-function ActivitySection({ apps, interactions, collapsed, onToggle }) {
-  const triagedApps = apps.filter(a => !isUntriaged(a))
-  return (
-    <Section title="Activity" accent="ink" icon={Activity} collapsed={collapsed} onToggle={onToggle}>
-      <StatTileRow triagedApps={triagedApps} apps={apps} trendData={weeklyTrend(interactions)} />
-    </Section>
-  )
-}
-
-// Interview-prep attention (lib/attention.js's learningAttention): upcoming OA/interview →
-// that track's top gaps; goals behind pace; re-solve queue items due. Every row deep-links
-// to the Learn tab, which owns logging.
-// Returns a flat array of rows so Today can put them through RowCap like every other section.
-function interviewPrepRows({ prep, onOpenLearn }) {
-  return [
-      ...prep.prepGaps.map((p, i) => (
-        <div key={`p${i}`} className="py-2.5 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-ink-900">{p.app.company} <span className="text-ink-400 font-normal">· {p.kind}{p.kind === 'OA' && p.app.oaDueDate ? <> due <Mono>{fmt(p.app.oaDueDate)}</Mono></> : ''}</span></p>
-            <p className="text-xs text-ink-500">
-              {p.gaps.length ? <>Weakest in {p.track.name}: {p.gaps.map(g => `${g.topic.name} (${g.mastery.level.toFixed(1)}/${g.topic.targetLevel})`).join(', ')}</> : `${p.track.name} topics are at target`}
-            </p>
-          </div>
-          <button onClick={() => onOpenLearn?.()} className="text-xs font-medium text-accent-700 hover:underline shrink-0">Prep →</button>
-        </div>
-      )),
-      ...prep.goalsBehind.map((g, i) => (
-        <div key={`g${i}`} className="py-2.5 flex items-center justify-between gap-3">
-          <p className="text-sm text-ink-800">Behind on a {g.track.name} goal <span className="text-ink-400">· <Mono>{g.progress.current}/{g.progress.target}</Mono> {g.goal.period === 'week' ? 'this week' : ''}</span></p>
-          <button onClick={() => onOpenLearn?.()} className="text-xs font-medium text-accent-700 hover:underline shrink-0">Open →</button>
-        </div>
-      )),
-      ...(prep.reviewsDue.length > 0 ? [
-        <div key="r" className="py-2.5 flex items-center justify-between gap-3">
-          <p className="text-sm text-ink-800">{prep.reviewsDue.length} problem{prep.reviewsDue.length === 1 ? '' : 's'} due to re-solve <span className="text-ink-400">· {prep.reviewsDue.slice(0, 3).map(r => r.item.title).join(', ')}</span></p>
-          <button onClick={() => onOpenLearn?.()} className="text-xs font-medium text-accent-700 hover:underline shrink-0">Review →</button>
-        </div>,
-      ] : []),
-  ]
-}
-
-export default function TodayTab({ contacts, apps, interactions = [], relationships = [], actionItems = [], dailyRecap = null, learning = null, onOpenLearn, onLogOa, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, isDemoMode = false }) {
+export default function TodayTab({ contacts, apps, interactions = [], relationships = [], actionItems = [], onLogOa, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, isDemoMode = false }) {
   const prefs = useTodayPrefs()
   // Declutter pass 1: AI action items that already resolved themselves (replied on the
   // thread, long expired, duplicates) never reach the list.
   const trimmed = trimActionItems(openActionItems(actionItems), interactions)
-  // Pass 2: a contact shows up in one people section only, highest-priority first.
+  // Pass 2: a contact shows up in one people group only, highest-priority first.
   const people = dedupeAcross({
     overdue: overdueFollowUps(contacts),
     awaiting: awaitingReply(contacts, interactions),
@@ -524,17 +434,19 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
     return out
   }
   const openItems = trimmed.items
-  const overdueContacts = visible('overdue', people.overdue)
-  const awaitingReplyList = visible('awaiting', people.awaiting)
-  const scheduleContacts = visible('schedule', people.schedule)
-  const highUrgency = visible('urgent', people.urgent)
-  const keepInTouch = visible('keepInTouch', people.keepInTouch)
-  const staleApps = visible('stale', staleApplications(apps))
-  const needsReview = visible('review', needsReviewApps(apps))
-  const oaDueList = visible('oa', oaDue(apps))
-  const oaNeedsCheckList = visible('oaCheck', oaNeedsCheck(apps))
-  const prep = learningAttention(learning, apps)
-  const prepCount = prep.prepGaps.length + prep.goalsBehind.length + prep.reviewsDue.length
+  const peopleGroups = {
+    overdue: visible('overdue', people.overdue),
+    awaiting: visible('awaiting', people.awaiting),
+    urgent: visible('urgent', people.urgent),
+    schedule: visible('schedule', people.schedule),
+    keepInTouch: visible('keepInTouch', people.keepInTouch),
+  }
+  const appGroups = {
+    oa: visible('oa', oaDue(apps)),
+    stale: visible('stale', staleApplications(apps)),
+    review: visible('review', needsReviewApps(apps)),
+    oaCheck: visible('oaCheck', oaNeedsCheck(apps)),
+  }
   // Recruiting events (v1.1): empty when there's no pool or no campus picked yet.
   const eventAttention = deriveEventAttention(eventPool)
 
@@ -564,119 +476,124 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
   }
 
   const selectedApp = selectedAppId ? apps.find(a => a.id === selectedAppId) : null
+  const openContact = x => setSelectedContactId(x.id)
+  const openApp = x => setSelectedAppId(x.id)
 
-  const listCount = openItems.length + overdueContacts.length + staleApps.length + highUrgency.length
-    + keepInTouch.length + needsReview.length + scheduleContacts.length + oaDueList.length
-    + oaNeedsCheckList.length + awaitingReplyList.length
-  const allEmpty = listCount === 0 && prepCount === 0 && eventAttention.count === 0
+  const total = groups => Object.values(groups).reduce((n, rows) => n + rows.length, 0)
+  const peopleCount = total(peopleGroups)
+  const appCount = total(appGroups)
+  const openCount = openItems.length + peopleCount + appCount + eventAttention.count
+  const allEmpty = openCount === 0
+  const hasData = apps.length > 0 || contacts.length > 0 || interactions.length > 0
 
-  // One snoozable feed section: collapsible heading, per-row ✕, "Clear all" hides the lot for
-  // a week. Action Items pass `onClearAll` instead (they have a real dismiss).
-  const COLLAPSIBLE = ['recap', 'items', 'overdue', 'stale', 'urgent', 'keepInTouch', 'review', 'schedule', 'oa', 'oaCheck', 'prep', 'awaiting', 'activity', 'evSteps', 'evReg', 'evFollow', 'evFeeds']
-  const feed = ({ id, title, accent, icon, subtitle, items, renderItem, onClearAll, clearing }) => items.length > 0 && (
-    <m.div variants={rise}>
-      <Section title={`${title} (${items.length})`} accent={accent} icon={icon} subtitle={subtitle}
-        collapsed={prefs.isCollapsed(id)} onToggle={() => prefs.toggleCollapsed(id)}
-        actions={onClearAll
-          ? <SectionAction onClick={onClearAll} disabled={clearing}>{clearing ? 'Clearing…' : 'Dismiss all'}</SectionAction>
-          : <SectionAction onClick={() => prefs.snooze(items.map(x => `${id}:${SNOOZE_KEY[id](x)}`))}>Clear all</SectionAction>}>
-        <RowCap items={items} tier={accent} renderItem={renderItem}
-          onHide={onClearAll ? undefined : x => prefs.snooze([`${id}:${SNOOZE_KEY[id](x)}`])} />
-      </Section>
-    </m.div>
+  // Per-row ✕ snoozes one row; a card's "Clear all" snoozes every row in it.
+  const hide = id => x => prefs.snooze([`${id}:${SNOOZE_KEY[id](x)}`])
+  const clearAll = groups => (
+    <SectionAction onClick={() => prefs.snooze(Object.entries(groups).flatMap(([id, rows]) => rows.map(x => `${id}:${SNOOZE_KEY[id](x)}`)))}>
+      Clear all
+    </SectionAction>
   )
-  const fold = id => ({ collapsed: prefs.isCollapsed(id), onToggle: () => prefs.toggleCollapsed(id) })
-  const allCollapsed = COLLAPSIBLE.every(id => prefs.isCollapsed(id))
+
+  const cards = {
+    email: openItems.length > 0 && (
+      <DashCard label="From your email" tone="warning" icon={ListTodo} count={openItems.length}
+        actions={<SectionAction onClick={dismissAllItems} disabled={dismissingAll}>{dismissingAll ? 'Clearing…' : 'Dismiss all'}</SectionAction>}>
+        <div className="mt-1">
+          <RowCap items={openItems} tier="warning"
+            renderItem={item => <ActionItemRow key={item.id} item={item} contacts={contacts} onRefresh={onRefresh} onOpen={openContact} />} />
+        </div>
+      </DashCard>
+    ),
+    people: peopleCount > 0 && (
+      <DashCard label="People" tone={peopleGroups.overdue.length || peopleGroups.urgent.length ? 'danger' : 'warning'} icon={HeartHandshake}
+        count={peopleCount} actions={clearAll(peopleGroups)}>
+        <Group label="Overdue follow-up" tone="danger" items={peopleGroups.overdue} onHide={hide('overdue')}
+          renderItem={c => <OverdueRow key={c.id} contact={c} interactions={interactions} onRefresh={onRefresh} onOpen={openContact} />} />
+        <Group label="Awaiting reply" tone="warning" items={peopleGroups.awaiting} onHide={hide('awaiting')}
+          renderItem={item => <AwaitingReplyRow key={item.contact.id} item={item} onRefresh={onRefresh} onOpen={openContact} />} />
+        <Group label="High urgency" tone="danger" items={peopleGroups.urgent} onHide={hide('urgent')}
+          renderItem={c => <HighUrgencyRow key={c.id} contact={c} onOpen={openContact} />} />
+        <Group label="Want to schedule" tone="ink" items={peopleGroups.schedule} onHide={hide('schedule')}
+          renderItem={c => <ScheduleRow key={c.id} contact={c} onRefresh={onRefresh} onOpen={openContact} />} />
+        <Group label="Keep in touch" tone="warning" items={peopleGroups.keepInTouch} onHide={hide('keepInTouch')}
+          renderItem={({ contact: c, status }) => (
+            <KeepInTouchRow key={c.id} contact={c} status={status} interactions={interactions}
+              onOpen={openContact} onLog={setLogContact} onMet={handleMet} />
+          )} />
+      </DashCard>
+    ),
+    apps: appCount > 0 && (
+      <DashCard label="Applications" tone={appGroups.stale.length ? 'danger' : 'warning'} icon={ClipboardCheck}
+        count={appCount} actions={clearAll(appGroups)}>
+        <Group label="OA due" tone="warning" items={appGroups.oa} onHide={hide('oa')}
+          renderItem={a => <OaRow key={a.id} app={a} onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />} />
+        <Group label="Stale · no movement 14d+" tone="danger" items={appGroups.stale} onHide={hide('stale')}
+          renderItem={a => <ApplicationRow key={a.id} app={a} showTriageChips={false} onOpen={openApp} changeAppTriage={changeAppTriage} />} />
+        <Group label="Job boards to review" tone="warning" items={appGroups.review} onHide={hide('review')}
+          renderItem={a => <ApplicationRow key={a.id} app={a} showTriageChips onOpen={openApp} changeAppTriage={changeAppTriage} />} />
+        <Group label="OA deadline unknown" tone="ink" items={appGroups.oaCheck} onHide={hide('oaCheck')}
+          renderItem={a => <OaRow key={a.id} app={a} needsCheck onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />} />
+      </DashCard>
+    ),
+    events: (eventAttention.count > 0 || eventAttention.degraded.length > 0) && (
+      <EventsCard attention={eventAttention} pool={eventPool} onOpenEvents={onOpenEvents} />
+    ),
+  }
+  // Two stacks, balanced by roughly how many rows each card shows (RowCap shows 3 per group),
+  // so one column doesn't run a screen longer than the other. Order is kept within a stack;
+  // a lone card takes the full width.
+  const shown = groups => Object.values(groups).reduce((n, rows) => n + (rows.length ? Math.min(rows.length, 3) + 0.5 : 0), 1)
+  const weighted = [
+    [cards.email, shown({ items: openItems })],
+    [cards.people, shown(peopleGroups)],
+    [cards.apps, shown(appGroups)],
+    [cards.events, shown({ s: eventAttention.steps, r: eventAttention.registrations, f: eventAttention.followUps }) + (eventAttention.degraded.length ? 1 : 0)],
+  ].filter(([card]) => card)
+  const stacks = [[], []]
+  const heights = [0, 0]
+  for (const [card, w] of weighted) {
+    const i = heights[0] <= heights[1] ? 0 : 1
+    stacks[i].push(card); heights[i] += w
+  }
+  if (!stacks[1].length) stacks.pop()
+
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
 
   return (
     <m.div className="space-y-3" variants={container} initial="hidden" animate="show">
-      {!allEmpty && (
-        <m.div variants={rise} className="flex items-center gap-4 flex-wrap text-xs text-ink-400 px-1">
-          <span><Mono className="text-ink-700 font-semibold">{listCount + prepCount}</Mono> to look at</span>
+      <m.div variants={rise} className="flex items-center gap-4 flex-wrap px-1">
+        <Label tone={allEmpty ? 'success' : 'accent'}>
+          {today} <span className="text-ink-300">/</span> {allEmpty ? 'all clear' : `${openCount} open`}
+        </Label>
+        <span className="ml-auto flex items-center gap-4 text-xs text-ink-400">
           {trimmed.hidden > 0 && <span title="Already replied on the thread, long past due, or duplicates">{trimmed.hidden} resolved AI items auto-hidden</span>}
-          <span className="ml-auto flex items-center gap-4">
-            {snoozedHidden > 0 && (
-              <button onClick={prefs.clearSnoozes} className="hover:text-ink-700 hover:underline">Unhide {snoozedHidden}</button>
-            )}
-            <button onClick={() => prefs.setAllCollapsed(allCollapsed ? [] : COLLAPSIBLE)} className="hover:text-ink-700 hover:underline">
-              {allCollapsed ? 'Expand all' : 'Collapse all'}
-            </button>
-          </span>
-        </m.div>
-      )}
+          {snoozedHidden > 0 && (
+            <button onClick={prefs.clearSnoozes} className="hover:text-ink-700 hover:underline">Unhide {snoozedHidden}</button>
+          )}
+        </span>
+      </m.div>
 
-      {dailyRecap && (
-        <m.div variants={rise}>
-          <DailyRecapCard recap={dailyRecap} collapsed={prefs.isCollapsed('recap')} onToggle={() => prefs.toggleCollapsed('recap')} />
-        </m.div>
-      )}
-
-      {allEmpty && (!isDemoMode && isFreshAccount({ contacts, apps })
+      {allEmpty && !isDemoMode && isFreshAccount({ contacts, apps })
         ? <GettingStarted hasApps={apps.length > 0} hasContacts={contacts.length > 0} apps={apps} contacts={contacts} />
-        : <EmptyState msg={snoozedHidden ? `✓ Nothing left — ${snoozedHidden} hidden for now.` : "✓ Nothing needs your attention. You're on top of it."} />)}
-      {allEmpty && snoozedHidden > 0 && (
-        <p className="text-center -mt-1"><button onClick={prefs.clearSnoozes} className="text-xs text-link hover:underline">Unhide them</button></p>
-      )}
-
-      {feed({ id: 'items', title: 'Action Items', accent: 'warning', icon: ListTodo, items: openItems,
-        subtitle: 'Flagged by AI from your email.',
-        onClearAll: dismissAllItems, clearing: dismissingAll,
-        renderItem: item => <ActionItemRow key={item.id} item={item} contacts={contacts} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} /> })}
-
-      {feed({ id: 'overdue', title: 'Overdue Follow-Ups', accent: 'danger', icon: CalendarClock, items: overdueContacts,
-        renderItem: c => <OverdueRow key={c.id} contact={c} interactions={interactions} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} /> })}
-
-      {feed({ id: 'stale', title: 'Stale Applications', accent: 'danger', icon: Hourglass, items: staleApps,
-        subtitle: 'No movement in 14+ days.',
-        renderItem: a => <ApplicationRow key={a.id} app={a} showTriageChips={false} onOpen={x => setSelectedAppId(x.id)} changeAppTriage={changeAppTriage} /> })}
-
-      {feed({ id: 'oa', title: 'OA Due', accent: 'warning', icon: ClipboardCheck, items: oaDueList,
-        renderItem: a => <OaRow key={a.id} app={a} onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} onLogOa={onLogOa} /> })}
-
-      {feed({ id: 'awaiting', title: 'Awaiting Reply', accent: 'warning', icon: MailQuestion, items: awaitingReplyList,
-        renderItem: item => <AwaitingReplyRow key={item.contact.id} item={item} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} /> })}
-
-      {feed({ id: 'urgent', title: 'High Urgency Contacts', accent: 'danger', icon: AlertTriangle, items: highUrgency,
-        renderItem: c => <HighUrgencyRow key={c.id} contact={c} onOpen={x => setSelectedContactId(x.id)} /> })}
-
-      {feed({ id: 'schedule', title: 'Want to Schedule', accent: 'ink', icon: UserPlus, items: scheduleContacts,
-        renderItem: c => <ScheduleRow key={c.id} contact={c} onRefresh={onRefresh} onOpen={x => setSelectedContactId(x.id)} /> })}
-
-      {feed({ id: 'keepInTouch', title: 'Keep in Touch', accent: 'warning', icon: HeartHandshake, items: keepInTouch,
-        renderItem: ({ contact: c, status }) => (
-          <KeepInTouchRow key={c.id} contact={c} status={status} interactions={interactions}
-            onOpen={x => setSelectedContactId(x.id)} onLog={x => setLogContact(x)} onMet={handleMet} />
-        ) })}
-
-      {feed({ id: 'review', title: 'Job Boards Needs-Review', accent: 'warning', icon: Inbox, items: needsReview,
-        renderItem: a => <ApplicationRow key={a.id} app={a} showTriageChips onOpen={x => setSelectedAppId(x.id)} changeAppTriage={changeAppTriage} /> })}
-
-      {feed({ id: 'oaCheck', title: 'OA Needs Check', accent: 'ink', icon: Search, items: oaNeedsCheckList,
-        renderItem: a => <OaRow key={a.id} app={a} needsCheck onOpen={x => setSelectedAppId(x.id)} onRefresh={onRefresh} onLogOa={onLogOa} /> })}
-
-      {/* Event deadlines sit after the OA deadline sections — same "a date is coming that
-          gates something" family — and before the softer prep nudges. */}
-      <EventDeadlineSections attention={eventAttention} pool={eventPool} onOpenEvents={onOpenEvents} rise={rise} fold={fold} />
-
-      {prepCount > 0 && (
-        <m.div variants={rise}>
-          <Section title={`Interview Prep (${prepCount})`} accent="accent" icon={GraduationCap}
-            subtitle="From Learn — what to shore up before upcoming assessments and interviews."
-            collapsed={prefs.isCollapsed('prep')} onToggle={() => prefs.toggleCollapsed('prep')}>
-            <RowCap items={interviewPrepRows({ prep, onOpenLearn })} tier="accent" renderItem={row => row} />
-          </Section>
-        </m.div>
-      )}
-
-      <EventFeedHealth attention={eventAttention} rise={rise} fold={fold} />
-
-      {/* Nothing to glance at yet: three zeros (and a full-looking empty sparkline) just add noise. */}
-      {(apps.length > 0 || interactions.length > 0) && (
-        <m.div variants={rise}>
-          <ActivitySection apps={apps} interactions={interactions}
-            collapsed={prefs.isCollapsed('activity')} onToggle={() => prefs.toggleCollapsed('activity')} />
-        </m.div>
-      )}
+        : <>
+          {hasData && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              <m.div variants={rise}><PipelineCard apps={apps} /></m.div>
+              <m.div variants={rise}><NetworkCard contacts={contacts} /></m.div>
+              <m.div variants={rise} className="md:col-span-2 xl:col-span-1"><OutreachCard interactions={interactions} /></m.div>            </div>
+          )}
+          {allEmpty
+            ? <m.div variants={rise}><EmptyState msg={snoozedHidden ? `✓ Nothing left — ${snoozedHidden} hidden for now.` : "✓ Nothing needs your attention. You're on top of it."} /></m.div>
+            : (
+              <div className={`grid grid-cols-1 gap-3 items-start ${stacks.length > 1 ? 'lg:grid-cols-2' : ''}`}>
+                {stacks.map((stack, i) => (
+                  <div key={i} className="space-y-3 min-w-0">
+                    {stack.map((card, j) => <m.div key={j} variants={rise}>{card}</m.div>)}
+                  </div>
+                ))}
+              </div>
+            )}
+        </>}
 
       <SidePanel open={!!selectedContactId} onClose={() => setSelectedContactId(null)}>
         {selectedContactId && (

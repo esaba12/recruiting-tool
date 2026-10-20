@@ -3,9 +3,9 @@ import { funnelConversions, weeklyTrend } from '../../lib/attention.js'
 import { BarChart, DonutChart, TrendChart } from './lazy.jsx'
 import { useChartTheme } from './theme.js'
 
-// The charts that used to sit in Today's Activity section (moved in v1.4 spec 05 D), now
-// next to the Sankey they explain: the funnel on Pipeline → Sheet → Flow, the network
-// status donut and weekly trend on Network → Flow.
+// Full-size versions next to the Sankey they explain: the funnel on Pipeline → Sheet → Flow,
+// the network status donut and weekly trend on Network → Flow. Today shows compact ones in
+// its metric cards (today/MetricCards.jsx).
 
 const FUNNEL_BARS = ['Wishlist', 'Applied', 'Phone Screen', 'Technical', 'Onsite', 'Offer']
 
