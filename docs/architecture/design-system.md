@@ -16,7 +16,19 @@ Rule: anything that does something on click answers the mouse (pointer **and** a
 - **Hover/pointer only on handlers.** No `hover:*` or `cursor-pointer` on an element without `onClick`/`href` (or a native control). Card-level hover is fine only when the whole card is the click target; otherwise put the hover on the part that is (Today's Keep in Touch card lost its whole-card shadow; its open button carries the hover).
 - **Clickable rows get feedback.** Row regions that open a side panel use Today's `ROW_HIT` (`cursor-pointer rounded-sm -mx-1.5 px-1.5 hover:bg-ink-50`). A row whose target can be missing (an action item with no contact) drops both pointer and hover.
 - **`text-link` means a link.** Accent-colored text is reserved for things you can click. Labels and metadata ("Referred by …", Coverage's "↩ Path", Explore's "Why you:", Discover's field labels, Inbox's unread count) use ink tones. Decorative accents that can't be mistaken for links (step numbers, bullets, big stat numbers) are fine.
-- **Read-only numbers aren't boxed as cards.** Stat readouts (Today's Funnel / Next Deadline / Activity, Job Boards' repo stats) sit unboxed or share one panel with dividers, because a bordered tile per number reads as a clickable card.
+- **Read-only numbers aren't boxed as cards.** A bare stat (Job Boards' repo stats) sits unboxed or shares one panel with dividers, because a bordered tile per number reads as a clickable card. Today's metric cards are boxed because each one is a chart panel with a headline number, not a lone number.
+
+## Today dashboard (PR #22, 2026-10-20)
+
+The look is an instrument panel, built from `components/today/DashCard.jsx`:
+- `Label` is mono caps with letter-spacing and a status dot. Its tone is danger, warning, accent, success or ink.
+- `DashCard` is the bordered `bg-surface` card with a label, a zero-padded mono count, and an `actions` slot.
+- `Readout` is the big Space Grotesk number with its unit line.
+- `Group` is a labeled sub-list inside a card.
+
+Charts in the metric cards reuse `charts/lazy.jsx` at 150px high, with no new colors. The funnel
+axis uses short stage labels so Recharts doesn't drop overlapping ticks. Cards load with
+`rise`/`container` stagger at 0.07s.
 - **Badges that imply an action are the action.** Pipeline → Applications' "Need network" is a button that jumps to Grow → People for that company (it stays a plain badge where `onFindPeople` isn't wired, e.g. `/demo`). Status badges stay plain.
 
 How it was audited: a headless-Chromium pass over every `/demo` tab, sub-view and side panel flagged (a) pointer or `hover:` elements with no React click handler on themselves or a row-sized ancestor, (b) clickable non-native elements with no hover feedback, (c) bordered small boxes containing nothing interactive, and (d) link-colored or underlined text that isn't interactive. A static pass over every `.jsx` file covered the tabs `/demo` hid at the time (Grow, Settings, Outbox, Job Boards). Known false positives: segmented-control wrappers, Learn's company-prep chip wrapper (it contains real buttons), Recharts surfaces (hover = tooltip), Pipeline Sheet cells (spreadsheet selection), modal backdrops.

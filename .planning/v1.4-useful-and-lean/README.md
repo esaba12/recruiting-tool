@@ -21,6 +21,11 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 ### Done
 - [x] 06, 05, 01, 07 merged and live (PR #20), plus the smoke-test follow-up (PR #21). 07
   was smoke-tested on prod with two throwaway accounts, since deleted ([07](07-onboarding.md)).
+- [x] Today as a dashboard (PR #22, merged 2026-10-20, outside the spec set):
+  - Charts are back as metric cards, each a number over its chart (this partly reverses 05 D).
+  - The 10+ sections became People, Applications, From your email and Events cards.
+  - Interview Prep and the recap card were dropped.
+  - Details are in `docs/architecture/dashboard-features.md`. 08's starting point changed (see the note there).
 - [x] 09 résumé + 10 drafted replies built on `feat/v1.4-resume-reply-drafts` (3 commits)
 - [x] Migration `20261020000000_resume_and_email_drafts.sql` pushed (owner approved 2026-10-20). Live RLS suite 14/14
 - [x] `/demo` checked: Today "Replies Drafted" → Inbox composer, desktop and phone, no API/Supabase calls

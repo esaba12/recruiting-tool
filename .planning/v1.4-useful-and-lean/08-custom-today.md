@@ -1,5 +1,15 @@
 # 08 — A Today you arrange yourself
 
+> **Baseline changed (2026-10-20, PR #22).** Today is no longer one column of up to 17 Sections.
+> Some of what's below assumes the old layout, so re-plan against the code before building:
+> - Today is now a dashboard of `DashCard`s: Pipeline / Network / Outreach metric cards, then
+>   the Replies drafted, From your email, People, Applications and Events cards in two balanced columns.
+> - There is no Collapse all.
+> - Interview Prep is gone.
+>
+> The registry's units should probably be these cards, plus their inner `Group`s as toggles.
+> For example, an IB student turns off "Job boards to review" inside Applications.
+
 **Who:** 🤖. **Migration:** none (layout lives in `user_settings`). **New serverless fn:** none.
 **New dependency:** `@dnd-kit/core` + `@dnd-kit/sortable` (exact versions pinned at
 implementation, at least two weeks old), loaded only in edit mode.
