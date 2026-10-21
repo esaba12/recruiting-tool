@@ -5,7 +5,7 @@ import {
   parseGmailMessage, findHeader, candidateFraming, trackGuidance, interviewStage,
   isAutomatedSender, isBulkMail, isGenericNetworking, shouldCreateContact, contactFollowUpDate, keepActionItem,
   isAlreadyLogged, logThreadMessages,
-  scanQueries, nextCursor, orderConnections, runThreadBudget, MAX_CLASSIFIED_PER_RUN,
+  scanQueries, nextCursor, orderConnections, runThreadBudget, MAX_CLASSIFIED_PER_RUN, scanStageChange,
 } from '../api/_lib/emailPipeline.js'
 
 describe('parseAddress', () => {
@@ -443,5 +443,37 @@ describe('logThreadMessages interview line (v1.3 spec 12)', () => {
     })
     expect(upserts[0][0].summary).toBe('body')
     expect(upserts[0][1].summary).toBe('📅 Interview: Wed, Oct 21, 2:00 PM EDT\n📅 Meeting link: https://meet.google.com/x\n\nbody')
+  })
+})
+
+// Event invites mislabeled INTERVIEW_INVITE used to create apps at Phone Screen or bump
+// job-board Wishlist rows there (17 fake interviews on the owner's account, 2026-10-21).
+describe('scanStageChange', () => {
+  it('never creates an application from an interview or offer', () => {
+    expect(scanStageChange('Phone Screen', undefined)).toEqual({ skip: true })
+    expect(scanStageChange('Onsite', undefined)).toEqual({ skip: true })
+    expect(scanStageChange('Offer', undefined)).toEqual({ skip: true })
+  })
+  it('still creates one from a confirmation or rejection', () => {
+    expect(scanStageChange('Applied', undefined)).toEqual({ stage: 'Applied' })
+    expect(scanStageChange('Rejected', undefined)).toEqual({ stage: 'Rejected' })
+  })
+  it('leaves a Wishlist row alone on an interview', () => {
+    expect(scanStageChange('Phone Screen', { stage: 'Wishlist' })).toEqual({ skip: true })
+    expect(scanStageChange('Offer', { stage: 'Wishlist' })).toEqual({ skip: true })
+  })
+  it('moves a sent application forward, never back', () => {
+    expect(scanStageChange('Phone Screen', { stage: 'Applied' })).toEqual({ stage: 'Phone Screen' })
+    expect(scanStageChange('Onsite', { stage: 'Phone Screen' })).toEqual({ stage: 'Onsite' })
+    expect(scanStageChange('Phone Screen', { stage: 'Technical' })).toEqual({ stage: null })
+    expect(scanStageChange('Applied', { stage: 'Onsite' })).toEqual({ stage: null })
+  })
+  it('an OA or confirmation moves a Wishlist row to Applied', () => {
+    expect(scanStageChange('Applied', { stage: 'Wishlist' })).toEqual({ stage: 'Applied' })
+  })
+  it('keeps closed applications closed, except a rejection', () => {
+    expect(scanStageChange('Phone Screen', { stage: 'Rejected' })).toEqual({ skip: true })
+    expect(scanStageChange('Applied', { stage: 'Accepted' })).toEqual({ stage: null })
+    expect(scanStageChange('Rejected', { stage: 'Onsite' })).toEqual({ stage: 'Rejected' })
   })
 })

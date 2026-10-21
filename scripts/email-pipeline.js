@@ -690,6 +690,10 @@ function processThreadList(threads, keys, props, myEmail) {
         // here which always has something worth surfacing.
         if (data.type === 'OA_COMPLETED' && !applicationId) {
           console.log('  Skipped push — OA_COMPLETED but no matching tracked application')
+        } else if (!applicationId && (data.type === 'INTERVIEW_INVITE' || data.type === 'OFFER')) {
+          // scanStageChange skipped it: no sent application, so likely an event invite.
+          data.interview_date = null
+          console.log(`  Skipped push — ${data.type} with no sent application`)
         } else if (isFreshEnoughToPush) {
           shouldPush = true
         } else {
@@ -876,8 +880,12 @@ informational interview, "catch up", or a calendar invite titled just with two n
 Jane") — is networking: use NEW_CONTACT or FOLLOW_UP_NEEDED with interview_date null, even when
 it has a Google Meet/Zoom link or a calendar invite. Calendar notifications ("Invitation:",
 "Updated invitation", "This event has been updated") are scheduling updates for the same meeting,
-classified the same way as the original. When unsure, choose networking: a false interview moves
-the application to Phone Screen and puts an interview on the calendar.`
+classified the same way as the original. An invite to an event — info session, career fair, club
+or org meeting, workshop, webinar, hackathon, open house, recruiting dinner, any session many people
+attend — is never INTERVIEW_INVITE, even when a company hosts it or it arrives as a Google Calendar
+invite: use NEW_CONTACT or FOLLOW_UP_NEEDED if someone personal sent it, else UNRELATED. When
+unsure, choose networking: a false interview moves the application to Phone Screen and puts an
+interview on the calendar.`
 
 // Shared with app/api/_lib/emailPipeline.js's prompt — keep the two in sync.
 const PERSONAL_VS_BULK = `Only one-to-one mail counts as networking. A person reaching out means a specific human wrote
@@ -1256,7 +1264,22 @@ function backfillInboxFields() {
 // company match can land on the wrong row) should never knock a 'Phone Screen' back down to
 // 'Applied'. REJECTION is exempt from this guard below since a rejection is terminal and can
 // legitimately land at any stage.
-const STAGE_RANK = { Wishlist: 0, Applied: 1, 'Phone Screen': 2, Onsite: 3, Offer: 4, Rejected: 5 }
+const STAGE_RANK = { Wishlist: 0, Applied: 1, 'Phone Screen': 2, Technical: 3, Onsite: 4, Offer: 5, Rejected: 6 }
+
+// An interview or offer only counts against an application already sent and still open:
+// event invites get mislabeled INTERVIEW_INVITE, and the fuzzy company match lands them on
+// job-board Wishlist rows or creates a fresh row. REJECTION applies from any stage; every
+// other signal only moves forward. { skip } means touch nothing. Same rule as
+// app/api/_lib/emailPipeline.js's scanStageChange (tested there) — keep the two in sync.
+function scanStageChange(stage, existing) {
+  const progress = stage !== 'Applied' && stage !== 'Rejected'
+  if (!existing) return progress ? { skip: true } : { stage }
+  if (stage === 'Rejected') return { stage }
+  const rank = s => STAGE_RANK[s] ?? 0
+  const closed = existing.stage === 'Rejected' || existing.stage === 'Accepted'
+  if (progress && (closed || rank(existing.stage) < STAGE_RANK.Applied)) return { skip: true }
+  return { stage: !closed && rank(stage) >= rank(existing.stage) ? stage : null }
+}
 
 // Best-effort name match against existing Contacts, used to resolve a Claude-extracted
 // referrer_name into a real referred_by_id — see the "referrer_name" field in
@@ -1317,12 +1340,14 @@ function upsertApplication(keys, data) {
     ...(data.type === 'OA_COMPLETED' ? { oa_completed: true } : {}),
   }
 
+  const change = scanStageChange(stage, existing)
+  if (change.skip) {
+    console.log(`  ${data.type} but no sent application at ${data.company} — application left alone`)
+    return null
+  }
+
   if (existing) {
-    const currentRank = STAGE_RANK[existing.stage] ?? 0
-    const newRank     = STAGE_RANK[stage] ?? 0
-    // REJECTION always applies (terminal, can happen from any stage) — every other signal only
-    // moves the stage forward, never backward.
-    if (stage === 'Rejected' || newRank >= currentRank) props.stage = stage
+    if (change.stage) props.stage = change.stage
     supabaseReq(keys, 'patch', `/applications?id=eq.${existing.id}`, props)
     console.log(`  Application updated → ${props.stage || existing.stage}`)
     return existing.id

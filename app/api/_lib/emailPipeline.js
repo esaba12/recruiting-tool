@@ -398,8 +398,12 @@ informational interview, "catch up", or a calendar invite titled just with two n
 Jane") — is networking: use NEW_CONTACT or FOLLOW_UP_NEEDED with interview_date null, even when
 it has a Google Meet/Zoom link or a calendar invite. Calendar notifications ("Invitation:",
 "Updated invitation", "This event has been updated") are scheduling updates for the same meeting,
-classified the same way as the original. When unsure, choose networking: a false interview moves
-the application to Phone Screen and puts an interview on the calendar.`
+classified the same way as the original. An invite to an event — info session, career fair, club
+or org meeting, workshop, webinar, hackathon, open house, recruiting dinner, any session many people
+attend — is never INTERVIEW_INVITE, even when a company hosts it or it arrives as a Google Calendar
+invite: use NEW_CONTACT or FOLLOW_UP_NEEDED if someone personal sent it, else UNRELATED. When
+unsure, choose networking: a false interview moves the application to Phone Screen and puts an
+interview on the calendar.`
 
 async function classifyEmail(llm, { subject, from, body, date, meetingLink, invite, bulk, extraHints, profile }) {
   const inviteHintText = inviteHint(invite, subject)
@@ -520,6 +524,22 @@ async function findContactByName(db, userId, name) {
   return data?.[0]?.id || null
 }
 
+// What one classified email may do to the matching application. An interview or offer
+// (anything past Applied that isn't a rejection) only counts against an application already
+// sent and still open. Event invites get mislabeled INTERVIEW_INVITE, and the fuzzy company
+// match lands them on job-board Wishlist rows or creates a fresh row: 17 fake Phone Screens
+// on the owner's account before this guard (2026-10-21). { skip } means touch nothing.
+// scripts/email-pipeline.js has the same rule — keep the two in sync.
+export function scanStageChange(stage, existing) {
+  const progress = stage !== 'Applied' && stage !== 'Rejected'
+  if (!existing) return progress ? { skip: true } : { stage }
+  if (stage === 'Rejected') return { stage }
+  const rank = s => STAGE_RANK[s] ?? 0
+  const closed = existing.stage === 'Rejected' || existing.stage === 'Accepted'
+  if (progress && (closed || rank(existing.stage) < STAGE_RANK.Applied)) return { skip: true }
+  return { stage: !closed && rank(stage) >= rank(existing.stage) ? stage : null }
+}
+
 async function upsertApplication(db, userId, data) {
   const today = new Date().toISOString().slice(0, 10)
   const stageMap = {
@@ -537,6 +557,8 @@ async function upsertApplication(db, userId, data) {
     .eq('user_id', userId).ilike('company', `%${data.company || ''}%`).eq('archived', false)
     .order('created_at', { ascending: false }).limit(1)
   const existing = rows?.[0]
+  const change = scanStageChange(stage, existing)
+  if (change.skip) return null
 
   const props = {
     last_activity: today,
@@ -549,9 +571,7 @@ async function upsertApplication(db, userId, data) {
   }
 
   if (existing) {
-    const currentRank = STAGE_RANK[existing.stage] ?? 0
-    const newRank = STAGE_RANK[stage] ?? 0
-    if (stage === 'Rejected' || newRank >= currentRank) props.stage = stage
+    if (change.stage) props.stage = change.stage
     await db.from('applications').update(props).eq('id', existing.id)
     return existing.id
   }
@@ -750,7 +770,8 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
       // Best effort: a Calendar problem (revoked grant, quota) is logged, never retried, so it
       // can't hold the thread back. The same-day title check keeps a re-classified thread
       // from adding a second event.
-      if (shouldCreateInterviewEvent(data, { invite, today: localDate(new Date(), timeZone) })) {
+      // No application took the interview (scanStageChange skipped it), so no event either.
+      if (applicationId && shouldCreateInterviewEvent(data, { invite, today: localDate(new Date(), timeZone) })) {
         try {
           const token = await getCalendarToken()
           if (token) await createInterviewEvent(token, data, { timeZone })
@@ -768,7 +789,7 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
 
       await logThreadMessages(db, userId, messages.slice(seen), {
         contactId, threadId, myEmail, meetingLink: data.meeting_link, category: data.type,
-        interviewAt: data.type === 'INTERVIEW_INVITE' ? interviewLine(invite) : null,
+        interviewAt: data.type === 'INTERVIEW_INVITE' && applicationId ? interviewLine(invite) : null,
       })
 
       // Best effort, like the calendar event: a failed draft never holds the thread back.
@@ -798,7 +819,8 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
 
       threadProgress[threadId] = messages.length
       // Last, so a thread that fails above (and is retried next tick) never pushes twice.
-      const push = isFreshEnoughToPush(msg.date) ? statusPush(data) : null
+      const unmatchedProgress = !applicationId && (data.type === 'INTERVIEW_INVITE' || data.type === 'OFFER')
+      const push = isFreshEnoughToPush(msg.date) && !unmatchedProgress ? statusPush(data) : null
       if (push) pushes.push(push)
       return 'classified'
     } catch (e) {
