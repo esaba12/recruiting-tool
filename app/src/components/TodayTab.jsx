@@ -21,7 +21,7 @@ import { SectionAction, RowCap } from './ui/Section.jsx'
 import { HeartHandshake, ClipboardCheck, Clock, MessageSquarePlus, ListTodo, PenLine } from 'lucide-react'
 import { draftPreview, DRAFT_INTENT_LABEL } from '../lib/replyDrafts.js'
 import { DashCard, Group, Label } from './today/DashCard.jsx'
-import { PipelineCard, NetworkCard, OutreachCard } from './today/MetricCards.jsx'
+import { PipelineCard, NetworkCard, OutreachCard, RatesCard } from './today/MetricCards.jsx'
 import GettingStarted from './onboarding/GettingStarted.jsx'
 import { isFreshAccount } from '../lib/onboarding.js'
 import { addDaysLocal, todayLocal } from '../lib/dates.js'
@@ -609,7 +609,9 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               <m.div variants={rise}><PipelineCard apps={apps} /></m.div>
               <m.div variants={rise}><NetworkCard contacts={contacts} /></m.div>
-              <m.div variants={rise} className="md:col-span-2 xl:col-span-1"><OutreachCard interactions={interactions} /></m.div>            </div>
+              <m.div variants={rise} className="md:col-span-2 xl:col-span-1"><OutreachCard interactions={interactions} /></m.div>
+              <m.div variants={rise} className="md:col-span-2 xl:col-span-3 empty:hidden"><RatesCard apps={apps} /></m.div>
+            </div>
           )}
           {allEmpty
             ? <m.div variants={rise}><EmptyState msg={snoozedHidden ? `✓ Nothing left — ${snoozedHidden} hidden for now.` : "✓ Nothing needs your attention. You're on top of it."} /></m.div>

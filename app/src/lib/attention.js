@@ -2,8 +2,9 @@
 // already-RLS-scoped arrays. Extracted verbatim from the former Actions tab's inline
 // computations (per D-06) so every attention-feed surface (this phase's TodayTab.jsx, and
 // any future consumer) imports the same logic instead of re-deriving it independently.
-import { TERMINAL_STAGES, daysSince, daysUntil, isUntriaged, isOverdue, isStaleApplication } from '../shared.jsx'
+import { TERMINAL_STAGES, INTERVIEW_STAGES, daysSince, daysUntil, isUntriaged, isOverdue, isStaleApplication } from '../shared.jsx'
 import { keepInTouchQueue } from './keepInTouch.js'
+import { stagePath } from './stageHistory.js'
 import { deriveTrack } from './learning/derive.js'
 import { reviewQueue } from './learning/review.js'
 
@@ -246,7 +247,34 @@ export function funnelConversions(apps, stages = FUNNEL_STAGES) {
   return out
 }
 
-// ── Declutter (Today) ────────────────────────────────────────────────────────
+// Outcome rates over applications actually sent (anything past Wishlist), for Today's Rates
+// card. Unlike funnelConversions this reads stage history (stagePath), so a rejected app still
+// counts for the stages it really reached. With only backfilled history a rejection counts
+// as applied → rejected, which undercounts rather than guesses. Offer implies an interview.
+export function pipelineRates(apps) {
+  const sent = (apps || []).filter(a => !isUntriaged(a)).map(a => ({ app: a, path: stagePath(a) }))
+    .filter(({ path }) => path.some(s => s !== 'Wishlist'))
+  const offer = ({ path }) => path.includes('Offer') || path.includes('Accepted')
+  const interview = x => offer(x) || x.path.some(s => INTERVIEW_STAGES.includes(s))
+  const oa = ({ app }) => !!(app.oaDueDate || app.oaLink || app.oaCompleted)
+  const rejected = ({ app }) => app.stage === 'Rejected'
+  const tests = [
+    ['response', 'Response', x => oa(x) || interview(x) || rejected(x)],
+    ['oa', 'OA', oa],
+    ['interview', 'Interview', interview],
+    ['offer', 'Offer', offer],
+    ['rejected', 'Rejected', rejected],
+  ]
+  return {
+    applied: sent.length,
+    rates: tests.map(([key, label, test]) => {
+      const n = sent.filter(test).length
+      return { key, label, n, pct: sent.length ? Math.round((n / sent.length) * 100) : 0 }
+    }),
+  }
+}
+
+// ── Declutter (Today)────────────────────────────────────────────────────────
 // AI action items pile up: the pipeline flags a next step per email, and nothing retires
 // them except a click. Drop the ones that have obviously resolved themselves:
 //   - replied: you sent a message on that thread after the item was created
