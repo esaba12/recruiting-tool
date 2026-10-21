@@ -17,9 +17,15 @@ A header line gives the date and the open count, plus "Unhide N" when anything i
 
 **Metric cards** (`today/MetricCards.jsx`), side by side. Each one is a headline number over its
 chart, with no separate stat tiles repeating the same numbers. They're hidden until there's data.
-- **Pipeline:** applied count and %, funnel bars, next deadline (`pickNextDeadline`), and Applied → Phone Screen conversion.
+- **Pipeline:** applied count and %, funnel bars, next deadline (`pickNextDeadline`).
 - **Network:** contact count and how many are warm, plus the status donut.
 - **Outreach:** this week's interactions, the change from last week, and the 10-week trend.
+- **Rates** (PR #25), full width below the other three:
+  - Response, OA, Interview, Offer and Rejected, each as a share of applications sent (anything past Wishlist).
+  - Each rate has a bar and its `n / N`.
+  - `pipelineRates` reads `stagePath`, so a rejected app counts for the stages it reached.
+  - An app with only backfilled history counts as applied → rejected (an undercount, not a guess).
+  - It replaced the Pipeline card's Applied → Phone Screen line.
 
 **Attention cards**, in two columns balanced by visible row count (one column if there's only one card):
 - **Replies drafted** (v1.4 spec 10): replies the Gmail scan wrote for you, each opening its Inbox thread.
