@@ -1,5 +1,5 @@
 import { STATUS_COLOR, isUntriaged } from '../../shared.jsx'
-import { funnelConversions, weeklyTrend, pickNextDeadline } from '../../lib/attention.js'
+import { weeklyTrend, pickNextDeadline, pipelineRates } from '../../lib/attention.js'
 import { nextDeadlines } from '../../lib/statTiles.js'
 import { BarChart, DonutChart, TrendChart } from '../charts/lazy.jsx'
 import { useChartTheme } from '../charts/theme.js'
@@ -26,7 +26,6 @@ export function PipelineCard({ apps }) {
   const counts = {}
   triaged.forEach(a => { counts[a.stage] = (counts[a.stage] || 0) + 1 })
   const data = FUNNEL_BARS.map(stage => ({ label: SHORT[stage] || stage, value: counts[stage] || 0 }))
-  const conversions = funnelConversions(triaged)
   const soonest = pickNextDeadline(apps, nextDeadlines(apps, 1))
   return (
     <DashCard label="Pipeline" tone="accent">
@@ -41,12 +40,6 @@ export function PipelineCard({ apps }) {
             {soonest ? <>{soonest.label} <Mono className="text-ink-900 font-semibold">{soonest.days === 0 ? 'today' : `${soonest.days}d`}</Mono></> : '—'}
           </dd>
         </div>
-        {conversions.slice(1, 2).map(c => (
-          <div key={c.to} className="flex items-baseline gap-3">
-            <dt className="text-ink-400">{c.from} → {c.to}</dt>
-            <dd className="ml-auto"><Mono className="text-ink-900 font-semibold">{c.pct}%</Mono></dd>
-          </div>
-        ))}
       </dl>
     </DashCard>
   )
@@ -80,6 +73,41 @@ export function OutreachCard({ interactions, className }) {
       <div className="mt-3 -ml-2">
         {interactions.length ? <TrendChart data={trend} height={CHART_H} /> : <Empty>No logged interactions yet.</Empty>}
       </div>
+    </DashCard>
+  )
+}
+
+// Outcome rates as a share of applications sent: one gauge per outcome, all one hue because
+// they measure the same thing (see pipelineRates for what counts).
+const RATE_HINT = {
+  response: 'Heard back at all: an OA, an interview, an offer or a rejection',
+  oa: 'Got an online assessment',
+  interview: 'Reached a phone screen, technical or onsite (offers count too)',
+  offer: 'Got an offer, accepted or not',
+  rejected: 'Ended in a rejection',
+}
+
+export function RatesCard({ apps }) {
+  const { applied, rates } = pipelineRates(apps)
+  if (!applied) return null
+  return (
+    <DashCard label="Rates" tone="accent" actions={<span className="text-xs text-ink-400">of <Mono className="text-ink-700">{applied}</Mono> applied</span>}>
+      <dl className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-y-4">
+        {rates.map(r => (
+          <div key={r.key} title={RATE_HINT[r.key]} className="px-4 first:pl-0 border-l border-ink-100 first:border-l-0 max-sm:[&:nth-child(odd)]:border-l-0 max-sm:[&:nth-child(odd)]:pl-0 sm:max-lg:[&:nth-child(3n+1)]:border-l-0 sm:max-lg:[&:nth-child(3n+1)]:pl-0">
+            <dt className="font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-ink-500">{r.label}</dt>
+            <dd>
+              <span className="block mt-1 font-heading text-3xl font-semibold tabular-nums leading-none text-ink-900">
+                {r.pct}<span className="text-base text-ink-400 ml-0.5">%</span>
+              </span>
+              <span className="mt-2 block h-1 rounded-full bg-ink-100 overflow-hidden" aria-hidden>
+                <span className="block h-full rounded-full bg-accent-500" style={{ width: `${r.pct}%` }} />
+              </span>
+              <Mono className="mt-1.5 block text-[11px] text-ink-400">{r.n} / {applied}</Mono>
+            </dd>
+          </div>
+        ))}
+      </dl>
     </DashCard>
   )
 }

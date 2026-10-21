@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pickNextDeadline, funnelConversions, weeklyTrend } from '../src/lib/attention.js'
+import { pickNextDeadline, funnelConversions, weeklyTrend, pipelineRates } from '../src/lib/attention.js'
 
 const now = new Date(2026, 9, 9, 12).getTime()
 
@@ -58,5 +58,44 @@ describe('weeklyTrend', () => {
     ], now, 3)
     expect(out.map(w => w.count)).toEqual([0, 1, 2])
     expect(out[2].label).toBe('Oct 5')
+  })
+})
+
+// Today's Rates card: outcomes as a share of applications actually sent, using stage history
+// so a rejected app still counts for the stages it reached.
+describe('pipelineRates', () => {
+  const ev = (...stages) => stages.map((toStage, i) => ({ fromStage: stages[i - 1] || null, toStage, changedAt: `2026-10-0${i + 1}` }))
+  const apps = [
+    { stage: 'Wishlist' },
+    { stage: 'Applied' },
+    { stage: 'Applied', oaDueDate: '2026-10-20' },
+    { stage: 'Phone Screen', oaCompleted: true },
+    { stage: 'Rejected', stageEvents: ev('Applied', 'Technical', 'Rejected') },
+    { stage: 'Rejected' },
+    { stage: 'Accepted' },
+    { stage: 'Applied', triage: 'Pass' },
+  ]
+  const r = Object.fromEntries(pipelineRates(apps).rates.map(x => [x.key, x]))
+
+  it('uses apps past Wishlist as the base and skips passed ones', () => {
+    expect(pipelineRates(apps).applied).toBe(6)
+  })
+  it('counts OAs from the OA fields', () => {
+    expect(r.oa).toMatchObject({ n: 2, pct: 33 })
+  })
+  it('counts interviews from stage history, including rejected apps and offers', () => {
+    expect(r.interview).toMatchObject({ n: 3, pct: 50 })
+  })
+  it('counts offers (Accepted included) and rejections', () => {
+    expect(r.offer).toMatchObject({ n: 1, pct: 17 })
+    expect(r.rejected).toMatchObject({ n: 2, pct: 33 })
+  })
+  it('response is anything heard back: OA, interview, offer or rejection', () => {
+    expect(r.response).toMatchObject({ n: 5, pct: 83 })
+  })
+  it('returns 0% with nothing applied', () => {
+    const empty = pipelineRates([{ stage: 'Wishlist' }])
+    expect(empty.applied).toBe(0)
+    expect(empty.rates.every(x => x.pct === 0)).toBe(true)
   })
 })
