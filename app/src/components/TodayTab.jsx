@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { m } from 'motion/react'
 import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TYPE_COLOR, fmt, daysUntil, daysSince, Badge, EmptyState } from '../shared.jsx'
 import { updateContact, addInteraction, updateApplicationTriage, archiveApplication, updateApplication, completeActionItem, dismissActionItem, dismissActionItems } from '../db.js'
 import { logMetWithContact } from '../lib/quickLog.js'
-import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, needsReviewApps, keepInTouchDue, awaitingReply, openActionItems, trimActionItems, dedupeAcross } from '../lib/attention.js'
+import { staleApplications, oaDue, oaNeedsCheck, needsReviewApps, openActionItems, trimActionItems, todayPeople, pipelineRates, PEOPLE_GROUPS } from '../lib/attention.js'
 import useTodayPrefs from '../lib/useTodayPrefs.js'
+import useTodayLayout from '../lib/useTodayLayout.js'
+import { enabledGroups, settingValue, layoutBands, layoutContext } from '../lib/todayCards.js'
 import { lastPointOfContact } from '../lib/keepInTouch.js'
 import { tieStrengthBucket } from '../lib/affinity.js'
 import { statusIconFor } from '../lib/icons.js'
@@ -18,7 +20,7 @@ import LogInteractionModal from './LogInteractionModal.jsx'
 import MetButton from './MetButton.jsx'
 import Mono from './ui/Mono.jsx'
 import { SectionAction, RowCap } from './ui/Section.jsx'
-import { HeartHandshake, ClipboardCheck, Clock, MessageSquarePlus, ListTodo, PenLine } from 'lucide-react'
+import { HeartHandshake, ClipboardCheck, Clock, MessageSquarePlus, ListTodo, PenLine, SlidersHorizontal } from 'lucide-react'
 import { draftPreview, DRAFT_INTENT_LABEL } from '../lib/replyDrafts.js'
 import { DashCard, Group, Label } from './today/DashCard.jsx'
 import { PipelineCard, NetworkCard, OutreachCard, RatesCard } from './today/MetricCards.jsx'
@@ -26,6 +28,9 @@ import GettingStarted from './onboarding/GettingStarted.jsx'
 import { isFreshAccount } from '../lib/onboarding.js'
 import { addDaysLocal, todayLocal } from '../lib/dates.js'
 import { deriveEventAttention, EventsCard } from './today/EventAttentionSections.jsx'
+
+// Edit mode, with @dnd-kit, loads only when Customize is pressed (v1.4 spec 08).
+const TodayEditor = lazy(() => import('./today/TodayEditor.jsx'))
 
 // Hover/cursor for any row region that opens a panel — every clickable thing on Today
 // answers the mouse, and nothing else does (docs/architecture/design-system.md, Affordances).
@@ -432,18 +437,25 @@ function DraftRow({ draft, contacts, onOpen }) {
   )
 }
 
-export default function TodayTab({ contacts, apps, interactions = [], relationships = [], actionItems = [], onLogOa, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, emailDrafts = [], onOpenDraft, isDemoMode = false }) {
+export default function TodayTab({ contacts, apps, interactions = [], relationships = [], actionItems = [], onLogOa, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, emailDrafts = [], onOpenDraft, profile = null, isDemoMode = false }) {
   const prefs = useTodayPrefs()
+  // Which cards show, in what order and width, and which lists inside them (v1.4 spec 08).
+  const school = eventPool?.school
+  const ctx = useMemo(() => layoutContext(profile, school), [profile, school])
+  const { layout, update, reset, customized } = useTodayLayout(ctx)
+  const [editing, setEditing] = useState(false)
+  const placed = Object.fromEntries(layout.cards.map(c => [c.id, c]))
+  const groupsOn = id => (placed[id] ? enabledGroups(placed[id], ctx) : [])
+  const capOf = id => placed[id]?.cap
+
   // Declutter pass 1: AI action items that already resolved themselves (replied on the
   // thread, long expired, duplicates) never reach the list.
   const trimmed = trimActionItems(openActionItems(actionItems), interactions)
-  // Pass 2: a contact shows up in one people group only, highest-priority first.
-  const people = dedupeAcross({
-    overdue: overdueFollowUps(contacts),
-    awaiting: awaitingReply(contacts, interactions),
-    schedule: wantToSchedule(contacts),
-    urgent: highUrgencyContacts(contacts),
-    keepInTouch: keepInTouchDue(contacts, interactions),
+  // Pass 2: a contact shows up in one people group only, the first one that's on.
+  const peopleOn = groupsOn('people')
+  const people = todayPeople(contacts, interactions, {
+    off: PEOPLE_GROUPS.filter(g => !peopleOn.includes(g)),
+    awaitingDays: placed.people ? settingValue(placed.people, 'awaitingDays') : undefined,
   })
   // Pass 3: rows the user hid (✕ / Clear all) stay hidden for a week.
   const SNOOZE_KEY = { overdue: c => c.id, awaiting: x => x.contact.id, schedule: c => c.id, urgent: c => c.id, keepInTouch: x => x.contact.id, stale: a => a.id, review: a => a.id, oa: a => a.id, oaCheck: a => a.id, replies: d => d.id }
@@ -453,23 +465,20 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
     snoozedHidden += rows.length - out.length
     return out
   }
-  const openItems = trimmed.items
-  const replyDrafts = visible('replies', emailDrafts)
-  const peopleGroups = {
-    overdue: visible('overdue', people.overdue),
-    awaiting: visible('awaiting', people.awaiting),
-    urgent: visible('urgent', people.urgent),
-    schedule: visible('schedule', people.schedule),
-    keepInTouch: visible('keepInTouch', people.keepInTouch),
+  const openItems = placed.email ? trimmed.items : []
+  const replyDrafts = placed.replies ? visible('replies', emailDrafts) : []
+  const peopleGroups = Object.fromEntries(PEOPLE_GROUPS.map(id => [id, visible(id, people[id])]))
+  const appsOn = groupsOn('apps')
+  const staleDays = placed.apps ? settingValue(placed.apps, 'staleDays') : 14
+  const appRows = {
+    oa: () => oaDue(apps),
+    stale: () => staleApplications(apps, { days: staleDays }),
+    review: () => needsReviewApps(apps),
+    oaCheck: () => oaNeedsCheck(apps),
   }
-  const appGroups = {
-    oa: visible('oa', oaDue(apps)),
-    stale: visible('stale', staleApplications(apps)),
-    review: visible('review', needsReviewApps(apps)),
-    oaCheck: visible('oaCheck', oaNeedsCheck(apps)),
-  }
+  const appGroups = Object.fromEntries(Object.entries(appRows).map(([id, rows]) => [id, appsOn.includes(id) ? visible(id, rows()) : []]))
   // Recruiting events (v1.1): empty when there's no pool or no campus picked yet.
-  const eventAttention = deriveEventAttention(eventPool)
+  const eventAttention = deriveEventAttention(placed.events ? eventPool : null)
 
   const [selectedContactId, setSelectedContactId] = useState(null)
   const [selectedAppId, setSelectedAppId] = useState(null)
@@ -503,9 +512,12 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
   const total = groups => Object.values(groups).reduce((n, rows) => n + rows.length, 0)
   const peopleCount = total(peopleGroups)
   const appCount = total(appGroups)
-  const openCount = replyDrafts.length + openItems.length + peopleCount + appCount + eventAttention.count
+  // Counts cover the cards and lists that are on, so a hidden list never inflates the header.
+  const counts = { replies: replyDrafts.length, email: openItems.length, people: peopleCount, apps: appCount, events: eventAttention.count }
+  const openCount = Object.values(counts).reduce((a, b) => a + b, 0)
   const allEmpty = openCount === 0
   const hasData = apps.length > 0 || contacts.length > 0 || interactions.length > 0
+  const fresh = allEmpty && !isDemoMode && isFreshAccount({ contacts, apps })
 
   // Per-row ✕ snoozes one row; a card's "Clear all" snoozes every row in it.
   const hide = id => x => prefs.snooze([`${id}:${SNOOZE_KEY[id](x)}`])
@@ -515,11 +527,16 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
     </SectionAction>
   )
 
+  // Every card, keyed by registry id; false when it has nothing to show right now.
   const cards = {
+    pipeline: hasData && <PipelineCard apps={apps} />,
+    network: hasData && <NetworkCard contacts={contacts} />,
+    outreach: hasData && <OutreachCard interactions={interactions} />,
+    rates: pipelineRates(apps).applied > 0 && <RatesCard apps={apps} />,
     replies: replyDrafts.length > 0 && (
       <DashCard label="Replies drafted" tone="accent" icon={PenLine} count={replyDrafts.length} actions={clearAll({ replies: replyDrafts })}>
         <p className="text-[11px] text-ink-400 mt-1">Written from the thread and your résumé. Review in Inbox, then send from Gmail.</p>
-        <RowCap items={replyDrafts} tier="accent" onHide={hide('replies')}
+        <RowCap items={replyDrafts} cap={capOf('replies')} tier="accent" onHide={hide('replies')}
           renderItem={d => <DraftRow key={d.id} draft={d} contacts={contacts} onOpen={id => onOpenDraft?.(id)} />} />
       </DashCard>
     ),
@@ -527,7 +544,7 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
       <DashCard label="From your email" tone="warning" icon={ListTodo} count={openItems.length}
         actions={<SectionAction onClick={dismissAllItems} disabled={dismissingAll}>{dismissingAll ? 'Clearing…' : 'Dismiss all'}</SectionAction>}>
         <div className="mt-1">
-          <RowCap items={openItems} tier="warning"
+          <RowCap items={openItems} cap={capOf('email')} tier="warning"
             renderItem={item => <ActionItemRow key={item.id} item={item} contacts={contacts} onRefresh={onRefresh} onOpen={openContact} />} />
         </div>
       </DashCard>
@@ -535,15 +552,15 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
     people: peopleCount > 0 && (
       <DashCard label="People" tone={peopleGroups.overdue.length || peopleGroups.urgent.length ? 'danger' : 'warning'} icon={HeartHandshake}
         count={peopleCount} actions={clearAll(peopleGroups)}>
-        <Group label="Overdue follow-up" tone="danger" items={peopleGroups.overdue} onHide={hide('overdue')}
+        <Group label="Overdue follow-up" tone="danger" cap={capOf('people')} items={peopleGroups.overdue} onHide={hide('overdue')}
           renderItem={c => <OverdueRow key={c.id} contact={c} interactions={interactions} onRefresh={onRefresh} onOpen={openContact} />} />
-        <Group label="Awaiting reply" tone="warning" items={peopleGroups.awaiting} onHide={hide('awaiting')}
+        <Group label="Awaiting reply" tone="warning" cap={capOf('people')} items={peopleGroups.awaiting} onHide={hide('awaiting')}
           renderItem={item => <AwaitingReplyRow key={item.contact.id} item={item} onRefresh={onRefresh} onOpen={openContact} />} />
-        <Group label="High urgency" tone="danger" items={peopleGroups.urgent} onHide={hide('urgent')}
+        <Group label="High urgency" tone="danger" cap={capOf('people')} items={peopleGroups.urgent} onHide={hide('urgent')}
           renderItem={c => <HighUrgencyRow key={c.id} contact={c} onOpen={openContact} />} />
-        <Group label="Want to schedule" tone="ink" items={peopleGroups.schedule} onHide={hide('schedule')}
+        <Group label="Want to schedule" tone="ink" cap={capOf('people')} items={peopleGroups.schedule} onHide={hide('schedule')}
           renderItem={c => <ScheduleRow key={c.id} contact={c} onRefresh={onRefresh} onOpen={openContact} />} />
-        <Group label="Keep in touch" tone="warning" items={peopleGroups.keepInTouch} onHide={hide('keepInTouch')}
+        <Group label="Keep in touch" tone="warning" cap={capOf('people')} items={peopleGroups.keepInTouch} onHide={hide('keepInTouch')}
           renderItem={({ contact: c, status }) => (
             <KeepInTouchRow key={c.id} contact={c} status={status} interactions={interactions}
               onOpen={openContact} onLog={setLogContact} onMet={handleMet} />
@@ -553,38 +570,66 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
     apps: appCount > 0 && (
       <DashCard label="Applications" tone={appGroups.stale.length ? 'danger' : 'warning'} icon={ClipboardCheck}
         count={appCount} actions={clearAll(appGroups)}>
-        <Group label="OA due" tone="warning" items={appGroups.oa} onHide={hide('oa')}
+        <Group label="OA due" tone="warning" cap={capOf('apps')} items={appGroups.oa} onHide={hide('oa')}
           renderItem={a => <OaRow key={a.id} app={a} onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />} />
-        <Group label="Stale · no movement 14d+" tone="danger" items={appGroups.stale} onHide={hide('stale')}
+        <Group label={`Stale · no movement ${staleDays}d+`} tone="danger" cap={capOf('apps')} items={appGroups.stale} onHide={hide('stale')}
           renderItem={a => <ApplicationRow key={a.id} app={a} showTriageChips={false} onOpen={openApp} changeAppTriage={changeAppTriage} />} />
-        <Group label="Job boards to review" tone="warning" items={appGroups.review} onHide={hide('review')}
+        <Group label="Job boards to review" tone="warning" cap={capOf('apps')} items={appGroups.review} onHide={hide('review')}
           renderItem={a => <ApplicationRow key={a.id} app={a} showTriageChips onOpen={openApp} changeAppTriage={changeAppTriage} />} />
-        <Group label="OA deadline unknown" tone="ink" items={appGroups.oaCheck} onHide={hide('oaCheck')}
+        <Group label="OA deadline unknown" tone="ink" cap={capOf('apps')} items={appGroups.oaCheck} onHide={hide('oaCheck')}
           renderItem={a => <OaRow key={a.id} app={a} needsCheck onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />} />
       </DashCard>
     ),
     events: (eventAttention.count > 0 || eventAttention.degraded.length > 0) && (
-      <EventsCard attention={eventAttention} pool={eventPool} onOpenEvents={onOpenEvents} />
+      <EventsCard attention={eventAttention} pool={eventPool} cap={capOf('events')} onOpenEvents={onOpenEvents} />
     ),
   }
-  // Two stacks, balanced by roughly how many rows each card shows (RowCap shows 3 per group),
-  // so one column doesn't run a screen longer than the other. Order is kept within a stack;
-  // a lone card takes the full width.
-  const shown = groups => Object.values(groups).reduce((n, rows) => n + (rows.length ? Math.min(rows.length, 3) + 0.5 : 0), 1)
-  const weighted = [
-    [cards.replies, shown({ items: replyDrafts })],
-    [cards.email, shown({ items: openItems })],
-    [cards.people, shown(peopleGroups)],
-    [cards.apps, shown(appGroups)],
-    [cards.events, shown({ s: eventAttention.steps, r: eventAttention.registrations, f: eventAttention.followUps }) + (eventAttention.degraded.length ? 1 : 0)],
-  ].filter(([card]) => card)
-  const stacks = [[], []]
-  const heights = [0, 0]
-  for (const [card, w] of weighted) {
-    const i = heights[0] <= heights[1] ? 0 : 1
-    stacks[i].push(card); heights[i] += w
+  // Rough rendered height of each action card, so half-width cards split into two columns of
+  // about equal length (a glance card is about four rows tall).
+  const rowsShown = (groups, cap = 3) => Object.values(groups).reduce((n, rows) => n + (rows.length ? Math.min(rows.length, cap) + 0.5 : 0), 1)
+  const weight = {
+    replies: rowsShown({ items: replyDrafts }, capOf('replies')),
+    email: rowsShown({ items: openItems }, capOf('email')),
+    people: rowsShown(peopleGroups, capOf('people')),
+    apps: rowsShown(appGroups, capOf('apps')),
+    events: rowsShown({ s: eventAttention.steps, r: eventAttention.registrations, f: eventAttention.followUps }, capOf('events')) + (eventAttention.degraded.length ? 1 : 0),
   }
-  if (!stacks[1].length) stacks.pop()
+  const bands = layoutBands(layout.cards.filter(c => cards[c.id]))
+
+  function renderBand(band) {
+    const key = band.cards[0].id
+    if (band.size === 'full') return <m.div key={key} variants={rise}>{cards[key]}</m.div>
+    if (band.size === 'third') {
+      // 3-up on wide screens, 2-up on tablets with an odd last card spanning both.
+      const odd = band.cards.length % 2 === 1
+      return (
+        <div key={key} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {band.cards.map((c, i) => (
+            <m.div key={c.id} variants={rise} className={odd && i === band.cards.length - 1 ? 'md:col-span-2 xl:col-span-1' : undefined}>{cards[c.id]}</m.div>
+          ))}
+        </div>
+      )
+    }
+    // Halves: two stacks, balanced by height, order kept within a stack. On the default layout
+    // a lone card takes the full width (as before customizing existed); once the user has
+    // picked widths, a half stays a half.
+    const stacks = [[], []]
+    const heights = [0, 0]
+    for (const c of band.cards) {
+      const i = heights[0] <= heights[1] ? 0 : 1
+      stacks[i].push(c); heights[i] += weight[c.id] ?? 4
+    }
+    if (!stacks[1].length && !customized) stacks.pop()
+    return (
+      <div key={key} className={`grid grid-cols-1 gap-3 items-start ${stacks.length > 1 ? 'lg:grid-cols-2' : ''}`}>
+        {stacks.map((stack, i) => (
+          <div key={i} className="space-y-3 min-w-0">
+            {stack.map(c => <m.div key={c.id} variants={rise}>{cards[c.id]}</m.div>)}
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
 
@@ -595,36 +640,30 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
           {today} <span className="text-ink-300">/</span> {allEmpty ? 'all clear' : `${openCount} open`}
         </Label>
         <span className="ml-auto flex items-center gap-4 text-xs text-ink-400">
-          {trimmed.hidden > 0 && <span title="Already replied on the thread, long past due, or duplicates">{trimmed.hidden} resolved AI items auto-hidden</span>}
+          {placed.email && trimmed.hidden > 0 && <span title="Already replied on the thread, long past due, or duplicates">{trimmed.hidden} resolved AI items auto-hidden</span>}
           {snoozedHidden > 0 && (
             <button onClick={prefs.clearSnoozes} className="hover:text-ink-700 hover:underline">Unhide {snoozedHidden}</button>
+          )}
+          {!fresh && !editing && (
+            <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1.5 hover:text-ink-700">
+              <SlidersHorizontal size={12} /> Customize
+            </button>
           )}
         </span>
       </m.div>
 
-      {allEmpty && !isDemoMode && isFreshAccount({ contacts, apps })
-        ? <GettingStarted hasApps={apps.length > 0} hasContacts={contacts.length > 0} apps={apps} contacts={contacts} />
-        : <>
-          {hasData && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              <m.div variants={rise}><PipelineCard apps={apps} /></m.div>
-              <m.div variants={rise}><NetworkCard contacts={contacts} /></m.div>
-              <m.div variants={rise} className="md:col-span-2 xl:col-span-1"><OutreachCard interactions={interactions} /></m.div>
-              <m.div variants={rise} className="md:col-span-2 xl:col-span-3 empty:hidden"><RatesCard apps={apps} /></m.div>
-            </div>
-          )}
-          {allEmpty
-            ? <m.div variants={rise}><EmptyState msg={snoozedHidden ? `✓ Nothing left — ${snoozedHidden} hidden for now.` : "✓ Nothing needs your attention. You're on top of it."} /></m.div>
-            : (
-              <div className={`grid grid-cols-1 gap-3 items-start ${stacks.length > 1 ? 'lg:grid-cols-2' : ''}`}>
-                {stacks.map((stack, i) => (
-                  <div key={i} className="space-y-3 min-w-0">
-                    {stack.map((card, j) => <m.div key={j} variants={rise}>{card}</m.div>)}
-                  </div>
-                ))}
-              </div>
-            )}
-        </>}
+      {editing
+        ? (
+          <Suspense fallback={<p className="px-1 text-xs text-ink-400">Loading the editor…</p>}>
+            <TodayEditor layout={layout} update={update} reset={reset} ctx={ctx} counts={counts} onDone={() => setEditing(false)} />
+          </Suspense>
+        )
+        : fresh
+          ? <GettingStarted hasApps={apps.length > 0} hasContacts={contacts.length > 0} apps={apps} contacts={contacts} />
+          : <>
+            {bands.map(renderBand)}
+            {allEmpty && <m.div variants={rise}><EmptyState msg={snoozedHidden ? `✓ Nothing left — ${snoozedHidden} hidden for now.` : "✓ Nothing needs your attention. You're on top of it."} /></m.div>}
+          </>}
 
       <SidePanel open={!!selectedContactId} onClose={() => setSelectedContactId(null)}>
         {selectedContactId && (

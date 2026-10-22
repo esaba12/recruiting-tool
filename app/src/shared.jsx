@@ -93,9 +93,9 @@ export function isUntriaged(a) {
 // An active application with no stage movement in 14+ days — the single source of truth
 // for "stale," previously computed identically-but-independently across several components
 // before being consolidated here.
-export function isStaleApplication(a) {
+export function isStaleApplication(a, days = 14) {
   const d = a.daysInStage ?? daysSince(a.lastActivity)
-  return d !== null && d > 14
+  return d !== null && d > days
 }
 
 // Normalized Company+Role key (trim + lowercase) — the single source of truth for

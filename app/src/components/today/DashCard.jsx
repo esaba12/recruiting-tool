@@ -51,7 +51,7 @@ export function Readout({ value, unit, className }) {
 }
 
 // One attention list inside an action card: a hairline-ruled sub-label, then capped rows.
-export function Group({ label, tone, items, renderItem, onHide }) {
+export function Group({ label, tone, items, renderItem, onHide, cap }) {
   if (!items.length) return null
   return (
     <div className="mt-3 first-of-type:mt-2">
@@ -59,7 +59,7 @@ export function Group({ label, tone, items, renderItem, onHide }) {
         <Label tone={tone} className="text-[10px] tracking-[0.12em]">{label}</Label>
         <Mono className="text-ink-400 text-[10px]">{items.length}</Mono>
       </div>
-      <RowCap items={items} tier={tone} renderItem={renderItem} onHide={onHide} />
+      <RowCap items={items} cap={cap} tier={tone} renderItem={renderItem} onHide={onHide} />
     </div>
   )
 }

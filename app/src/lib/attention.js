@@ -42,9 +42,10 @@ export function overdueFollowUps(contacts) {
   return contacts.filter(isOverdue).sort((a, b) => daysUntil(a.followUpDate) - daysUntil(b.followUpDate))
 }
 
-// Ported verbatim from the former Actions tab (depends on activeApps above)
-export function staleApplications(apps) {
-  return activeApps(apps).filter(isStaleApplication).sort((a, b) => {
+// Ported from the former Actions tab (depends on activeApps above). `days` is Today's
+// per-user "Stale after" setting.
+export function staleApplications(apps, { days = 14 } = {}) {
+  return activeApps(apps).filter(a => isStaleApplication(a, days)).sort((a, b) => {
     const da = a.daysInStage ?? daysSince(a.lastActivity)
     const db = b.daysInStage ?? daysSince(b.lastActivity)
     return db - da
@@ -319,4 +320,20 @@ export function dedupeAcross(lists, idOf = r => r.contact?.id ?? r.id) {
     })
   }
   return out
+}
+
+// Today's People card: each contact shows in the first of its groups (in this priority order,
+// not the card's display order) that's on, so turning one off lets its people surface in the
+// next instead of vanishing.
+export const PEOPLE_GROUPS = ['overdue', 'awaiting', 'schedule', 'urgent', 'keepInTouch']
+export function todayPeople(contacts, interactions, { off = [], awaitingDays = 5 } = {}) {
+  const derive = {
+    overdue: () => overdueFollowUps(contacts),
+    awaiting: () => awaitingReply(contacts, interactions, { thresholdDays: awaitingDays }),
+    urgent: () => highUrgencyContacts(contacts),
+    schedule: () => wantToSchedule(contacts),
+    keepInTouch: () => keepInTouchQueue(contacts, interactions),
+  }
+  const lists = Object.fromEntries(PEOPLE_GROUPS.map(id => [id, off.includes(id) ? [] : derive[id]()]))
+  return dedupeAcross(lists)
 }

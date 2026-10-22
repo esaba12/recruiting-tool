@@ -433,7 +433,7 @@ function AppInner() {
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
           onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} onImported={refreshApps} views={pipelineViewsFor(profile)} />
       )}
-      {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships} actionItems={actionItems} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} emailDrafts={emailDrafts} onOpenDraft={openDraft} />}
+      {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships} actionItems={actionItems} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} emailDrafts={emailDrafts} onOpenDraft={openDraft} profile={profile} />}
       {!loading && tab === 'inbox'    && (
         <InboxTab contacts={contacts} apps={apps} interactions={interactions} actionItems={actionItems} onRefresh={load}
           drafts={emailDrafts} onDraftsChange={setEmailDrafts} initialThreadId={inboxThread} />
