@@ -56,7 +56,8 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 - [ ] Then [v1.3 spec 04](../v1.3-launch-and-cleanup/04-launch-week.md) (launch week)
 
 ### Next code
-- [ ] 🤖 [08](08-custom-today.md) rearrangeable Today. Fold the "Replies drafted" card (added on top of PR #22's dashboard) into the registry.
+- [x] 🤖 [08](08-custom-today.md) rearrangeable Today, built on `feat/v1.4-custom-today`. The registry units are PR #22's cards (Rates and Replies drafted included), and their lists are toggles. Checked on `/demo` (desktop, 390px, keyboard, dark).
+- [ ] 👤 Review and merge the spec 08 PR
 - [ ] 🤖 02 → 03 → 04 after the Apps Script cutover (v1.3 spec 08)
 
 ### Later (not planned yet)
@@ -118,7 +119,7 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 | 05 | [Cut duplicates](05-cuts.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20) |
 | 06 | [Fixes from the review](06-fixes.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20) |
 | 07 | [Onboarding that ends with data on screen](07-onboarding.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20), smoke-tested on prod; live first scan untested until a real Gmail connect |
-| 08 | [A Today you arrange yourself](08-custom-today.md) | 🤖, one new dependency (@dnd-kit) | no | open |
+| 08 | [A Today you arrange yourself](08-custom-today.md) | 🤖, one new dependency (@dnd-kit) | no | built 2026-10-22, PR open |
 | 09 | [Résumé in onboarding](09-resume.md) | 🤖, one new dependency (pdfjs-dist) | **yes** (shared with 10) | ✅ merged 2026-10-20 (PR #23), live |
 | 10 | [Drafted replies with suggested call times](10-reply-drafts.md) | 🤖 | **yes** (shared with 09) | ✅ merged 2026-10-20 (PR #23), live; real-mailbox check pending |
 

@@ -207,16 +207,16 @@ function FollowUpRow({ item, pool, onOpenEvents }) {
 
 // The Events card: signup steps, closing registrations and overdue follow-ups as groups in
 // one Today card, with degraded feeds as a footnote (informational, not a to-do).
-export function EventsCard({ attention, pool, onOpenEvents, now = Date.now() }) {
+export function EventsCard({ attention, pool, onOpenEvents, cap, now = Date.now() }) {
   const { steps, registrations, followUps, degraded } = attention
   if (!attention.count && !degraded.length) return null
   return (
     <DashCard label="Events" tone="warning" icon={CalendarCheck2} count={attention.count || null}>
-      <Group label="Signup steps due" tone="warning" items={steps}
+      <Group label="Signup steps due" tone="warning" cap={cap} items={steps}
         renderItem={it => <StepRow key={it.requirement.id} item={it} pool={pool} now={now} onOpenEvents={onOpenEvents} />} />
-      <Group label="Registration closing" tone="warning" items={registrations}
+      <Group label="Registration closing" tone="warning" cap={cap} items={registrations}
         renderItem={it => <RegistrationRow key={it.event.id} item={it} pool={pool} now={now} onOpenEvents={onOpenEvents} />} />
-      <Group label="Follow-ups overdue" tone="danger" items={followUps}
+      <Group label="Follow-ups overdue" tone="danger" cap={cap} items={followUps}
         renderItem={it => <FollowUpRow key={it.userEvent.eventId} item={it} pool={pool} onOpenEvents={onOpenEvents} />} />
       {degraded.length > 0 && (
         <div className="mt-3 pt-2 border-t border-ink-100 space-y-1">

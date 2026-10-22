@@ -1,6 +1,6 @@
 # Dashboard features (tab by tab)
 
-> Current state as of 2026-10-20 (rewritten in v1.4 spec 06 C; Today updated for PR #22). History lives in git and
+> Current state as of 2026-10-22 (rewritten in v1.4 spec 06 C; Today updated for PR #22 and spec 08). History lives in git and
 > `.planning/`. If a detail here disagrees with the code, the code wins.
 
 Dev server: `cd app && npm run dev` → http://localhost:3001. Tabs come from `NAV_ITEMS` in
@@ -13,7 +13,23 @@ A dashboard (PR #22, 2026-10-20). Cards share one shell, `today/DashCard.jsx`: a
 label with a status dot and a count. `Group` stacks labeled lists inside a card, and each list
 shows 3 rows before "+N more".
 
-A header line gives the date and the open count, plus "Unhide N" when anything is snoozed.
+A header line gives the date and the open count (cards and lists that are on only), plus
+"Unhide N" when anything is snoozed, and **Customize**.
+
+**Customize** (v1.4 spec 08). Each user arranges their own Today:
+- The card registry is `lib/todayCards.js`, which is pure. Each card has a default width (`third` / `half` / `full`) and optional `groups` (the lists inside it).
+- Users can turn any group off. Job boards to review is SWE/PM only, and Events needs a campus.
+- Per-card settings: rows shown (3 / 5 / 10), People's "Awaiting reply after" days and Applications' "Stale after" days.
+- The layout lives in `user_settings.today_layout` (`lib/useTodayLayout.js`), separate from snoozes. Nothing is saved until the user changes something, so an untouched account always gets `defaultLayout`, the PR #22 dashboard.
+- `reconcileLayout`:
+  - Drops unknown or unavailable cards.
+  - Clamps bad values.
+  - Inserts new registry cards after their registry neighbour, with `seen` making sure a removed card stays removed.
+- Rendering: consecutive same-width cards form a band. Thirds go 3-up, halves go in two balanced columns, and a full card sits alone. Only on an uncustomized layout does a lone half card stretch to full width.
+- `today/TodayEditor.jsx` is lazy, and it's the only importer of `@dnd-kit` (its own chunk):
+  - Compact tiles at their chosen width, including empty cards ("Nothing here right now").
+  - Drag by the grip: mouse, a 200 ms touch hold, or Space + arrow keys. There are also ↑/↓/✕ buttons.
+  - An Add-cards drawer lists unavailable cards with the reason. Reset to default and Done round it out.
 
 **Metric cards** (`today/MetricCards.jsx`), side by side. Each one is a headline number over its
 chart, with no separate stat tiles repeating the same numbers. They're hidden until there's data.
@@ -27,11 +43,11 @@ chart, with no separate stat tiles repeating the same numbers. They're hidden un
   - An app with only backfilled history counts as applied → rejected (an undercount, not a guess).
   - It replaced the Pipeline card's Applied → Phone Screen line.
 
-**Attention cards**, in two columns balanced by visible row count (one column if there's only one card):
+**Attention cards** (half width by default), in two columns balanced by visible row count:
 - **Replies drafted** (v1.4 spec 10): replies the Gmail scan wrote for you, each opening its Inbox thread.
 - **From your email:** AI action items, with "Dismiss all".
 - **People:** groups for Overdue follow-up, Awaiting reply, High urgency, Want to schedule and Keep in touch.
-- **Applications:** groups for OA due, Stale (14+ days without movement), Job boards to review (tech tracks) and OA deadline unknown.
+- **Applications:** groups for OA due, Stale (14+ days without movement by default), Job boards to review (tech tracks) and OA deadline unknown.
 - **Events** (`today/EventAttentionSections.jsx` `EventsCard`): groups for signup steps due,
   registration closing and event follow-ups overdue, plus a footnote listing degraded feeds.
 
@@ -50,8 +66,8 @@ first-scan state (`lib/gmailScan.js`) plus rows that open the tracker and Linked
   contacts and anyone with a future Follow-Up Date.
 - **Declutter** (`test/declutter.test.js`):
   - `trimActionItems` hides AI items already answered on the thread, long past due, or duplicated.
-  - `dedupeAcross` keeps each contact in one People group. Priority: Overdue → Awaiting →
-    Schedule → High Urgency → Keep in Touch.
+  - `todayPeople` (via `dedupeAcross`) keeps each contact in one People group. Priority: Overdue → Awaiting →
+    Schedule → High Urgency → Keep in Touch. A group that's turned off is skipped, so its people show in the next one.
   - A row's ✕ snoozes it for 7 days, and a card's "Clear all" snoozes every row in the card.
     Snoozes live in `user_settings.today_prefs` (`lib/useTodayPrefs.js`), so they follow the account.
 - Full-size versions of the metric charts are also on Pipeline → Sheet → Flow (funnel) and

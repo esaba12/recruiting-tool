@@ -1,5 +1,13 @@
 # 08 — A Today you arrange yourself
 
+> **Built 2026-10-22 (`feat/v1.4-custom-today`), re-planned against PR #22's dashboard:**
+> - The registry's units are the dashboard cards: `pipeline, network, outreach, rates, replies, email, people, apps, events`. The inner lists are per-card toggles.
+> - Widths are `third` / `half` / `full`, not two widths, because the metric row is 3-up.
+> - The old `COLLAPSIBLE` ids, stat-tile and chart cards are gone with PR #22, so they aren't in the registry. Snooze keys are unchanged.
+> - The editor shows compact tiles instead of live cards, so empty cards can be arranged and dragging stays light.
+> - The default layout is never saved, so untouched accounts render the PR #22 dashboard unchanged.
+> - Docs: `docs/architecture/dashboard-features.md` → Today → Customize.
+
 > **Baseline changed (2026-10-20, PR #22).** Today is no longer one column of up to 17 Sections.
 > Some of what's below assumes the old layout, so re-plan against the code before building:
 > - Today is now a dashboard of `DashCard`s: Pipeline / Network / Outreach metric cards, then
