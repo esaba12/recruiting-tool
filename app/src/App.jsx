@@ -329,8 +329,13 @@ function AppInner() {
   const eventCalendarSync = useEventCalendarSync({ pool: eventPool, enabled: !!profile?.school_id })
   usePrefetchTabs(!loading)
 
+  // Only the first load shows the full-screen loading state. Later refreshes (a row's
+  // "Done", a saved edit) refetch in the background so the open tab isn't unmounted.
+  const loadedOnceRef = useRef(false)
+  const [refreshing, setRefreshing] = useState(false)
   async function load() {
-    setLoading(true); setError(null)
+    if (loadedOnceRef.current) setRefreshing(true); else setLoading(true)
+    setError(null)
     try {
       const [c, a, i, cl, cr, ai, ed] = await Promise.all([
         fetchContacts(), fetchApplications(), fetchInteractions(), fetchCalls(), fetchContactRelationships(),
@@ -340,7 +345,7 @@ function AppInner() {
       setActionItems(ai); setEmailDrafts(ed)
       setLastLoaded(new Date().toLocaleTimeString())
     } catch (e) { setError(e.message) }
-    finally { setLoading(false) }
+    finally { loadedOnceRef.current = true; setLoading(false); setRefreshing(false) }
   }
 
   // Cloud-agent research fallback for OA due dates the email pipeline couldn't extract — see
@@ -410,7 +415,7 @@ function AppInner() {
       activeTab={tab}
       onTabChange={setTab}
       counts={counts}
-      loading={loading}
+      loading={loading || refreshing}
       lastLoaded={lastLoaded}
       onRefresh={load}
       onAddEvent={() => setAddEventOpen(true)}
@@ -518,11 +523,14 @@ function DemoAppInner() {
   useEffect(() => { load() }, [])
 
 
+  // See AppInner's load(): only the first load unmounts the tabs.
+  const loadedOnceRef = useRef(false)
+  const [refreshing, setRefreshing] = useState(false)
   async function load() {
-    setLoading(true)
+    if (loadedOnceRef.current) setRefreshing(true); else setLoading(true)
     const [c, a, i, cr, ed] = await Promise.all([fetchContacts(), fetchApplications(), fetchInteractions(), fetchContactRelationships(), fetchEmailDrafts()])
     setContacts(c); setApps(a); setInteractions(i); setContactRelationships(cr); setEmailDrafts(ed)
-    setLoading(false)
+    loadedOnceRef.current = true; setLoading(false); setRefreshing(false)
   }
 
   // See AppInner's identical helper: avoids toggling `loading` (which would unmount
@@ -548,7 +556,7 @@ function DemoAppInner() {
       activeTab={tab}
       onTabChange={setTab}
       counts={counts}
-      loading={loading}
+      loading={loading || refreshing}
       navItems={NAV_ITEMS}
       demoMode
     >
