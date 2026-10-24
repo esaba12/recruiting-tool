@@ -561,6 +561,17 @@ export function pickApplication(rows, role) {
   return rows.find(r => roleKey(r.role) === key) || rows.find(r => !roleKey(r.role))
 }
 
+// OA fields an OA_INVITE writes. A finished OA stays finished against a re-sent invite (same
+// link), but an invite with a new link is a new assessment (a second round, a retake) and
+// reopens it: a missed OA costs more than one wrongly reopened.
+// scripts/email-pipeline.js has the same rule — keep the two in sync.
+export function oaInviteFields(data, existing) {
+  if (data.type !== 'OA_INVITE') return {}
+  const fields = { oa_due_date: data.oa_due_date || null, oa_link: data.oa_link || null, oa_research_checked_at: null }
+  if (!existing?.oa_completed) return fields
+  return data.oa_link && data.oa_link !== existing.oa_link ? { ...fields, oa_completed: false } : {}
+}
+
 async function upsertApplication(db, userId, data) {
   const today = new Date().toISOString().slice(0, 10)
   const stageMap = {
@@ -574,7 +585,7 @@ async function upsertApplication(db, userId, data) {
   const referrerId = data.referrer_name ? await findContactByName(db, userId, data.referrer_name) : null
 
   const { data: rows } = await db.from('applications')
-    .select('id,role,stage,referred_by_id,oa_completed')
+    .select('id,role,stage,referred_by_id,oa_completed,oa_link')
     .eq('user_id', userId).ilike('company', `%${data.company || ''}%`).eq('archived', false)
     .order('created_at', { ascending: false }).limit(50)
   const existing = pickApplication(rows, data.role)
@@ -586,9 +597,7 @@ async function upsertApplication(db, userId, data) {
     ...(stage === 'Rejected' ? { closed_date: today } : {}),
     ...(data.role ? { role: data.role } : {}),
     ...(referrerId && !existing?.referred_by_id ? { referred_by_id: referrerId } : {}),
-    ...(data.type === 'OA_INVITE' && !existing?.oa_completed
-      ? { oa_due_date: data.oa_due_date || null, oa_link: data.oa_link || null, oa_research_checked_at: null }
-      : {}),
+    ...oaInviteFields(data, existing),
   }
 
   if (existing) {
