@@ -6,6 +6,7 @@ import {
   isAutomatedSender, isBulkMail, isGenericNetworking, shouldCreateContact, contactFollowUpDate, keepActionItem,
   isAlreadyLogged, logThreadMessages,
   scanQueries, nextCursor, orderConnections, runThreadBudget, MAX_CLASSIFIED_PER_RUN, scanStageChange,
+  roleKey, pickApplication, oaInviteFields,
 } from '../api/_lib/emailPipeline.js'
 
 describe('parseAddress', () => {
@@ -475,5 +476,53 @@ describe('scanStageChange', () => {
     expect(scanStageChange('Phone Screen', { stage: 'Rejected' })).toEqual({ skip: true })
     expect(scanStageChange('Applied', { stage: 'Accepted' })).toEqual({ stage: null })
     expect(scanStageChange('Rejected', { stage: 'Onsite' })).toEqual({ stage: 'Rejected' })
+  })
+})
+
+// Three IBM applications used to collapse into one row; its completed OA then swallowed the
+// next two OA invites (2026-10-23).
+describe('pickApplication', () => {
+  const ibm = [
+    { id: 'zos', role: 'z/OS Core Technologies Back End Developer Intern 2027' },
+    { id: 'ai', role: 'AI Software Engineer Intern - 137214' },
+    { id: 'swe', role: 'Software Engineering Intern 2027' },
+  ]
+  it('lands an email on the application for its role', () => {
+    expect(pickApplication(ibm, 'AI Software Engineer Intern 2027').id).toBe('ai')
+    expect(pickApplication(ibm, 'Software Engineer Intern, Summer 2027').id).toBe('swe')
+    expect(pickApplication(ibm, 'z/OS Core Technologies Back End Developer Intern').id).toBe('zos')
+  })
+  it('a new role at the same company is a new application', () => {
+    expect(pickApplication(ibm, 'Data Scientist Intern')).toBeUndefined()
+  })
+  it('claims a row with no role before creating one', () => {
+    expect(pickApplication([{ id: 'x', role: 'Quant Researcher' }, { id: 'blank', role: null }], 'Trader').id).toBe('blank')
+  })
+  it('no role in the email falls back to the newest row', () => {
+    expect(pickApplication(ibm, null).id).toBe('zos')
+    expect(pickApplication([], 'SWE')).toBeUndefined()
+  })
+  it('roleKey ignores case, punctuation, years, req ids and filler', () => {
+    expect(roleKey('Software Engineering Intern, Summer 2027 (131545)')).toBe(roleKey('software engineer'))
+    expect(roleKey('AI Software Engineer Intern')).not.toBe(roleKey('Software Engineer Intern'))
+  })
+})
+
+describe('oaInviteFields', () => {
+  const invite = { type: 'OA_INVITE', oa_due_date: '2026-10-24', oa_link: 'https://hr.test/new' }
+  it('writes the OA onto an open or new application', () => {
+    expect(oaInviteFields(invite, undefined)).toEqual({ oa_due_date: '2026-10-24', oa_link: 'https://hr.test/new', oa_research_checked_at: null })
+    expect(oaInviteFields(invite, { oa_completed: false }).oa_link).toBe('https://hr.test/new')
+  })
+  it('a re-sent invite leaves a finished OA finished', () => {
+    expect(oaInviteFields(invite, { oa_completed: true, oa_link: 'https://hr.test/new' })).toEqual({})
+    expect(oaInviteFields({ ...invite, oa_link: null }, { oa_completed: true, oa_link: 'https://hr.test/old' })).toEqual({})
+  })
+  it('a new assessment link reopens a finished OA', () => {
+    expect(oaInviteFields(invite, { oa_completed: true, oa_link: 'https://hr.test/old' }))
+      .toEqual({ oa_due_date: '2026-10-24', oa_link: 'https://hr.test/new', oa_research_checked_at: null, oa_completed: false })
+  })
+  it('other types touch no OA fields', () => {
+    expect(oaInviteFields({ type: 'REJECTION' }, { oa_completed: false })).toEqual({})
   })
 })

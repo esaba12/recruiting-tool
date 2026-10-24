@@ -14,7 +14,7 @@ The pre-invite set (06, 05, 01, 07) changes what a friend sees in their first fi
 it's worth doing while you finish v1.3 spec 02's console steps, which gate the invite anyway.
 02–04 matter right now for your own season: interviews and offers come in October through December.
 
-## Where we are (2026-10-20, after PR #23): checklist
+## Where we are (2026-10-23, after PR #27): checklist
 
 🤖 = Claude can do it · 👤 = owner (console, inbox, approvals)
 

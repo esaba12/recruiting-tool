@@ -540,6 +540,38 @@ export function scanStageChange(stage, existing) {
   return { stage: !closed && rank(stage) >= rank(existing.stage) ? stage : null }
 }
 
+// Role titles compared loosely: case, punctuation, years/req ids ("2027", "137214") and
+// filler words ("Summer", "Intern") don't make two roles different.
+const ROLE_FILLER = new Set(['summer', 'fall', 'spring', 'winter', 'intern', 'internship', 'co', 'op', 'the', 'a', 'an', 'of', 'and', 'for', 'in'])
+export function roleKey(role) {
+  return (role || '').toLowerCase().replace(/engineering/g, 'engineer').split(/[^a-z0-9]+/)
+    .filter(w => w && !/^\d+$/.test(w) && !ROLE_FILLER.has(w)).sort().join(' ')
+}
+
+// Which of a company's applications (newest first) an email belongs to. Companies get
+// several applications per season, so a stated role only lands on that role (or on a row
+// with no role yet); otherwise it's a new application. Matching on company alone collapsed
+// three IBM applications into one row whose completed OA then swallowed two new OA invites
+// (2026-10-23). No role in the email → newest row, as before.
+// scripts/email-pipeline.js has the same rule — keep the two in sync.
+export function pickApplication(rows, role) {
+  if (!rows?.length) return undefined
+  const key = roleKey(role)
+  if (!key) return rows[0]
+  return rows.find(r => roleKey(r.role) === key) || rows.find(r => !roleKey(r.role))
+}
+
+// OA fields an OA_INVITE writes. A finished OA stays finished against a re-sent invite (same
+// link), but an invite with a new link is a new assessment (a second round, a retake) and
+// reopens it: a missed OA costs more than one wrongly reopened.
+// scripts/email-pipeline.js has the same rule — keep the two in sync.
+export function oaInviteFields(data, existing) {
+  if (data.type !== 'OA_INVITE') return {}
+  const fields = { oa_due_date: data.oa_due_date || null, oa_link: data.oa_link || null, oa_research_checked_at: null }
+  if (!existing?.oa_completed) return fields
+  return data.oa_link && data.oa_link !== existing.oa_link ? { ...fields, oa_completed: false } : {}
+}
+
 async function upsertApplication(db, userId, data) {
   const today = new Date().toISOString().slice(0, 10)
   const stageMap = {
@@ -553,10 +585,10 @@ async function upsertApplication(db, userId, data) {
   const referrerId = data.referrer_name ? await findContactByName(db, userId, data.referrer_name) : null
 
   const { data: rows } = await db.from('applications')
-    .select('id,stage,referred_by_id,oa_completed')
+    .select('id,role,stage,referred_by_id,oa_completed,oa_link')
     .eq('user_id', userId).ilike('company', `%${data.company || ''}%`).eq('archived', false)
-    .order('created_at', { ascending: false }).limit(1)
-  const existing = rows?.[0]
+    .order('created_at', { ascending: false }).limit(50)
+  const existing = pickApplication(rows, data.role)
   const change = scanStageChange(stage, existing)
   if (change.skip) return null
 
@@ -565,9 +597,7 @@ async function upsertApplication(db, userId, data) {
     ...(stage === 'Rejected' ? { closed_date: today } : {}),
     ...(data.role ? { role: data.role } : {}),
     ...(referrerId && !existing?.referred_by_id ? { referred_by_id: referrerId } : {}),
-    ...(data.type === 'OA_INVITE' && !existing?.oa_completed
-      ? { oa_due_date: data.oa_due_date || null, oa_link: data.oa_link || null, oa_research_checked_at: null }
-      : {}),
+    ...oaInviteFields(data, existing),
   }
 
   if (existing) {
