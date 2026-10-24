@@ -1293,6 +1293,20 @@ function findContactByName(keys, name) {
   return res?.[0]?.id || null
 }
 
+// Same as app/api/_lib/emailPipeline.js roleKey/pickApplication — keep the two in sync.
+const ROLE_FILLER = ['summer', 'fall', 'spring', 'winter', 'intern', 'internship', 'co', 'op', 'the', 'a', 'an', 'of', 'and', 'for', 'in']
+function roleKey(role) {
+  return (role || '').toLowerCase().replace(/engineering/g, 'engineer').split(/[^a-z0-9]+/)
+    .filter(w => w && !/^\d+$/.test(w) && ROLE_FILLER.indexOf(w) === -1).sort().join(' ')
+}
+
+function pickApplication(rows, role) {
+  if (!rows || !rows.length) return undefined
+  const key = roleKey(role)
+  if (!key) return rows[0]
+  return rows.find(r => roleKey(r.role) === key) || rows.find(r => !roleKey(r.role))
+}
+
 function upsertApplication(keys, data) {
   const today = Utilities.formatDate(new Date(), 'UTC', 'yyyy-MM-dd')
   const stageMap = {
@@ -1305,11 +1319,11 @@ function upsertApplication(keys, data) {
   const stage = stageMap[data.type] || 'Applied'
   const referrerId = data.referrer_name ? findContactByName(keys, data.referrer_name) : null
 
-  // Fuzzy match on company name (same fragile-but-workable approach as the old Notion
-  // title-contains filter) — applications has no unique constraint on (user_id, company).
+  // Fuzzy match on company name, then on role (pickApplication) — applications has no unique
+  // constraint on (user_id, company), and one company often has several applications.
   const res = supabaseReq(keys, 'get',
-    `/applications?user_id=eq.${keys.userId}&company=ilike.*${encodeURIComponent(data.company || '')}*&archived=eq.false&order=created_at.desc&limit=1&select=id,stage,referred_by_id,oa_completed`)
-  const existing = res?.[0]
+    `/applications?user_id=eq.${keys.userId}&company=ilike.*${encodeURIComponent(data.company || '')}*&archived=eq.false&order=created_at.desc&limit=50&select=id,role,stage,referred_by_id,oa_completed`)
+  const existing = pickApplication(res, data.role)
 
   // OA_COMPLETED only means anything against an application we're already tracking an OA for —
   // with no fuzzy company match, there's nothing to mark done, and creating a fresh "Unknown"
