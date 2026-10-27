@@ -54,7 +54,8 @@ Do this first. B–D don't depend on it, but 03 and the Gmail half of D do.
 - [ ] **C1. 🤖 Remove dead env vars.** No `api/` code reads them (grep re-checked 2026-10-17: only comments mention them),
   so they're unneeded secret exposure:
   `! cd app && for v in ANTHROPIC_API_KEY EXA_API_KEY NOTION_API_KEY GOOGLE_REFRESH_TOKEN; do vercel env rm $v production -y; done`
-  `EXA_API_KEY` is also set for Preview: add `vercel env rm EXA_API_KEY preview -y`.
+  Preview has more Notion-era leftovers (re-checked 2026-10-23, still comment-only in code):
+  `! cd app && for v in ANTHROPIC_API_KEY EXA_API_KEY NOTION_API_KEY GOOGLE_REFRESH_TOKEN CONTACTS_DB_ID INTERACTIONS_DB_ID PARENT_PAGE_ID; do vercel env rm $v preview -y; done`
   Auto mode blocks secret-store writes, so this one is yours to run.
   **Check:** `vercel env ls production` lists only the 7 required vars, plus `KV_REST_API_*`,
   `CRON_SECRET` and optionally `VITE_SENTRY_DSN`.
