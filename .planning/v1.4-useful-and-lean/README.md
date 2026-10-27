@@ -60,7 +60,7 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 - [x] 👤 Merged: PR #27, 2026-10-22. Live on prod, and the Customize editor was checked on `/demo`
 - [x] 🤖 [02](02-interview-offer-dates.md) built on `feat/v1.4-interview-offer-dates` (2026-10-27), ahead of the cutover
   (decision 3 below), so the classifier change is mirrored in `scripts/email-pipeline.js`. Checked on `/demo` (desktop, 390px).
-- [ ] 👤 Approve `supabase db push` for `20261027000000_interview_offer_dates.sql` (dry run: only this file)
+- [x] 👤 `supabase db push` for `20261027000000_interview_offer_dates.sql` (owner approved 2026-10-27). Live RLS suite 14/14
 - [ ] 👤 `clasp push` **after** the db push: both pipelines select the new columns, so they fail until it's live
 - [ ] 🤖 Then push the branch and open the PR; 👤 merge
 - [ ] 🤖 03 → 04
@@ -118,7 +118,7 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 | # | Spec | Kind | Migration | Status |
 |---|------|------|-----------|--------|
 | 01 | [Import what you already have](01-import.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20) |
-| 02 | [Interview and offer dates become fields](02-interview-offer-dates.md) | 🤖 + `clasp push` | **yes** | built 2026-10-27; waits on db push |
+| 02 | [Interview and offer dates become fields](02-interview-offer-dates.md) | 🤖 + `clasp push` | **yes** | built 2026-10-27, migration live; PR open |
 | 03 | [After the interview: thank-you nudges](03-thank-you.md) | 🤖 | no (uses 02) | open |
 | 04 | [Offer decisions](04-offer-decisions.md) | 🤖 | no (uses 02) | open |
 | 05 | [Cut duplicates](05-cuts.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20) |
