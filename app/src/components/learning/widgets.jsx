@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ExternalLink, RotateCcw, X, Sparkles, MessageSquareText, Trash2, AlertTriangle } from 'lucide-react'
 import Mono from '../ui/Mono.jsx'
+import { daysUntil } from '../../lib/dates.js'
 import Button from '../ui/Button.jsx'
 import { TrendChart, DonutChart } from '../charts/lazy.jsx'
 import { useChartTheme } from '../charts/theme.js'
@@ -66,10 +67,11 @@ export function SummaryWidget({ view }) {
   const readiness = view.visible.length ? Math.round((atTarget / view.visible.length) * 100) : 0
   const upcoming = [
     ...view.demand.oas.map(a => ({ label: `${a.company} OA`, date: a.oaDueDate })),
-    ...view.demand.interviews.map(a => ({ label: `${a.company} · ${a.stage}`, date: null })),
+    ...view.demand.interviews.map(a => ({ label: `${a.company} · ${a.stage}`, date: a.interviewAt })),
   ]
-  const next = upcoming.find(u => u.date) || upcoming[0]
-  const days = next?.date ? Math.ceil((new Date(next.date + 'T23:59:59') - Date.now()) / 86400000) : null
+  const dated = upcoming.filter(u => u.date).sort((x, y) => daysUntil(x.date) - daysUntil(y.date))
+  const next = dated[0] || upcoming[0]
+  const days = next?.date ? Math.max(0, daysUntil(next.date)) : null
   const tiles = [
     { label: 'This week', value: thisWeek.length, sub: `${minutes} min logged` },
     { label: 'Streak', value: `${view.streak}d`, sub: view.streak ? 'keep it alive today' : 'log anything to start' },

@@ -185,24 +185,48 @@ export function learningAttention(learning, apps, { now = Date.now(), withinDays
   return out
 }
 
-// Next Deadline tile: soonest of open OA due dates and the job-board deadlines the caller
-// already has (statTiles.js's nextDeadlines output: { company, role, days }). OAs only count
-// when not completed, not in the past, and the app isn't Rejected/Accepted — a dead
-// application's OA is no longer a deadline. Ties go to the OA (it's a commitment, not a
-// posting). Returns { label, company, days, kind } or null.
+// Next Deadline tile: soonest of open OA due dates, offer deadlines, upcoming interviews, and
+// the job-board deadlines the caller already has (statTiles.js's nextDeadlines output:
+// { company, role, days }). Each only counts when it isn't in the past and the app isn't
+// Rejected/Accepted — a dead application's dates are no longer deadlines. Ties go to the
+// offer, then the OA, then the interview (commitments before postings). Returns
+// { label, company, days, kind } or null.
+const DEADLINE_RANK = { offer: 0, oa: 1, interview: 2, job: 3 }
 export function pickNextDeadline(apps, jobDeadlines = [], now = Date.now()) {
   const found = []
+  const add = (kind, a, date, label) => {
+    const days = daysUntil(date, now)
+    if (days !== null && days >= 0) found.push({ kind, company: a.company, label, days })
+  }
   for (const a of apps || []) {
-    if (!a.oaDueDate || a.oaCompleted || TERMINAL_STAGES.includes(a.stage)) continue
-    const days = daysUntil(a.oaDueDate, now)
-    if (days === null || days < 0) continue
-    found.push({ kind: 'oa', company: a.company, label: `${a.company} OA`, days })
+    if (TERMINAL_STAGES.includes(a.stage)) continue
+    if (a.oaDueDate && !a.oaCompleted) add('oa', a, a.oaDueDate, `${a.company} OA`)
+    if (a.offerDeadline && a.stage === 'Offer') add('offer', a, a.offerDeadline, `${a.company} offer`)
+    if (a.interviewAt) add('interview', a, a.interviewAt, `${a.company} interview`)
   }
   for (const j of jobDeadlines) {
     found.push({ kind: 'job', company: j.company, label: j.company, days: j.days })
   }
-  found.sort((x, y) => x.days - y.days || (x.kind === 'oa' ? -1 : 1) - (y.kind === 'oa' ? -1 : 1))
+  found.sort((x, y) => x.days - y.days || DEADLINE_RANK[x.kind] - DEADLINE_RANK[y.kind])
   return found[0] || null
+}
+
+// Today's Decisions card (v1.4 spec 02): every open offer, soonest deadline first. Offers
+// with no deadline on file go last, so they read as "add one", not as the most urgent.
+export function offerDecisions(apps, now = Date.now()) {
+  const key = a => (a.offerDeadline ? daysUntil(a.offerDeadline, now) : Infinity)
+  return (apps || []).filter(a => a.stage === 'Offer').sort((a, b) => key(a) - key(b))
+}
+
+// Interviews from today through `withinDays`, soonest first. Earlier today still counts:
+// the day isn't over and spec 03's thank-you takes it from there.
+export function upcomingInterviews(apps, { now = Date.now(), withinDays = 14 } = {}) {
+  return (apps || [])
+    .filter(a => a.interviewAt && !TERMINAL_STAGES.includes(a.stage))
+    .map(a => ({ a, days: daysUntil(a.interviewAt, now) }))
+    .filter(x => x.days >= 0 && x.days <= withinDays)
+    .sort((x, y) => new Date(x.a.interviewAt) - new Date(y.a.interviewAt))
+    .map(x => x.a)
 }
 
 export const FUNNEL_STAGES = ['Wishlist', 'Applied', 'Phone Screen', 'Technical', 'Onsite', 'Offer']

@@ -22,6 +22,14 @@ function daysFromNow(n) {
   return addDaysLocal(n)
 }
 
+// An instant n days out at a local hour, for interview times.
+function atLocal(n, hour) {
+  const d = new Date()
+  d.setDate(d.getDate() + n)
+  d.setHours(hour, 0, 0, 0)
+  return d.toISOString()
+}
+
 let idCounter = 1000
 export function nextDemoId() {
   return `demo-${idCounter++}`
@@ -128,16 +136,16 @@ export const DEMO_CONTACTS = [
 
 const SEED_APPLICATIONS = [
   { id: 'demo-a1', company: 'Stripe', role: 'SWE Intern, Infrastructure', stage: 'Phone Screen', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: '', appliedDate: daysFromNow(-14), closedDate: null, lastActivity: daysFromNow(-2), daysInStage: 14, jdLink: 'https://stripe.com/jobs', notes: 'Recruiter screen scheduled via Kelly.', createdTime: daysFromNow(-20), referredById: null },
-  { id: 'demo-a2', company: 'Anthropic', role: 'SWE Intern', stage: 'Technical', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: '', appliedDate: daysFromNow(-21), closedDate: null, lastActivity: daysFromNow(-1), daysInStage: 6, jdLink: 'https://anthropic.com/careers', notes: 'First technical round went well.', createdTime: daysFromNow(-25), referredById: null },
+  { id: 'demo-a2', company: 'Anthropic', role: 'SWE Intern', stage: 'Technical', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: '', appliedDate: daysFromNow(-21), closedDate: null, lastActivity: daysFromNow(-1), daysInStage: 6, jdLink: 'https://anthropic.com/careers', notes: 'First technical round went well.', createdTime: daysFromNow(-25), referredById: null, interviewAt: atLocal(2, 14), interviewTimeKnown: true },
   { id: 'demo-a3', company: 'Figma', role: 'PM Intern', stage: 'Applied', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: '', appliedDate: daysFromNow(-6), closedDate: null, lastActivity: daysFromNow(-4), daysInStage: 6, jdLink: 'https://figma.com/careers', notes: '', createdTime: daysFromNow(-6), referredById: null, oaDueDate: null, oaLink: 'https://codesignal.com/test/figma-pm-intern', oaCompleted: false, oaResearchCheckedAt: daysFromNow(-1) },
   { id: 'demo-a4', company: 'Vercel', role: 'SWE Intern', stage: 'Applied', triage: 'Applied', location: 'Remote', sourceRepo: 'SimplifyJobs/Summer2027-Internships', appliedDate: daysFromNow(-18), closedDate: null, lastActivity: daysFromNow(-18), daysInStage: 18, jdLink: 'https://vercel.com/careers', notes: '', createdTime: daysFromNow(-18), referredById: null },
-  { id: 'demo-a5', company: 'Ramp', role: 'SWE Intern', stage: 'Offer', triage: 'Applied', location: 'New York, NY', sourceRepo: '', appliedDate: daysFromNow(-40), closedDate: null, lastActivity: daysFromNow(-5), daysInStage: 5, jdLink: 'https://ramp.com/careers', notes: 'Offer received, deciding by end of month.', createdTime: daysFromNow(-45), referredById: 'demo-c5' },
+  { id: 'demo-a5', company: 'Ramp', role: 'SWE Intern', stage: 'Offer', triage: 'Applied', location: 'New York, NY', sourceRepo: '', appliedDate: daysFromNow(-40), closedDate: null, lastActivity: daysFromNow(-5), daysInStage: 5, jdLink: 'https://ramp.com/careers', notes: 'Offer received, deciding by end of month.', createdTime: daysFromNow(-45), referredById: 'demo-c5', offerDeadline: daysFromNow(9), offerDetails: { base: '$55/hr', bonus: '$5k relocation', location: 'New York, NY', start: 'June 2027' } },
   { id: 'demo-a6', company: 'Notion', role: 'SWE Intern', stage: 'Rejected', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: '', appliedDate: daysFromNow(-50), closedDate: daysFromNow(-10), lastActivity: daysFromNow(-10), daysInStage: 10, jdLink: '', notes: 'Didn\'t move past the first round.', createdTime: daysFromNow(-55), referredById: 'demo-c2' },
   { id: 'demo-a7', company: 'Airbnb', role: 'SWE Intern', stage: 'Wishlist', triage: 'Needs Review', location: 'San Francisco, CA', sourceRepo: 'speedyapply/2027-SWE-College-Jobs', appliedDate: null, closedDate: null, lastActivity: daysFromNow(-1), daysInStage: null, jdLink: 'https://careers.airbnb.com', notes: '', createdTime: daysFromNow(-1), referredById: null },
   { id: 'demo-a8', company: 'Discord', role: 'SWE Intern', stage: 'Wishlist', triage: 'Needs Review', location: 'San Francisco, CA', sourceRepo: 'speedyapply/2027-SWE-College-Jobs', appliedDate: null, closedDate: null, lastActivity: daysFromNow(-1), daysInStage: null, jdLink: 'https://discord.com/careers', notes: '', createdTime: daysFromNow(-1), referredById: null },
   { id: 'demo-a9', company: 'Rippling', role: 'SWE Intern', stage: 'Applied', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: 'speedyapply/2027-SWE-College-Jobs', appliedDate: daysFromNow(-3), closedDate: null, lastActivity: daysFromNow(-3), daysInStage: 3, jdLink: '', notes: '', createdTime: daysFromNow(-3), referredById: null, oaDueDate: daysFromNow(4), oaLink: 'https://hackerrank.com/test/rippling-swe-intern', oaCompleted: false, oaResearchCheckedAt: null },
   { id: 'demo-a10', company: 'Linear', role: 'SWE Intern', stage: 'Wishlist', triage: 'Maybe', location: 'Remote', sourceRepo: 'speedyapply/2027-SWE-College-Jobs', appliedDate: null, closedDate: null, lastActivity: daysFromNow(-2), daysInStage: null, jdLink: '', notes: 'Small team, not sure about internship structure yet.', createdTime: daysFromNow(-2), referredById: null },
-  { id: 'demo-a11', company: 'Morgan Stanley', role: 'Investment Banking Summer Analyst', stage: 'Onsite', triage: 'Applied', location: 'New York, NY', sourceRepo: '', appliedDate: daysFromNow(-30), closedDate: null, lastActivity: daysFromNow(-3), daysInStage: 3, jdLink: 'https://example.com/careers', notes: 'Superday Friday — four back-to-back 30-min interviews (technicals + fit).', createdTime: daysFromNow(-35), referredById: 'demo-c8' },
+  { id: 'demo-a11', company: 'Morgan Stanley', role: 'Investment Banking Summer Analyst', stage: 'Onsite', triage: 'Applied', location: 'New York, NY', sourceRepo: '', appliedDate: daysFromNow(-30), closedDate: null, lastActivity: daysFromNow(-3), daysInStage: 3, jdLink: 'https://example.com/careers', notes: 'Superday Friday — four back-to-back 30-min interviews (technicals + fit).', createdTime: daysFromNow(-35), referredById: 'demo-c8', interviewAt: atLocal(4, 12), interviewTimeKnown: false },
 ]
 
 // Stage history for the seeded apps above: [stage, daysAgo] in order. Feeds the outcome

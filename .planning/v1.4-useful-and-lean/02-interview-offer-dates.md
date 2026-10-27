@@ -66,3 +66,18 @@ causes three problems:
 ## Done when
 
 The migration is live, both fields are written by the scan and editable by hand, and Today uses them.
+
+## As built (2026-10-27)
+
+- **Interview Prep moved.** PR #22 dropped it from Today, so the `interview_at` rule went into
+  Learn's `trackDemand` (`lib/learning/mastery.js`), which still drove `learningAttention`
+  and the Learn "Next up" tile. A dated interview counts from a day past through 21 days out;
+  undated ones keep the stage rule.
+- **The interview countdown** is a new first group in the Applications card, "Interviews coming
+  up" (14 days). **Decisions** is a new first card.
+- **Scan rule** (`scheduleFields`, both pipelines): the later interview wins, since threads
+  aren't scanned in date order. On the same day, a real time replaces a guess and a guess
+  never replaces a real time.
+- **Pushes:** both digests (11am and midnight) lead with offers due within 3 days.
+- **Panel:** "Next Interview" shows at interview stages or when a date is set. "Offer" (deadline plus
+  free-text details) shows at Offer or when a deadline is set.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pickNextDeadline, funnelConversions, weeklyTrend, pipelineRates } from '../src/lib/attention.js'
+import { pickNextDeadline, funnelConversions, weeklyTrend, pipelineRates, offerDecisions, upcomingInterviews } from '../src/lib/attention.js'
 
 const now = new Date(2026, 9, 9, 12).getTime()
 
@@ -97,5 +97,53 @@ describe('pipelineRates', () => {
     const empty = pipelineRates([{ stage: 'Wishlist' }])
     expect(empty.applied).toBe(0)
     expect(empty.rates.every(x => x.pct === 0)).toBe(true)
+  })
+})
+
+describe('pickNextDeadline with interviews and offers (v1.4 spec 02)', () => {
+  it('counts an offer deadline and an upcoming interview', () => {
+    const apps = [
+      { company: 'Stripe', stage: 'Applied', oaDueDate: '2026-10-14' },
+      { company: 'Ramp', stage: 'Offer', offerDeadline: '2026-10-12' },
+      { company: 'Figma', stage: 'Technical', interviewAt: new Date(2026, 9, 11, 14).toISOString() },
+    ]
+    expect(pickNextDeadline(apps, [], now)).toMatchObject({ kind: 'interview', label: 'Figma interview', days: 2 })
+    expect(pickNextDeadline(apps.slice(0, 2), [], now)).toMatchObject({ kind: 'offer', label: 'Ramp offer', days: 3 })
+  })
+  it('an offer wins a tie, and past or closed ones are skipped', () => {
+    const apps = [
+      { company: 'A', stage: 'Applied', oaDueDate: '2026-10-12' },
+      { company: 'B', stage: 'Offer', offerDeadline: '2026-10-12' },
+      { company: 'C', stage: 'Accepted', offerDeadline: '2026-10-10' },
+      { company: 'D', stage: 'Technical', interviewAt: new Date(2026, 9, 1).toISOString() },
+    ]
+    expect(pickNextDeadline(apps, [], now).company).toBe('B')
+  })
+})
+
+describe('offerDecisions', () => {
+  it('lists open offers soonest deadline first, undated last', () => {
+    const rows = offerDecisions([
+      { id: 1, company: 'NoDate', stage: 'Offer' },
+      { id: 2, company: 'Later', stage: 'Offer', offerDeadline: '2026-10-20' },
+      { id: 3, company: 'Soon', stage: 'Offer', offerDeadline: '2026-10-11' },
+      { id: 4, company: 'Took', stage: 'Accepted', offerDeadline: '2026-10-10' },
+      { id: 5, company: 'Still interviewing', stage: 'Onsite' },
+    ], now)
+    expect(rows.map(r => r.company)).toEqual(['Soon', 'Later', 'NoDate'])
+  })
+})
+
+describe('upcomingInterviews', () => {
+  it('interviews from today through the window, soonest first', () => {
+    const at = (d, h = 14) => new Date(2026, 9, d, h).toISOString()
+    const rows = upcomingInterviews([
+      { id: 1, company: 'Two', stage: 'Onsite', interviewAt: at(16) },
+      { id: 2, company: 'Today', stage: 'Technical', interviewAt: at(9, 8) },
+      { id: 3, company: 'Gone', stage: 'Technical', interviewAt: at(8) },
+      { id: 4, company: 'Far', stage: 'Technical', interviewAt: at(30) },
+      { id: 5, company: 'Dead', stage: 'Rejected', interviewAt: at(12) },
+    ], { now, withinDays: 14 })
+    expect(rows.map(r => r.company)).toEqual(['Today', 'Two'])
   })
 })

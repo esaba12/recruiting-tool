@@ -6,7 +6,7 @@ import {
   isAutomatedSender, isBulkMail, isGenericNetworking, shouldCreateContact, contactFollowUpDate, keepActionItem,
   isAlreadyLogged, logThreadMessages,
   scanQueries, nextCursor, orderConnections, runThreadBudget, MAX_CLASSIFIED_PER_RUN, scanStageChange,
-  roleKey, pickApplication, oaInviteFields,
+  roleKey, pickApplication, oaInviteFields, scheduleFields,
 } from '../api/_lib/emailPipeline.js'
 
 describe('parseAddress', () => {
@@ -524,5 +524,40 @@ describe('oaInviteFields', () => {
   })
   it('other types touch no OA fields', () => {
     expect(oaInviteFields({ type: 'REJECTION' }, { oa_completed: false })).toEqual({})
+  })
+})
+
+describe('scheduleFields (v1.4 spec 02)', () => {
+  const TZ = 'America/Detroit'
+  const interview = { type: 'INTERVIEW_INVITE', interview_date: '2026-11-03' }
+  it("an invite's start is the interview time", () => {
+    const invite = { start: new Date('2026-11-03T19:30:00Z'), allDay: false }
+    expect(scheduleFields({ ...interview, invite }, undefined, { timeZone: TZ }))
+      .toEqual({ interview_at: '2026-11-03T19:30:00.000Z', interview_time_known: true })
+  })
+  it('a date with no invite is stored at noon campus time, time unknown', () => {
+    expect(scheduleFields(interview, undefined, { timeZone: TZ }))
+      .toEqual({ interview_at: '2026-11-03T17:00:00.000Z', interview_time_known: false }) // noon EST
+    const allDay = { start: new Date('2026-11-03T00:00:00Z'), allDay: true }
+    expect(scheduleFields({ ...interview, invite: allDay }, undefined, { timeZone: TZ }).interview_time_known).toBe(false)
+  })
+  it('no date, no write', () => {
+    expect(scheduleFields({ type: 'INTERVIEW_INVITE', interview_date: null }, undefined, { timeZone: TZ })).toEqual({})
+    expect(scheduleFields({ type: 'REPLY', interview_date: '2026-11-03' }, undefined, { timeZone: TZ })).toEqual({})
+  })
+  it('a date-only guess never replaces a known time on the same day', () => {
+    const existing = { interview_at: '2026-11-03T19:30:00Z', interview_time_known: true }
+    expect(scheduleFields(interview, existing, { timeZone: TZ })).toEqual({})
+  })
+  it('the later interview wins, so an old thread scanned late can\'t roll it back', () => {
+    const existing = { interview_at: '2026-11-10T17:00:00Z', interview_time_known: false }
+    expect(scheduleFields(interview, existing, { timeZone: TZ })).toEqual({})
+    expect(scheduleFields({ ...interview, interview_date: '2026-11-17' }, existing, { timeZone: TZ }).interview_at)
+      .toBe('2026-11-17T17:00:00.000Z')
+  })
+  it('an offer writes its stated deadline and never clears one with null', () => {
+    expect(scheduleFields({ type: 'OFFER', offer_deadline: '2026-11-14' }, undefined, { timeZone: TZ })).toEqual({ offer_deadline: '2026-11-14' })
+    expect(scheduleFields({ type: 'OFFER', offer_deadline: null }, { offer_deadline: '2026-11-14' }, { timeZone: TZ })).toEqual({})
+    expect(scheduleFields({ type: 'OFFER', offer_deadline: 'next Friday' }, undefined, { timeZone: TZ })).toEqual({})
   })
 })

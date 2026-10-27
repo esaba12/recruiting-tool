@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseDay, daysSince, daysUntil, daysBetween, formatDay, localDateStr, addDaysLocal } from '../src/lib/dates.js'
+import { parseDay, daysSince, daysUntil, daysBetween, formatDay, localDateStr, addDaysLocal, instantToInputs, inputsToInstant } from '../src/lib/dates.js'
 
 // All expectations are built from local constructors, so they hold in any TZ
 // (run with TZ=America/New_York and TZ=UTC).
@@ -51,5 +51,20 @@ describe('formatting and local today', () => {
     expect(localDateStr(new Date(2026, 0, 5, 23, 59))).toBe('2026-01-05')
     expect(localDateStr(new Date(2026, 11, 31, 0, 1))).toBe('2026-12-31')
     expect(addDaysLocal(7, new Date(2026, 11, 28, 22, 0))).toBe('2027-01-04')
+  })
+})
+
+describe('interview inputs (v1.4 spec 02)', () => {
+  it('round-trips a date and time through the inputs', () => {
+    const { at, timeKnown } = inputsToInstant('2026-11-03', '14:30')
+    expect(timeKnown).toBe(true)
+    expect(instantToInputs(at, true)).toEqual({ date: '2026-11-03', time: '14:30' })
+  })
+  it('no time is local noon, shown as the date alone', () => {
+    const { at, timeKnown } = inputsToInstant('2026-11-03', '')
+    expect(timeKnown).toBe(false)
+    expect(new Date(at).getHours()).toBe(12)
+    expect(instantToInputs(at, false)).toEqual({ date: '2026-11-03', time: '' })
+    expect(inputsToInstant('', '09:00')).toEqual({ at: null, timeKnown: false })
   })
 })

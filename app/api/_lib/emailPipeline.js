@@ -11,7 +11,7 @@
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { decrypt } from './crypto.js'
 import { llmForUser, completeJSON } from './llm.js'
-import { parseInvite, findCalendarPart } from './ics.js'
+import { parseInvite, findCalendarPart, zonedToUtc } from './ics.js'
 import { statusPush, isFreshEnoughToPush } from './pushes.js'
 import { shouldCreateInterviewEvent, createInterviewEvent, calendarRefreshToken } from './interviewEvent.js'
 import { tracksLabel, isTechOnly } from '../../src/lib/tracks.js'
@@ -444,6 +444,7 @@ Otherwise return:
   "referrer_name": "the full name of the person who referred/recommended the candidate for this specific role, ONLY if the email explicitly says so (e.g. 'referred by Jane Doe', 'submitted your referral', 'thanks to an employee referral from...'). Otherwise null — never guess.",
   "oa_due_date": "YYYY-MM-DD if this is an Online Assessment invite AND the email states a completion deadline, else null — never guess or estimate a date that isn't actually stated",
   "oa_link": "the URL the candidate clicks to start/complete the Online Assessment, if this is an OA_INVITE, else null",
+  "offer_deadline": "YYYY-MM-DD if this is an OFFER AND the email states a date to accept or respond by, else null — never guess or estimate a date that isn't actually stated",
   "contact_phone": "a phone number for the sender, ONLY if one is explicitly given in their email signature/body (e.g. a mobile number under their name) — otherwise null, never guess or use a company switchboard number",
   "action_item": "a specific one-line next step the candidate should personally take, phrased as an instruction (e.g. 'Reply to Jane about Tuesday's 2pm call', 'Submit the HackerRank assessment', 'Confirm the onsite date by Friday') — ONLY when the email actually implies the candidate needs to do something. Otherwise null. This is independent of 'type' above: an APPLICATION_CONFIRMATION can still have a null action_item, and a plain REPLY can carry a high-priority one.",
   "action_priority": "'high'|'medium'|'low', matching how time-sensitive/important the action_item is — null if action_item is null",
@@ -461,6 +462,8 @@ skills test, typically via HackerRank/CodeSignal/Codility/HackerEarth or a simil
 Extract oa_due_date only when the email explicitly states a completion deadline ("complete by
 August 20", "you have 7 days to complete this assessment", etc.) — many OA invites don't state
 one at all, in which case leave it null rather than estimating from the email's send date.
+The same goes for offer_deadline: only a stated respond-by date ("please let us know by
+November 14", "this offer expires in two weeks"), else null.
 
 NEW_CONTACT means this introduces or continues a relationship with someone potentially useful to
 the candidate's professional network — met at a career fair/event, an alum, a friendly employee at
@@ -572,7 +575,36 @@ export function oaInviteFields(data, existing) {
   return data.oa_link && data.oa_link !== existing.oa_link ? { ...fields, oa_completed: false } : {}
 }
 
-async function upsertApplication(db, userId, data) {
+// Interview and offer dates an email writes (v1.4 spec 02). An invite's start is the real
+// time. A date from the body is stored at noon campus time with interview_time_known false,
+// and the UI shows only the day. Threads aren't scanned in date order, so the later interview
+// wins (an old first-round email scanned late can't roll back a final round); the exception
+// is the same day, where a real time replaces a guess (a reschedule within the day too) and
+// a guess never replaces a real time. A stated offer deadline is written; a missing one never
+// clears a value the user may have typed.
+// scripts/email-pipeline.js has the same rule — keep the two in sync.
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/
+export function scheduleFields(data, existing, { timeZone }) {
+  if (data.type === 'OFFER') return DATE_ONLY_RE.test(data.offer_deadline || '') ? { offer_deadline: data.offer_deadline } : {}
+  if (data.type !== 'INTERVIEW_INVITE') return {}
+  let next
+  if (data.invite && !data.invite.allDay) {
+    next = { interview_at: data.invite.start.toISOString(), interview_time_known: true }
+  } else if (DATE_ONLY_RE.test(data.interview_date || '')) {
+    const [y, m, d] = data.interview_date.split('-').map(Number)
+    next = { interview_at: zonedToUtc(y, m, d, 12, 0, 0, timeZone).toISOString(), interview_time_known: false }
+  } else {
+    return {}
+  }
+  if (!existing?.interview_at) return next
+  const was = new Date(existing.interview_at)
+  if (localDate(was, timeZone) === localDate(new Date(next.interview_at), timeZone)) {
+    return next.interview_time_known || !existing.interview_time_known ? next : {}
+  }
+  return new Date(next.interview_at) > was ? next : {}
+}
+
+async function upsertApplication(db, userId, data, { timeZone }) {
   const today = new Date().toISOString().slice(0, 10)
   const stageMap = {
     APPLICATION_CONFIRMATION: 'Applied',
@@ -585,7 +617,7 @@ async function upsertApplication(db, userId, data) {
   const referrerId = data.referrer_name ? await findContactByName(db, userId, data.referrer_name) : null
 
   const { data: rows } = await db.from('applications')
-    .select('id,role,stage,referred_by_id,oa_completed,oa_link')
+    .select('id,role,stage,referred_by_id,oa_completed,oa_link,interview_at,interview_time_known')
     .eq('user_id', userId).ilike('company', `%${data.company || ''}%`).eq('archived', false)
     .order('created_at', { ascending: false }).limit(50)
   const existing = pickApplication(rows, data.role)
@@ -598,6 +630,7 @@ async function upsertApplication(db, userId, data) {
     ...(data.role ? { role: data.role } : {}),
     ...(referrerId && !existing?.referred_by_id ? { referred_by_id: referrerId } : {}),
     ...oaInviteFields(data, existing),
+    ...scheduleFields(data, existing, { timeZone }),
   }
 
   if (existing) {
@@ -794,7 +827,7 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
 
       let applicationId = null
       if (['APPLICATION_CONFIRMATION', 'OA_INVITE', 'INTERVIEW_INVITE', 'OFFER', 'REJECTION'].includes(data.type)) {
-        applicationId = await upsertApplication(db, userId, data)
+        applicationId = await upsertApplication(db, userId, data, { timeZone })
       }
 
       // Best effort: a Calendar problem (revoked grant, quota) is logged, never retried, so it
