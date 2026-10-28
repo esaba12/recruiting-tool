@@ -54,7 +54,7 @@ Every interview and logged conversation gets one nudge, which goes away the mome
   then Call/Meeting interactions 0 to 2 days old. "Since" is a later `sentAt` when the email
   has one, else the same day or later. An interview with nobody on file at the company still
   shows; there, "Sent it" hides the row instead of logging.
-- **Drafts** don't persist. `ThankYouDraft` opens on `thankYouTemplate`, works with no key,
+- **Drafts** don't persist. `ThankYouDraft` (generalized to `today/EmailDraft.jsx` in 04) opens on `thankYouTemplate`, works with no key,
   and "Rewrite with …" (NeedsKey) uses the `thank_you` kind in `lib/drafting.js` (MINI tier).
   Copy, or open it in the mail app when the contact has an email.
 - **`/demo`** needed no new seed: Deepak's call from yesterday already renders.

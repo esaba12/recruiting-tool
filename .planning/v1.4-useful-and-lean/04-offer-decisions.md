@@ -40,3 +40,21 @@ reload, and they persist (the real account, after 02 is pushed).
 ## Done when
 
 From one offer you can see everything still in play and have an expedite draft for each in under a minute.
+
+## As built (2026-10-28)
+
+- **Opens in place.** `panels/OfferPanelBody.jsx` renders inside `ApplicationPanelBody` (the
+  same swap a contact uses), so every place that opens an application gets it. Today's Decisions
+  row opens straight into it (`initialView="offer"`); an Offer-stage panel has "Compare and ask
+  others to expedite →". Back returns to the application.
+- **One form.** `OfferForm` (deadline + `OFFER_DETAIL_FIELDS`, now in `lib/offers.js`) replaced
+  02's inline Offer section, so the panel and the decision view edit the same way. With 2+
+  offers, chips pick which one you're editing.
+- **Compare** is a plain table, one column per offer; `Mono` on the deadline and money fields only.
+- **Still in process** (`inProcessRows`): interview stages, plus Applied with `lastActivity`
+  (or `appliedDate`) in 30 days. Furthest stage first, then most recent. The contact is the first
+  of `warmPathsToCompany`.
+- **Expedite drafts** name the earliest deadline among your offers. The offer company is never
+  passed to the template or the prompt, so it can't leak; the `expedite` prompt also says not
+  to guess it. `ThankYouDraft` became the shared `today/EmailDraft.jsx`.
+- **`/demo`:** a second offer (Datadog, 5 days, with details) next to Ramp.

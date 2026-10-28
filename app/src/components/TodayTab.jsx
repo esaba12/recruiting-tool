@@ -12,7 +12,8 @@ import { tieStrengthBucket } from '../lib/affinity.js'
 import { statusIconFor } from '../lib/icons.js'
 import { BUCKET_CONFIG, BUCKET_TAG, BUCKET_TO_TRIAGE } from './jobBoards/helpers.js'
 import DraftPanel from './DraftPanel.jsx'
-import ThankYouDraft from './today/ThankYouDraft.jsx'
+import EmailDraft from './today/EmailDraft.jsx'
+import { thankYouContext, thankYouTemplate } from '../lib/drafting.js'
 import TextDraftPanel from './TextDraftPanel.jsx'
 import SidePanel from './ui/SidePanel.jsx'
 import ContactPanelBody from './panels/ContactPanelBody.jsx'
@@ -154,7 +155,10 @@ function ThankYouRow({ row, onRefresh, onOpenContact, onOpenApp, onHide }) {
           </div>
         </div>
       </div>
-      {drafting && <ThankYouDraft row={row} />}
+      {drafting && (
+        <EmailDraft contact={c} kind="thank_you" context={thankYouContext(row)} label="Thank-you note"
+          initialText={thankYouTemplate(row)} initialSubject={a ? `Thank you — ${a.role || a.company}` : 'Thank you'} />
+      )}
     </div>
   )
 }
@@ -582,6 +586,7 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
 
   const [selectedContactId, setSelectedContactId] = useState(null)
   const [selectedAppId, setSelectedAppId] = useState(null)
+  const [appView, setAppView] = useState(null) // 'offer' opens the decision view (v1.4 spec 04)
   const [logContact, setLogContact] = useState(null)
   const [dismissingAll, setDismissingAll] = useState(false)
 
@@ -607,7 +612,8 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
 
   const selectedApp = selectedAppId ? apps.find(a => a.id === selectedAppId) : null
   const openContact = x => setSelectedContactId(x.id)
-  const openApp = x => setSelectedAppId(x.id)
+  const openApp = x => { setAppView(null); setSelectedAppId(x.id) }
+  const openOffer = x => { setAppView('offer'); setSelectedAppId(x.id) }
 
   const total = groups => Object.values(groups).reduce((n, rows) => n + rows.length, 0)
   const peopleCount = total(peopleGroups)
@@ -638,7 +644,7 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
         icon={Scale} count={decisions.length}>
         <div className="mt-1">
           <RowCap items={decisions} cap={capOf('decisions')} tier="warning" onHide={hide('decisions')}
-            renderItem={a => <DecisionRow key={a.id} app={a} onOpen={openApp} />} />
+            renderItem={a => <DecisionRow key={a.id} app={a} onOpen={openOffer} />} />
         </div>
       </DashCard>
     ),
@@ -803,6 +809,8 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
       <SidePanel open={!!selectedAppId} onClose={() => setSelectedAppId(null)}>
         {selectedAppId && (
           <ApplicationPanelBody
+            key={`${selectedAppId}:${appView}`}
+            initialView={appView}
             app={selectedApp}
             contacts={contacts}
             apps={apps}

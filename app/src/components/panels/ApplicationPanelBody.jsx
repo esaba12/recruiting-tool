@@ -10,20 +10,11 @@ import { companyCoverage } from '../../lib/networkCoverage.js'
 import { warmPathsToCompany, pathLabel } from '../../lib/warmIntro.js'
 import { tieStrengthBucket } from '../../lib/affinity.js'
 import ContactPanelBody from './ContactPanelBody.jsx'
+import OfferPanelBody, { OfferForm } from './OfferPanelBody.jsx'
 import NeedsKey from '../onboarding/NeedsKey.jsx'
 import { useAuth } from '../../lib/AuthContext.jsx'
 import { stageLabel } from '../../lib/tracks.js'
 import { todayLocal, instantToInputs, inputsToInstant } from '../../lib/dates.js'
-
-// offer_details keys (v1.4 spec 02). Free text: comp is quoted every which way.
-const OFFER_DETAIL_FIELDS = [
-  { key: 'base', label: 'Base', placeholder: '$50/hr' },
-  { key: 'bonus', label: 'Bonus', placeholder: 'Signing, relocation' },
-  { key: 'equity', label: 'Equity', placeholder: '—' },
-  { key: 'location', label: 'Location', placeholder: 'City or remote' },
-  { key: 'start', label: 'Start', placeholder: 'June 2027' },
-  { key: 'notes', label: 'Notes', placeholder: 'Anything to weigh', wide: true },
-]
 
 const COVERAGE_BADGE = {
   gap:    { color: 'bg-danger-100 text-danger-700',   label: () => 'No network here yet' },
@@ -137,7 +128,7 @@ function StageTimeline({ events, estimated }) {
   )
 }
 
-export default function ApplicationPanelBody({ app, contacts = [], apps = [], interactions = [], relationships = [], onStatusChange, onClose, onDelete, onSaved, onFindPeople, onRefresh, onRefreshRelationships }) {
+export default function ApplicationPanelBody({ app, contacts = [], apps = [], interactions = [], relationships = [], onStatusChange, onClose, onDelete, onSaved, onFindPeople, onRefresh, onRefreshRelationships, initialView }) {
   const { profile } = useAuth()
   const isNew = !app
   const [form, setForm] = useState(() => ({
@@ -166,11 +157,9 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
   // Interview and offer dates (v1.4 spec 02): the scan fills these from invite and offer
   // emails; same separate state/save path as the OA fields above.
   const [interview, setInterview] = useState(() => instantToInputs(app?.interviewAt, app?.interviewTimeKnown))
-  const [offer, setOffer] = useState(() => ({
-    deadline: app?.offerDeadline || '',
-    ...Object.fromEntries(OFFER_DETAIL_FIELDS.map(f => [f.key, app?.offerDetails?.[f.key] || ''])),
-  }))
-  const [savingSchedule, setSavingSchedule] = useState(null) // 'interview' | 'offer'
+  const [savingSchedule, setSavingSchedule] = useState(false)
+  // The offer decision view (v1.4 spec 04) opens in place, like a contact does.
+  const [deciding, setDeciding] = useState(initialView === 'offer' && app?.stage === 'Offer')
   const [savingDates, setSavingDates] = useState(false)
   const [saving, setSaving]       = useState(false)
   const [deleting, setDeleting]   = useState(false)
@@ -212,21 +201,16 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
     }
   }
 
-  async function saveSchedule(which) {
-    setSavingSchedule(which); setError(null)
+  async function saveInterview() {
+    setSavingSchedule(true); setError(null)
     try {
-      if (which === 'interview') {
-        const { at, timeKnown } = inputsToInstant(interview.date, interview.time)
-        await updateApplication(app.id, { interviewAt: at, interviewTimeKnown: timeKnown })
-      } else {
-        const details = Object.fromEntries(OFFER_DETAIL_FIELDS.map(f => [f.key, offer[f.key].trim()]).filter(([, v]) => v))
-        await updateApplication(app.id, { offerDeadline: offer.deadline || null, offerDetails: Object.keys(details).length ? details : null })
-      }
+      const { at, timeKnown } = inputsToInstant(interview.date, interview.time)
+      await updateApplication(app.id, { interviewAt: at, interviewTimeKnown: timeKnown })
       onSaved()
     } catch (e) {
       setError(e.message)
     } finally {
-      setSavingSchedule(null)
+      setSavingSchedule(false)
     }
   }
 
@@ -326,6 +310,13 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
   // instead of this component's own content. The application body itself stays mounted (this
   // is an early return, not an unmount), so form/dates/analysis/pasteUrl state survives the
   // round trip when the back affordance returns here.
+  if (deciding) {
+    return (
+      <OfferPanelBody app={app} apps={apps} contacts={contacts} relationships={relationships}
+        onBack={() => setDeciding(false)} onClose={onClose} onSaved={() => onSaved?.()} />
+    )
+  }
+
   if (openContact) {
     return (
       <ContactPanelBody
@@ -476,9 +467,9 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
                   className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
               </div>
             </div>
-            <button onClick={() => saveSchedule('interview')} disabled={!!savingSchedule}
+            <button onClick={saveInterview} disabled={savingSchedule}
               className="w-full mt-3 py-2 bg-ink-900 text-on-fill text-xs rounded-md hover:bg-ink-800 disabled:opacity-50 font-medium transition-colors">
-              {savingSchedule === 'interview' ? 'Saving...' : 'Save Interview'}
+              {savingSchedule ? 'Saving...' : 'Save Interview'}
             </button>
           </div>
         )}
@@ -489,24 +480,13 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
             <p className="text-[11px] text-ink-400 -mt-1 mb-2">
               The deadline comes from the offer email when it states one. Today counts it down.
             </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <label className="block text-xs text-ink-400 mb-0.5">Decide By</label>
-                <input type="date" value={offer.deadline} onChange={e => setOffer(o => ({ ...o, deadline: e.target.value }))}
-                  className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
-              </div>
-              {OFFER_DETAIL_FIELDS.map(f => (
-                <div key={f.key} className={f.wide ? 'col-span-2' : undefined}>
-                  <label className="block text-xs text-ink-400 mb-0.5">{f.label}</label>
-                  <input value={offer[f.key]} placeholder={f.placeholder} onChange={e => setOffer(o => ({ ...o, [f.key]: e.target.value }))}
-                    className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
-                </div>
-              ))}
-            </div>
-            <button onClick={() => saveSchedule('offer')} disabled={!!savingSchedule}
-              className="w-full mt-3 py-2 bg-ink-900 text-on-fill text-xs rounded-md hover:bg-ink-800 disabled:opacity-50 font-medium transition-colors">
-              {savingSchedule === 'offer' ? 'Saving...' : 'Save Offer'}
-            </button>
+            <OfferForm app={app} onSaved={onSaved} />
+            {app.stage === 'Offer' && (
+              <button onClick={() => setDeciding(true)}
+                className="w-full mt-2 py-2 border border-ink-200 text-ink-800 text-xs rounded-md hover:border-ink-400 font-medium transition-colors">
+                Compare and ask others to expedite →
+              </button>
+            )}
           </div>
         )}
 
