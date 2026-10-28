@@ -12,6 +12,7 @@ import { tieStrengthBucket } from '../lib/affinity.js'
 import { statusIconFor } from '../lib/icons.js'
 import { BUCKET_CONFIG, BUCKET_TAG, BUCKET_TO_TRIAGE } from './jobBoards/helpers.js'
 import DraftPanel from './DraftPanel.jsx'
+import ThankYouDraft from './today/ThankYouDraft.jsx'
 import TextDraftPanel from './TextDraftPanel.jsx'
 import SidePanel from './ui/SidePanel.jsx'
 import ContactPanelBody from './panels/ContactPanelBody.jsx'
@@ -107,6 +108,53 @@ function OverdueRow({ contact: c, interactions, onRefresh, onOpen }) {
           : <DraftPanel contact={c} kind="follow_up" daysOverdue={Math.abs(daysUntil(c.followUpDate))} onSaved={onRefresh} />
       )}
       {panel === 'text' && <TextDraftPanel contact={c} daysOverdue={Math.abs(daysUntil(c.followUpDate))} />}
+    </div>
+  )
+}
+
+// An interview or a call/meeting in the last two days with nothing written to them since
+// (v1.4 spec 03, lib/attention.js thankYouDue). "Sent it" logs the email, which clears the
+// row; with nobody on file at the company there's no one to log it against, so it hides it.
+function ThankYouRow({ row, onRefresh, onOpenContact, onOpenApp, onHide }) {
+  const [drafting, setDrafting] = useState(false)
+  const [marking, setMarking] = useState(false)
+  const { contact: c, app: a } = row
+  const what = a ? `${a.stage || 'Interview'} · ${a.role || a.company}` : (row.interaction.summary || row.interaction.type)
+  const when = a ? daysSince(a.interviewAt) : daysSince(row.interaction.date)
+
+  async function sentIt() {
+    if (!c) { onHide(row); return }
+    setMarking(true)
+    try {
+      await addInteraction({ contactId: c.id, contactName: c.name, type: 'Email', direction: 'Outbound', summary: a ? `Thank-you after the ${a.company} interview` : 'Sent a thank-you' })
+      onRefresh?.()
+    } catch {
+      setMarking(false)
+    }
+  }
+
+  return (
+    <div className="py-2.5">
+      <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className={`min-w-0 max-w-full ${ROW_HIT}`} onClick={() => (c ? onOpenContact(c) : onOpenApp(a))}>
+          <p className="text-sm font-medium text-ink-900">{c ? c.name : a.company}</p>
+          <p className="text-xs text-ink-500 truncate">{c ? [c.company, what].filter(Boolean).join(' · ') : what}</p>
+        </div>
+        <div className="sm:text-right sm:shrink-0 space-y-1">
+          <p className="text-xs font-medium text-ink-500">
+            {a ? 'Interviewed' : row.interaction.type === 'Call' ? 'Called' : 'Met'} <Mono>{when === 0 ? 'today' : when === 1 ? 'yesterday' : `${when}d ago`}</Mono>
+          </p>
+          <div className="flex items-center gap-2 sm:justify-end">
+            <button onClick={() => setDrafting(d => !d)} className="text-xs text-link hover:underline">
+              {drafting ? 'Hide' : 'Draft'}
+            </button>
+            <button onClick={sentIt} disabled={marking} className="text-xs text-ink-400 hover:text-ink-600 hover:underline disabled:opacity-40">
+              {marking ? 'Logging…' : 'Sent it'}
+            </button>
+          </div>
+        </div>
+      </div>
+      {drafting && <ThankYouDraft row={row} />}
     </div>
   )
 }
@@ -505,9 +553,10 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
   const people = todayPeople(contacts, interactions, {
     off: PEOPLE_GROUPS.filter(g => !peopleOn.includes(g)),
     awaitingDays: placed.people ? settingValue(placed.people, 'awaitingDays') : undefined,
+    apps,
   })
   // Pass 3: rows the user hid (✕ / Clear all) stay hidden for a week.
-  const SNOOZE_KEY = { overdue: c => c.id, awaiting: x => x.contact.id, schedule: c => c.id, urgent: c => c.id, keepInTouch: x => x.contact.id, stale: a => a.id, review: a => a.id, oa: a => a.id, oaCheck: a => a.id, replies: d => d.id, interview: a => a.id, decisions: a => a.id }
+  const SNOOZE_KEY = { thankYou: x => x.id, overdue: c => c.id, awaiting: x => x.contact.id, schedule: c => c.id, urgent: c => c.id, keepInTouch: x => x.contact.id, stale: a => a.id, review: a => a.id, oa: a => a.id, oaCheck: a => a.id, replies: d => d.id, interview: a => a.id, decisions: a => a.id }
   let snoozedHidden = 0
   const visible = (id, rows) => {
     const out = rows.filter(r => !prefs.isSnoozed(`${id}:${SNOOZE_KEY[id](r)}`))
@@ -612,6 +661,8 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
     people: peopleCount > 0 && (
       <DashCard label="People" tone={peopleGroups.overdue.length || peopleGroups.urgent.length ? 'danger' : 'warning'} icon={HeartHandshake}
         count={peopleCount} actions={clearAll(peopleGroups)}>
+        <Group label="Send a thank-you" tone="accent" cap={capOf('people')} items={peopleGroups.thankYou} onHide={hide('thankYou')}
+          renderItem={row => <ThankYouRow key={row.id} row={row} onRefresh={onRefresh} onOpenContact={openContact} onOpenApp={openApp} onHide={hide('thankYou')} />} />
         <Group label="Overdue follow-up" tone="danger" cap={capOf('people')} items={peopleGroups.overdue} onHide={hide('overdue')}
           renderItem={c => <OverdueRow key={c.id} contact={c} interactions={interactions} onRefresh={onRefresh} onOpen={openContact} />} />
         <Group label="Awaiting reply" tone="warning" cap={capOf('people')} items={peopleGroups.awaiting} onHide={hide('awaiting')}
