@@ -11,7 +11,7 @@ const ids = layout => layout.cards.map(c => c.id)
 
 describe('defaultLayout', () => {
   it('reproduces the current dashboard order for SWE', () => {
-    expect(ids(defaultLayout(SWE))).toEqual(['pipeline', 'network', 'outreach', 'rates', 'replies', 'email', 'people', 'apps', 'events'])
+    expect(ids(defaultLayout(SWE))).toEqual(['decisions', 'pipeline', 'network', 'outreach', 'rates', 'replies', 'email', 'people', 'apps', 'events'])
     const sizes = Object.fromEntries(defaultLayout(SWE).cards.map(c => [c.id, c.size]))
     expect(sizes).toMatchObject({ pipeline: 'third', rates: 'full', people: 'half' })
   })
@@ -67,6 +67,14 @@ describe('reconcileLayout', () => {
   it('clamps bad sizes, caps, groups and settings', () => {
     const [c] = reconcileLayout(saved([{ id: 'people', size: 'huge', cap: 7, off: ['awaiting', 'nope'], settings: { awaitingDays: 99, junk: 1 } }]), SWE).cards
     expect(c).toEqual({ id: 'people', size: 'half', cap: 3, off: ['awaiting'], settings: { awaitingDays: 5 } })
+  })
+})
+
+describe('Decisions card (v1.4 spec 02)', () => {
+  it('lands first on a layout saved before it existed', () => {
+    const seenBefore = TODAY_CARDS.map(c => c.id).filter(id => id !== 'decisions')
+    const out = reconcileLayout({ v: 1, cards: [{ id: 'people', size: 'half' }, { id: 'apps', size: 'half' }], seen: seenBefore }, SWE)
+    expect(ids(out)).toEqual(['decisions', 'people', 'apps'])
   })
 })
 

@@ -124,6 +124,18 @@ describe('trackDemand + rankGaps', () => {
     expect(ib.interviews.map(a => a.company)).toEqual(['Goldman'])
   })
 
+  it('an interview date on file decides: past or far off is no demand, no date falls back to the stage', () => {
+    const at = d => new Date(NOW + d * DAY).toISOString()
+    const swe = stage => ({ role: 'SWE Intern', stage })
+    const d = trackDemand({ kind: 'swe' }, [
+      { ...swe('Technical'), company: 'Past', interviewAt: at(-30) },
+      { ...swe('Technical'), company: 'Soon', interviewAt: at(4) },
+      { ...swe('Onsite'), company: 'Later', interviewAt: at(40) },
+      { ...swe('Phone Screen'), company: 'Undated' },
+    ], { now: NOW })
+    expect(d.interviews.map(a => a.company)).toEqual(['Soon', 'Undated'])
+  })
+
   it('ranks by gap × weight × demand; OA boosts DSA over system design', () => {
     const topics = [trees, { ...caching, targetLevel: 4 }]
     const mastery = masteryByTopic(topics, [], { now: NOW })

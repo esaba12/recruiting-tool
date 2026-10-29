@@ -59,6 +59,22 @@ export function addDaysLocal(n, from = new Date()) {
   return localDateStr(new Date(from.getFullYear(), from.getMonth(), from.getDate() + n))
 }
 
+// An interview instant ↔ the panel's date and time inputs, in the browser's zone (v1.4 spec 02).
+// No time typed means the time isn't known: it's stored at local noon, which keeps the day
+// right in any US zone, and shown as the date alone.
+export function instantToInputs(iso, timeKnown) {
+  if (!iso) return { date: '', time: '' }
+  const d = new Date(iso)
+  return { date: localDateStr(d), time: timeKnown ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '' }
+}
+
+export function inputsToInstant(date, time) {
+  if (!date) return { at: null, timeKnown: false }
+  const [y, m, d] = date.split('-').map(Number)
+  const [h, mi] = time ? time.split(':').map(Number) : [12, 0]
+  return { at: new Date(y, m - 1, d, h, mi).toISOString(), timeKnown: !!time }
+}
+
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 const pad = n => String(n).padStart(2, '0')
 

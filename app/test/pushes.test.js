@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
   statusPush, isFreshEnoughToPush, isQuietHours, localClock, digestSlot, combineUpdates, maxPriority,
-  oaDigest, buildDigest, planPushes, sendPush, validTopic, awaitingReply, runUserPushes,
+  oaDigest, offerDigest, buildDigest, planPushes, sendPush, validTopic, awaitingReply, runUserPushes,
 } from '../api/_lib/pushes.js'
 
 const TZ = 'America/New_York'
@@ -67,6 +67,26 @@ describe('oaDigest', () => {
     expect(d.priority).toBe('urgent')
     expect(oaDigest([], '2026-10-18')).toBeNull()
     expect(oaDigest([{ company: 'X', oa_due_date: '2026-10-28' }], '2026-10-18').priority).toBe('default')
+  })
+})
+
+describe('offerDigest (v1.4 spec 02)', () => {
+  it('lists offers due within 3 days, urgent the day before', () => {
+    const d = offerDigest([
+      { company: 'Ramp', role: 'SWE Intern', offer_deadline: '2026-10-19' },
+      { company: 'Later', role: null, offer_deadline: '2026-10-25' },
+      { company: 'Gone', role: null, offer_deadline: '2026-10-17' },
+    ], '2026-10-18')
+    expect(d.lines).toEqual(['Ramp (SWE Intern) — decide by tomorrow'])
+    expect(d.priority).toBe('urgent')
+    expect(offerDigest([{ company: 'X', offer_deadline: '2026-10-21' }], '2026-10-18')).toMatchObject({ lines: ['X — decide in 3d'], priority: 'high' })
+    expect(offerDigest([{ company: 'X', offer_deadline: '2026-10-18' }], '2026-10-18').lines).toEqual(['X — decide today'])
+    expect(offerDigest([], '2026-10-18')).toBeNull()
+  })
+  it('goes first in the digest', () => {
+    const push = buildDigest({ slot: 'am', recap: null, oa: { lines: ['Rippling — due in 5d'], priority: 'default' }, offers: { lines: ['Ramp — decide today'], priority: 'urgent' } })
+    expect(push.message).toBe('⚖️ Offer deadlines\nRamp — decide today\n\n⏰ Open OAs\nRippling — due in 5d')
+    expect(push.priority).toBe('urgent')
   })
 })
 

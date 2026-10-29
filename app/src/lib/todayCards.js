@@ -14,6 +14,7 @@ export const CAPS = [3, 5, 10]
 // `kind` groups the Add-cards drawer. `groups` are the attention lists inside an action card,
 // each one a toggle; their ids are the snooze keys TodayTab already uses.
 export const TODAY_CARDS = [
+  { id: 'decisions', title: 'Decisions', kind: 'act', size: 'half', rows: true, description: 'Offers waiting on your answer, soonest deadline first.' },
   { id: 'pipeline', title: 'Pipeline', kind: 'glance', size: 'third', description: 'How many you have applied to, the stage funnel and your next deadline.' },
   { id: 'network', title: 'Network', kind: 'glance', size: 'third', description: 'Contacts by warmth.' },
   { id: 'outreach', title: 'Outreach', kind: 'glance', size: 'third', description: 'Logged interactions per week, this week against last.' },
@@ -34,8 +35,9 @@ export const TODAY_CARDS = [
   },
   {
     id: 'apps', title: 'Applications', kind: 'act', size: 'half', rows: true,
-    description: 'OAs due, applications gone quiet and job-board listings to triage.',
+    description: 'Upcoming interviews, OAs due, applications gone quiet and job-board listings to triage.',
     groups: [
+      { id: 'interview', label: 'Interviews coming up' },
       { id: 'oa', label: 'OA due' },
       { id: 'stale', label: 'Stale' },
       { id: 'review', label: 'Job boards to review', available: ctx => usesTechSources(ctx.profile) || 'SWE and PM tracks only' },

@@ -1,7 +1,7 @@
 // Push notifications for the serverless Gmail scan (v1.3 spec 08 item 1), ported from
 // scripts/email-pipeline.js (sendPush, buildStatusPush, flushUpdatePushes, sendScheduledDigest,
 // buildOaDigest, buildDailyRecap). Same three kinds of push, nothing else:
-//   1./2. an 11am and a midnight digest (AI recap + open OAs + held updates), once per slot;
+//   1./2. an 11am and a midnight digest (AI recap + offer deadlines + open OAs + held updates), once per slot;
 //   3.    updates (OA / interview / offer / rejection), queued during a tick and sent as ONE
 //         push at its end, held during quiet hours (22:00–08:00) until the next digest or 08:00.
 // Opt-in per user: Settings stores { ntfyTopic, timeZone } in user_settings 'push_settings'.
@@ -98,8 +98,24 @@ export function oaDigest(apps, today) {
   return { lines, priority: soonest <= 1 ? 'urgent' : soonest <= 3 ? 'high' : 'default' }
 }
 
-export function buildDigest({ slot, recap, oa, updates = [], click }) {
+// Offers whose decision deadline is today through 3 days out (v1.4 spec 02). A past one is
+// left to the app: the push can't act on it.
+export function offerDigest(apps, today) {
+  const todayMs = Date.parse(today)
+  const rows = (apps || []).map(a => ({ ...a, daysUntil: Math.round((Date.parse(a.offer_deadline) - todayMs) / 86400000) }))
+    .filter(a => a.daysUntil >= 0 && a.daysUntil <= 3)
+  if (!rows.length) return null
+  const lines = rows.map(a => {
+    const label = a.daysUntil === 0 ? 'decide today' : a.daysUntil === 1 ? 'decide by tomorrow' : `decide in ${a.daysUntil}d`
+    return `${a.company}${a.role ? ` (${a.role})` : ''} — ${label}`
+  })
+  const soonest = Math.min(...rows.map(a => a.daysUntil))
+  return { lines, priority: soonest <= 1 ? 'urgent' : 'high' }
+}
+
+export function buildDigest({ slot, recap, oa, offers, updates = [], click }) {
   const sections = []
+  if (offers) sections.push(`⚖️ Offer deadlines\n${offers.lines.join('\n')}`)
   if (recap) sections.push([recap.summary, ...(recap.todos || []).map(t => `• ${t}`)].join('\n'))
   if (oa) sections.push(`⏰ Open OAs\n${oa.lines.join('\n')}`)
   if (updates.length) sections.push(`📬 Updates\n${updates.map(p => p.title).join('\n')}`)
@@ -107,7 +123,7 @@ export function buildDigest({ slot, recap, oa, updates = [], click }) {
   return {
     title: slot === 'midnight' ? '🌙 Nightly recruiting digest' : '📋 Your recruiting digest',
     message: sections.join('\n\n'),
-    priority: maxPriority([{ priority: oa ? oa.priority : 'default' }, ...updates]),
+    priority: maxPriority([{ priority: oa ? oa.priority : 'default' }, { priority: offers ? offers.priority : 'default' }, ...updates]),
     tags: ['clipboard'],
     ...(click ? { click } : {}),
   }
@@ -174,6 +190,13 @@ export async function pushSettingsFor(db, userId) {
   return validTopic(s?.ntfyTopic) ? { ntfyTopic: s.ntfyTopic, timeZone: s.timeZone || DEFAULT_TIME_ZONE } : null
 }
 
+async function openOffers(db, userId) {
+  const { data } = await db.from('applications').select('company, role, offer_deadline')
+    .eq('user_id', userId).eq('stage', 'Offer').not('offer_deadline', 'is', null).eq('archived', false)
+    .order('offer_deadline', { ascending: true })
+  return data || []
+}
+
 async function openOas(db, userId) {
   const { data } = await db.from('applications').select('company, role, oa_due_date')
     .eq('user_id', userId).not('oa_due_date', 'is', null).eq('oa_completed', false).eq('archived', false)
@@ -230,11 +253,12 @@ export async function runUserPushes(db, userId, newPushes, { llm, click, now = D
   } else if (plan.action === 'digest') {
     const today = localClock(now, settings.timeZone).date
     const oa = oaDigest(await openOas(db, userId), today)
+    const offers = offerDigest(await openOffers(db, userId), today)
     let recap = null
     if (llm) {
       try { recap = await dailyRecap(db, userId, llm, { now, today, fetch }) } catch (e) { console.error(e.message) }
     }
-    const push = buildDigest({ slot: plan.slot, recap, oa, updates: queue, click })
+    const push = buildDigest({ slot: plan.slot, recap, oa, offers, updates: queue, click })
     const sent = push ? await send(push) : true
     if (sent) {
       queue = []

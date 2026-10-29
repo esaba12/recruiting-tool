@@ -3,7 +3,7 @@ import { m } from 'motion/react'
 import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TYPE_COLOR, fmt, daysUntil, daysSince, Badge, EmptyState } from '../shared.jsx'
 import { updateContact, addInteraction, updateApplicationTriage, archiveApplication, updateApplication, completeActionItem, dismissActionItem, dismissActionItems } from '../db.js'
 import { logMetWithContact } from '../lib/quickLog.js'
-import { staleApplications, oaDue, oaNeedsCheck, needsReviewApps, openActionItems, trimActionItems, todayPeople, pipelineRates, PEOPLE_GROUPS } from '../lib/attention.js'
+import { staleApplications, oaDue, oaNeedsCheck, needsReviewApps, openActionItems, trimActionItems, todayPeople, pipelineRates, offerDecisions, upcomingInterviews, PEOPLE_GROUPS } from '../lib/attention.js'
 import useTodayPrefs from '../lib/useTodayPrefs.js'
 import useTodayLayout from '../lib/useTodayLayout.js'
 import { enabledGroups, settingValue, layoutBands, layoutContext } from '../lib/todayCards.js'
@@ -20,7 +20,7 @@ import LogInteractionModal from './LogInteractionModal.jsx'
 import MetButton from './MetButton.jsx'
 import Mono from './ui/Mono.jsx'
 import { SectionAction, RowCap } from './ui/Section.jsx'
-import { HeartHandshake, ClipboardCheck, Clock, MessageSquarePlus, ListTodo, PenLine, SlidersHorizontal } from 'lucide-react'
+import { HeartHandshake, ClipboardCheck, Clock, MessageSquarePlus, ListTodo, PenLine, SlidersHorizontal, Scale } from 'lucide-react'
 import { draftPreview, DRAFT_INTENT_LABEL } from '../lib/replyDrafts.js'
 import { DashCard, Group, Label } from './today/DashCard.jsx'
 import { PipelineCard, NetworkCard, OutreachCard, RatesCard } from './today/MetricCards.jsx'
@@ -310,6 +310,55 @@ function ApplicationRow({ app: a, showTriageChips, onOpen, changeAppTriage }) {
   )
 }
 
+// "in 3d" / "today" / "tomorrow", the countdown on interview and offer rows.
+function countdown(days) {
+  return days === 0 ? 'today' : days === 1 ? 'tomorrow' : days < 0 ? `${-days}d ago` : `in ${days}d`
+}
+
+// An interview the scan (or the user) put a date on (v1.4 spec 02). A date-only interview
+// shows no time: the scan stored it at noon as a placeholder.
+function InterviewRow({ app: a, onOpen }) {
+  const at = new Date(a.interviewAt)
+  const when = at.toLocaleString('en-US', a.interviewTimeKnown
+    ? { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }
+    : { weekday: 'short', month: 'short', day: 'numeric' })
+  const days = daysUntil(a.interviewAt)
+  return (
+    <div className={`flex items-center justify-between gap-3 py-2.5 ${ROW_HIT}`} onClick={() => onOpen(a)}>
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-ink-900">{a.company}</p>
+        <p className="text-xs text-ink-500 truncate">{[a.role, a.stage].filter(Boolean).join(' · ')}</p>
+      </div>
+      <div className="text-right shrink-0">
+        <Mono className={`block text-sm font-semibold ${days <= 1 ? 'text-warning-700' : 'text-ink-900'}`}>{countdown(days)}</Mono>
+        <Mono className="block text-xs text-ink-500">{when}</Mono>
+      </div>
+    </div>
+  )
+}
+
+// An offer waiting on an answer, with its deadline counting down. No deadline on file is
+// its own prompt: most offer letters state one, and the panel is where it goes.
+function DecisionRow({ app: a, onOpen }) {
+  const days = a.offerDeadline ? daysUntil(a.offerDeadline) : null
+  return (
+    <div className={`flex items-center justify-between gap-3 py-2.5 ${ROW_HIT}`} onClick={() => onOpen(a)}>
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-ink-900">{a.company}</p>
+        <p className="text-xs text-ink-500 truncate">{a.role || 'Offer'}</p>
+      </div>
+      {days === null
+        ? <p className="text-xs text-ink-400 text-right shrink-0">No deadline on file · add one</p>
+        : (
+          <div className="text-right shrink-0">
+            <Mono className={`block text-sm font-semibold ${days <= 3 ? 'text-danger-600' : 'text-ink-900'}`}>{days < 0 ? `${-days}d past` : countdown(days)}</Mono>
+            <p className="text-xs text-ink-500">Decide by <Mono>{fmt(a.offerDeadline)}</Mono></p>
+          </div>
+        )}
+    </div>
+  )
+}
+
 // A tracked Online Assessment (UI-SPEC Type 4) — either has a known due date, or, when
 // `needsCheck` is set, no stated deadline was found on the page (go check manually). Ported
 // from the former Actions tab, with the same row-click-to-modal wiring as ApplicationRow and
@@ -458,7 +507,7 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
     awaitingDays: placed.people ? settingValue(placed.people, 'awaitingDays') : undefined,
   })
   // Pass 3: rows the user hid (✕ / Clear all) stay hidden for a week.
-  const SNOOZE_KEY = { overdue: c => c.id, awaiting: x => x.contact.id, schedule: c => c.id, urgent: c => c.id, keepInTouch: x => x.contact.id, stale: a => a.id, review: a => a.id, oa: a => a.id, oaCheck: a => a.id, replies: d => d.id }
+  const SNOOZE_KEY = { overdue: c => c.id, awaiting: x => x.contact.id, schedule: c => c.id, urgent: c => c.id, keepInTouch: x => x.contact.id, stale: a => a.id, review: a => a.id, oa: a => a.id, oaCheck: a => a.id, replies: d => d.id, interview: a => a.id, decisions: a => a.id }
   let snoozedHidden = 0
   const visible = (id, rows) => {
     const out = rows.filter(r => !prefs.isSnoozed(`${id}:${SNOOZE_KEY[id](r)}`))
@@ -470,7 +519,9 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
   const peopleGroups = Object.fromEntries(PEOPLE_GROUPS.map(id => [id, visible(id, people[id])]))
   const appsOn = groupsOn('apps')
   const staleDays = placed.apps ? settingValue(placed.apps, 'staleDays') : 14
+  const decisions = placed.decisions ? visible('decisions', offerDecisions(apps)) : []
   const appRows = {
+    interview: () => upcomingInterviews(apps),
     oa: () => oaDue(apps),
     stale: () => staleApplications(apps, { days: staleDays }),
     review: () => needsReviewApps(apps),
@@ -513,7 +564,7 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
   const peopleCount = total(peopleGroups)
   const appCount = total(appGroups)
   // Counts cover the cards and lists that are on, so a hidden list never inflates the header.
-  const counts = { replies: replyDrafts.length, email: openItems.length, people: peopleCount, apps: appCount, events: eventAttention.count }
+  const counts = { decisions: decisions.length, replies: replyDrafts.length, email: openItems.length, people: peopleCount, apps: appCount, events: eventAttention.count }
   const openCount = Object.values(counts).reduce((a, b) => a + b, 0)
   const allEmpty = openCount === 0
   const hasData = apps.length > 0 || contacts.length > 0 || interactions.length > 0
@@ -533,6 +584,15 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
     network: hasData && <NetworkCard contacts={contacts} />,
     outreach: hasData && <OutreachCard interactions={interactions} />,
     rates: pipelineRates(apps).applied > 0 && <RatesCard apps={apps} />,
+    decisions: decisions.length > 0 && (
+      <DashCard label="Decisions" tone={decisions.some(a => a.offerDeadline && daysUntil(a.offerDeadline) <= 3) ? 'danger' : 'warning'}
+        icon={Scale} count={decisions.length}>
+        <div className="mt-1">
+          <RowCap items={decisions} cap={capOf('decisions')} tier="warning" onHide={hide('decisions')}
+            renderItem={a => <DecisionRow key={a.id} app={a} onOpen={openApp} />} />
+        </div>
+      </DashCard>
+    ),
     replies: replyDrafts.length > 0 && (
       <DashCard label="Replies drafted" tone="accent" icon={PenLine} count={replyDrafts.length} actions={clearAll({ replies: replyDrafts })}>
         <p className="text-[11px] text-ink-400 mt-1">Written from the thread and your résumé. Review in Inbox, then send from Gmail.</p>
@@ -570,6 +630,8 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
     apps: appCount > 0 && (
       <DashCard label="Applications" tone={appGroups.stale.length ? 'danger' : 'warning'} icon={ClipboardCheck}
         count={appCount} actions={clearAll(appGroups)}>
+        <Group label="Interviews coming up" tone="accent" cap={capOf('apps')} items={appGroups.interview} onHide={hide('interview')}
+          renderItem={a => <InterviewRow key={a.id} app={a} onOpen={openApp} />} />
         <Group label="OA due" tone="warning" cap={capOf('apps')} items={appGroups.oa} onHide={hide('oa')}
           renderItem={a => <OaRow key={a.id} app={a} onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />} />
         <Group label={`Stale · no movement ${staleDays}d+`} tone="danger" cap={capOf('apps')} items={appGroups.stale} onHide={hide('stale')}
@@ -588,6 +650,7 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
   // about equal length (a glance card is about four rows tall).
   const rowsShown = (groups, cap = 3) => Object.values(groups).reduce((n, rows) => n + (rows.length ? Math.min(rows.length, cap) + 0.5 : 0), 1)
   const weight = {
+    decisions: rowsShown({ items: decisions }, capOf('decisions')),
     replies: rowsShown({ items: replyDrafts }, capOf('replies')),
     email: rowsShown({ items: openItems }, capOf('email')),
     people: rowsShown(peopleGroups, capOf('people')),

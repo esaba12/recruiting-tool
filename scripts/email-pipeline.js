@@ -940,6 +940,7 @@ Otherwise return:
   "referrer_name": "the full name of the person who referred/recommended the candidate for this specific role, ONLY if the email explicitly says so (e.g. 'referred by Jane Doe', 'submitted your referral', 'thanks to an employee referral from...'). Otherwise null — never guess.",
   "oa_due_date": "YYYY-MM-DD if this is an Online Assessment invite AND the email states a completion deadline, else null — never guess or estimate a date that isn't actually stated",
   "oa_link": "the URL the candidate clicks to start/complete the Online Assessment, if this is an OA_INVITE, else null",
+  "offer_deadline": "YYYY-MM-DD if this is an OFFER AND the email states a date to accept or respond by, else null — never guess or estimate a date that isn't actually stated",
   "contact_phone": "a phone number for the sender, ONLY if one is explicitly given in their email signature/body (e.g. a mobile number under their name) — otherwise null, never guess or use a company switchboard number",
   "action_item": "a specific one-line next step the candidate should personally take, phrased as an instruction (e.g. 'Reply to Jane about Tuesday's 2pm call', 'Submit the HackerRank assessment', 'Confirm the onsite date by Friday') — ONLY when the email actually implies the candidate needs to do something. Otherwise null. This is independent of 'type' above: an APPLICATION_CONFIRMATION can still have a null action_item, and a plain REPLY can carry a high-priority one.",
   "action_priority": "'high'|'medium'|'low', matching how time-sensitive/important the action_item is — null if action_item is null",
@@ -957,6 +958,8 @@ skills test, typically via HackerRank/CodeSignal/Codility/HackerEarth or a simil
 Extract oa_due_date only when the email explicitly states a completion deadline ("complete by
 August 20", "you have 7 days to complete this assessment", etc.) — many OA invites don't state
 one at all, in which case leave it null rather than estimating from the email's send date.
+The same goes for offer_deadline: only a stated respond-by date ("please let us know by
+November 14", "this offer expires in two weeks"), else null.
 
 OA_COMPLETED means an automated receipt confirming the candidate already finished/submitted the
 Online Assessment ("Your assessment has been submitted", "Thank you for completing the test") —
@@ -1315,6 +1318,33 @@ function oaInviteFields(data, existing) {
   return data.oa_link && data.oa_link !== existing.oa_link ? { ...fields, oa_completed: false } : {}
 }
 
+// Same as app/api/_lib/emailPipeline.js scheduleFields — keep the two in sync. An invite's
+// start is the real time; a date from the body is stored at noon script time with
+// interview_time_known false. The later interview wins, except on the same day, where a real
+// time replaces a guess and a guess never replaces a real time. A stated offer deadline is
+// written; a missing one never clears a value.
+function scheduleFields(data, existing) {
+  const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+  if (data.type === 'OFFER') return DATE_ONLY.test(data.offer_deadline || '') ? { offer_deadline: data.offer_deadline } : {}
+  if (data.type !== 'INTERVIEW_INVITE') return {}
+  const tz = Session.getScriptTimeZone()
+  let next
+  if (data.interview_time && !data.interview_time.allDay) {
+    next = { interview_at: data.interview_time.start.toISOString(), interview_time_known: true }
+  } else if (DATE_ONLY.test(data.interview_date || '')) {
+    next = { interview_at: Utilities.parseDate(`${data.interview_date} 12:00`, tz, 'yyyy-MM-dd HH:mm').toISOString(), interview_time_known: false }
+  } else {
+    return {}
+  }
+  if (!existing || !existing.interview_at) return next
+  const was = new Date(existing.interview_at)
+  const day = d => Utilities.formatDate(d, tz, 'yyyy-MM-dd')
+  if (day(was) === day(new Date(next.interview_at))) {
+    return next.interview_time_known || !existing.interview_time_known ? next : {}
+  }
+  return new Date(next.interview_at) > was ? next : {}
+}
+
 function upsertApplication(keys, data) {
   const today = Utilities.formatDate(new Date(), 'UTC', 'yyyy-MM-dd')
   const stageMap = {
@@ -1330,7 +1360,7 @@ function upsertApplication(keys, data) {
   // Fuzzy match on company name, then on role (pickApplication) — applications has no unique
   // constraint on (user_id, company), and one company often has several applications.
   const res = supabaseReq(keys, 'get',
-    `/applications?user_id=eq.${keys.userId}&company=ilike.*${encodeURIComponent(data.company || '')}*&archived=eq.false&order=created_at.desc&limit=50&select=id,role,stage,referred_by_id,oa_completed,oa_link`)
+    `/applications?user_id=eq.${keys.userId}&company=ilike.*${encodeURIComponent(data.company || '')}*&archived=eq.false&order=created_at.desc&limit=50&select=id,role,stage,referred_by_id,oa_completed,oa_link,interview_at,interview_time_known`)
   const existing = pickApplication(res, data.role)
 
   // OA_COMPLETED only means anything against an application we're already tracking an OA for —
@@ -1356,6 +1386,7 @@ function upsertApplication(keys, data) {
     // The whole point of OA_COMPLETED: flips the flag buildOaDigest() filters on, so the
     // daily digest stops nagging about this one starting from its next run.
     ...(data.type === 'OA_COMPLETED' ? { oa_completed: true } : {}),
+    ...scheduleFields(data, existing),
   }
 
   const change = scanStageChange(stage, existing)
@@ -1509,7 +1540,8 @@ function extractCalendarInvite(message) {
     const full        = unfoldIcs(ics.getDataAsString())
     const vevent      = full.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/i)
     const text        = vevent ? vevent[0] : full
-    const start        = parseIcsDate(icsField(text, 'DTSTART'))
+    const rawStart     = icsField(text, 'DTSTART')
+    const start        = parseIcsDate(rawStart)
     if (!start) return null
     const end           = parseIcsDate(icsField(text, 'DTEND'))
     const summary       = icsField(text, 'SUMMARY')
@@ -1517,7 +1549,7 @@ function extractCalendarInvite(message) {
     const description    = (icsField(text, 'DESCRIPTION') || '').replace(/\\n/g, '\n')
     const meetingLink    = extractMeetingLink(location) || extractMeetingLink(description)
 
-    return { start, end, summary, location, meetingLink }
+    return { start, end, summary, location, meetingLink, allDay: /^\d{8}$/.test(rawStart) }
   } catch (e) {
     console.error(`  ICS parse failed: ${e.message}`)
     return null

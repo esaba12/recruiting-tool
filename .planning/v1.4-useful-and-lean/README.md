@@ -58,7 +58,12 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 ### Next code
 - [x] 🤖 [08](08-custom-today.md) rearrangeable Today, built on `feat/v1.4-custom-today`. The registry units are PR #22's cards (Rates and Replies drafted included), and their lists are toggles. Checked on `/demo` (desktop, 390px, keyboard, dark).
 - [x] 👤 Merged: PR #27, 2026-10-22. Live on prod, and the Customize editor was checked on `/demo`
-- [ ] 🤖 02 → 03 → 04 after the Apps Script cutover (v1.3 spec 08)
+- [x] 🤖 [02](02-interview-offer-dates.md) built on `feat/v1.4-interview-offer-dates` (2026-10-27), ahead of the cutover
+  (decision 3 below), so the classifier change is mirrored in `scripts/email-pipeline.js`. Checked on `/demo` (desktop, 390px).
+- [x] 👤 `supabase db push` for `20261027000000_interview_offer_dates.sql` (owner approved 2026-10-27). Live RLS suite 14/14
+- [ ] 👤 `clasp push` **after** the db push: both pipelines select the new columns, so they fail until it's live
+- [ ] 🤖 Then push the branch and open the PR; 👤 merge
+- [ ] 🤖 03 → 04
 
 ### Later (not planned yet)
 - [ ] Real Gmail drafts: `gmail.compose` (a restricted scope, so it needs consent-screen
@@ -71,9 +76,9 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 
 1. ✅ **Timeline Finds: cut** (owner, 2026-10-19). Folded into 05 C.
 2. ✅ **Hold the invite** until the pre-invite set (06, 05, 01, 07) lands (owner, 2026-10-19).
-3. ⏳ **Spec 02 before or after the Apps Script cutover** (v1.3 spec 08, after a week of clean
-   cron). The owner is waiting for the cutover. If an offer with a deadline lands first, revisit:
-   doing 02 before means editing the classifier prompt in both pipelines plus a `clasp push`.
+3. ✅ **Spec 02 before the Apps Script cutover** (owner, 2026-10-27). The cutover was still a
+   week of cron away with offer season under way, so 02 went first and the classifier change
+   is in both pipelines (one extra `clasp push`).
 
 ## What the review found
 
@@ -113,7 +118,7 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 | # | Spec | Kind | Migration | Status |
 |---|------|------|-----------|--------|
 | 01 | [Import what you already have](01-import.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20) |
-| 02 | [Interview and offer dates become fields](02-interview-offer-dates.md) | 🤖 + `clasp push` | **yes** | open |
+| 02 | [Interview and offer dates become fields](02-interview-offer-dates.md) | 🤖 + `clasp push` | **yes** | built 2026-10-27, migration live; PR open |
 | 03 | [After the interview: thank-you nudges](03-thank-you.md) | 🤖 | no (uses 02) | open |
 | 04 | [Offer decisions](04-offer-decisions.md) | 🤖 | no (uses 02) | open |
 | 05 | [Cut duplicates](05-cuts.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20) |

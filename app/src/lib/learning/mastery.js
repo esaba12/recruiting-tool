@@ -135,10 +135,17 @@ export function appMatchesTrack(app, track) {
   return re.test(app.role || '')
 }
 
-// { interviews: apps[], oas: apps[] } — live, relevant, soon.
+// { interviews: apps[], oas: apps[] } — live, relevant, soon. An interview date on file
+// decides (within a day past through `withinDays`); the stage alone only counts for apps
+// with no date, so a month-old interview stops asking for prep.
 export function trackDemand(track, apps, { now = Date.now(), withinDays = 21 } = {}) {
   const relevant = (apps || []).filter(a => !['Rejected', 'Accepted'].includes(a.stage) && appMatchesTrack(a, track))
-  const interviews = relevant.filter(a => INTERVIEW_STAGES.includes(a.stage))
+  const interviews = relevant.filter(a => {
+    if (!INTERVIEW_STAGES.includes(a.stage)) return false
+    if (!a.interviewAt) return true
+    const days = (ms(a.interviewAt) - ms(now)) / DAY
+    return days >= -1 && days <= withinDays
+  })
   const oas = relevant.filter(a => {
     if (!a.oaDueDate || a.oaCompleted) return false
     const days = (ms(a.oaDueDate) - ms(now)) / DAY

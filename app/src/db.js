@@ -392,7 +392,7 @@ export async function updateApplication(id, fields) {
     const a = demoStore().applications.find(a => a.id === id)
     if (!a) return
     if ('stage' in fields) demoLogStage(a, fields.stage)
-    for (const k of ['company', 'role', 'location', 'jdLink', 'notes', 'stage', 'triage', 'appliedDate', 'closedDate', 'referredById', 'oaDueDate', 'oaLink', 'oaCompleted', 'oaResearchCheckedAt']) {
+    for (const k of ['company', 'role', 'location', 'jdLink', 'notes', 'stage', 'triage', 'appliedDate', 'closedDate', 'referredById', 'oaDueDate', 'oaLink', 'oaCompleted', 'oaResearchCheckedAt', 'interviewAt', 'interviewTimeKnown', 'offerDeadline', 'offerDetails']) {
       if (k in fields) a[k] = fields[k]
     }
     return
@@ -412,6 +412,10 @@ export async function updateApplication(id, fields) {
   if ('oaLink' in fields) patch.oa_link = fields.oaLink || null
   if ('oaCompleted' in fields) patch.oa_completed = !!fields.oaCompleted
   if ('oaResearchCheckedAt' in fields) patch.oa_research_checked_at = fields.oaResearchCheckedAt || null
+  if ('interviewAt' in fields) patch.interview_at = fields.interviewAt || null
+  if ('interviewTimeKnown' in fields) patch.interview_time_known = !!fields.interviewTimeKnown
+  if ('offerDeadline' in fields) patch.offer_deadline = fields.offerDeadline || null
+  if ('offerDetails' in fields) patch.offer_details = fields.offerDetails || null
   const { error } = await supabase.from('applications').update(patch).eq('id', id)
   throwIfError(error, 'updateApplication')
 }
@@ -477,6 +481,10 @@ async function fetchApplicationRows() {
     oaLink: r.oa_link || null,
     oaCompleted: !!r.oa_completed,
     oaResearchCheckedAt: r.oa_research_checked_at || null,
+    interviewAt: r.interview_at || null,
+    interviewTimeKnown: !!r.interview_time_known,
+    offerDeadline: r.offer_deadline || null,
+    offerDetails: r.offer_details || null,
   }))
 }
 

@@ -2,7 +2,7 @@
 // Behavioral additions: the dossier's "open a contact" trigger swaps this body in place for ContactPanelBody (D-05), added in Task 2.
 import { useState, useMemo } from 'react'
 import { addApplication, updateApplication } from '../../db.js'
-import { STAGE_COLOR, STAGE_ORDER, TERMINAL_STAGES, Badge, fmt, daysBetween, appDuplicateKey } from '../../shared.jsx'
+import { STAGE_COLOR, STAGE_ORDER, TERMINAL_STAGES, INTERVIEW_STAGES, Badge, fmt, daysBetween, appDuplicateKey } from '../../shared.jsx'
 import { BUCKET_CONFIG, BUCKET_ACTIVE, BUCKET_TO_TRIAGE, TRIAGE_TO_BUCKET, generateJobAnalysis, lsGet } from '../jobBoards/helpers.js'
 import { aiProviderLabel } from '../../lib/ai.js'
 import { importApplicationFromUrl } from '../../lib/applicationImport.js'
@@ -13,7 +13,17 @@ import ContactPanelBody from './ContactPanelBody.jsx'
 import NeedsKey from '../onboarding/NeedsKey.jsx'
 import { useAuth } from '../../lib/AuthContext.jsx'
 import { stageLabel } from '../../lib/tracks.js'
-import { todayLocal } from '../../lib/dates.js'
+import { todayLocal, instantToInputs, inputsToInstant } from '../../lib/dates.js'
+
+// offer_details keys (v1.4 spec 02). Free text: comp is quoted every which way.
+const OFFER_DETAIL_FIELDS = [
+  { key: 'base', label: 'Base', placeholder: '$50/hr' },
+  { key: 'bonus', label: 'Bonus', placeholder: 'Signing, relocation' },
+  { key: 'equity', label: 'Equity', placeholder: '—' },
+  { key: 'location', label: 'Location', placeholder: 'City or remote' },
+  { key: 'start', label: 'Start', placeholder: 'June 2027' },
+  { key: 'notes', label: 'Notes', placeholder: 'Anything to weigh', wide: true },
+]
 
 const COVERAGE_BADGE = {
   gap:    { color: 'bg-danger-100 text-danger-700',   label: () => 'No network here yet' },
@@ -153,6 +163,14 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
     oaCompleted: app?.oaCompleted || false,
   }))
   const [savingOa, setSavingOa] = useState(false)
+  // Interview and offer dates (v1.4 spec 02): the scan fills these from invite and offer
+  // emails; same separate state/save path as the OA fields above.
+  const [interview, setInterview] = useState(() => instantToInputs(app?.interviewAt, app?.interviewTimeKnown))
+  const [offer, setOffer] = useState(() => ({
+    deadline: app?.offerDeadline || '',
+    ...Object.fromEntries(OFFER_DETAIL_FIELDS.map(f => [f.key, app?.offerDetails?.[f.key] || ''])),
+  }))
+  const [savingSchedule, setSavingSchedule] = useState(null) // 'interview' | 'offer'
   const [savingDates, setSavingDates] = useState(false)
   const [saving, setSaving]       = useState(false)
   const [deleting, setDeleting]   = useState(false)
@@ -191,6 +209,24 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
     } catch (e) {
       setError(e.message)
       setSavingDates(false)
+    }
+  }
+
+  async function saveSchedule(which) {
+    setSavingSchedule(which); setError(null)
+    try {
+      if (which === 'interview') {
+        const { at, timeKnown } = inputsToInstant(interview.date, interview.time)
+        await updateApplication(app.id, { interviewAt: at, interviewTimeKnown: timeKnown })
+      } else {
+        const details = Object.fromEntries(OFFER_DETAIL_FIELDS.map(f => [f.key, offer[f.key].trim()]).filter(([, v]) => v))
+        await updateApplication(app.id, { offerDeadline: offer.deadline || null, offerDetails: Object.keys(details).length ? details : null })
+      }
+      onSaved()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSavingSchedule(null)
     }
   }
 
@@ -418,6 +454,58 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
             <button onClick={saveOa} disabled={savingOa}
               className="w-full mt-3 py-2 bg-ink-900 text-on-fill text-xs rounded-md hover:bg-ink-800 disabled:opacity-50 font-medium transition-colors">
               {savingOa ? 'Saving...' : 'Save Online Assessment'}
+            </button>
+          </div>
+        )}
+
+        {!isNew && (INTERVIEW_STAGES.includes(app.stage) || app.interviewAt) && (
+          <div className="px-5 py-4 border-b border-ink-100">
+            <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">Next Interview</p>
+            <p className="text-[11px] text-ink-400 -mt-1 mb-2">
+              Filled in from the invite email when there is one. Leave the time empty if you only know the day.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-ink-400 mb-0.5">Date</label>
+                <input type="date" value={interview.date} onChange={e => setInterview(i => ({ ...i, date: e.target.value }))}
+                  className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
+              </div>
+              <div>
+                <label className="block text-xs text-ink-400 mb-0.5">Time (optional)</label>
+                <input type="time" value={interview.time} onChange={e => setInterview(i => ({ ...i, time: e.target.value }))}
+                  className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
+              </div>
+            </div>
+            <button onClick={() => saveSchedule('interview')} disabled={!!savingSchedule}
+              className="w-full mt-3 py-2 bg-ink-900 text-on-fill text-xs rounded-md hover:bg-ink-800 disabled:opacity-50 font-medium transition-colors">
+              {savingSchedule === 'interview' ? 'Saving...' : 'Save Interview'}
+            </button>
+          </div>
+        )}
+
+        {!isNew && (app.stage === 'Offer' || app.offerDeadline) && (
+          <div className="px-5 py-4 border-b border-ink-100">
+            <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">Offer</p>
+            <p className="text-[11px] text-ink-400 -mt-1 mb-2">
+              The deadline comes from the offer email when it states one. Today counts it down.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="block text-xs text-ink-400 mb-0.5">Decide By</label>
+                <input type="date" value={offer.deadline} onChange={e => setOffer(o => ({ ...o, deadline: e.target.value }))}
+                  className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
+              </div>
+              {OFFER_DETAIL_FIELDS.map(f => (
+                <div key={f.key} className={f.wide ? 'col-span-2' : undefined}>
+                  <label className="block text-xs text-ink-400 mb-0.5">{f.label}</label>
+                  <input value={offer[f.key]} placeholder={f.placeholder} onChange={e => setOffer(o => ({ ...o, [f.key]: e.target.value }))}
+                    className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
+                </div>
+              ))}
+            </div>
+            <button onClick={() => saveSchedule('offer')} disabled={!!savingSchedule}
+              className="w-full mt-3 py-2 bg-ink-900 text-on-fill text-xs rounded-md hover:bg-ink-800 disabled:opacity-50 font-medium transition-colors">
+              {savingSchedule === 'offer' ? 'Saving...' : 'Save Offer'}
             </button>
           </div>
         )}
