@@ -44,3 +44,17 @@ shows the template draft.
 ## Done when
 
 Every interview and logged conversation gets one nudge, which goes away the moment you reply.
+
+## As built (2026-10-28)
+
+- **A group, not a card.** Since PR #22, People is one card whose groups go through
+  `todayPeople` → `dedupeAcross`. "Send a thank-you" is its first group (`thankYou` in
+  `PEOPLE_GROUPS` and the registry), so a person in it never repeats in Awaiting reply below.
+- **`thankYouDue`** (`lib/attention.js`): interviews from 0 to 48h ago (02's `interviewAt`),
+  then Call/Meeting interactions 0 to 2 days old. "Since" is a later `sentAt` when the email
+  has one, else the same day or later. An interview with nobody on file at the company still
+  shows; there, "Sent it" hides the row instead of logging.
+- **Drafts** don't persist. `ThankYouDraft` opens on `thankYouTemplate`, works with no key,
+  and "Rewrite with …" (NeedsKey) uses the `thank_you` kind in `lib/drafting.js` (MINI tier).
+  Copy, or open it in the mail app when the contact has an email.
+- **`/demo`** needed no new seed: Deepak's call from yesterday already renders.

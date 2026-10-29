@@ -4,6 +4,8 @@
 // any future consumer) imports the same logic instead of re-deriving it independently.
 import { TERMINAL_STAGES, INTERVIEW_STAGES, daysSince, daysUntil, isUntriaged, isOverdue, isStaleApplication } from '../shared.jsx'
 import { keepInTouchQueue } from './keepInTouch.js'
+import { normalizeCompanyName } from './networkGraph.js'
+import { parseDay } from './dates.js'
 import { stagePath } from './stageHistory.js'
 import { deriveTrack } from './learning/derive.js'
 import { reviewQueue } from './learning/review.js'
@@ -349,9 +351,69 @@ export function dedupeAcross(lists, idOf = r => r.contact?.id ?? r.id) {
 // Today's People card: each contact shows in the first of its groups (in this priority order,
 // not the card's display order) that's on, so turning one off lets its people surface in the
 // next instead of vanishing.
-export const PEOPLE_GROUPS = ['overdue', 'awaiting', 'schedule', 'urgent', 'keepInTouch']
-export function todayPeople(contacts, interactions, { off = [], awaitingDays = 5 } = {}) {
+// Thank-you nudges (v1.4 spec 03): an interview in the last 48h (02's interviewAt), or a
+// Call/Meeting logged in the last two days, with no Email/LinkedIn sent to them since.
+// Interactions are mostly date-only, so "since" means a later instant when the email has a
+// sentAt, else the same day or later. An interview is matched to people by company, and
+// shows even with nobody on file there. One row per person: the interview wins.
+// Rows: { id, kind: 'interview'|'conversation', contact, app, interaction, at }.
+const THANK_YOU_WRITTEN = ['Email', 'LinkedIn']
+const THANK_YOU_MEETINGS = ['Call', 'Meeting']
+export function thankYouDue(apps, contacts, interactions, { now = Date.now() } = {}) {
+  const outbound = new Map() // contactId → outbound written interactions
+  for (const i of interactions || []) {
+    if (!i.contactId || i.direction !== 'Outbound' || !THANK_YOU_WRITTEN.includes(i.type)) continue
+    if (!outbound.has(i.contactId)) outbound.set(i.contactId, [])
+    outbound.get(i.contactId).push(i)
+  }
+  // `since` is an interview instant or a meeting's date-only day (parseDay: local midnight).
+  const wroteSince = (contactId, since) => (outbound.get(contactId) || []).some(i => (i.sentAt
+    ? new Date(i.sentAt) > parseDay(since)
+    : daysUntil(i.date, parseDay(since).getTime()) >= 0))
+  const lastTouch = new Map()
+  for (const i of interactions || []) {
+    if (i.contactId && i.date && !(lastTouch.get(i.contactId) >= i.date)) lastTouch.set(i.contactId, i.date)
+  }
+  const atCompany = new Map()
+  for (const c of contacts || []) {
+    if (!c.company) continue
+    const k = normalizeCompanyName(c.company)
+    if (!atCompany.has(k)) atCompany.set(k, [])
+    atCompany.get(k).push(c)
+  }
+
+  const rows = []
+  const taken = new Set()
+  for (const a of apps || []) {
+    if (!a.interviewAt || TERMINAL_STAGES.includes(a.stage)) continue
+    const hours = (now - new Date(a.interviewAt).getTime()) / 3600000
+    if (hours < 0 || hours > 48) continue
+    const people = atCompany.get(normalizeCompanyName(a.company || '')) || []
+    if (people.some(c => wroteSince(c.id, a.interviewAt))) continue
+    // The one you've been talking to most recently is likely the recruiter or interviewer.
+    const contact = [...people].sort((x, y) => (lastTouch.get(y.id) || '').localeCompare(lastTouch.get(x.id) || ''))[0] || null
+    if (contact) taken.add(contact.id)
+    rows.push({ id: `interview:${a.id}`, kind: 'interview', contact, app: a, interaction: null, at: a.interviewAt })
+  }
+  const byId = new Map((contacts || []).map(c => [c.id, c]))
+  const meetings = (interactions || [])
+    .filter(i => i.contactId && THANK_YOU_MEETINGS.includes(i.type) && i.date)
+    .sort((x, y) => y.date.localeCompare(x.date))
+  for (const i of meetings) {
+    const days = daysSince(i.date, now)
+    const contact = byId.get(i.contactId)
+    if (days < 0 || days > 2 || !contact || taken.has(contact.id) || contact.status === '✅ Closed') continue
+    taken.add(contact.id)
+    if (wroteSince(contact.id, i.date)) continue
+    rows.push({ id: `call:${i.id}`, kind: 'conversation', contact, app: null, interaction: i, at: i.date })
+  }
+  return rows
+}
+
+export const PEOPLE_GROUPS = ['thankYou', 'overdue', 'awaiting', 'schedule', 'urgent', 'keepInTouch']
+export function todayPeople(contacts, interactions, { off = [], awaitingDays = 5, apps = [], now = Date.now() } = {}) {
   const derive = {
+    thankYou: () => thankYouDue(apps, contacts, interactions, { now }),
     overdue: () => overdueFollowUps(contacts),
     awaiting: () => awaitingReply(contacts, interactions, { thresholdDays: awaitingDays }),
     urgent: () => highUrgencyContacts(contacts),

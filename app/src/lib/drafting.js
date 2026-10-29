@@ -66,6 +66,22 @@ Rules:
 - Tier 3 must include an explicit low-pressure opt-out.`
   }
 
+  if (kind === 'thank_you') {
+    return `Draft a short thank-you note${from} to send within a day of a conversation or interview. Return ONLY valid JSON, no explanation, no markdown.
+
+Contact: ${contact?.name || 'the interviewer (name unknown)'}${contact?.company ? ` (${contact.company}${contact.role ? `, ${contact.role}` : ''})` : ''}
+What happened: ${personalizationContext || 'a conversation'}
+
+{
+  "draft": "3-4 sentence email. Thank them for their time, name one specific thing from what happened above (only if it's given — never invent a topic), and restate interest in a sentence. Warm and professional, no flattery.",
+  "subjectLine": "a short email subject line"
+}
+
+Rules:
+- Do not fabricate details beyond what's given above.
+- Keep it under 90 words.`
+  }
+
   if (kind === 'cold_open') {
     if (!personalizationContext?.trim()) {
       throw new Error('personalizationContext is required for a cold-open draft — a shared connection, mutual interest, or specific signal about the company/role. Generic messages get a fraction of the response rate of personalized ones.')
@@ -100,6 +116,27 @@ Rules:
 - Do not repeat the same phrasing a first message would use — this should read like a distinct, brief nudge, not a resend.
 - Keep it under 80 words.
 - Tier 3 must include an explicit low-pressure opt-out.`
+}
+
+// What a thank-you is for, in a line: the AI prompt's context and the template's middle.
+export function thankYouContext({ app, interaction }) {
+  if (app) return `${app.stage ? `${app.stage} interview` : 'Interview'} for ${app.role || 'the role'} at ${app.company}`
+  const what = interaction?.type === 'Call' ? 'Call' : 'Meeting'
+  return interaction?.summary ? `${what}: ${interaction.summary}` : what
+}
+
+// The no-key draft (v1.4 spec 03): a plain template the user edits before sending.
+export function thankYouTemplate({ contact, app, interaction }) {
+  const first = contact?.name?.split(' ')[0] || 'there'
+  const body = app
+    ? `Thank you for taking the time to speak with me about the ${app.role || 'role'} at ${app.company}. I enjoyed learning more about the team, and our conversation made me even more excited about the opportunity.`
+    : `Thank you for taking the time to ${interaction?.type === 'Call' ? 'hop on a call' : 'meet'} with me. I really appreciated your perspective${contact?.company ? ` on ${contact.company}` : ''}, and it gave me a lot to think about.`
+  return `Hi ${first},
+
+${body}
+
+Thanks again,
+`
 }
 
 export async function draftMessage({ contact, kind, tier, personalizationContext, profile }) {

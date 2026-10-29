@@ -23,8 +23,9 @@ export const TODAY_CARDS = [
   { id: 'email', title: 'From your email', kind: 'act', size: 'half', rows: true, description: 'To-dos the email scan pulled out of your inbox.' },
   {
     id: 'people', title: 'People', kind: 'act', size: 'half', rows: true,
-    description: 'Follow-ups, unanswered messages and people to keep in touch with.',
+    description: 'Thank-yous after interviews and calls, follow-ups, unanswered messages and people to keep in touch with.',
     groups: [
+      { id: 'thankYou', label: 'Send a thank-you' },
       { id: 'overdue', label: 'Overdue follow-up' },
       { id: 'awaiting', label: 'Awaiting reply' },
       { id: 'urgent', label: 'High urgency' },
