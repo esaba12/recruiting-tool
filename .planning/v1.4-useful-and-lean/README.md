@@ -50,8 +50,8 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 ### Blocking the friends invite (unchanged)
 - [ ] 👤 [v1.3 spec 02](../v1.3-launch-and-cleanup/02-owner-runbook.md) console steps: Google
   Cloud A1–A4, cron D1, Gmail D2, SMTP B2, Sentry C2
-- [ ] 🤖 v1.3 spec 02 B1: `site_url` in `supabase/config.toml` (👤 then runs `supabase config push`)
-- [ ] 🤖 v1.3 spec 02 C1: list dead Vercel env vars for approval, then remove them
+- [x] 🤖 v1.3 spec 02 B1: `site_url` in `supabase/config.toml` is the prod URL (`032fbd3`). 👤 still runs `supabase config push`
+- [x] 🤖 v1.3 spec 02 C1: dead Vercel env vars listed in the runbook (production + Preview). 👤 runs the removal
 - [ ] 👤 Live first inbox scan after a real Gmail connect (07's last unverified item)
 - [ ] Then [v1.3 spec 04](../v1.3-launch-and-cleanup/04-launch-week.md) (launch week)
 
@@ -62,9 +62,10 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
   (decision 3 below), so the classifier change is mirrored in `scripts/email-pipeline.js`. Checked on `/demo` (desktop, 390px).
 - [x] 👤 `supabase db push` for `20261027000000_interview_offer_dates.sql` (owner approved 2026-10-27). Live RLS suite 14/14
 - [ ] 👤 `clasp push` **after** the db push: both pipelines select the new columns, so they fail until it's live
-- [ ] 🤖 Then push the branch and open the PR; 👤 merge
+- [x] 🤖 Then push the branch and open the PR (#29); 👤 merge
 - [x] 🤖 [03](03-thank-you.md) built on `feat/v1.4-thank-you` (off 02's branch, 2026-10-28). No migration. Checked on `/demo` (desktop, 390px)
-- [ ] 🤖 04
+- [x] 🤖 [04](04-offer-decisions.md) built on `feat/v1.4-offer-decisions` (off 03's branch, 2026-10-28). No migration. Checked on `/demo` (desktop, 390px)
+- [ ] 👤 Merge #29, then #30, then 04's PR (each retargets to main as the one below merges)
 
 ### Later (not planned yet)
 - [ ] Real Gmail drafts: `gmail.compose` (a restricted scope, so it needs consent-screen
@@ -121,7 +122,7 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 | 01 | [Import what you already have](01-import.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20) |
 | 02 | [Interview and offer dates become fields](02-interview-offer-dates.md) | 🤖 + `clasp push` | **yes** | built 2026-10-27, migration live; PR open |
 | 03 | [After the interview: thank-you nudges](03-thank-you.md) | 🤖 | no (uses 02) | built 2026-10-28; PR open (stacked on 02) |
-| 04 | [Offer decisions](04-offer-decisions.md) | 🤖 | no (uses 02) | open |
+| 04 | [Offer decisions](04-offer-decisions.md) | 🤖 | no (uses 02) | built, PR open |
 | 05 | [Cut duplicates](05-cuts.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20) |
 | 06 | [Fixes from the review](06-fixes.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20) |
 | 07 | [Onboarding that ends with data on screen](07-onboarding.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20), smoke-tested on prod; live first scan untested until a real Gmail connect |

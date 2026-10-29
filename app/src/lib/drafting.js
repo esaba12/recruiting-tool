@@ -82,6 +82,23 @@ Rules:
 - Keep it under 90 words.`
   }
 
+  if (kind === 'expedite') {
+    return `Draft a short email${from} asking a company to speed up its process because another offer has a deadline. Return ONLY valid JSON, no explanation, no markdown.
+
+Contact: ${contact?.name || 'the recruiter (name unknown)'}${contact?.company ? ` (${contact.company}${contact.role ? `, ${contact.role}` : ''})` : ''}
+Situation: ${personalizationContext}
+
+{
+  "draft": "3-5 sentence email. Say there's another offer and when it has to be answered, say this company is still a top choice, and ask politely whether the next steps could move sooner. Gracious, not a threat or an ultimatum.",
+  "subjectLine": "a short email subject line"
+}
+
+Rules:
+- Never name the company that made the other offer, or guess at it.
+- Do not fabricate details beyond what's given above.
+- Keep it under 110 words.`
+  }
+
   if (kind === 'cold_open') {
     if (!personalizationContext?.trim()) {
       throw new Error('personalizationContext is required for a cold-open draft — a shared connection, mutual interest, or specific signal about the company/role. Generic messages get a fraction of the response rate of personalized ones.')
