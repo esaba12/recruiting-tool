@@ -119,6 +119,12 @@ describe('pickNextDeadline with interviews and offers (v1.4 spec 02)', () => {
     ]
     expect(pickNextDeadline(apps, [], now).company).toBe('B')
   })
+  it('an interview earlier today is over; a later one, or a date with no time, still counts', () => {
+    const at = h => new Date(2026, 9, 9, h).toISOString()
+    expect(pickNextDeadline([{ company: 'A', stage: 'Technical', interviewAt: at(9), interviewTimeKnown: true }], [], now)).toBeNull()
+    expect(pickNextDeadline([{ company: 'A', stage: 'Technical', interviewAt: at(15), interviewTimeKnown: true }], [], now)).toMatchObject({ days: 0 })
+    expect(pickNextDeadline([{ company: 'A', stage: 'Technical', interviewAt: at(9), interviewTimeKnown: false }], [], now)).toMatchObject({ days: 0 })
+  })
 })
 
 describe('offerDecisions', () => {
@@ -145,5 +151,13 @@ describe('upcomingInterviews', () => {
       { id: 5, company: 'Dead', stage: 'Rejected', interviewAt: at(12) },
     ], { now, withinDays: 14 })
     expect(rows.map(r => r.company)).toEqual(['Today', 'Two'])
+  })
+  it('a timed interview earlier today is over (it moves to Send a thank-you)', () => {
+    const at = h => new Date(2026, 9, 9, h).toISOString()
+    const rows = upcomingInterviews([
+      { id: 1, company: 'Done', stage: 'Technical', interviewAt: at(9), interviewTimeKnown: true },
+      { id: 2, company: 'Later', stage: 'Technical', interviewAt: at(16), interviewTimeKnown: true },
+    ], { now })
+    expect(rows.map(r => r.company)).toEqual(['Later'])
   })
 })

@@ -21,6 +21,14 @@ Deploy: script.google.com → paste file → Script Properties → add `ANTHROPI
 
 Cost: ~$0.001/email with Haiku (classification only runs once per thread-update, not per logged message) — the broader inbox keyword search increases how many threads get *scanned*, not how many get *classified* twice; each thread's Haiku call still only runs once per new message via the existing `msgcount_<threadId>` tracking.
 
+### Interview and offer dates (v1.4 spec 02)
+
+`scheduleFields` (same rule in `scripts/email-pipeline.js` and `app/api/_lib/emailPipeline.js`; keep them in sync):
+- **OFFER:** writes `offer_deadline` only when the email states a respond-by date. A missing one never clears a value the user typed.
+- **INTERVIEW_INVITE:** an attached invite's start is the real time (`interview_time_known = true`). A date from the body alone is stored at noon campus/script time with `interview_time_known = false`.
+- Threads aren't scanned in date order, so the later interview wins, except on the same day, where a real time replaces a guess and a guess never replaces a real time.
+- The server digest (`api/_lib/pushes.js` `offerDigest`) leads with offers due in 0–3 days.
+
 ### Push reminders — ntfy.sh (shipped 2026-09-17)
 
 The pipeline can push a real phone notification instead of relying on you to notice something in the app or your inbox — deliberately not another email, since the whole point is cutting through the inbox this script already reads. Uses [ntfy.sh](https://ntfy.sh), a free public push-notification relay: `sendPush()` POSTs to `https://ntfy.sh/<NTFY_TOPIC>` and anything subscribed to that topic (the ntfy phone app, or the web app) gets a native push. Entirely optional — `NTFY_TOPIC` unset means `sendPush()` no-ops and everything else keeps working; there's no paid tier, phone number, or account involved.

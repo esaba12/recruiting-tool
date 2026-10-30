@@ -193,6 +193,9 @@ export function learningAttention(learning, apps, { now = Date.now(), withinDays
 // Rejected/Accepted — a dead application's dates are no longer deadlines. Ties go to the
 // offer, then the OA, then the interview (commitments before postings). Returns
 // { label, company, days, kind } or null.
+// A timed interview whose time has passed is over. A date-only one is stored at a placeholder
+// noon, so it counts until the day ends.
+const interviewOver = (a, now) => a.interviewTimeKnown && new Date(a.interviewAt).getTime() < now
 const DEADLINE_RANK = { offer: 0, oa: 1, interview: 2, job: 3 }
 export function pickNextDeadline(apps, jobDeadlines = [], now = Date.now()) {
   const found = []
@@ -204,7 +207,7 @@ export function pickNextDeadline(apps, jobDeadlines = [], now = Date.now()) {
     if (TERMINAL_STAGES.includes(a.stage)) continue
     if (a.oaDueDate && !a.oaCompleted) add('oa', a, a.oaDueDate, `${a.company} OA`)
     if (a.offerDeadline && a.stage === 'Offer') add('offer', a, a.offerDeadline, `${a.company} offer`)
-    if (a.interviewAt) add('interview', a, a.interviewAt, `${a.company} interview`)
+    if (a.interviewAt && !interviewOver(a, now)) add('interview', a, a.interviewAt, `${a.company} interview`)
   }
   for (const j of jobDeadlines) {
     found.push({ kind: 'job', company: j.company, label: j.company, days: j.days })
@@ -220,11 +223,11 @@ export function offerDecisions(apps, now = Date.now()) {
   return (apps || []).filter(a => a.stage === 'Offer').sort((a, b) => key(a) - key(b))
 }
 
-// Interviews from today through `withinDays`, soonest first. Earlier today still counts:
-// the day isn't over and spec 03's thank-you takes it from there.
+// Interviews from today through `withinDays`, soonest first. One that's over (see
+// interviewOver) leaves, and spec 03's thank-you takes it from there.
 export function upcomingInterviews(apps, { now = Date.now(), withinDays = 14 } = {}) {
   return (apps || [])
-    .filter(a => a.interviewAt && !TERMINAL_STAGES.includes(a.stage))
+    .filter(a => a.interviewAt && !TERMINAL_STAGES.includes(a.stage) && !interviewOver(a, now))
     .map(a => ({ a, days: daysUntil(a.interviewAt, now) }))
     .filter(x => x.days >= 0 && x.days <= withinDays)
     .sort((x, y) => new Date(x.a.interviewAt) - new Date(y.a.interviewAt))
