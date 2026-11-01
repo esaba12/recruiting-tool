@@ -33,7 +33,7 @@ A header line gives the date and the open count (cards and lists that are on onl
 
 **Metric cards** (`today/MetricCards.jsx`), side by side. Each one is a headline number over its
 chart, with no separate stat tiles repeating the same numbers. They're hidden until there's data.
-- **Pipeline:** applied count and %, funnel bars, next deadline (`pickNextDeadline`).
+- **Pipeline:** applied count and %, funnel bars, next deadline (`pickNextDeadline`: open OAs, offer deadlines, upcoming interviews and job-board deadlines; ties go offer → OA → interview → job).
 - **Network:** contact count and how many are warm, plus the status donut.
 - **Outreach:** this week's interactions, the change from last week, and the 10-week trend.
 - **Rates** (PR #25), full width below the other three:
@@ -44,10 +44,12 @@ chart, with no separate stat tiles repeating the same numbers. They're hidden un
   - It replaced the Pipeline card's Applied → Phone Screen line.
 
 **Attention cards** (half width by default), in two columns balanced by visible row count:
+- **Decisions** (v1.4 spec 02, first by default): every app at Offer, soonest deadline first (`offerDecisions`), with a countdown; danger tone within 3 days. A row opens the offer decision view (see Pipeline).
 - **Replies drafted** (v1.4 spec 10): replies the Gmail scan wrote for you, each opening its Inbox thread.
 - **From your email:** AI action items, with "Dismiss all".
-- **People:** groups for Overdue follow-up, Awaiting reply, High urgency, Want to schedule and Keep in touch.
-- **Applications:** groups for OA due, Stale (14+ days without movement by default), Job boards to review (tech tracks) and OA deadline unknown.
+- **People:** groups for Send a thank-you, Overdue follow-up, Awaiting reply, High urgency, Want to schedule and Keep in touch.
+  - **Send a thank-you** (v1.4 spec 03, `thankYouDue`): an interview 0–48h ago (contact matched by `normalizeCompanyName`; shows even with nobody on file) or a Call/Meeting 0–2 days old, until an outbound Email/LinkedIn to that person. Draft opens `today/EmailDraft.jsx` on a template (AI rewrite behind `NeedsKey`); Sent it logs an outbound Email.
+- **Applications:** groups for Interviews coming up (`upcomingInterviews`, the next 14 days; a timed one leaves once it's over), OA due, Stale (14+ days without movement by default), Job boards to review (tech tracks) and OA deadline unknown.
 - **Events** (`today/EventAttentionSections.jsx` `EventsCard`): groups for signup steps due,
   registration closing and event follow-ups overdue, plus a footnote listing degraded feeds.
 
@@ -67,7 +69,7 @@ first-scan state (`lib/gmailScan.js`) plus rows that open the tracker and Linked
 - **Declutter** (`test/declutter.test.js`):
   - `trimActionItems` hides AI items already answered on the thread, long past due, or duplicated.
   - `todayPeople` (via `dedupeAcross`) keeps each contact in one People group. Priority: Overdue → Awaiting →
-    Schedule → High Urgency → Keep in Touch. A group that's turned off is skipped, so its people show in the next one.
+    Schedule → High Urgency → Keep in Touch, with Send a thank-you ahead of all of them. A group that's turned off is skipped, so its people show in the next one.
   - A row's ✕ snoozes it for 7 days, and a card's "Clear all" snoozes every row in the card.
     Snoozes live in `user_settings.today_prefs` (`lib/useTodayPrefs.js`), so they follow the account.
 - Full-size versions of the metric charts are also on Pipeline → Sheet → Flow (funnel) and
@@ -156,6 +158,14 @@ Views:
 
 Applications open in `panels/ApplicationPanelBody.jsx`, with stage timeline, OA fields (editable),
 referrer (`referred_by_id`, never overwritten once set) and warm paths (`lib/warmIntro.js`).
+Interview stages add **Next Interview** (date, optional time; `lib/dates.js` `inputsToInstant`),
+and the Offer stage adds **Offer** (`OfferForm`: decide-by date plus free-text details).
+
+**Offer decision view** (v1.4 spec 04, `panels/OfferPanelBody.jsx`): opens in place inside the
+application panel, from Today's Decisions row or "Compare and ask others to expedite →".
+- Edit each offer (chips switch between them); with 2+ offers, a side-by-side table of the facts, no scoring.
+- **Still in process** (`lib/offers.js` `inProcessRows`): interview stages plus Applied with activity in 30 days, furthest stage first, each with the first `warmPathsToCompany` contact.
+- **Ask to expedite** drafts (`expedite` kind in `lib/drafting.js`) name the earliest offer deadline. The offering company is never passed to the template or the prompt.
 
 **Sheet** (model in `lib/applicationSheet.js`):
 - Keyboard editing, with an optimistic overlay then `refreshApps()`.

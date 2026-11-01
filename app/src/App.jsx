@@ -8,6 +8,7 @@ import useRecruitingEvents from './lib/useRecruitingEvents.js'
 import useEventCalendarSync from './lib/useEventCalendarSync.js'
 import { useTargetCompanies } from './lib/useTargetCompanies.js'
 import LoginPage from './components/LoginPage.jsx'
+import LandingPage from './components/LandingPage.jsx'
 import { EmptyState } from './shared.jsx'
 import AppShell from './components/layout/AppShell.jsx'
 import SidePanel from './components/ui/SidePanel.jsx'
@@ -221,8 +222,13 @@ function NetworkTab({ contacts, apps, interactions, calls = [], contactRelations
 
 // ── Root ──────────────────────────────────────────────────────────────────────
 
-function AuthGate({ children }) {
+// authMode is set on /login and /signup. Signed out, those show the form and "/" shows the
+// landing page; signed in, they fold back to "/" so the URL matches the dashboard.
+function AuthGate({ authMode, children }) {
   const { user, profile, loading, profileLoading } = useAuth()
+  useEffect(() => {
+    if (user && authMode) window.history.replaceState(null, '', '/')
+  }, [user, authMode])
   if (loading || profileLoading) {
     return (
       <div className="min-h-screen bg-canvas flex items-center justify-center">
@@ -230,7 +236,7 @@ function AuthGate({ children }) {
       </div>
     )
   }
-  if (!user) return <LoginPage />
+  if (!user) return authMode ? <LoginPage initialMode={authMode} /> : <LandingPage />
   if (needsOnboarding(profile)) return <Suspense fallback={<DelayedFallback />}><OnboardingWizard /></Suspense>
   return children
 }
@@ -596,17 +602,20 @@ function DemoAppInner() {
   )
 }
 
+const AUTH_PATHS = { '/login': 'signin', '/signup': 'signup' }
+
 export default function App() {
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '/'
   const isDemo = pathname.startsWith('/demo')
   if (isDemo) return <DemoApp />
 
   // No client-side router — every real feature lives at "/" as tab state, so any other
-  // path (typo, dead link, stale bookmark) is genuinely unknown.
-  if (pathname !== '/') return <NotFoundPage path={pathname} />
+  // path besides the two auth forms (typo, dead link, stale bookmark) is genuinely unknown.
+  const authMode = AUTH_PATHS[pathname]
+  if (pathname !== '/' && !authMode) return <NotFoundPage path={pathname} />
 
   return (
-    <AuthGate>
+    <AuthGate authMode={authMode}>
       <AppInner />
     </AuthGate>
   )

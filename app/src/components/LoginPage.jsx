@@ -5,9 +5,9 @@ import { signInWithApiKey } from '../lib/apiKeyAuth.js'
 import Button from './ui/Button.jsx'
 import Input from './ui/Input.jsx'
 
-export default function LoginPage() {
+export default function LoginPage({ initialMode = 'signin' }) {
   const { signIn, signUp } = useAuth()
-  const [mode, setMode] = useState('signin') // 'signin' | 'signup'
+  const [mode, setMode] = useState(initialMode) // 'signin' | 'signup'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
@@ -25,8 +25,8 @@ export default function LoginPage() {
     try {
       if (mode === 'signup') {
         await signUp({ email, password, fullName })
+        switchMode('signin')
         setInfo('Check your email to confirm your account, then sign in.')
-        setMode('signin')
       } else {
         await signIn({ email, password })
       }
@@ -55,99 +55,105 @@ export default function LoginPage() {
     }
   }
 
+  function switchMode(next) {
+    setMode(next); setError(null); setInfo(null)
+    // Keep the URL in step so a reload (or a shared link) lands on the same form.
+    window.history.replaceState(null, '', next === 'signup' ? '/signup' : '/login')
+  }
+
+  const signup = mode === 'signup'
   return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <h1 className="font-heading text-2xl font-semibold text-ink-900">Recruiting OS</h1>
-          <p className="text-sm text-ink-400 mt-1">Your job search, on autopilot. Bring your own AI keys.</p>
-        </div>
+    <div className="min-h-screen bg-canvas flex flex-col px-4">
+      <header className="h-14 flex items-center max-w-6xl w-full mx-auto sm:px-2">
+        <a href="/" className="font-heading font-semibold tracking-tight text-ink-900">Recruiting OS</a>
+      </header>
 
-        <div className="bg-surface rounded-md border border-ink-300 p-6">
-          <div className="flex mb-5 rounded-full bg-ink-50 p-1 text-xs font-medium">
-            <button type="button" onClick={() => setMode('signin')}
-              className={`flex-1 py-1.5 rounded-full transition-colors ${mode === 'signin' ? 'bg-surface shadow-sm text-ink-900' : 'text-ink-400'}`}>
-              Sign in
+      <main className="flex-1 flex items-start sm:items-center justify-center py-10">
+        <div className="w-full max-w-[400px]">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight text-ink-900 text-center">
+            {signup ? 'Create your account' : 'Sign in to Recruiting OS'}
+          </h1>
+          <p className="text-sm text-ink-500 mt-2 text-center">
+            {signup ? 'Already have an account? ' : 'Don’t have an account? '}
+            <button type="button" onClick={() => switchMode(signup ? 'signin' : 'signup')}
+              className="font-medium text-link hover:underline underline-offset-2">
+              {signup ? 'Sign in' : 'Sign up'}
             </button>
-            <button type="button" onClick={() => setMode('signup')}
-              className={`flex-1 py-1.5 rounded-full transition-colors ${mode === 'signup' ? 'bg-surface shadow-sm text-ink-900' : 'text-ink-400'}`}>
-              Create account
-            </button>
-          </div>
+          </p>
 
-          {error && <div className="mb-3 p-2.5 bg-danger-50 border border-danger-200 rounded-lg text-xs text-danger-700">{error}</div>}
-          {info && <div className="mb-3 p-2.5 bg-success-50 border border-success-200 rounded-lg text-xs text-success-700">{info}</div>}
-
-          <form onSubmit={submit} className="space-y-3">
-            {mode === 'signup' && (
-              <Input label="Name" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Ada Lovelace" required />
-            )}
-            <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@school.edu" required />
-            <Input label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••" minLength={6} required />
-            <Button type="submit" disabled={busy} className="w-full">
-              {busy ? 'Please wait...' : mode === 'signup' ? 'Create account' : 'Sign in'}
+          <div className="mt-8 bg-surface border border-ink-200 rounded-lg p-6 sm:p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <Button type="button" variant="secondary" onClick={google}
+              className="w-full flex items-center justify-center gap-2.5 border-ink-200 font-medium">
+              <GoogleIcon /> Continue with Google
             </Button>
-          </form>
 
-          <div className="flex items-center gap-2 my-4">
-            <div className="flex-1 h-px bg-ink-100" />
-            <span className="text-[11px] text-ink-400">or</span>
-            <div className="flex-1 h-px bg-ink-100" />
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-ink-200" />
+              <span className="text-xs text-ink-500">or</span>
+              <div className="flex-1 h-px bg-ink-200" />
+            </div>
+
+            {error && <div role="alert" className="mb-4 px-3 py-2.5 bg-danger-50 border border-danger-200 rounded-md text-sm text-danger-700">{error}</div>}
+            {info && <div role="status" className="mb-4 px-3 py-2.5 bg-success-50 border border-success-200 rounded-md text-sm text-success-700">{info}</div>}
+
+            <form onSubmit={submit} className="space-y-4">
+              {signup && (
+                <Field label="Name" value={fullName} onChange={e => setFullName(e.target.value)} autoComplete="name" required />
+              )}
+              <Field label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required />
+              <Field label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)}
+                minLength={6} autoComplete={signup ? 'new-password' : 'current-password'}
+                hint={signup ? 'At least 6 characters.' : null} required />
+              <Button type="submit" disabled={busy} className="w-full">
+                {busy ? 'Please wait…' : signup ? 'Create account' : 'Sign in'}
+              </Button>
+            </form>
           </div>
 
-          <Button type="button" variant="secondary" onClick={google} className="w-full flex items-center justify-center gap-2">
-            <GoogleIcon /> Continue with Google
-          </Button>
+          <div className="mt-5 text-center">
+            {apiKeyMode ? (
+              <form onSubmit={useApiKey} className="text-left bg-surface border border-ink-200 rounded-lg p-5 space-y-3">
+                <Field label="Anthropic API key" type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
+                  placeholder="sk-ant-…" className="font-mono text-xs" autoFocus required
+                  hint="The same key always opens the same account. It’s also saved as your Anthropic key, so AI features work right away." />
+                <div className="flex gap-2">
+                  <Button type="submit" size="sm" disabled={apiKeyBusy} className="flex-1">
+                    {apiKeyBusy ? 'Signing in…' : 'Continue'}
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => { setApiKeyMode(false); setApiKey('') }}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <button type="button" onClick={() => setApiKeyMode(true)}
+                className="text-sm text-ink-600 hover:text-ink-900 underline underline-offset-2 decoration-ink-300">
+                Sign in with an Anthropic API key instead
+              </button>
+            )}
+          </div>
 
-          {apiKeyMode ? (
-            <form onSubmit={useApiKey} className="mt-3 space-y-2">
-              <Input
-                type="password"
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-                placeholder="sk-ant-..."
-                className="font-mono text-xs"
-                autoFocus
-                required
-              />
-              <div className="flex gap-2">
-                <Button type="submit" disabled={apiKeyBusy} className="flex-1">
-                  {apiKeyBusy ? 'Signing in...' : 'Continue with key'}
-                </Button>
-                <Button type="button" variant="ghost" onClick={() => { setApiKeyMode(false); setApiKey('') }}>
-                  Cancel
-                </Button>
-              </div>
-              <p className="text-[10px] text-ink-400">
-                Pasting the same key always signs you back into the same account — no password needed. We save it as your Anthropic key too, so you're set up immediately.
-              </p>
-            </form>
-          ) : (
-            <button type="button" onClick={() => setApiKeyMode(true)}
-              className="mt-3 w-full text-center text-xs font-medium text-ink-400 hover:text-link transition-colors py-1">
-              🔑 Or sign in with your Anthropic API key
-            </button>
-          )}
-
-          <a href="/demo"
-            className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
-              bg-accent-50 text-accent-700 border border-dashed border-accent-200
-              hover:bg-accent-100 hover:border-accent-300 transition-colors group">
-            <span>✨ Try the live demo</span>
-            <span className="text-accent-400 transition-transform group-hover:translate-x-0.5">→</span>
-          </a>
+          <p className="mt-10 text-sm text-ink-500 text-center">
+            Want to look around first? <a href="/demo" className="text-link hover:underline underline-offset-2">Try the demo</a>
+          </p>
         </div>
+      </main>
 
-        <p className="text-[11px] text-ink-400 text-center mt-4">
-          Every user brings their own Anthropic/OpenAI/Exa API keys — nothing is shared. You'll add yours after signing in.
-        </p>
-        <p className="text-[11px] text-ink-400 text-center mt-3 space-x-3">
-          <a href="/privacy.html" className="underline underline-offset-2 hover:text-link">Privacy Policy</a>
-          <a href="/terms.html" className="underline underline-offset-2 hover:text-link">Terms of Service</a>
-        </p>
-      </div>
+      <footer className="py-6 text-xs text-ink-500 text-center space-x-4">
+        <a href="/privacy.html" className="hover:text-ink-900 transition-colors">Privacy</a>
+        <a href="/terms.html" className="hover:text-ink-900 transition-colors">Terms</a>
+      </footer>
     </div>
+  )
+}
+
+function Field({ label, hint, className = '', ...rest }) {
+  return (
+    <label className="block">
+      <span className="block text-sm font-medium text-ink-800 mb-1.5">{label}</span>
+      <Input className={`py-2 px-3 rounded-md border-ink-200 bg-surface ${className}`} {...rest} />
+      {hint && <span className="block text-xs text-ink-500 mt-1.5 leading-relaxed">{hint}</span>}
+    </label>
   )
 }
 
