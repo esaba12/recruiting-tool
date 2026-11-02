@@ -24,6 +24,12 @@ export async function llmForUser(userId, aiProvider) {
   return pickLlm(aiProvider, { anthropic, openai })
 }
 
+// gpt-5-mini reasons at 'medium' by default, and reasoning tokens count against
+// max_completion_tokens: on a long email it spent the whole budget thinking and returned an
+// empty message ("No JSON in OpenAI response"). Classification needs no deliberation.
+// gpt-5.1 already defaults to no reasoning. Mirrored in src/lib/openai.js.
+export const OPENAI_REASONING = { 'gpt-5-mini': 'minimal' }
+
 export async function completeJSON(llm, { tier = 'mini', prompt, maxTokens = 1000, fetch = globalThis.fetch }) {
   const model = SERVER_MODELS[llm.provider][tier]
   const res = llm.provider === 'openai'
@@ -32,6 +38,7 @@ export async function completeJSON(llm, { tier = 'mini', prompt, maxTokens = 100
         headers: { authorization: `Bearer ${llm.apiKey}`, 'content-type': 'application/json' },
         body: JSON.stringify({
           model, max_completion_tokens: maxTokens, response_format: { type: 'json_object' },
+          ...(OPENAI_REASONING[model] ? { reasoning_effort: OPENAI_REASONING[model] } : {}),
           messages: [{ role: 'user', content: prompt }],
         }),
       })

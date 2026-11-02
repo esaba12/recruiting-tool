@@ -73,6 +73,7 @@ Do this first. B–D don't depend on it, but 03 and the Gmail half of D do.
   an external pinger is needed. Without it, no one's connected Gmail is ever scanned.
   The endpoint answers **202** at once and finishes the scan in the background (`waitUntil`), because
   cron-job.org's free tier times out at 30 s and a scan can take up to 240 s. Add `?wait=1` to a manual curl to get the JSON summary.
+  Each scan claims its mailbox first (`gmail_tokens.scan_claimed_at`, 300 s lease), so overlapping runs skip it (`skipped: 'in_progress'`) instead of sharing Gmail's per-user quota.
   **Check:** first run it once by hand,
   `! curl -s -X POST -H "x-cron-secret: $CRON_SECRET" https://<prod-domain>/api/gmail`,
   which should return JSON with a per-connection summary. Then confirm the cron-job.org

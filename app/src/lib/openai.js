@@ -26,6 +26,10 @@ export const OPENAI_MODELS = {
 // rejected on reasoning-tuned routes) and `response_format: {type:'json_object'}` for
 // JSON mode — the prompt itself must still ask for JSON (already true of every prompt
 // this proxies, carried over verbatim from the Claude call sites).
+// Reasoning tokens count against max_completion_tokens, and gpt-5-mini defaults to 'medium',
+// so a long input can end with an empty reply. Same table as api/_lib/llm.js.
+const OPENAI_REASONING = { 'gpt-5-mini': 'minimal' }
+
 async function callOpenAI({ model, content, maxTokens = 1000, json = false }) {
   assertKey('openai')
   const res = await fetch('/openai-api/v1/chat/completions', {
@@ -35,6 +39,7 @@ async function callOpenAI({ model, content, maxTokens = 1000, json = false }) {
       model,
       messages: [{ role: 'user', content }],
       max_completion_tokens: maxTokens,
+      ...(OPENAI_REASONING[model] ? { reasoning_effort: OPENAI_REASONING[model] } : {}),
       ...(json ? { response_format: { type: 'json_object' } } : {}),
     }),
   })

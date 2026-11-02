@@ -32,6 +32,10 @@ const NEW_CONNECTION_MARGIN_MS = 30 * 1000
 // well under the function limit. Later ticks of the cron continue a partial first pass.
 const USER_SCAN_BUDGET_MS = 60 * 1000
 const USER_ACTIONS = new Set(['test-push', 'scan-mine'])
+// A scan claims its mailbox first, so overlapping runs (a slow tick, a manual test run,
+// "Scan now") skip it instead of doubling up on Gmail's per-user quota. A claim older than
+// the function limit belongs to a run that died, so it's free again.
+const CLAIM_TTL_MS = 300 * 1000
 
 function errorPage(res, status, message) {
   res.writeHead(status, { 'Content-Type': 'text/html' })
@@ -158,6 +162,12 @@ async function scanConnections(db, connections, { deadline }) {
       results.push({ email: conn.connected_email, skipped: 'cooldown', lastScannedAt: conn.last_scanned_at })
       continue
     }
+    const claim = await claimConnection(db, conn)
+    if (claim === 'busy') {
+      results.push({ email: conn.connected_email, skipped: 'in_progress' })
+      continue
+    }
+    const release = claim === 'claimed' ? { scan_claimed_at: null } : {}
     try {
       const { threadProgress, scanned, failed, partial, cursor, skipped, pushes = [] } = await scanGmailConnection(conn, { deadline })
       pushesByUser.get(conn.user_id).push(...pushes)
@@ -165,15 +175,35 @@ async function scanConnections(db, connections, { deadline }) {
       // Settings and onboarding don't claim otherwise.
       if (skipped !== 'no_ai_key') {
         await db.from('gmail_tokens')
-          .update({ thread_progress: threadProgress, scan_cursor: cursor ?? null, last_scanned_at: new Date().toISOString() })
+          .update({ thread_progress: threadProgress, scan_cursor: cursor ?? null, last_scanned_at: new Date().toISOString(), ...release })
           .eq('id', conn.id)
+      } else if (claim === 'claimed') {
+        await db.from('gmail_tokens').update(release).eq('id', conn.id)
       }
       results.push({ email: conn.connected_email, scanned, failed, partial, cursor, ...(skipped ? { skipped } : {}) })
     } catch (e) {
+      if (claim === 'claimed') await db.from('gmail_tokens').update(release).eq('id', conn.id)
       results.push({ email: conn.connected_email, error: e.message })
     }
   }
   return { results, pushesByUser }
+}
+
+// One conditional update, so two runs can't both win: it only matches while the mailbox is
+// unclaimed or its claim is stale. 'unsupported' = the column isn't migrated yet; scan as before.
+async function claimConnection(db, conn) {
+  const now = new Date()
+  const cutoff = new Date(now.getTime() - CLAIM_TTL_MS).toISOString()
+  const { data, error } = await db.from('gmail_tokens')
+    .update({ scan_claimed_at: now.toISOString() })
+    .eq('id', conn.id)
+    .or(`scan_claimed_at.is.null,scan_claimed_at.lt.${cutoff}`)
+    .select('id')
+  if (error) {
+    console.error(`Scan claim for ${conn.connected_email} failed: ${error.message}`)
+    return 'unsupported'
+  }
+  return data?.length ? 'claimed' : 'busy'
 }
 
 async function flushPushes(db, pushesByUser, { deadline, click }) {

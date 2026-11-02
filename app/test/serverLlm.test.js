@@ -47,6 +47,14 @@ describe('completeJSON', () => {
     })
   })
 
+  it('asks gpt-5-mini for minimal reasoning so it never spends the whole budget thinking', async () => {
+    const fetch = vi.fn(async () => okJson({ choices: [{ message: { content: '{}' } }] }))
+    await completeJSON({ provider: 'openai', apiKey: 'k' }, { tier: 'mini', prompt: 'p', maxTokens: 800, fetch })
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({ model: 'gpt-5-mini', reasoning_effort: 'minimal' })
+    await completeJSON({ provider: 'openai', apiKey: 'k' }, { tier: 'standard', prompt: 'p', fetch })
+    expect(JSON.parse(fetch.mock.calls[1][1].body).reasoning_effort).toBeUndefined()
+  })
+
   it('throws on an HTTP error and on a reply with no JSON', async () => {
     const bad = vi.fn(async () => ({ ok: false, status: 401, text: async () => 'nope' }))
     await expect(completeJSON({ provider: 'openai', apiKey: 'k' }, { tier: 'mini', prompt: 'p', fetch: bad })).rejects.toThrow('401')

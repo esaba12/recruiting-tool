@@ -2,7 +2,7 @@
 // instead of waiting up to 10 minutes for the cron tick, so onboarding ends with data on screen.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const state = vi.hoisted(() => ({ user: null, tokens: [], updates: [], scanned: [], limited: false, background: [] }))
+const state = vi.hoisted(() => ({ user: null, tokens: [], updates: [], scanned: [], limited: false, background: [], claims: [], noClaimColumn: false }))
 
 vi.mock('../api/_lib/supabaseAdmin.js', () => {
   // Minimal chainable query: select('*').eq('user_id', id) filters tokens; update().eq() records.
@@ -15,7 +15,17 @@ vi.mock('../api/_lib/supabaseAdmin.js', () => {
         order: () => api,
         maybeSingle: async () => ({ data: null, error: null }),
         update: patch => { q.patch = patch; return api },
+        or: expr => { q.or = expr; return api },
         then: (resolve) => {
+          if (q.patch && q.or) {
+            // The claim: update ... where id = X and (scan_claimed_at is null or < cutoff).
+            if (state.noClaimColumn) return resolve({ data: null, error: { code: '42703', message: 'column "scan_claimed_at" does not exist' } })
+            const cutoff = q.or.match(/lt\.(.+)$/)[1]
+            const row = state.tokens.find(t => q.filters.every(([c, v]) => t[c] === v))
+            const free = row && (!row.scan_claimed_at || row.scan_claimed_at < cutoff)
+            if (free) { row.scan_claimed_at = q.patch.scan_claimed_at; state.claims.push(row.connected_email) }
+            return resolve({ data: free ? [{ id: row.id }] : [], error: null })
+          }
           if (q.patch) { state.updates.push({ table, patch: q.patch, filters: q.filters }); return resolve({ error: null }) }
           const rows = table === 'gmail_tokens' ? state.tokens.filter(t => q.filters.every(([c, v]) => t[c] === v)) : []
           return resolve({ data: rows, error: null })
@@ -62,7 +72,7 @@ beforeEach(() => {
     { id: 1, user_id: 'u1', connected_email: 'me@x.com', last_scanned_at: null },
     { id: 2, user_id: 'u2', connected_email: 'other@x.com', last_scanned_at: null },
   ]
-  state.updates = []; state.scanned = []; state.limited = false; state.background = []
+  state.updates = []; state.scanned = []; state.limited = false; state.background = []; state.claims = []; state.noClaimColumn = false
 })
 
 describe('POST /api/gmail?action=scan-mine', () => {
@@ -96,7 +106,8 @@ describe('POST /api/gmail?action=scan-mine', () => {
     const res = mockRes()
     await handler(scanMine(), res)
     expect(res.body.results[0]).toMatchObject({ skipped: 'no_ai_key' })
-    expect(state.updates).toEqual([])
+    expect(state.updates.filter(u => 'last_scanned_at' in u.patch)).toEqual([])
+    expect(state.updates.at(-1).patch).toEqual({ scan_claimed_at: null }) // claim released
   })
 
   it('is rate limited on its own tier', async () => {
@@ -141,5 +152,39 @@ describe('POST /api/gmail (cron)', () => {
     expect(res.statusCode).toBe(401)
     expect(state.background).toEqual([])
     expect(state.scanned).toEqual([])
+  })
+})
+
+// Overlapping runs (a slow tick, a manual test run, "Scan now") must not scan the same mailbox
+// at once: together they blew through Gmail's per-user quota (403) on 2026-11-02.
+describe('per-mailbox scan claim', () => {
+  it('skips a mailbox another run is scanning right now', async () => {
+    state.tokens[0].scan_claimed_at = new Date(Date.now() - 60000).toISOString()
+    const res = mockRes()
+    await handler(scanMine(), res)
+    expect(state.scanned).toEqual([])
+    expect(res.body.results[0]).toMatchObject({ email: 'me@x.com', skipped: 'in_progress' })
+  })
+
+  it('takes over a stale claim from a run that died', async () => {
+    state.tokens[0].scan_claimed_at = new Date(Date.now() - 10 * 60000).toISOString()
+    const res = mockRes()
+    await handler(scanMine(), res)
+    expect(state.scanned).toEqual(['me@x.com'])
+  })
+
+  it('claims before scanning and releases with the result', async () => {
+    const res = mockRes()
+    await handler(scanMine(), res)
+    expect(state.claims).toEqual(['me@x.com'])
+    expect(state.updates[0].patch).toMatchObject({ scan_claimed_at: null, last_scanned_at: expect.any(String) })
+  })
+
+  it('still scans before the column exists (code deployed ahead of the migration)', async () => {
+    state.noClaimColumn = true
+    const res = mockRes()
+    await handler(scanMine(), res)
+    expect(state.scanned).toEqual(['me@x.com'])
+    expect(state.updates[0].patch).not.toHaveProperty('scan_claimed_at')
   })
 })

@@ -444,7 +444,7 @@ export default function SettingsTab({ onDone, returnLabel = 'Today', demoMode = 
           {!gmailScan.scanning && gmailScan.lastScan && (
             <span className="text-[11px] text-ink-400">
               Scanned {gmailScan.lastScan.results.reduce((n, r) => n + (r.scanned || 0), 0)} new threads
-              {gmailScan.lastScan.results.some(r => r.skipped === 'cooldown') ? ' (scanned in the last 10 minutes, so some were skipped)' : ''}
+              {gmailScan.lastScan.results.some(r => r.skipped === 'cooldown' || r.skipped === 'in_progress') ? ' (some were skipped: scanned in the last 10 minutes or being scanned now)' : ''}
             </span>
           )}
         </div>
