@@ -14,7 +14,7 @@ The pre-invite set (06, 05, 01, 07) changes what a friend sees in their first fi
 it's worth doing while you finish v1.3 spec 02's console steps, which gate the invite anyway.
 02–04 matter right now for your own season: interviews and offers come in October through December.
 
-## Where we are (2026-10-23, after PR #27): checklist
+## Where we are (2026-11-02, after PRs #32–#34 and the owner console session): checklist
 
 🤖 = Claude can do it · 👤 = owner (console, inbox, approvals)
 
@@ -47,13 +47,22 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 - [ ] 🤖 After a week: check the cost (drafts run on the standard tier, ≤8 per mailbox per run) and
   how many drafts get dismissed vs. used. Tune the `needs_reply` wording if it over-drafts.
 
-### Blocking the friends invite (unchanged)
-- [ ] 👤 [v1.3 spec 02](../v1.3-launch-and-cleanup/02-owner-runbook.md) console steps: Google
-  Cloud A1–A4, cron D1, Gmail D2, SMTP B2, Sentry C2
-- [x] 🤖 v1.3 spec 02 B1: `site_url` in `supabase/config.toml` is the prod URL (`032fbd3`). 👤 still runs `supabase config push`
-- [x] 🤖 v1.3 spec 02 C1: dead Vercel env vars listed in the runbook (production + Preview). 👤 runs the removal
-- [ ] 👤 Live first inbox scan after a real Gmail connect (07's last unverified item)
-- [ ] Then [v1.3 spec 04](../v1.3-launch-and-cleanup/04-launch-week.md) (launch week)
+### Blocking the friends invite
+- [x] 👤 [v1.3 spec 02](../v1.3-launch-and-cleanup/02-owner-runbook.md) console steps, done 2026-11-02:
+  Google Cloud A1–A4 (3 scopes, Gmail API, 5 redirect URIs, **published to Production unverified**),
+  B1 `supabase config push` (`site_url` = prod), C1 dead env vars removed (production clean; Preview
+  keeps three harmless Notion DB ids), C3 CLI on 65.x, D1 cron-job.org every 10 min, D2 the owner's two
+  mailboxes connected
+- [x] 👤 Live first inbox scan after a real Gmail connect (07's last unverified item): ran 2026-11-02,
+  70 threads classified on the first pass (partial backfill, continues each tick)
+- [x] 🤖 Fixes found by that first live scan (2026-11-02):
+  - PR #33: the cron answers **202** and scans under `waitUntil` (cron-job.org's free tier times out at 30 s; a scan takes up to 240 s). `?wait=1` returns the JSON summary
+  - PR #34: `reasoning_effort: 'minimal'` for gpt-5-mini (it spent its token budget reasoning and returned no JSON), and a per-mailbox scan claim (`scan_claimed_at`, migration `20261102000000_gmail_scan_claim.sql`, pushed 2026-11-02) so overlapping runs stop hitting Gmail's per-user 403 quota
+- [ ] 🤖 Confirm the cron over the next ticks: no `No JSON` / 403 failures, and the backlog of failed threads (105 on the 21:50 tick) drains
+- [ ] 👤 Settings: reconnect your calendar (tokens issued in Testing mode still expire after 7 days) and set call hours
+- [ ] 👤 v1.3 spec 02 **B2** custom SMTP (Resend), then 🤖 raises `email_sent` to 30 and 👤 repeats `supabase config push`
+- [ ] 👤 v1.3 spec 02 **C2** Sentry DSN, then 🤖 redeploys
+- [ ] Then [v1.3 spec 03](../v1.3-launch-and-cleanup/03-recruiting-calendar-roundtrip.md) (calendar round trip, now unblocked) and [04](../v1.3-launch-and-cleanup/04-launch-week.md) (launch week)
 
 ### Next code
 - [x] 🤖 [08](08-custom-today.md) rearrangeable Today, built on `feat/v1.4-custom-today`. The registry units are PR #22's cards (Rates and Replies drafted included), and their lists are toggles. Checked on `/demo` (desktop, 390px, keyboard, dark).

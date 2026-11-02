@@ -25,13 +25,13 @@ files: the project is at the Vercel Hobby limit of 12 functions.
 | # | Spec | Who | Status |
 |---|------|-----|--------|
 | 01 | [Merge `feat/demo-refresh`](01-merge-demo-refresh.md) | owner | ✅ merged 2026-10-17 (PR #9) |
-| 02 | [Owner runbook: Google Cloud, Supabase, Vercel, cron](02-owner-runbook.md) | owner (🤖 where marked) | open |
-| 03 | [Recruiting calendar live round trip](03-recruiting-calendar-roundtrip.md) | owner + 🤖 | blocked on 02 (Google scopes) |
-| 04 | [Launch week: smoke test, invite, soft launch](04-launch-week.md) | owner + 🤖 | blocked on 02 |
+| 02 | [Owner runbook: Google Cloud, Supabase, Vercel, cron](02-owner-runbook.md) | owner (🤖 where marked) | mostly done 2026-11-02: A1–A4, B1, C1, C3, D1, D2 ✅; open: B2 SMTP, C2 Sentry, D3 load watch |
+| 03 | [Recruiting calendar live round trip](03-recruiting-calendar-roundtrip.md) | owner + 🤖 | unblocked 2026-11-02 (scopes + publish done) |
+| 04 | [Launch week: smoke test, invite, soft launch](04-launch-week.md) | owner + 🤖 | blocked on 02 B2 (SMTP) |
 | 05 | [Small code follow-ups](05-code-followups.md) | 🤖 | ✅ merged 2026-10-17 (PR #13); Job Boards keep-alive verified on `/demo` 2026-10-18 |
 | 06 | [Prune + refactor](06-prune-and-refactor.md) | 🤖 | ✅ merged 2026-10-17 (PR #13); branch cleanup done except the `demo-refresh` worktree (01 step 4); E items are later |
 | 07 | [Docs restructure (slim CLAUDE.md)](07-docs-restructure.md) | 🤖 | ✅ merged 2026-10-17 (PR #13) |
-| 08 | [Retire the Apps Script email pipeline](08-email-pipeline-consolidation.md) | 🤖 after 02's cron | missing features merged 2026-10-19 (PR #19: pushes, interview events); cutover waits on a week of the cron |
+| 08 | [Retire the Apps Script email pipeline](08-email-pipeline-consolidation.md) | 🤖 after 02's cron | missing features merged 2026-10-19 (PR #19: pushes, interview events); cutover waits on a week of the cron (cron live 2026-11-02, so earliest ~2026-11-09) |
 | 09 | [Split the bundle by tab](09-bundle-split.md) | 🤖 | ✅ merged 2026-10-18 (PR #18): entry 1,985 → 469 KB + 357 KB vendor, no build warning |
 | 10 | [Gmail scan budget + incremental discovery](10-scan-budget.md) | 🤖, one `db push` | ✅ merged 2026-10-18 (PR #18), migration live; prod check waits on 02 D1/D2 |
 | 11 | [Per-message dedup for logged emails](11-interaction-dedup.md) | 🤖, one `db push` + `clasp push` | ✅ merged 2026-10-18 (PR #18), migration + Apps Script live. 02 D2 is now safe |

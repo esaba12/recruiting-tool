@@ -68,7 +68,7 @@ Do this first. B–D don't depend on it, but 03 and the Gmail half of D do.
 
 ## D. Gmail scan driver
 
-- [ ] **D1. cron-job.org** (free): `POST https://<prod-domain>/api/gmail` every 10 min, with
+- [x] **D1. cron-job.org** (free): `POST https://<prod-domain>/api/gmail` every 10 min, with
   header `x-cron-secret: <CRON_SECRET>`. Vercel Hobby's own cron only runs daily, which is why
   an external pinger is needed. Without it, no one's connected Gmail is ever scanned.
   The endpoint answers **202** at once and finishes the scan in the background (`waitUntil`), because
@@ -78,11 +78,20 @@ Do this first. B–D don't depend on it, but 03 and the Gmail half of D do.
   `! curl -s -X POST -H "x-cron-secret: $CRON_SECRET" https://<prod-domain>/api/gmail`,
   which should return JSON with a per-connection summary. Then confirm the cron-job.org
   history shows 200s, and Vercel → Logs shows `/api/gmail` every 10 min.
-- [ ] **D2. Connect your own Gmail** (Settings → "+ Connect another Gmail account"). Needs A1–A3, and **spec [11](11-interaction-dedup.md) merged first**: without it, the first scan re-logs 45 days of threads the Apps Script already logged.
+- [x] **D2. Connect your own Gmail** (Settings → "+ Connect another Gmail account"). Needs A1–A3, and **spec [11](11-interaction-dedup.md) merged first**: without it, the first scan re-logs 45 days of threads the Apps Script already logged.
   **Check:** after the next cron tick, Inbox shows the last few days of threads.
 - [ ] **D3. Watch the load** (the fix is now spec [10](10-scan-budget.md); this box is just the check) once about 10 accounts are connected. Each scan loops over every
   connection, so compare the function duration against the 300s default. If it gets close,
   scan oldest-`last_scan_at`-first with a per-run cap, inside `api/gmail.js`. No new file.
+
+## Status (2026-11-02)
+
+Done: A1–A4, B1, C1, C3, D1 (cron-job.org test run → 202, background summary in Vercel logs), D2
+(the owner's two mailboxes connected; first scan classified 70 threads).
+Open: **B2** SMTP, **C2** Sentry, **B3** optional cleanup, **D3** load watch at ~10 accounts.
+Preview still has `CALLS_DB_ID`, `APPS_DB_ID`, `LC_DB_ID` (Notion DB ids, not secrets; only the
+local migration script reads them, from the root `.env`). Remove with
+`vercel env rm <name> --environment preview -y` if you want Preview empty.
 
 ## Done when
 

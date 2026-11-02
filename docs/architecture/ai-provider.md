@@ -4,6 +4,8 @@
 
 > **Server side (2026-10-19, v1.4 spec 06 B):** the Gmail scan's classifier and the push recap run with no browser, so they use `api/_lib/llm.js` instead of `lib/ai.js`. Same tiers (`mini`/`standard`) and the same OpenAI request shape. It picks `profiles.ai_provider`'s key and falls back to the user's other key, so a scan only skips (`skipped: 'no_ai_key'`) when the user has neither.
 
+> **Reasoning effort (2026-11-02, PR #34):** gpt-5-mini defaults to `reasoning_effort: medium`, and reasoning tokens count against `max_completion_tokens`. On long emails the classifier spent its whole budget reasoning and returned empty content ("No JSON in OpenAI response"). Both `api/_lib/llm.js` (`OPENAI_REASONING`) and `src/lib/openai.js` now send `reasoning_effort: 'minimal'` for gpt-5-mini. gpt-5.1 defaults to no reasoning and gets nothing extra.
+
 ## AI Provider Switch (shipped 2026-07-22, defaults flipped 2026-07-23)
 
 > **Current (2026-10-12+):** the provider is per user, picked in Settings → AI provider (`profiles.ai_provider` → `lib/aiProvider.js` → `setAiProvider()` from `AuthContext`). `VITE_AI_PROVIDER` is only the default for users who haven't chosen one. The env-var instructions below still work but are no longer the main switch.

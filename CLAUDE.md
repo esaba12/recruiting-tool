@@ -115,7 +115,9 @@ Pipeline · Calendar**, with Settings in the sidebar footer. `/demo` shows every
 - PostgREST caps responses at 1,000 rows, so page with `.range()` (see `fetchLearning`).
 - Anthropic rejects proxied calls that carry the browser's `Origin`: proxies build fresh headers.
 - `events.umich.edu` (Cloudflare) challenges server fetches at random, so ingestion falls back to a browser relay, and relayed payloads are host-validated.
-- Google OAuth consent screen: unverified apps are capped at 100 users; Testing mode means 7-day refresh tokens. The verification decision is in `docs/architecture/google-calendar.md`.
+- Google OAuth consent screen: published to Production **unverified** (2026-11-02), so users click through "Google hasn't verified this app" and sign-ups are capped at 100. Tokens issued while it was in Testing still expire after 7 days until that account reconnects. The verification decision is in `docs/architecture/google-calendar.md`.
+- Gmail scan cron (cron-job.org, every 10 min, `x-cron-secret`): `POST /api/gmail` answers **202** and scans under `waitUntil`, since the pinger times out at 30 s. `?wait=1` returns the summary. Each mailbox is claimed first (`gmail_tokens.scan_claimed_at`, 300 s lease) so overlapping runs skip it instead of tripping Gmail's per-user quota (403).
+- OpenAI gpt-5-mini is a reasoning model: reasoning tokens count against `max_completion_tokens`, so both `api/_lib/llm.js` and `src/lib/openai.js` send `reasoning_effort: 'minimal'` (an empty reply = "No JSON in OpenAI response").
 - pdf.js under the CSP: no `unsafe-eval`, so `getDocument` needs `isEvalSupported: false`. The worker comes from a same-origin `?url` import, and cleanup is `loadingTask.destroy()` (pdf.js 6 has no `doc.destroy()`).
 - Reply drafts are scan-written only (`email_drafts` has no client insert policy). Slot math is pure in `src/lib/availability.js` and shared by server and client.
 - ICS invites: read fields only from the `VEVENT` block (`VTIMEZONE` has its own `DTSTART`). Server-side, convert `TZID` times through `api/_lib/ics.js` (Vercel runs in UTC).
@@ -124,7 +126,7 @@ Pipeline · Calendar**, with Settings in the sidebar footer. `/demo` shows every
 
 ## Known issues
 
-- Google refresh tokens expire every 7 days while the consent screen is in Testing mode. Fix: publish (v1.3 spec 02 A4).
+- Calendar/Gmail connections made before 2026-11-02 (Testing mode) still have 7-day refresh tokens; reconnecting in Settings fixes each one.
 - Two email pipelines with duplicated classifier prompts (`INTERVIEW_VS_NETWORKING` in both). Keep them in sync until v1.3 spec 08 lands.
 
 ## docs/architecture index

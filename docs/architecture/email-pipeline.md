@@ -49,3 +49,10 @@ The pipeline can push a real phone notification instead of relying on you to not
 - **Draft.** `draftReply` runs on the standard tier, using the last 3 messages with quoted history stripped, the classifier summary, the profile, and up to 3k chars of `profiles.resume_text`. It's written to `email_drafts` with ignore-duplicates, so a draft the user dismissed or finished never comes back. A newer message in the thread dismisses the older pending draft.
 - **Settling.** When the user replies themselves (the thread's newest message is theirs), the next scan marks that thread's pending drafts `done`.
 - **Never sends.** Inbox shows the draft under the thread (edit, Copy, "Copy & open in Gmail", Dismiss), and Today lists them in the "Replies drafted" card. The Apps Script pipeline doesn't draft, so its prompt needs no `needs_reply`/`reply_intent` mirror.
+
+### Serverless scan: cron, claims, first live run (2026-11-02)
+
+- **Driver:** cron-job.org every 10 min → `POST /api/gmail` with `x-cron-secret`. The handler checks the secret, answers **202**, and runs the scan under `waitUntil` (`@vercel/functions`), since the pinger's 30 s timeout is far below the 240 s scan budget. `?wait=1` holds the response for the JSON summary (manual curls). The summary is logged as `[gmail scan] {...}`.
+- **Claim:** before touching a mailbox the scan sets `gmail_tokens.scan_claimed_at` with one conditional update (null or older than 300 s). Another run that loses skips it as `skipped: 'in_progress'`; the claim is cleared when the result is saved, and a dead run's claim expires. Without it, a slow tick plus manual runs scanned one mailbox at once and got Gmail 403 "Units per minute per user".
+- **First live run:** both of the owner's mailboxes, 70 threads classified on the first (partial) backfill. Failed threads keep their old `thread_progress` and hold the cursor, so they're retried; nothing is skipped for good.
+
