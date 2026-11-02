@@ -3,13 +3,17 @@
 // to stay under Vercel Hobby's 12-serverless-function cap. Routed by request shape, not a
 // single concern per file:
 //   GET  ?code=...|error=...          -> OAuth callback (Google's redirect target, unauthenticated)
-//   POST (x-cron-secret header)       -> periodic scan (external pinger, unauthenticated)
+//   POST (x-cron-secret header)       -> periodic scan (external pinger, unauthenticated).
+//                                        Answers 202 at once and scans under waitUntil, since
+//                                        the pinger's timeout (30 s) is far below a scan (≤240 s).
+//                                        ?wait=1 holds the response for the JSON summary.
 //   GET  ?action=start                -> requireUser() -> kick off the OAuth redirect
 //   GET  (no action)                  -> requireUser() -> list this user's connections
 //   POST ?action=scan-mine            -> requireUser() -> scan this user's mailboxes now
 //   POST ?action=test-push            -> requireUser() -> send a test ntfy push
 //   DELETE ?email=...                 -> requireUser() -> disconnect one connection
 import crypto from 'crypto'
+import { waitUntil } from '@vercel/functions'
 import { requireUser, supabaseAdmin } from './_lib/supabaseAdmin.js'
 import { encrypt, decrypt } from './_lib/crypto.js'
 import { checkRateLimit, sendRateLimited } from './_lib/rateLimit.js'
@@ -120,9 +124,21 @@ async function handleScan(req, res) {
   if (error) return res.status(500).json({ error: { message: error.message } })
 
   const deadline = Date.now() + SCAN_BUDGET_MS
-  const { results, pushesByUser } = await scanConnections(db, connections || [], { deadline })
-  const pushes = await flushPushes(db, pushesByUser, { deadline, click: baseUrl(req) })
-  res.status(200).json({ results, pushes })
+  const run = (async () => {
+    const { results, pushesByUser } = await scanConnections(db, connections || [], { deadline })
+    const pushes = await flushPushes(db, pushesByUser, { deadline, click: baseUrl(req) })
+    return { results, pushes }
+  })()
+
+  if (req.query.wait) return res.status(200).json(await run)
+
+  // The deadline above is measured from now, and waitUntil keeps the function alive until
+  // the scan settles (still inside the 300 s limit), so acking first loses nothing.
+  waitUntil(run.then(
+    summary => console.log('[gmail scan]', JSON.stringify(summary)),
+    e => console.error('[gmail scan] failed', e),
+  ))
+  res.status(202).json({ accepted: true, connections: (connections || []).length })
 }
 
 // Scans each connection that isn't cooling down, within `deadline`, saving progress per
