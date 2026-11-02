@@ -1,8 +1,8 @@
 // v1.4 spec 07: POST /api/gmail?action=scan-mine scans the signed-in user's own mailboxes now,
 // instead of waiting up to 10 minutes for the cron tick, so onboarding ends with data on screen.
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const state = vi.hoisted(() => ({ user: null, tokens: [], updates: [], scanned: [], limited: false }))
+const state = vi.hoisted(() => ({ user: null, tokens: [], updates: [], scanned: [], limited: false, background: [] }))
 
 vi.mock('../api/_lib/supabaseAdmin.js', () => {
   // Minimal chainable query: select('*').eq('user_id', id) filters tokens; update().eq() records.
@@ -36,6 +36,7 @@ vi.mock('../api/_lib/emailPipeline.js', () => ({
   },
 }))
 vi.mock('../api/_lib/pushes.js', () => ({ runUserPushes: async () => ({ skipped: 'no_topic' }), pushSettingsFor: async () => null, sendPush: async () => true }))
+vi.mock('@vercel/functions', () => ({ waitUntil: p => { state.background.push(p) } }))
 vi.mock('../api/_lib/llm.js', () => ({ llmForUser: async () => null }))
 vi.mock('../api/_lib/rateLimit.js', () => ({
   checkRateLimit: async (_u, tier) => ({ limited: tier === 'SCAN' && state.limited, retryAfter: 60 }),
@@ -61,7 +62,7 @@ beforeEach(() => {
     { id: 1, user_id: 'u1', connected_email: 'me@x.com', last_scanned_at: null },
     { id: 2, user_id: 'u2', connected_email: 'other@x.com', last_scanned_at: null },
   ]
-  state.updates = []; state.scanned = []; state.limited = false
+  state.updates = []; state.scanned = []; state.limited = false; state.background = []
 })
 
 describe('POST /api/gmail?action=scan-mine', () => {
@@ -103,6 +104,42 @@ describe('POST /api/gmail?action=scan-mine', () => {
     const res = mockRes()
     await handler(scanMine(), res)
     expect(res.statusCode).toBe(429)
+    expect(state.scanned).toEqual([])
+  })
+})
+
+// The external pinger (cron-job.org free tier) gives up after 30 s, but a scan may take 240 s,
+// so the cron path acks at once and finishes under waitUntil.
+describe('POST /api/gmail (cron)', () => {
+  const cron = (query = {}) => ({ method: 'POST', query, headers: { host: 'app.example.com', 'x-cron-secret': 'cron-test-secret' } })
+  let prev
+  beforeEach(() => { prev = process.env.CRON_SECRET; process.env.CRON_SECRET = 'cron-test-secret' })
+  afterEach(() => { process.env.CRON_SECRET = prev })
+
+  it('answers 202 before the scan runs, then finishes it under waitUntil', async () => {
+    const res = mockRes()
+    await handler(cron(), res)
+    expect(res.statusCode).toBe(202)
+    expect(res.body).toEqual({ accepted: true, connections: 2 })
+    expect(state.background).toHaveLength(1)
+    await state.background[0]
+    expect(state.scanned.sort()).toEqual(['me@x.com', 'other@x.com'])
+    expect(state.updates.filter(u => u.table === 'gmail_tokens')).toHaveLength(2)
+  })
+
+  it('?wait=1 holds the response for the summary', async () => {
+    const res = mockRes()
+    await handler(cron({ wait: '1' }), res)
+    expect(res.statusCode).toBe(200)
+    expect(res.body.results).toHaveLength(2)
+    expect(state.background).toEqual([])
+  })
+
+  it('a wrong secret starts nothing', async () => {
+    const res = mockRes()
+    await handler({ ...cron(), headers: { 'x-cron-secret': 'nope' } }, res)
+    expect(res.statusCode).toBe(401)
+    expect(state.background).toEqual([])
     expect(state.scanned).toEqual([])
   })
 })

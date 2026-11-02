@@ -12,12 +12,12 @@ Every step has a **Check** line. A step isn't done until its check passes.
 
 Do this first. B–D don't depend on it, but 03 and the Gmail half of D do.
 
-- [ ] **A1. Scopes.** APIs & Services → OAuth consent screen → Data access → add or confirm:
+- [x] **A1. Scopes.** APIs & Services → OAuth consent screen → Data access → add or confirm:
   `calendar.events`, `calendar.app.created` (non-sensitive) and `gmail.readonly` (restricted).
   **Check:** all three show in the scope list.
-- [ ] **A2. Gmail API.** APIs & Services → Library → Gmail API → Enable.
+- [x] **A2. Gmail API.** APIs & Services → Library → Gmail API → Enable.
   **Check:** it shows under Enabled APIs.
-- [ ] **A3. Redirect URIs.** Credentials → the OAuth client behind `GOOGLE_CLIENT_ID` →
+- [x] **A3. Redirect URIs.** Credentials → the OAuth client behind `GOOGLE_CLIENT_ID` →
   Authorized redirect URIs. All five are needed:
   - `https://<project-ref>.supabase.co/auth/v1/callback`: Sign in with Google
   - `https://<prod-domain>/api/google-oauth-callback` and `http://localhost:3001/api/google-oauth-callback`: Calendar slots
@@ -25,7 +25,7 @@ Do this first. B–D don't depend on it, but 03 and the Gmail half of D do.
 
   **Check:** in an incognito window, "Continue with Google" on prod reaches the consent screen
   with no `redirect_uri_mismatch`.
-- [ ] **A4. Publish to Production, unverified** (Audience → Publish app). Users then see "Google
+- [x] **A4. Publish to Production, unverified** (Audience → Publish app). Users then see "Google
   hasn't verified this app → Advanced → Go to recruitingos", sign-ups are capped at 100 users,
   and the 7-day refresh-token expiry goes away. The reasons for skipping verification are in
   CLAUDE.md → Google OAuth. Ignore the branding-verification prompts.
@@ -34,7 +34,7 @@ Do this first. B–D don't depend on it, but 03 and the Gmail half of D do.
 
 ## B. Supabase
 
-- [ ] **B1. 🤖 `! supabase config push`.** The live project still has `site_url =
+- [x] **B1. 🤖 `! supabase config push`.** The live project still has `site_url =
   http://127.0.0.1:3000`, so password-reset and magic-link emails point at localhost.
   `config.toml` already has the prod URL (`032fbd3`). `config push` has no dry-run flag: it
   prints a diff and asks first. Read that diff before you confirm. If it would undo something you changed in the dashboard (auth providers, rate
@@ -51,7 +51,7 @@ Do this first. B–D don't depend on it, but 03 and the Gmail half of D do.
 
 ## C. Vercel (run from `app/`, where the project is linked)
 
-- [ ] **C1. 🤖 Remove dead env vars.** No `api/` code reads them (grep re-checked 2026-10-17: only comments mention them),
+- [x] **C1. 🤖 Remove dead env vars.** No `api/` code reads them (grep re-checked 2026-10-17: only comments mention them),
   so they're unneeded secret exposure:
   `! cd app && for v in ANTHROPIC_API_KEY EXA_API_KEY NOTION_API_KEY GOOGLE_REFRESH_TOKEN; do vercel env rm $v production -y; done`
   Preview has more Notion-era leftovers (re-checked 2026-10-23, still comment-only in code):
@@ -64,13 +64,15 @@ Do this first. B–D don't depend on it, but 03 and the Gmail half of D do.
   Vite inlines `VITE_*` at build time, so it has no effect without the rebuild.
   **Check:** in the prod console, `throw` inside a component (or use Sentry's test button) and
   the event appears in Sentry within a minute.
-- [ ] **C3. Upgrade the CLI** (optional): `npm i -g vercel@latest`. The installed 59.x is five majors behind.
+- [x] **C3. Upgrade the CLI** (optional): `npm i -g vercel@latest`. The installed 59.x is five majors behind.
 
 ## D. Gmail scan driver
 
 - [ ] **D1. cron-job.org** (free): `POST https://<prod-domain>/api/gmail` every 10 min, with
   header `x-cron-secret: <CRON_SECRET>`. Vercel Hobby's own cron only runs daily, which is why
   an external pinger is needed. Without it, no one's connected Gmail is ever scanned.
+  The endpoint answers **202** at once and finishes the scan in the background (`waitUntil`), because
+  cron-job.org's free tier times out at 30 s and a scan can take up to 240 s. Add `?wait=1` to a manual curl to get the JSON summary.
   **Check:** first run it once by hand,
   `! curl -s -X POST -H "x-cron-secret: $CRON_SECRET" https://<prod-domain>/api/gmail`,
   which should return JSON with a per-connection summary. Then confirm the cron-job.org
