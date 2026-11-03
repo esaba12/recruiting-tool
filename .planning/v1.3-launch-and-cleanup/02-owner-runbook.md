@@ -84,10 +84,15 @@ Do this first. B–D don't depend on it, but 03 and the Gmail half of D do.
   connection, so compare the function duration against the 300s default. If it gets close,
   scan oldest-`last_scan_at`-first with a per-run cap, inside `api/gmail.js`. No new file.
 
-## Status (2026-11-02)
+## Status (2026-11-03)
 
 Done: A1–A4, B1, C1, C3, D1 (cron-job.org test run → 202, background summary in Vercel logs), D2
-(the owner's two mailboxes connected; first scan classified 70 threads).
+(the owner's two mailboxes connected; first scan classified 70 threads). The first live scans
+surfaced four bugs, fixed in PRs #33–#36 (cron timeout, gpt-5-mini empty replies, Gmail per-user
+quota, cooldown skipping alternate ticks). Since 2026-11-03 both mailboxes complete every tick with
+0 failures, and the 45-day backfill is done.
+Still to do for D2: reconnect both Gmail accounts once (they were connected in Testing mode, so
+their refresh tokens expire after 7 days).
 Open: **B2** SMTP, **C2** Sentry, **B3** optional cleanup, **D3** load watch at ~10 accounts.
 Preview still has `CALLS_DB_ID`, `APPS_DB_ID`, `LC_DB_ID` (Notion DB ids, not secrets; only the
 local migration script reads them, from the root `.env`). Remove with

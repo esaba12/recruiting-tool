@@ -25,7 +25,7 @@ files: the project is at the Vercel Hobby limit of 12 functions.
 | # | Spec | Who | Status |
 |---|------|-----|--------|
 | 01 | [Merge `feat/demo-refresh`](01-merge-demo-refresh.md) | owner | ✅ merged 2026-10-17 (PR #9) |
-| 02 | [Owner runbook: Google Cloud, Supabase, Vercel, cron](02-owner-runbook.md) | owner (🤖 where marked) | mostly done 2026-11-02: A1–A4, B1, C1, C3, D1, D2 ✅; open: B2 SMTP, C2 Sentry, D3 load watch |
+| 02 | [Owner runbook: Google Cloud, Supabase, Vercel, cron](02-owner-runbook.md) | owner (🤖 where marked) | mostly done 2026-11-02: A1–A4, B1, C1, C3, D1, D2 ✅ (Gmail scan stable 2026-11-03 after PRs #33–#36); open: B2 SMTP, C2 Sentry, D3 load watch, reconnect Testing-mode tokens |
 | 03 | [Recruiting calendar live round trip](03-recruiting-calendar-roundtrip.md) | owner + 🤖 | unblocked 2026-11-02 (scopes + publish done) |
 | 04 | [Launch week: smoke test, invite, soft launch](04-launch-week.md) | owner + 🤖 | blocked on 02 B2 (SMTP) |
 | 05 | [Small code follow-ups](05-code-followups.md) | 🤖 | ✅ merged 2026-10-17 (PR #13); Job Boards keep-alive verified on `/demo` 2026-10-18 |

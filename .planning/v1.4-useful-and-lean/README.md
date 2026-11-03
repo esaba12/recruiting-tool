@@ -58,8 +58,10 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 - [x] 🤖 Fixes found by that first live scan (2026-11-02):
   - PR #33: the cron answers **202** and scans under `waitUntil` (cron-job.org's free tier times out at 30 s; a scan takes up to 240 s). `?wait=1` returns the JSON summary
   - PR #34: `reasoning_effort: 'minimal'` for gpt-5-mini (it spent its token budget reasoning and returned no JSON), and a per-mailbox scan claim (`scan_claimed_at`, migration `20261102000000_gmail_scan_claim.sql`, pushed 2026-11-02) so overlapping runs stop hitting Gmail's per-user 403 quota
-- [ ] 🤖 Confirm the cron over the next ticks: no `No JSON` / 403 failures, and the backlog of failed threads (105 on the 21:50 tick) drains
-- [ ] 👤 Settings: reconnect your calendar (tokens issued in Testing mode still expire after 7 days) and set call hours
+  - PR #35: back off on Gmail's per-user quota (403 "Units per minute per user") instead of counting threads as failed; a still-limited mailbox ends its pass as partial (`rateLimited: true`)
+  - PR #36: unchanged threads are checked with `format=minimal` before any full fetch, and `last_scanned_at` is stamped at scan start so each mailbox runs every tick
+- [x] 🤖 Confirmed the cron 2026-11-03 (20:10 and 20:20 UTC ticks after #36): both mailboxes `partial: false` with a cursor, 0 failed, no 403s, no `No JSON`, no cooldown skips. The 45-day backfill is done; ticks now only read new mail
+- [ ] 👤 Settings: reconnect both calendar slots **and both Gmail accounts** (tokens issued in Testing mode still expire after 7 days) and set call hours
 - [ ] 👤 v1.3 spec 02 **B2** custom SMTP (Resend), then 🤖 raises `email_sent` to 30 and 👤 repeats `supabase config push`
 - [ ] 👤 v1.3 spec 02 **C2** Sentry DSN, then 🤖 redeploys
 - [ ] Then [v1.3 spec 03](../v1.3-launch-and-cleanup/03-recruiting-calendar-roundtrip.md) (calendar round trip, now unblocked) and [04](../v1.3-launch-and-cleanup/04-launch-week.md) (launch week)
