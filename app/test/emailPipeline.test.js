@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   parseAddress, parseAddressList, findCounterpartAddress, guessCompanyHint,
   recruitingShapeHint, networkingShapeHint, extractMeetingLink, extractPlainBody,
@@ -7,6 +7,7 @@ import {
   isAlreadyLogged, logThreadMessages,
   scanQueries, nextCursor, orderConnections, runThreadBudget, MAX_CLASSIFIED_PER_RUN, scanStageChange,
   roleKey, pickApplication, oaInviteFields, scheduleFields,
+  gmailFetch, isGmailRateLimit,
 } from '../api/_lib/emailPipeline.js'
 
 describe('parseAddress', () => {
@@ -428,6 +429,65 @@ describe('runThreadBudget', () => {
   it('counts failures and finishes the pass', async () => {
     const res = await runThreadBudget(ids(3), async id => (id === 't1' ? 'failed' : 'classified'), { deadline: null })
     expect(res).toEqual({ classified: 2, failed: 1, partial: false })
+  })
+  it('ends the pass as partial on a rate limit, leaving the rest for the next tick', async () => {
+    const seen = []
+    const res = await runThreadBudget(ids(10), async id => { seen.push(id); return id === 't2' ? 'rate_limited' : 'classified' }, { deadline: null })
+    expect(res).toEqual({ classified: 2, failed: 0, partial: true, rateLimited: true })
+    expect(seen).toEqual(['t0', 't1', 't2'])
+  })
+})
+
+// 2026-11-02: the first full 45-day pass fired thread fetches back to back and hit Gmail's
+// "Units per minute per user" quota (403). Every 403'd thread counted as failed, which held
+// the cursor, so the next tick re-fetched the whole window and hit the quota again.
+describe('gmailFetch rate limits', () => {
+  const quota403 = () => ({ ok: false, status: 403, text: async () => JSON.stringify({ error: { code: 403, message: "Quota exceeded for quota metric 'Total Query Cost' and limit 'Units per minute per user'", errors: [{ reason: 'rateLimitExceeded' }] } }) })
+  const ok = body => ({ ok: true, status: 200, json: async () => body })
+
+  it('tells quota errors apart from real permission errors', () => {
+    expect(isGmailRateLimit(429, '')).toBe(true)
+    expect(isGmailRateLimit(403, '{"error":{"errors":[{"reason":"userRateLimitExceeded"}]}}')).toBe(true)
+    expect(isGmailRateLimit(403, "Quota exceeded for quota metric 'Total Query Cost'")).toBe(true)
+    expect(isGmailRateLimit(403, '{"error":{"message":"Request had insufficient authentication scopes."}}')).toBe(false)
+    expect(isGmailRateLimit(500, 'rateLimitExceeded')).toBe(false)
+  })
+
+  it('backs off and succeeds when the quota frees up', async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(quota403()).mockResolvedValueOnce(quota403()).mockResolvedValueOnce(ok({ id: 't' }))
+    const waits = []
+    const out = await gmailFetch('tok', 'threads/t', { fetch, sleep: async ms => { waits.push(ms) } })
+    expect(out).toEqual({ id: 't' })
+    expect(waits).toEqual([1000, 2000])
+    expect(fetch).toHaveBeenCalledTimes(3)
+  })
+
+  it('gives up after about a minute of waits with an error marked rateLimited', async () => {
+    const fetch = vi.fn(async () => quota403())
+    const waits = []
+    const err = await gmailFetch('tok', 'threads/t', { fetch, sleep: async ms => { waits.push(ms) } }).catch(e => e)
+    expect(err.rateLimited).toBe(true)
+    expect(waits).toEqual([1000, 2000, 4000, 8000, 16000, 30000])
+    expect(fetch).toHaveBeenCalledTimes(7)
+  })
+
+  it('never waits past the scan deadline', async () => {
+    const fetch = vi.fn(async () => quota403())
+    const waits = []
+    let t = 0
+    const err = await gmailFetch('tok', 'threads/t', {
+      fetch, sleep: async ms => { waits.push(ms); t += ms }, deadline: 5000, now: () => t,
+    }).catch(e => e)
+    expect(err.rateLimited).toBe(true)
+    expect(waits).toEqual([1000, 2000]) // the 4 s wait would end at 7 s, past the 5 s deadline
+  })
+
+  it('does not retry other errors', async () => {
+    const fetch = vi.fn(async () => ({ ok: false, status: 404, text: async () => 'Not Found' }))
+    const err = await gmailFetch('tok', 'threads/t', { fetch, sleep: async () => { throw new Error('should not wait') } }).catch(e => e)
+    expect(err.message).toMatch(/Gmail API 404/)
+    expect(err.rateLimited).toBeUndefined()
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
 })
 

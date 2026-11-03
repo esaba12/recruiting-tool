@@ -52,7 +52,8 @@ export function orderConnections(connections) {
 }
 
 // Runs processThread over threadIds (newest first, Gmail's search order) until the deadline
-// or the classification cap. processThread resolves to 'unchanged' | 'classified' | 'failed';
+// or the classification cap. processThread resolves to 'unchanged' | 'classified' | 'failed' |
+// 'rate_limited';
 // only 'classified' counts against the cap, since unchanged threads are a cheap fetch.
 export async function runThreadBudget(threadIds, processThread, { deadline, maxClassified = MAX_CLASSIFIED_PER_RUN, now = Date.now }) {
   let classified = 0, failed = 0
@@ -61,6 +62,9 @@ export async function runThreadBudget(threadIds, processThread, { deadline, maxC
       return { classified, failed, partial: true }
     }
     const outcome = await processThread(threadIds[i])
+    // Out of Gmail quota even after backing off: stop this mailbox for now. Partial keeps the
+    // cursor, so the rest (this thread included) is picked up next tick, not counted as failed.
+    if (outcome === 'rate_limited') return { classified, failed, partial: true, rateLimited: true }
     if (outcome === 'classified') classified++
     else if (outcome === 'failed') failed++
   }
@@ -272,12 +276,37 @@ async function mintAccessToken(refreshToken) {
   return data.access_token
 }
 
-async function gmailFetch(accessToken, path) {
-  const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/${path}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
-  if (!res.ok) throw new Error(`Gmail API ${res.status}: ${(await res.text()).slice(0, 200)}`)
-  return res.json()
+// Gmail's per-user quota ("Units per minute per user") answers 429, or 403 with a rate-limit
+// reason. A plain 403 (missing scope, revoked access) is a real error and isn't retried.
+export function isGmailRateLimit(status, body) {
+  if (status === 429) return true
+  return status === 403 && /rateLimitExceeded|userRateLimitExceeded|Quota exceeded/i.test(body || '')
+}
+
+// The quota is per minute, so the waits add up to just over one (61 s): a long first pass
+// slows to Gmail's pace instead of stopping at the first 403. Well inside the 240 s budget.
+const RATE_LIMIT_WAITS_MS = [1000, 2000, 4000, 8000, 16000, 30000]
+const defaultSleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+// Backs off on the per-user quota, then gives up with `err.rateLimited` so the scan can end
+// the mailbox's pass as partial (retried next tick) instead of marking threads failed.
+export async function gmailFetch(accessToken, path, { fetch = globalThis.fetch, sleep = defaultSleep, deadline = null, now = Date.now } = {}) {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/${path}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    if (res.ok) return res.json()
+    const body = await res.text()
+    if (isGmailRateLimit(res.status, body)) {
+      const wait = RATE_LIMIT_WAITS_MS[attempt]
+      // Never wait past the scan's deadline: the function would be killed before it saves.
+      if (wait && !(deadline && now() + wait >= deadline)) { await sleep(wait); continue }
+      const err = new Error(`Gmail API ${res.status}: rate limited after ${attempt} retries`)
+      err.rateLimited = true
+      throw err
+    }
+    throw new Error(`Gmail API ${res.status}: ${body.slice(0, 200)}`)
+  }
 }
 
 async function searchMessageIds(accessToken, q, cap) {
@@ -332,20 +361,22 @@ export function parseGmailMessage(msg) {
 
 // The newest message's invite, if it has one. Inline parts need no extra call; an attachment
 // costs one. A broken invite never fails the thread: it's treated as no invite.
-async function loadInvite(accessToken, msg) {
+async function loadInvite(accessToken, msg, deadline) {
   const part = msg.calendarPart
   if (!part) return null
   try {
-    const data = part.data || (await gmailFetch(accessToken, `messages/${msg.id}/attachments/${part.attachmentId}`)).data
+    const data = part.data || (await gmailFetch(accessToken, `messages/${msg.id}/attachments/${part.attachmentId}`, { deadline })).data
     return data ? parseInvite(Buffer.from(data, 'base64url').toString('utf8')) : null
   } catch (e) {
+    // Out of quota isn't a broken invite: let the thread pause and retry with its invite.
+    if (e.rateLimited) throw e
     console.error(`Invite on ${msg.id} unreadable: ${e.message}`)
     return null
   }
 }
 
-async function getThreadMessages(accessToken, threadId) {
-  const thread = await gmailFetch(accessToken, `threads/${threadId}?format=full`)
+async function getThreadMessages(accessToken, threadId, deadline) {
+  const thread = await gmailFetch(accessToken, `threads/${threadId}?format=full`, { deadline })
   return (thread.messages || []).map(parseGmailMessage)
 }
 
@@ -781,12 +812,12 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
 
   const processThread = async threadId => {
     try {
-      const messages = await getThreadMessages(accessToken, threadId)
+      const messages = await getThreadMessages(accessToken, threadId, deadline)
       const seen = threadProgress[threadId] || 0
       if (messages.length <= seen) return 'unchanged'
 
       const msg = messages[messages.length - 1]
-      const invite = await loadInvite(accessToken, msg)
+      const invite = await loadInvite(accessToken, msg, deadline)
       const meetingLink = inviteMeetingLink(invite) || extractMeetingLink(msg.plainBody)
 
       const applicationHint = APPLICATION_CONFIRMATION_RE.test(msg.subject + ' ' + msg.plainBody)
@@ -887,13 +918,17 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
       if (push) pushes.push(push)
       return 'classified'
     } catch (e) {
+      if (e.rateLimited) {
+        console.warn(`Gmail quota hit on ${myEmail}; pausing this mailbox until the next tick`)
+        return 'rate_limited'
+      }
       console.error(`Thread ${threadId} (${myEmail}) failed: ${e.message}`)
       // leave threadProgress untouched for this thread — retried next scan
       return 'failed'
     }
   }
 
-  const { classified, failed, partial } = await runThreadBudget(threadIds, processThread, { deadline })
+  const { classified, failed, partial, rateLimited } = await runThreadBudget(threadIds, processThread, { deadline })
   const cursor = nextCursor({ prevCursor: connection.scan_cursor, scanStartedAt, partial, failed })
-  return { threadProgress, scanned: classified, failed, partial, cursor, pushes }
+  return { threadProgress, scanned: classified, failed, partial, cursor, pushes, ...(rateLimited ? { rateLimited } : {}) }
 }

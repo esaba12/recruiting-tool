@@ -169,7 +169,7 @@ async function scanConnections(db, connections, { deadline }) {
     }
     const release = claim === 'claimed' ? { scan_claimed_at: null } : {}
     try {
-      const { threadProgress, scanned, failed, partial, cursor, skipped, pushes = [] } = await scanGmailConnection(conn, { deadline })
+      const { threadProgress, scanned, failed, partial, cursor, skipped, rateLimited, pushes = [] } = await scanGmailConnection(conn, { deadline })
       pushesByUser.get(conn.user_id).push(...pushes)
       // A mailbox skipped for want of an AI key wasn't scanned: leave last_scanned_at alone so
       // Settings and onboarding don't claim otherwise.
@@ -180,7 +180,7 @@ async function scanConnections(db, connections, { deadline }) {
       } else if (claim === 'claimed') {
         await db.from('gmail_tokens').update(release).eq('id', conn.id)
       }
-      results.push({ email: conn.connected_email, scanned, failed, partial, cursor, ...(skipped ? { skipped } : {}) })
+      results.push({ email: conn.connected_email, scanned, failed, partial, cursor, ...(skipped ? { skipped } : {}), ...(rateLimited ? { rateLimited } : {}) })
     } catch (e) {
       if (claim === 'claimed') await db.from('gmail_tokens').update(release).eq('id', conn.id)
       results.push({ email: conn.connected_email, error: e.message })
