@@ -375,6 +375,11 @@ async function loadInvite(accessToken, msg, deadline) {
   }
 }
 
+async function countThreadMessages(accessToken, threadId, deadline) {
+  const thread = await gmailFetch(accessToken, `threads/${threadId}?format=minimal`, { deadline })
+  return (thread.messages || []).length
+}
+
 async function getThreadMessages(accessToken, threadId, deadline) {
   const thread = await gmailFetch(accessToken, `threads/${threadId}?format=full`, { deadline })
   return (thread.messages || []).map(parseGmailMessage)
@@ -812,8 +817,12 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
 
   const processThread = async threadId => {
     try {
-      const messages = await getThreadMessages(accessToken, threadId, deadline)
+      // Most threads in the window haven't changed since the last pass. A minimal fetch (ids
+      // only) tells us that without pulling every body, which is what used up Gmail's
+      // per-user quota on a mailbox's first passes. Only a changed thread gets the full fetch.
       const seen = threadProgress[threadId] || 0
+      if (seen && (await countThreadMessages(accessToken, threadId, deadline)) <= seen) return 'unchanged'
+      const messages = await getThreadMessages(accessToken, threadId, deadline)
       if (messages.length <= seen) return 'unchanged'
 
       const msg = messages[messages.length - 1]
