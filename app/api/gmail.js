@@ -168,6 +168,9 @@ async function scanConnections(db, connections, { deadline }) {
       continue
     }
     const release = claim === 'claimed' ? { scan_claimed_at: null } : {}
+    // Stamped with the start time: the cooldown is "a scan began less than 9 min ago". Timed
+    // from the end, a 4-min scan made the next 10-min tick skip, so mailboxes ran every 20.
+    const startedAt = new Date().toISOString()
     try {
       const { threadProgress, scanned, failed, partial, cursor, skipped, rateLimited, pushes = [] } = await scanGmailConnection(conn, { deadline })
       pushesByUser.get(conn.user_id).push(...pushes)
@@ -175,7 +178,7 @@ async function scanConnections(db, connections, { deadline }) {
       // Settings and onboarding don't claim otherwise.
       if (skipped !== 'no_ai_key') {
         await db.from('gmail_tokens')
-          .update({ thread_progress: threadProgress, scan_cursor: cursor ?? null, last_scanned_at: new Date().toISOString(), ...release })
+          .update({ thread_progress: threadProgress, scan_cursor: cursor ?? null, last_scanned_at: startedAt, ...release })
           .eq('id', conn.id)
       } else if (claim === 'claimed') {
         await db.from('gmail_tokens').update(release).eq('id', conn.id)

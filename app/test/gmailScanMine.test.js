@@ -40,6 +40,7 @@ vi.mock('../api/_lib/emailPipeline.js', () => ({
   orderConnections: c => c,
   scanGmailConnection: async conn => {
     state.scanned.push(conn.connected_email)
+    if (state.slowScanMs) { state.scanBeganAt = Date.now(); await new Promise(r => setTimeout(r, state.slowScanMs)) }
     return conn.noKey
       ? { threadProgress: {}, cursor: null, scanned: 0, skipped: 'no_ai_key' }
       : { threadProgress: { t: 1 }, cursor: 'c', scanned: 3, pushes: [] }
@@ -72,7 +73,7 @@ beforeEach(() => {
     { id: 1, user_id: 'u1', connected_email: 'me@x.com', last_scanned_at: null },
     { id: 2, user_id: 'u2', connected_email: 'other@x.com', last_scanned_at: null },
   ]
-  state.updates = []; state.scanned = []; state.limited = false; state.background = []; state.claims = []; state.noClaimColumn = false
+  state.updates = []; state.scanned = []; state.limited = false; state.background = []; state.claims = []; state.noClaimColumn = false; state.slowScanMs = 0
 })
 
 describe('POST /api/gmail?action=scan-mine', () => {
@@ -91,6 +92,13 @@ describe('POST /api/gmail?action=scan-mine', () => {
     expect(state.scanned).toEqual(['me@x.com'])
     expect(res.body.results).toEqual([expect.objectContaining({ email: 'me@x.com', scanned: 3 })])
     expect(state.updates[0].patch).toHaveProperty('last_scanned_at')
+  })
+
+  it('stamps last_scanned_at with when the scan began, so a long scan does not skip the next tick', async () => {
+    state.slowScanMs = 30
+    const res = mockRes()
+    await handler(scanMine(), res)
+    expect(new Date(state.updates[0].patch.last_scanned_at).getTime()).toBeLessThanOrEqual(state.scanBeganAt)
   })
 
   it('honors the per-mailbox cooldown so it never doubles up with the cron', async () => {
