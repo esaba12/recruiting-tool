@@ -63,9 +63,12 @@ export async function disconnectGoogleCalendar(slot = 'personal') {
 // shape as connectGoogleCalendar above, but unslotted: a user can connect any number of
 // Gmail accounts, each identified by whichever email Google returns after consent, not a
 // fixed personal/school choice made upfront.
-export async function connectGmail() {
+// Pass `email` to reconnect an existing mailbox: Google preselects it, and the callback's
+// upsert swaps the token while keeping the scan position (never disconnect to reconnect).
+export async function connectGmail(email) {
   if (isDemoMode()) throw new DemoModeError()
-  const res = await fetch('/api/gmail?action=start', { headers: await authHeader() })
+  const q = email ? `&email=${encodeURIComponent(email)}` : ''
+  const res = await fetch(`/api/gmail?action=start${q}`, { headers: await authHeader() })
   if (!res.ok) {
     const e = await res.json().catch(() => ({}))
     throw new Error(e.error?.message || 'Failed to start Gmail connection')

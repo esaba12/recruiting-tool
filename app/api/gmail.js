@@ -103,6 +103,8 @@ async function handleOauthCallback(req, res) {
   const email = tokens.access_token ? await fetchEmail(tokens.access_token) : null
   if (!email) return errorPage(res, 502, 'Couldn\'t determine which Gmail address you connected — try again.')
 
+  // Only the token: on a reconnect the upsert keeps thread_progress, scan_cursor and
+  // last_scanned_at, so the scan resumes where it was instead of re-reading 45 days.
   const { error: dbError } = await supabaseAdmin().from('gmail_tokens').upsert({
     user_id: userId,
     connected_email: email,
@@ -239,6 +241,9 @@ export default async function handler(req, res) {
   if (req.method === 'GET' && req.query.action === 'start') {
     const nonce = issueOAuthNonce(req, res, 'gmail_oauth_nonce')
     const state = encrypt(JSON.stringify({ userId: user.id, nonce, exp: Date.now() + STATE_TTL_MS }))
+    // Settings → Reconnect passes the mailbox, so Google preselects it. Only a hint: the
+    // callback still keys the row off the address Google actually returns.
+    const hint = typeof req.query.email === 'string' && /^[^\s@]+@[^\s@]+$/.test(req.query.email) ? { login_hint: req.query.email } : {}
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID,
       redirect_uri: gmailRedirectUri(req),
@@ -246,6 +251,7 @@ export default async function handler(req, res) {
       scope: GMAIL_OAUTH_SCOPE,
       access_type: 'offline',
       prompt: 'consent select_account',
+      ...hint,
       state,
     })}`
     return res.status(200).json({ authUrl })

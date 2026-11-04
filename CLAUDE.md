@@ -126,7 +126,7 @@ Pipeline · Calendar**, with Settings in the sidebar footer. `/demo` shows every
 
 ## Known issues
 
-- Calendar/Gmail connections made before 2026-11-02 (Testing mode) still have 7-day refresh tokens; reconnecting in Settings fixes each one.
+- Calendar/Gmail connections made before 2026-11-02 (Testing mode) still have 7-day refresh tokens; reconnecting in Settings fixes each one. For Gmail use **Reconnect**, not Disconnect + connect: disconnecting deletes the scan position and restarts the 45-day backfill.
 - Two email pipelines with duplicated classifier prompts (`INTERVIEW_VS_NETWORKING` in both). Keep them in sync until v1.3 spec 08 lands.
 
 ## docs/architecture index
