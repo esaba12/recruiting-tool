@@ -1,7 +1,7 @@
-// v1.3 spec 03, first live run: ensureRecruitingCalendar listed users/me/calendarList, which
-// Google refuses under calendar.events + calendar.app.created ("Request had insufficient
-// authentication scopes"). It now only touches the one calendar it made: calendarList.get on
-// the cached id (allowed under app.created), else calendars.insert.
+// v1.3 spec 03, first live runs: under calendar.events + calendar.app.created Google refuses
+// calendarList.list ("insufficient authentication scopes") and 401s calendarList.get ("Invalid
+// Credentials"). ensureRecruitingCalendar now only uses calendars.get on the cached id, else
+// calendars.insert.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const state = vi.hoisted(() => ({ settings: {}, calls: [], getStatus: 200 }))
@@ -20,7 +20,7 @@ beforeEach(() => {
     const method = init.method || 'GET'
     state.calls.push(`${method} ${path}`)
     if (method === 'POST' && path === 'calendar/v3/calendars') return { ok: true, status: 200, json: async () => ({ id: 'new@group.calendar.google.com', summary: 'Recruiting' }) }
-    if (method === 'GET' && path.startsWith('calendar/v3/users/me/calendarList/')) {
+    if (method === 'GET' && /^calendar\/v3\/calendars\/[^/]+$/.test(path)) {
       return state.getStatus === 200
         ? { ok: true, status: 200, json: async () => ({ id: decodeURIComponent(path.split('/').pop()), summary: 'Recruiting' }) }
         : { ok: false, status: state.getStatus, json: async () => ({ error: { message: 'Not Found' } }) }
@@ -30,11 +30,11 @@ beforeEach(() => {
 })
 
 describe('ensureRecruitingCalendar', () => {
-  it('never lists the calendar list (needs a scope this app does not ask for)', async () => {
+  it('never touches calendarList (refused or 401 under this app\'s scopes)', async () => {
     await ensureRecruitingCalendar('personal')
     state.settings['recruiting_calendar_id:personal'] = 'old@group.calendar.google.com'
     await ensureRecruitingCalendar('personal')
-    expect(state.calls.some(c => c === 'GET calendar/v3/users/me/calendarList')).toBe(false)
+    expect(state.calls.some(c => c.includes('calendarList'))).toBe(false)
   })
 
   it('creates the calendar and caches its id when none is saved', async () => {
@@ -48,7 +48,7 @@ describe('ensureRecruitingCalendar', () => {
     state.settings['recruiting_calendar_id:school'] = 'old@group.calendar.google.com'
     const id = await ensureRecruitingCalendar('school')
     expect(id).toBe('old@group.calendar.google.com')
-    expect(state.calls).toEqual(['GET calendar/v3/users/me/calendarList/old%40group.calendar.google.com'])
+    expect(state.calls).toEqual(['GET calendar/v3/calendars/old%40group.calendar.google.com'])
   })
 
   it('makes a new one when the saved calendar was deleted in Google', async () => {
