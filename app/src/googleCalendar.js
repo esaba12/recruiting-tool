@@ -167,17 +167,18 @@ export async function createCalendar(slot = 'personal', { summary, description, 
 const RECRUITING_CAL_KEY = slot => `recruiting_calendar_id:${slot}`
 
 // The dedicated "Recruiting" calendar for a slot: cached id in user_settings → confirmed with
-// calendarList.get (allowed under calendar.app.created) → created if missing or deleted.
-// Never lists the calendar list: calendarList.list needs calendar(.readonly) or
-// calendar.calendarlist(.readonly), which this app doesn't request (first live run, 2026-11-04,
-// "Request had insufficient authentication scopes"). Never returns 'primary'.
+// calendars.get → created if missing or deleted. Never returns 'primary'.
+// Under calendar.events + calendar.app.created, checked live 2026-11-04: calendarList.list is
+// refused ("insufficient authentication scopes") and calendarList.get answers 401 "Invalid
+// Credentials" despite the docs listing app.created for it. calendars.get works: 200 for the
+// app's calendar, 404 once it's deleted.
 export async function ensureRecruitingCalendar(slot = 'personal') {
   if (isDemoPath()) throw new Error(DEMO_CALENDAR_MSG)
   const cached = await getUserSetting(RECRUITING_CAL_KEY(slot))
   if (cached) {
     try {
-      const c = await gcalRaw(`users/me/calendarList/${encodeURIComponent(cached)}`, { slot })
-      if (c?.id && !c.primary) return c.id
+      const c = await gcalRaw(`calendars/${encodeURIComponent(cached)}`, { slot })
+      if (c?.id && c.id !== 'primary') return c.id
     } catch (e) {
       // Only a calendar that's gone gets replaced; any other error (lapsed grant, network)
       // must not mint a second "Recruiting" calendar.
