@@ -158,11 +158,6 @@ export async function deleteEvent(eventId, slot = 'personal', calendarId = 'prim
 
 // ── Calendars (needs the calendar.app.created scope — see api/_lib/googleOAuth.js) ──
 
-export async function listCalendars(slot = 'personal') {
-  const data = await gcalRaw('users/me/calendarList', { slot })
-  return (data.items || []).map(c => ({ id: c.id, summary: c.summary, primary: !!c.primary, timeZone: c.timeZone || null, backgroundColor: c.backgroundColor || null }))
-}
-
 export async function createCalendar(slot = 'personal', { summary, description, timeZone } = {}) {
   const body = { summary, description: description || undefined, timeZone: timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone }
   const c = await gcalRaw('calendars', { method: 'POST', body, slot })
@@ -171,17 +166,24 @@ export async function createCalendar(slot = 'personal', { summary, description, 
 
 const RECRUITING_CAL_KEY = slot => `recruiting_calendar_id:${slot}`
 
-// The dedicated "Recruiting" calendar for a slot: cached id in user_settings →
-// verified against calendarList (the app.created scope only lists calendars this
-// app made, so a hit is ours) → created if missing. Never returns 'primary'.
+// The dedicated "Recruiting" calendar for a slot: cached id in user_settings → confirmed with
+// calendarList.get (allowed under calendar.app.created) → created if missing or deleted.
+// Never lists the calendar list: calendarList.list needs calendar(.readonly) or
+// calendar.calendarlist(.readonly), which this app doesn't request (first live run, 2026-11-04,
+// "Request had insufficient authentication scopes"). Never returns 'primary'.
 export async function ensureRecruitingCalendar(slot = 'personal') {
   if (isDemoPath()) throw new Error(DEMO_CALENDAR_MSG)
-  const calendars = await listCalendars(slot)
   const cached = await getUserSetting(RECRUITING_CAL_KEY(slot))
-  const byId = cached && calendars.find(c => c.id === cached)
-  if (byId) return byId.id
-  const bySummary = calendars.find(c => c.summary === RECRUITING_CALENDAR_SUMMARY && !c.primary)
-  if (bySummary) { await setUserSetting(RECRUITING_CAL_KEY(slot), bySummary.id); return bySummary.id }
+  if (cached) {
+    try {
+      const c = await gcalRaw(`users/me/calendarList/${encodeURIComponent(cached)}`, { slot })
+      if (c?.id && !c.primary) return c.id
+    } catch (e) {
+      // Only a calendar that's gone gets replaced; any other error (lapsed grant, network)
+      // must not mint a second "Recruiting" calendar.
+      if (e.status !== 404 && e.status !== 410) throw e
+    }
+  }
   const created = await createCalendar(slot, { summary: RECRUITING_CALENDAR_SUMMARY, description: 'Career fairs, info sessions, coffee chats and their registration deadlines — pushed by Recruiting OS.' })
   await setUserSetting(RECRUITING_CAL_KEY(slot), created.id)
   return created.id
