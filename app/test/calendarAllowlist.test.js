@@ -15,10 +15,12 @@ describe('google-calendar proxy allowlist', () => {
     ok('calendar/v3/calendars/c_7f3a1b@group.calendar.google.com/events', 'POST')
     ok('calendar/v3/calendars/c_7f3a1b%40group.calendar.google.com/events/evt-1', 'PATCH')
   })
-  it('allows calendarList GET, calendars POST, freeBusy POST — and nothing else on them', () => {
-    ok('calendar/v3/users/me/calendarList', 'GET')
+  it('allows calendarList/<id> GET, calendars POST, freeBusy POST — and nothing else on them', () => {
+    ok('calendar/v3/users/me/calendarList/c_7f3a1b%40group.calendar.google.com', 'GET')
+    no('calendar/v3/users/me/calendarList', 'GET')          // listing needs a scope the app doesn't have
     no('calendar/v3/users/me/calendarList', 'DELETE')
     no('calendar/v3/users/me/calendarList/primary', 'PATCH')
+    no('calendar/v3/users/me/calendarList/primary', 'DELETE')
     ok('calendar/v3/calendars', 'POST')
     no('calendar/v3/calendars', 'GET')
     no('calendar/v3/calendars/primary', 'DELETE')       // never delete a calendar
