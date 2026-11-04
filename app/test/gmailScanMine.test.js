@@ -2,7 +2,7 @@
 // instead of waiting up to 10 minutes for the cron tick, so onboarding ends with data on screen.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const state = vi.hoisted(() => ({ user: null, tokens: [], updates: [], scanned: [], limited: false, background: [], claims: [], noClaimColumn: false }))
+const state = vi.hoisted(() => ({ user: null, tokens: [], updates: [], scanned: [], limited: false, background: [], claims: [], noClaimColumn: false, upserts: [] }))
 
 vi.mock('../api/_lib/supabaseAdmin.js', () => {
   // Minimal chainable query: select('*').eq('user_id', id) filters tokens; update().eq() records.
@@ -16,6 +16,7 @@ vi.mock('../api/_lib/supabaseAdmin.js', () => {
         maybeSingle: async () => ({ data: null, error: null }),
         update: patch => { q.patch = patch; return api },
         or: expr => { q.or = expr; return api },
+        upsert: (row, opts) => { state.upserts.push({ table, row, opts }); return api },
         then: (resolve) => {
           if (q.patch && q.or) {
             // The claim: update ... where id = X and (scan_claimed_at is null or < cutoff).
@@ -48,6 +49,8 @@ vi.mock('../api/_lib/emailPipeline.js', () => ({
 }))
 vi.mock('../api/_lib/pushes.js', () => ({ runUserPushes: async () => ({ skipped: 'no_topic' }), pushSettingsFor: async () => null, sendPush: async () => true }))
 vi.mock('@vercel/functions', () => ({ waitUntil: p => { state.background.push(p) } }))
+vi.mock('../api/_lib/googleOAuth.js', async orig => ({ ...(await orig()), consumeOAuthNonce: () => true, issueOAuthNonce: () => 'n1' }))
+vi.mock('../api/_lib/crypto.js', () => ({ encrypt: s => `enc:${s}`, decrypt: s => s.replace(/^enc:/, '') }))
 vi.mock('../api/_lib/llm.js', () => ({ llmForUser: async () => null }))
 vi.mock('../api/_lib/rateLimit.js', () => ({
   checkRateLimit: async (_u, tier) => ({ limited: tier === 'SCAN' && state.limited, retryAfter: 60 }),
@@ -73,7 +76,7 @@ beforeEach(() => {
     { id: 1, user_id: 'u1', connected_email: 'me@x.com', last_scanned_at: null },
     { id: 2, user_id: 'u2', connected_email: 'other@x.com', last_scanned_at: null },
   ]
-  state.updates = []; state.scanned = []; state.limited = false; state.background = []; state.claims = []; state.noClaimColumn = false; state.slowScanMs = 0
+  state.updates = []; state.scanned = []; state.limited = false; state.background = []; state.claims = []; state.noClaimColumn = false; state.slowScanMs = 0; state.upserts = []
 })
 
 describe('POST /api/gmail?action=scan-mine', () => {
@@ -194,5 +197,38 @@ describe('per-mailbox scan claim', () => {
     await handler(scanMine(), res)
     expect(state.scanned).toEqual(['me@x.com'])
     expect(state.updates[0].patch).not.toHaveProperty('scan_claimed_at')
+  })
+})
+
+// Reconnecting a mailbox (new refresh token) must keep where its scan got to. Deleting the row
+// and connecting again reset thread_progress + scan_cursor, so the next tick re-read 45 days.
+describe('Gmail reconnect keeps scan progress', () => {
+  it('start passes the account as login_hint so Reconnect lands on the same mailbox', async () => {
+    const res = mockRes()
+    await handler({ method: 'GET', query: { action: 'start', email: 'me@x.com' }, headers: { host: 'app.example.com' } }, res)
+    expect(new URL(res.body.authUrl).searchParams.get('login_hint')).toBe('me@x.com')
+  })
+
+  it('start ignores a login_hint that is not an email address', async () => {
+    const res = mockRes()
+    await handler({ method: 'GET', query: { action: 'start', email: 'not an email' }, headers: { host: 'app.example.com' } }, res)
+    expect(new URL(res.body.authUrl).searchParams.has('login_hint')).toBe(false)
+  })
+
+  it('the OAuth callback writes only the token, never thread_progress / scan_cursor / last_scanned_at', async () => {
+    const realFetch = globalThis.fetch
+    globalThis.fetch = vi.fn(async url => ({
+      ok: true,
+      json: async () => String(url).includes('userinfo') ? { email: 'me@x.com' } : { access_token: 'at', refresh_token: 'rt' },
+    }))
+    try {
+      const state_ = `enc:${JSON.stringify({ userId: 'u1', nonce: 'n1', exp: Date.now() + 60000 })}`
+      const res = mockRes()
+      await handler({ method: 'GET', query: { code: 'c', state: state_ }, headers: { host: 'app.example.com' } }, res)
+      expect(res.statusCode).toBe(302)
+      expect(state.upserts).toHaveLength(1)
+      expect(Object.keys(state.upserts[0].row).sort()).toEqual(['connected_email', 'refresh_token_ciphertext', 'user_id'])
+      expect(state.upserts[0].opts).toEqual({ onConflict: 'user_id,connected_email' })
+    } finally { globalThis.fetch = realFetch }
   })
 })

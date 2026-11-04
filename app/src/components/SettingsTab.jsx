@@ -203,10 +203,10 @@ export default function SettingsTab({ onDone, returnLabel = 'Today', demoMode = 
     }
   }
 
-  async function handleConnectGmail() {
-    setConnectingGmail(true); setError(null)
+  async function handleConnectGmail(email) {
+    setConnectingGmail(email || true); setError(null)
     try {
-      await connectGmail() // redirects away on success — connections list refreshes on return
+      await connectGmail(email) // redirects away on success — connections list refreshes on return
     } catch (e) {
       setError(e.message)
       setConnectingGmail(false)
@@ -233,6 +233,7 @@ export default function SettingsTab({ onDone, returnLabel = 'Today', demoMode = 
   }
 
   async function handleDisconnectGmail(email) {
+    if (!window.confirm(`Disconnect ${email}? Scanning stops and the app forgets how far it got, so connecting it again later re-reads the last 45 days. To refresh access, use Reconnect instead.`)) return
     try {
       await disconnectGmail(email)
       setGmailConnections(cs => cs.filter(c => c.email !== email))
@@ -427,12 +428,16 @@ export default function SettingsTab({ onDone, returnLabel = 'Today', demoMode = 
             <span className="text-[11px] text-ink-400">
               {c.lastScannedAt ? `Last scanned ${new Date(c.lastScannedAt).toLocaleString()}` : 'Not scanned yet'}
             </span>
+            <Button size="sm" variant="ghost" onClick={() => handleConnectGmail(c.email)} disabled={!!connectingGmail || demoMode}
+              title="Sign in to Google again for this mailbox. Keeps where the scan got to.">
+              {connectingGmail === c.email ? 'Redirecting...' : 'Reconnect'}
+            </Button>
             <Button size="sm" variant="ghost" onClick={() => handleDisconnectGmail(c.email)} disabled={demoMode}>Disconnect</Button>
           </div>
         ))}
         <div className="flex items-center gap-2 flex-wrap">
-          <Button size="sm" variant="secondary" onClick={handleConnectGmail} disabled={connectingGmail || demoMode}>
-            {connectingGmail ? 'Redirecting...' : '+ Connect another Gmail account'}
+          <Button size="sm" variant="secondary" onClick={() => handleConnectGmail()} disabled={!!connectingGmail || demoMode}>
+            {connectingGmail === true ? 'Redirecting...' : '+ Connect another Gmail account'}
           </Button>
           {gmailConnections.length > 0 && (
             <Button size="sm" variant="ghost" disabled={gmailScan.scanning || demoMode}
