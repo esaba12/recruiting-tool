@@ -136,7 +136,7 @@ Pipeline · Calendar**, with Settings in the sidebar footer. `/demo` shows every
 | `auth-and-byok.md` | Supabase Auth, sign-in-with-API-key tradeoffs, BYOK vault, scopedStorage, Notion migration |
 | `api-hardening.md` | Rate-limit tiers, path allowlists, CSP/security headers, audit results |
 | `ai-provider.md` | Provider switch (per user now), model tiers, OpenAI request shape |
-| `dashboard-features.md` | Tab by tab: Today, Network logging, Quick Add, Keep in Touch, Discover, Explore, Job Boards, duplicates, Awaiting Reply, Pipeline Sheet + Sankey, proxy route table |
+| `dashboard-features.md` | Tab by tab: Today, Network logging, Quick Add, Keep in Touch, Discover, Explore, Job Boards, location regions (filter + group), duplicates, Awaiting Reply, Pipeline Sheet + Sankey, proxy route table |
 | `recruiting-events.md` | v1.1: shared pool tenancy, ingestion, enrichment/relevance, Recruiting calendar, conflict engine, imports, Events UI |
 | `learn.md` | Learn: tracks, mastery engine, LeetCode sync/history/company prep, practice import, FSRS, coach |
 | `google-calendar.md` | "+ Event" vision flow, two calendar slots, direct OAuth flow, why verification was skipped |

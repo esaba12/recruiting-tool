@@ -170,7 +170,8 @@ application panel, from Today's Decisions row or "Compare and ask others to expe
 **Sheet** (model in `lib/applicationSheet.js`):
 - Keyboard editing, with an optimistic overlay then `refreshApps()`.
 - Stage edits apply `stageSideEffects`.
-- Filters, columns, sort, grouping and Flow persist in `rec_sheet_prefs`.
+- Filters, columns, sort, grouping, location regions and Flow persist in `rec_sheet_prefs`. `groupBy` is `none | stage | location`; older prefs with `grouped: true` read as `stage`.
+- **Location** (see below): region chips filter the grid and the Flow. Grouped by location, each row sits under one header only (its first region, or its first selected region), so keyboard row indexes stay one per application. A saved region with no rows left is ignored, since there'd be no chip to clear it.
 - Exports `.xlsx` (`lib/xlsx.js`, dependency-free) and CSV of exactly the visible rows and columns.
 - **Flow** shows the funnel and the application Sankey (`lib/applicationFlow.js`). The Sankey runs source → Applied → OA → interview stages → Accepted / In process / Ghosted (30+ days quiet) / Rejected, and clicking a band filters the grid.
 
@@ -187,8 +188,18 @@ debounced into `refreshApps()`, plus a refresh on re-focus after 60s.
 - `github.js` parses markdown pipe tables and HTML `<table>`s, handles "↳" ditto rows, and decodes README base64 as UTF-8.
 - Open listings auto-import into Applications as Triage = Needs Review, with an in-flight claim set against double imports.
 - Needs-Review rows don't count as active (`isUntriaged`).
+- **Location:** region chips (`ui/LocationFilter.jsx`) replace the old free-text location box and hardcoded city chips. The 📍 view toggle groups listings by region (6 cards per group until "Show all N"; per-group expansion replaces pagination there). A multi-city listing shows in every group it belongs to. `RepoStats`' Top Locations and Cities count regions, leaving out Remote and No location.
 - Real deadlines (`lib/deadlines.js`, `useJobDeadlines.js`): Exa `/contents` reads the apply page, and the AI reports a date only if the page states one. Cached forever in `rec_job_deadlines`. Sorted closest-deadline first (`urgencyComparator`).
 - Hidden for non-tech tracks: there's no comparable public feed for IB or consulting.
+
+**Locations** (`lib/locations.js`, PR #41). Location fields are free text, so filtering and grouping use *regions* instead:
+- `locationRegions(str)` splits on `, ; | / •`, newlines and "or". Each token is checked against a metro alias table first: "SF", "Palo Alto" → Bay Area; "NYC", "New York, NY" → New York; "Redmond" → Seattle; plus LA, Boston, Washington DC, Chicago, Austin, Denver, Atlanta, San Diego. Anything with "remote"/"anywhere" → Remote.
+- After the alias check, US states and codes, Canadian provinces, countries, work-style words ("Hybrid", "Onsite") and "N locations" are dropped. Aliases run first, so "New York" and "LA" survive. Unknown cities are kept, title-cased ("Ann Arbor").
+- Nothing left → `UNSPECIFIED` ("No location"). Results are memoized per string.
+- `regionCounts` (most common first, No location last), `groupByRegion` (multi-region items land in each group; `only` narrows the groups) and `matchesRegions` (empty selection matches everything) are shared by Job Boards and the Sheet.
+- Chip counts are computed before the location filter is applied, so each chip shows how many rows it would leave.
+- Known gap: "Cambridge, UK" maps to Boston. Add aliases to `REGIONS` as new metros show up in the data, with a case in `test/locations.test.js`.
+- The Applications board view has no location filter yet.
 
 **Duplicates:** `findDuplicateGroups` (exact normalized Company+Role). "Archive N duplicates" keeps the oldest.
 
