@@ -13,6 +13,8 @@ import JobPanelBody from '../panels/JobPanelBody.jsx'
 import RepoStats from './RepoStats.jsx'
 import useJobBlurbs from './useJobBlurbs.js'
 import useJobDeadlines from './useJobDeadlines.js'
+import LocationFilter from '../ui/LocationFilter.jsx'
+import { regionCounts, matchesRegions, groupByRegion } from '../../lib/locations.js'
 
 export default function RepoJobsView({ data, apps, onImported, onClear }) {
   const prefsKey   = 'rec_prefs'
@@ -21,7 +23,8 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
   const [view, setView]         = useState('list')
   const [bucket, setBucket]     = useState('all')
   const [search, setSearch]     = useState('')
-  const [locFilter, setLocFilter] = useState('')
+  const [regions, setRegions]   = useState([])   // selected location regions (lib/locations.js)
+  const [expanded, setExpanded] = useState({})   // region -> true when its group shows every card
   const [hideStale, setHideStale] = useState(false)
   const [selectedDay, setSelectedDay] = useState(null)
   const [selectedJob, setSelectedJob] = useState(null)
@@ -96,7 +99,7 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
     lsSet(prefsKey, p)
   }
 
-  useEffect(() => setPage(1), [bucket, search, locFilter, selectedDay, hideStale])
+  useEffect(() => setPage(1), [bucket, search, regions, selectedDay, hideStale])
 
   const bucketCounts = Object.fromEntries(
     BUCKET_CONFIG.map(b => [b.key, b.key === 'all' ? data.jobs.length :
@@ -107,7 +110,8 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
     return tier === 'urgent' || tier === 'soon'
   }).length
 
-  const filtered = data.jobs.filter(j => {
+  // Everything but the location filter, so region chip counts show what each would leave.
+  const preLocation = data.jobs.filter(j => {
     if (bucket !== 'all' && statusFor(j) !== bucket) return false
     if (hideStale && isGhostJob(j)) return false
     if (urgentOnly) {
@@ -115,7 +119,6 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
       if (tier !== 'urgent' && tier !== 'soon') return false
     }
     const loc = (j.location || '').toLowerCase()
-    if (locFilter && !loc.includes(locFilter.toLowerCase())) return false
     if (search) {
       const q = search.toLowerCase()
       if (
@@ -131,6 +134,8 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
     }
     return true
   })
+  const locationCounts = regionCounts(preLocation)
+  const filtered = regions.length ? preLocation.filter(j => matchesRegions(j.location, regions)) : preLocation
   // Sort priority: (1) a confirmed real deadline wins outright — closest deadlines
   // first, as requested — ahead of everything else. (2) In Needs Review, rank by
   // relevance to the saved preferences (0 for everyone when no preferences are set, so
@@ -157,7 +162,23 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
   })
 
   const paginated = sorted.slice(0, page * PER_PAGE)
-  const blurbs = useJobBlurbs(paginated)
+  // Grouped view: one section per region (multi-city listings show in each), GROUP_PREVIEW
+  // cards apiece until expanded. Pagination is per group there, not global.
+  const GROUP_PREVIEW = 6
+  const groups = view === 'location' ? groupByRegion(sorted, regions) : []
+  const visibleJobs = view === 'location'
+    ? [...new Set(groups.flatMap(g => expanded[g.region] ? g.items : g.items.slice(0, GROUP_PREVIEW)))]
+    : paginated
+  const blurbs = useJobBlurbs(visibleJobs)
+
+  const card = (job, key) => (
+    <JobCard key={key} job={job}
+      status={statusFor(job)}
+      blurb={blurbs[jobId(job)]}
+      deadline={deadlines[jobId(job)]}
+      onStatusChange={s => updateStatus(job, s)}
+      onClick={() => setSelectedJob(job)} />
+  )
 
   return (
     <div className="space-y-4">
@@ -227,8 +248,8 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
           </button>
         ))}
         <div className="ml-auto flex gap-1">
-          {[['list','☰'],['calendar','📅']].map(([v, icon]) => (
-            <button key={v} onClick={() => setView(v)}
+          {[['list','☰','List'],['location','📍','Group by location'],['calendar','📅','Calendar']].map(([v, icon, title]) => (
+            <button key={v} onClick={() => setView(v)} title={title} aria-label={title}
               className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors
                 ${view === v ? 'bg-ink-800 text-on-fill border-ink-800' : 'bg-surface text-ink-500 border-ink-200 hover:bg-ink-50'}`}>
               {icon}
@@ -249,31 +270,13 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
               <button onClick={() => setSearch('')} className="absolute right-2.5 top-2 text-ink-300 hover:text-ink-500 text-xs">✕</button>
             )}
           </div>
-          <div className="relative">
-            <input value={locFilter} onChange={e => setLocFilter(e.target.value)}
-              placeholder="Filter location..."
-              className="pl-8 pr-3 py-2 border border-ink-200 rounded-xl text-xs focus:outline-none focus:border-accent-400 bg-surface w-44" />
-            <span className="absolute left-2.5 top-2 text-ink-300 text-sm">📍</span>
-            {locFilter && (
-              <button onClick={() => setLocFilter('')} className="absolute right-2.5 top-2 text-ink-300 hover:text-ink-500 text-xs">✕</button>
-            )}
-          </div>
           <span className="text-xs text-ink-400 shrink-0">
             {filtered.length} result{filtered.length !== 1 ? 's' : ''}
           </span>
         </div>
-        {/* Quick location chips */}
+        {/* Location regions (counts reflect the other filters) */}
+        <LocationFilter counts={locationCounts} value={regions} onChange={setRegions} />
         <div className="flex gap-1.5 flex-wrap">
-          {['Remote', 'New York', 'Bay Area', 'Seattle', 'Austin', 'Boston', 'Chicago', 'LA'].map(loc => (
-            <button key={loc}
-              onClick={() => setLocFilter(locFilter === loc ? '' : loc)}
-              className={`px-2.5 py-1 rounded-full text-xs border transition-colors
-                ${locFilter === loc
-                  ? 'bg-accent-600 text-on-accent border-accent-600'
-                  : 'bg-surface text-ink-500 border-ink-200 hover:border-accent-300 hover:text-link'}`}>
-              {loc}
-            </button>
-          ))}
           <button onClick={() => setUrgentOnly(u => !u)}
             title="Only listings with a confirmed deadline within 10 days"
             className={`px-2.5 py-1 rounded-full text-xs border transition-colors ml-auto
@@ -291,7 +294,7 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
             👻 Hide stale
           </button>
           <button
-            onClick={() => { setSearch(''); setLocFilter(''); setHideStale(false); setUrgentOnly(false) }}
+            onClick={() => { setSearch(''); setRegions([]); setHideStale(false); setUrgentOnly(false) }}
             className="px-2.5 py-1 rounded-full text-xs border border-ink-200 text-ink-400 hover:text-danger-500 hover:border-danger-200 transition-colors">
             Clear all
           </button>
@@ -306,19 +309,39 @@ export default function RepoJobsView({ data, apps, onImported, onClear }) {
       {/* Job grid */}
       {filtered.length === 0
         ? <EmptyState msg={bucket !== 'all' ? `No jobs in "${BUCKET_CONFIG.find(b => b.key === bucket)?.label}" — bucket jobs from the list to sort them here.` : 'No results.'} />
-        : <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-            {paginated.map((job, i) => (
-              <JobCard key={`${job.company}-${i}`} job={job}
-                status={statusFor(job)}
-                blurb={blurbs[jobId(job)]}
-                deadline={deadlines[jobId(job)]}
-                onStatusChange={s => updateStatus(job, s)}
-                onClick={() => setSelectedJob(job)} />
-            ))}
-          </div>
+        : view === 'location'
+          ? <div className="space-y-5">
+              {groups.map(g => {
+                const open = expanded[g.region]
+                const shown = open ? g.items : g.items.slice(0, GROUP_PREVIEW)
+                return (
+                  <section key={g.region}>
+                    <div className="flex items-baseline gap-2 mb-2 border-b border-ink-200 pb-1">
+                      <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-600">{g.region}</h3>
+                      <span className="text-xs text-ink-400">{g.items.length} listing{g.items.length !== 1 ? 's' : ''}</span>
+                      {g.items.length > GROUP_PREVIEW && (
+                        <button onClick={() => setExpanded(e => ({ ...e, [g.region]: !open }))}
+                          className="ml-auto text-xs text-link hover:underline">
+                          {open ? 'Show fewer' : `Show all ${g.items.length}`}
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {shown.map((job, i) => card(job, `${g.region}-${jobId(job)}-${i}`))}
+                    </div>
+                  </section>
+                )
+              })}
+              {groups.reduce((n, g) => n + g.items.length, 0) > filtered.length && (
+                <p className="text-[11px] text-ink-400">Listings posted in several cities appear under each one.</p>
+              )}
+            </div>
+          : <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {paginated.map((job, i) => card(job, `${job.company}-${i}`))}
+            </div>
       }
 
-      {paginated.length < filtered.length && (
+      {view !== 'location' && paginated.length < filtered.length && (
         <button onClick={() => setPage(p => p + 1)}
           className="w-full py-2.5 text-sm text-ink-500 hover:text-ink-700 border border-ink-200 rounded-xl bg-surface hover:bg-ink-50">
           Show more ({filtered.length - paginated.length} remaining)

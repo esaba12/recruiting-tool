@@ -1,5 +1,6 @@
 import { parseJobDate } from './helpers.js'
 import { BarChart } from '../charts/lazy.jsx'
+import { regionCounts, UNSPECIFIED } from '../../lib/locations.js'
 
 export default function RepoStats({ jobs }) {
   const now     = new Date()
@@ -8,9 +9,9 @@ export default function RepoStats({ jobs }) {
   const newThisWeek = jobs.filter(j => { const d = parseJobDate(j.dateAdded); return d && d >= weekAgo })
   const remote      = jobs.filter(j => /remote|anywhere|usa only|worldwide|us only/i.test(j.location || ''))
 
-  const locCounts = {}
-  jobs.forEach(j => { if (j.location && j.location.length > 1 && j.location.length < 40) locCounts[j.location] = (locCounts[j.location] || 0) + 1 })
-  const topLocs = Object.entries(locCounts).sort((a, b) => b[1] - a[1]).slice(0, 5)
+  // Regions, not raw strings, so "SF" and "San Francisco, CA" count as one place.
+  const places  = regionCounts(jobs).filter(([r]) => r !== UNSPECIFIED && r !== 'Remote')
+  const topLocs = places.slice(0, 8)
 
   const companyCounts = {}
   jobs.forEach(j => { if (j.company) companyCounts[j.company] = (companyCounts[j.company] || 0) + 1 })
@@ -24,7 +25,7 @@ export default function RepoStats({ jobs }) {
           { label: 'Total Listings',  value: jobs.length,          sub: 'in this repo' },
           { label: 'New This Week',   value: newThisWeek.length,   sub: 'recently posted', accent: true },
           { label: 'Remote-Friendly', value: remote.length,        sub: `${Math.round((remote.length/jobs.length)*100)}% of listings` },
-          { label: 'Cities',          value: Object.keys(locCounts).length, sub: 'unique locations' },
+          { label: 'Cities',          value: places.length,        sub: 'unique metros' },
         ].map(s => (
           <div key={s.label}>
             <p className="text-xs font-medium text-ink-400 uppercase tracking-wide">{s.label}</p>
