@@ -17,6 +17,8 @@ import Mono from './ui/Mono.jsx'
 import ApplicationFlowPanel from './ApplicationFlowPanel.jsx'
 import { ApplicationFunnel } from './charts/ActivityCharts.jsx'
 import ImportModal from './import/ImportPanel.jsx'
+import LocationFilter from './ui/LocationFilter.jsx'
+import { locationRegions, regionCounts, matchesRegions } from '../lib/locations.js'
 
 // Pipeline → Sheet. A spreadsheet over every application: sort, filter, show/hide
 // columns, edit cells in place (arrows / Enter / Esc / Tab, or just start typing), add
@@ -109,7 +111,9 @@ export default function ApplicationsSheet({ apps, contacts = [], interactions = 
   const saved = lsGet(PREFS_KEY) || {}
   const [filter, setFilter] = useState(saved.filter || 'applied')
   const [hidden, setHidden] = useState(saved.hidden || DEFAULT_HIDDEN)
-  const [grouped, setGrouped] = useState(saved.grouped ?? false)
+  // 'none' | 'stage' | 'location' (older saved prefs only had a `grouped` boolean for stage)
+  const [groupBy, setGroupBy] = useState(saved.groupBy || (saved.grouped ? 'stage' : 'none'))
+  const [regions, setRegions] = useState(saved.regions || [])
   const [showFlow, setShowFlow] = useState(saved.showFlow ?? false)
   const [importOpen, setImportOpen] = useState(false)
   const [pick, setPick] = useState(null)       // a clicked Sankey band/node: { label, appIds }
@@ -127,8 +131,8 @@ export default function ApplicationsSheet({ apps, contacts = [], interactions = 
   const pendingFocusId = useRef(null)
 
   useEffect(() => {
-    try { lsSet(PREFS_KEY, { filter, hidden, grouped, sort, showFlow }) } catch { /* storage unavailable */ }
-  }, [filter, hidden, grouped, sort, showFlow])
+    try { lsSet(PREFS_KEY, { filter, hidden, groupBy, regions, sort, showFlow }) } catch { /* storage unavailable */ }
+  }, [filter, hidden, groupBy, regions, sort, showFlow])
 
   const ctx = useMemo(() => makeContext(contacts), [contacts])
   const cols = useMemo(() => SHEET_COLUMNS.filter(c => !hidden.includes(c.id)), [hidden])
@@ -138,13 +142,27 @@ export default function ApplicationsSheet({ apps, contacts = [], interactions = 
   const counts = useMemo(() => Object.fromEntries(SHEET_FILTERS.map(f => [f.key, merged.filter(f.test).length])), [merged])
 
   // The flow is drawn from the filtered + searched set; a clicked band narrows the grid further.
-  const base = useMemo(() => {
+  // Location chips count against everything but the location filter itself.
+  const preLocation = useMemo(() => {
     const f = SHEET_FILTERS.find(x => x.key === filter) || SHEET_FILTERS[0]
     const q = search.trim().toLowerCase()
     let out = merged.filter(f.test)
     if (q) out = out.filter(a => [a.company, a.role, a.location, a.notes].some(v => v?.toLowerCase().includes(q)))
     return out
   }, [merged, filter, search])
+  const locationCounts = useMemo(() => regionCounts(preLocation), [preLocation])
+  // A saved region that no longer has any rows would filter to nothing with no chip to clear it.
+  const activeRegions = useMemo(() => regions.filter(r => locationCounts.some(([x]) => x === r)), [regions, locationCounts])
+  const base = useMemo(() =>
+    activeRegions.length ? preLocation.filter(a => matchesRegions(a.location, activeRegions)) : preLocation,
+  [preLocation, activeRegions])
+
+  // A row sits in one group: its first region (within the selected ones, when filtering).
+  const regionOf = useCallback(a => {
+    const rs = locationRegions(a.location)
+    return (activeRegions.length && rs.find(r => activeRegions.includes(r))) || rs[0]
+  }, [activeRegions])
+  const groupKey = groupBy === 'stage' ? a => a.stage : groupBy === 'location' ? regionOf : null
 
   const rows = useMemo(() => {
     const ids = pick && new Set(pick.appIds)
@@ -152,8 +170,11 @@ export default function ApplicationsSheet({ apps, contacts = [], interactions = 
     const sortCol = sort && SHEET_COLUMNS.find(c => c.id === sort.id)
     const bySort = sortCol ? compareBy(sortCol, ctx, sort.desc) : (a, b) => (b.appliedDate || '').localeCompare(a.appliedDate || '')
     const byStage = (a, b) => STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage)
-    return out.slice().sort(grouped ? (a, b) => byStage(a, b) || bySort(a, b) : bySort)
-  }, [base, pick, sort, grouped, ctx])
+    const rank = new Map(regionCounts(out, x => x.location).map(([r], i) => [r, i]))
+    const byRegion = (a, b) => (rank.get(regionOf(a)) ?? 999) - (rank.get(regionOf(b)) ?? 999) || regionOf(a).localeCompare(regionOf(b))
+    const byGroup = groupBy === 'stage' ? byStage : groupBy === 'location' ? byRegion : null
+    return out.slice().sort(byGroup ? (a, b) => byGroup(a, b) || bySort(a, b) : bySort)
+  }, [base, pick, sort, groupBy, regionOf, ctx])
 
   // Keep the active cell on the same application across re-sorts/refreshes.
   const activeId = active ? rows[active.r]?.id : null
@@ -297,15 +318,16 @@ export default function ApplicationsSheet({ apps, contacts = [], interactions = 
 
   const panelApp = panelId ? apps.find(a => a.id === panelId) : null
 
-  // Group header rows interleaved with data rows when grouped by stage.
+  // Group header rows interleaved with data rows when grouped by stage or location.
   const body = []
   rows.forEach((app, r) => {
-    if (grouped && (r === 0 || rows[r - 1].stage !== app.stage)) {
-      const n = rows.filter(x => x.stage === app.stage).length
+    const g = groupKey?.(app)
+    if (groupKey && (r === 0 || groupKey(rows[r - 1]) !== g)) {
+      const n = rows.filter(x => groupKey(x) === g).length
       body.push(
-        <tr key={`g-${app.stage}`} className="bg-ink-50">
+        <tr key={`g-${g}`} className="bg-ink-50">
           <td colSpan={cols.length + 1} className="sticky left-0 px-3 pt-3 pb-1.5 border-b border-ink-200">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-500">{app.stage}</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-500">{g}</span>
             <Mono className="ml-2 text-ink-400">{n}</Mono>
           </td>
         </tr>
@@ -369,10 +391,15 @@ export default function ApplicationsSheet({ apps, contacts = [], interactions = 
             className={`flex items-center gap-1 px-2.5 py-1 border rounded-sm text-xs font-medium ${showFlow ? 'bg-ink-900 text-on-fill border-ink-900' : 'bg-surface text-ink-600 border-ink-300 hover:bg-ink-50'}`}>
             <Waypoints size={13} /> Flow
           </button>
-          <button onClick={() => setGrouped(g => !g)}
-            className={`flex items-center gap-1 px-2.5 py-1 border rounded-sm text-xs font-medium ${grouped ? 'bg-ink-900 text-on-fill border-ink-900' : 'bg-surface text-ink-600 border-ink-300 hover:bg-ink-50'}`}>
-            <Rows3 size={13} /> Group by stage
-          </button>
+          <label className={`flex items-center gap-1 pl-2.5 pr-1 py-1 border rounded-sm text-xs font-medium ${groupBy !== 'none' ? 'bg-ink-900 text-on-fill border-ink-900' : 'bg-surface text-ink-600 border-ink-300 hover:bg-ink-50'}`}>
+            <Rows3 size={13} /> Group
+            <select value={groupBy} onChange={e => { setGroupBy(e.target.value); setActive(null) }}
+              className="bg-transparent outline-none cursor-pointer font-medium">
+              <option value="none" className="bg-surface text-ink-900">none</option>
+              <option value="stage" className="bg-surface text-ink-900">by stage</option>
+              <option value="location" className="bg-surface text-ink-900">by location</option>
+            </select>
+          </label>
           <div className="relative">
             <button onClick={() => setShowCols(s => !s)}
               className="flex items-center gap-1 px-2.5 py-1 border border-ink-300 rounded-sm bg-surface text-xs font-medium text-ink-600 hover:bg-ink-50">
@@ -409,6 +436,11 @@ export default function ApplicationsSheet({ apps, contacts = [], interactions = 
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="mb-3">
+        <LocationFilter counts={locationCounts} value={activeRegions} size="sm"
+          onChange={v => { setRegions(v); setPick(null); setActive(null) }} />
       </div>
 
       {children}
