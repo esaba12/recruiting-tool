@@ -75,3 +75,28 @@ describe('createInterviewEvent', () => {
     await expect(createInterviewEvent('tok', data, { timeZone: 'UTC', fetch })).rejects.toThrow('403')
   })
 })
+
+// v1.5 spec 06: the meeting link rides along with the interview time.
+import { scheduleFields as scheduleFieldsWithLink } from '../api/_lib/emailPipeline.js'
+import { interviewJoinLink } from '../src/lib/attention.js'
+describe('interview link', () => {
+  const tz = 'America/New_York'
+  const invite = { type: 'INTERVIEW_INVITE', interview_date: '2026-11-20', meeting_link: 'https://zoom.us/j/1' }
+  it('scheduleFields writes the link with a new time', () => {
+    expect(scheduleFieldsWithLink(invite, null, { timeZone: tz })).toMatchObject({ interview_link: 'https://zoom.us/j/1' })
+  })
+  it('fills a missing link on an unchanged interview, never clears one', () => {
+    const existing = { interview_at: '2026-11-20T17:00:00.000Z', interview_time_known: true, interview_link: null }
+    expect(scheduleFieldsWithLink(invite, existing, { timeZone: tz })).toEqual({ interview_link: 'https://zoom.us/j/1' })
+    expect(scheduleFieldsWithLink({ ...invite, meeting_link: null }, { ...existing, interview_link: 'https://x' }, { timeZone: tz })).toEqual({})
+  })
+  it('interviewJoinLink: stored link, else the newest invite lead from someone at the company', () => {
+    const app = { company: 'Anthropic', interviewAt: '2026-11-20T19:00:00Z', interviewLink: null }
+    const contacts = [{ id: 'c1', company: ' anthropic ' }, { id: 'c2', company: 'Stripe' }]
+    const ix = (contactId, sentAt, link, cat = 'INTERVIEW_INVITE') => ({ contactId, sentAt, emailCategory: cat, summary: `Fri 2 PM\n📅 Meeting link: ${link}\n\nHi` })
+    expect(interviewJoinLink({ ...app, interviewLink: 'https://stored' }, {})).toBe('https://stored')
+    expect(interviewJoinLink(app, { contacts, interactions: [ix('c1', '2026-11-10T00:00:00Z', 'https://old'), ix('c1', '2026-11-12T00:00:00Z', 'https://new'), ix('c2', '2026-11-13T00:00:00Z', 'https://stripe')] })).toBe('https://new')
+    expect(interviewJoinLink(app, { contacts, interactions: [ix('c1', '2026-09-01T00:00:00Z', 'https://stale')] })).toBeNull()
+    expect(interviewJoinLink(app, { contacts, interactions: [ix('c1', '2026-11-12T00:00:00Z', 'https://x', 'REPLY')] })).toBeNull()
+  })
+})

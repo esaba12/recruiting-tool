@@ -1,7 +1,7 @@
 // Push notifications for the serverless Gmail scan (v1.3 spec 08 item 1), ported from
 // scripts/email-pipeline.js (sendPush, buildStatusPush, flushUpdatePushes, sendScheduledDigest,
 // buildOaDigest, buildDailyRecap). Same three kinds of push, nothing else:
-//   1./2. an 11am and a midnight digest (AI recap + offer deadlines + open OAs + held updates), once per slot;
+//   1./2. an 11am and a midnight digest (AI recap + today's interviews + offer deadlines + open OAs + held updates), once per slot;
 //   3.    updates (OA / interview / offer / rejection), queued during a tick and sent as ONE
 //         push at its end, held during quiet hours (22:00–08:00) until the next digest or 08:00.
 // Opt-in per user: Settings stores { ntfyTopic, timeZone } in user_settings 'push_settings'.
@@ -113,8 +113,22 @@ export function offerDigest(apps, today) {
   return { lines, priority: soonest <= 1 ? 'urgent' : 'high' }
 }
 
-export function buildDigest({ slot, recap, oa, offers, updates = [], click }) {
+// Interviews still ahead today, in the user's zone (v1.5 spec 06): the midnight digest lists the
+// day's, the 11am one what's left. Rows: { company, role, interview_at, interview_time_known, interview_link }.
+export function interviewDigest(apps, { now = Date.now(), timeZone = DEFAULT_TIME_ZONE } = {}) {
+  const today = localClock(now, timeZone).date
+  const rows = (apps || [])
+    .filter(a => a.interview_at && localClock(Date.parse(a.interview_at), timeZone).date === today && Date.parse(a.interview_at) > now - 3600000)
+    .sort((a, b) => Date.parse(a.interview_at) - Date.parse(b.interview_at))
+  if (!rows.length) return null
+  const time = iso => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone })
+  const lines = rows.map(a => `${a.company}${a.role ? ` (${a.role})` : ''} — ${a.interview_time_known ? time(a.interview_at) : 'today'}${a.interview_link ? `\n  ${a.interview_link}` : ''}`)
+  return { lines, priority: 'high' }
+}
+
+export function buildDigest({ slot, recap, oa, offers, interviews, updates = [], click }) {
   const sections = []
+  if (interviews) sections.push(`🎤 Interviews today\n${interviews.lines.join('\n')}`)
   if (offers) sections.push(`⚖️ Offer deadlines\n${offers.lines.join('\n')}`)
   if (recap) sections.push([recap.summary, ...(recap.todos || []).map(t => `• ${t}`)].join('\n'))
   if (oa) sections.push(`⏰ Open OAs\n${oa.lines.join('\n')}`)
@@ -123,7 +137,7 @@ export function buildDigest({ slot, recap, oa, offers, updates = [], click }) {
   return {
     title: slot === 'midnight' ? '🌙 Nightly recruiting digest' : '📋 Your recruiting digest',
     message: sections.join('\n\n'),
-    priority: maxPriority([{ priority: oa ? oa.priority : 'default' }, { priority: offers ? offers.priority : 'default' }, ...updates]),
+    priority: maxPriority([{ priority: oa ? oa.priority : 'default' }, { priority: offers ? offers.priority : 'default' }, { priority: interviews ? interviews.priority : 'default' }, ...updates]),
     tags: ['clipboard'],
     ...(click ? { click } : {}),
   }
@@ -197,6 +211,13 @@ async function openOffers(db, userId) {
   return data || []
 }
 
+async function upcomingInterviewRows(db, userId, now) {
+  const { data } = await db.from('applications').select('company, role, interview_at, interview_time_known, interview_link')
+    .eq('user_id', userId).eq('archived', false).not('stage', 'in', '(Rejected,Accepted)')
+    .gte('interview_at', new Date(now - 3600000).toISOString()).lte('interview_at', new Date(now + 36 * 3600000).toISOString())
+  return data || []
+}
+
 async function openOas(db, userId) {
   const { data } = await db.from('applications').select('company, role, oa_due_date')
     .eq('user_id', userId).not('oa_due_date', 'is', null).eq('oa_completed', false).eq('archived', false)
@@ -254,11 +275,12 @@ export async function runUserPushes(db, userId, newPushes, { llm, click, now = D
     const today = localClock(now, settings.timeZone).date
     const oa = oaDigest(await openOas(db, userId), today)
     const offers = offerDigest(await openOffers(db, userId), today)
+    const interviews = interviewDigest(await upcomingInterviewRows(db, userId, now), { now, timeZone: settings.timeZone })
     let recap = null
     if (llm) {
       try { recap = await dailyRecap(db, userId, llm, { now, today, fetch }) } catch (e) { console.error(e.message) }
     }
-    const push = buildDigest({ slot: plan.slot, recap, oa, offers, updates: queue, click })
+    const push = buildDigest({ slot: plan.slot, recap, oa, offers, interviews, updates: queue, click })
     const sent = push ? await send(push) : true
     if (sent) {
       queue = []

@@ -3,7 +3,7 @@ import { m } from 'motion/react'
 import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TYPE_COLOR, fmt, daysUntil, daysSince, Badge, EmptyState } from '../shared.jsx'
 import { updateEmailDraft, updateContact, addInteraction, updateApplicationTriage, archiveApplication, updateApplication, completeActionItem, dismissActionItem, dismissActionItems } from '../db.js'
 import { logMetWithContact } from '../lib/quickLog.js'
-import { pipelineRates } from '../lib/attention.js'
+import { pipelineRates, interviewJoinLink } from '../lib/attention.js'
 import { snoozeKey } from '../lib/todayAttention.js'
 import { layoutBands } from '../lib/todayCards.js'
 import { lastPointOfContact } from '../lib/keepInTouch.js'
@@ -360,8 +360,11 @@ function countdown(days) {
 
 // An interview the scan (or the user) put a date on (v1.4 spec 02). A date-only interview
 // shows no time: the scan stored it at noon as a placeholder.
-function InterviewRow({ app: a, onOpen }) {
+// v1.5 spec 06: Prep opens Learn on this company; Join appears when a link is known, in the
+// accent tone from 30 minutes before the start.
+function InterviewRow({ app: a, onOpen, onOpenPrep, joinLink }) {
   const at = new Date(a.interviewAt)
+  const soon = a.interviewTimeKnown && at.getTime() - Date.now() <= 30 * 60000
   const when = at.toLocaleString('en-US', a.interviewTimeKnown
     ? { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }
     : { weekday: 'short', month: 'short', day: 'numeric' })
@@ -375,6 +378,17 @@ function InterviewRow({ app: a, onOpen }) {
       <div className="text-right shrink-0">
         <Mono className={`block text-sm font-semibold ${days <= 1 ? 'text-warning-700' : 'text-ink-900'}`}>{countdown(days)}</Mono>
         <Mono className="block text-xs text-ink-500">{when}</Mono>
+        <div className="flex items-center gap-2 justify-end mt-0.5">
+          {onOpenPrep && (
+            <button onClick={e => { e.stopPropagation(); onOpenPrep(a.company) }} className="text-xs text-link hover:underline">Prep</button>
+          )}
+          {joinLink && (
+            <a href={joinLink} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
+              className={soon ? 'text-xs font-semibold px-2 py-0.5 rounded-sm bg-accent-600 text-on-accent hover:bg-accent-700' : 'text-xs text-link hover:underline'}>
+              Join ↗
+            </a>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -570,7 +584,7 @@ function DraftRow({ draft, contacts, onOpen, onRefresh, isDemoMode }) {
   )
 }
 
-export default function TodayTab({ attention, contacts, apps, interactions = [], relationships = [], onLogOa, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, onOpenDraft, isDemoMode = false }) {
+export default function TodayTab({ attention, contacts, apps, interactions = [], relationships = [], onLogOa, onOpenPrep, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, onOpenDraft, isDemoMode = false }) {
   // Lists, layout and snoozes come from lib/useTodayAttention.js, mounted in App so the sidebar
   // badge counts the same rows (v1.5 spec 02).
   const {
@@ -629,7 +643,7 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
   const renderRow = ({ kind, row, key }) => {
     switch (kind) {
       case 'decisions': return <DecisionRow key={key} app={row} onOpen={openOffer} />
-      case 'interview': return <InterviewRow key={key} app={row} onOpen={openApp} />
+      case 'interview': return <InterviewRow key={key} app={row} onOpen={openApp} onOpenPrep={onOpenPrep} joinLink={interviewJoinLink(row, { interactions, contacts })} />
       case 'oa': return <OaRow key={key} app={row} onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />
       case 'oaCheck': return <OaRow key={key} app={row} needsCheck onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />
       case 'thankYou': return <ThankYouRow key={key} row={row} onRefresh={onRefresh} onOpenContact={openContact} onOpenApp={openApp} onHide={hide('thankYou')} />
@@ -714,7 +728,7 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
       <DashCard label="Applications" tone={appGroups.stale.length ? 'danger' : 'warning'} icon={ClipboardCheck}
         count={appCount} actions={clearAll(appGroups)}>
         <Group label="Interviews coming up" tone="accent" cap={capOf('apps')} items={appGroups.interview} onHide={hide('interview')}
-          renderItem={a => <InterviewRow key={a.id} app={a} onOpen={openApp} />} />
+          renderItem={a => <InterviewRow key={a.id} app={a} onOpen={openApp} onOpenPrep={onOpenPrep} joinLink={interviewJoinLink(a, { interactions, contacts })} />} />
         <Group label="OA due" tone="warning" cap={capOf('apps')} items={appGroups.oa} onHide={hide('oa')}
           renderItem={a => <OaRow key={a.id} app={a} onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />} />
         <Group label={`Stale · no movement ${staleDays}d+`} tone="danger" cap={capOf('apps')} items={appGroups.stale} onHide={hide('stale')}

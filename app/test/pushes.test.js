@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
   statusPush, isFreshEnoughToPush, isQuietHours, localClock, digestSlot, combineUpdates, maxPriority,
-  oaDigest, offerDigest, buildDigest, planPushes, sendPush, validTopic, awaitingReply, runUserPushes,
+  oaDigest, offerDigest, interviewDigest, buildDigest, planPushes, sendPush, validTopic, awaitingReply, runUserPushes,
 } from '../api/_lib/pushes.js'
 
 const TZ = 'America/New_York'
@@ -193,7 +193,7 @@ function fakeDb({ settings = {}, rows = {} } = {}) {
       let key = null
       const b = {
         select: () => b, eq: (col, v) => { if (col === 'key') key = v; return b }, not: () => b, is: () => b,
-        in: () => b, gte: () => b, order: () => b,
+        in: () => b, gte: () => b, lte: () => b, order: () => b,
         maybeSingle: async () => ({ data: table === 'user_settings' && store.has(key) ? { value: store.get(key) } : null }),
         upsert: async (row) => { writes.push({ table, row }); if (table === 'user_settings') store.set(row.key, row.value); return { error: null } },
         then: (res, rej) => Promise.resolve({ data: rows[table] || [] }).then(res, rej),
@@ -250,3 +250,33 @@ describe('runUserPushes', () => {
     expect(db.store.get('push_state')).toEqual({ queue: [update], sentSlots: {} })
   })
 })
+
+describe('interviewDigest (v1.5 spec 06)', () => {
+  const tz = 'America/New_York'
+  const now = Date.parse('2026-11-13T05:00:00Z') // 12:00 AM Fri Nov 13 in New York
+  const row = (company, iso, extra = {}) => ({ company, role: 'SWE Intern', interview_at: iso, interview_time_known: true, interview_link: null, ...extra })
+
+  it("lists today's interviews in order, with time and join link", () => {
+    const d = interviewDigest([
+      row('Anthropic', '2026-11-13T19:00:00Z', { interview_link: 'https://meet.google.com/abc' }),
+      row('Stripe', '2026-11-13T14:00:00Z'),
+      row('Ramp', '2026-11-14T15:00:00Z'), // tomorrow
+    ], { now, timeZone: tz })
+    expect(d.lines).toEqual(['Stripe (SWE Intern) — 9:00 AM', 'Anthropic (SWE Intern) — 2:00 PM\n  https://meet.google.com/abc'])
+    expect(d.priority).toBe('high')
+  })
+
+  it('says "today" when only the day is known, and leaves out ones already over', () => {
+    const at11 = Date.parse('2026-11-13T16:00:00Z')
+    const d = interviewDigest([row('A', '2026-11-13T14:00:00Z'), row('B', '2026-11-13T17:00:00Z', { interview_time_known: false })], { now: at11, timeZone: tz })
+    expect(d.lines).toEqual(['B (SWE Intern) — today'])
+    expect(interviewDigest([], { now, timeZone: tz })).toBeNull()
+  })
+
+  it('goes first in the digest', () => {
+    const push = buildDigest({ slot: 'am', interviews: { lines: ['X — 9:00 AM'], priority: 'high' }, oa: { lines: ['Y — due today'], priority: 'urgent' } })
+    expect(push.message.startsWith('🎤 Interviews today\nX — 9:00 AM')).toBe(true)
+    expect(push.priority).toBe('urgent')
+  })
+})
+
