@@ -99,6 +99,8 @@ const GENERIC_EMAIL_DOMAINS = new Set([
 ])
 const REFERRAL_MENTION_RE = /\b(referred by|referred you|referral from|recommended by|thanks to (?:the |your )?(?:introduction|referral)|your referrer|employee referral|referral (?:portal|link|program)|apply(?:ing)? through a referral)\b/i
 const APPLICATION_CONFIRMATION_RE = /\b(thank(?:s| you) for (?:your interest|applying)|we(?:'| ha)ve received your application|your application (?:has been received|was submitted|is being reviewed)|application (?:received|submitted|confirmation)|successfully applied)\b/i
+// Same regex as scripts/email-pipeline.js (v1.5 spec 07 port) — keep the two in sync.
+export const OA_COMPLETED_RE = /\b(assessment (?:has been |was )?(?:submitted|completed)|(?:submitted|completed) (?:your|the) assessment|thank(?:s| you) for completing|test (?:has been |was )?(?:submitted|completed)|your (?:hackerrank|codesignal|codility|hackerearth) (?:test|assessment) (?:is complete|has been received))\b/i
 const OA_INVITE_RE = /\b(online assessment|coding assessment|coding challenge|skills assessment|hackerrank|codesignal|codility|hackerearth|pymetrics|numerical reasoning|complete (?:your|the) assessment|assessment invit)/i
 // Role mailboxes and platform senders — never a person, so never a contact. Matched on the
 // address alone (the display name is no help: "Google Careers" reads like a name). Shared with
@@ -453,7 +455,7 @@ invite: use NEW_CONTACT or FOLLOW_UP_NEEDED if someone personal sent it, else UN
 unsure, choose networking: a false interview moves the application to Phone Screen and puts an
 interview on the calendar.`
 
-async function classifyEmail(llm, { subject, from, body, date, meetingLink, invite, bulk, extraHints, profile }) {
+export async function classifyEmail(llm, { subject, from, body, date, meetingLink, invite, bulk, extraHints, profile }) {
   const inviteHintText = inviteHint(invite, subject)
   const linkHint = meetingLink ? `\n\nA video meeting link was found in this email: ${meetingLink}` : ''
   const bulkHint = bulk ? '\n\nThis email has mailing-list headers (List-Unsubscribe / bulk precedence): it was sent to a list, so it is almost certainly not personal outreach — "personal" should be false.' : ''
@@ -474,7 +476,7 @@ spam, newsletters, unrelated logistics, etc.): {"type":"UNRELATED"}
 
 Otherwise return:
 {
-  "type": "APPLICATION_CONFIRMATION|OA_INVITE|REPLY|INTERVIEW_INVITE|OFFER|REJECTION|NEW_CONTACT|FOLLOW_UP_NEEDED",
+  "type": "APPLICATION_CONFIRMATION|OA_INVITE|OA_COMPLETED|REPLY|INTERVIEW_INVITE|OFFER|REJECTION|NEW_CONTACT|FOLLOW_UP_NEEDED",
   "personal": "true if a specific human wrote this message individually to the candidate (or the candidate to them); false for templates, automated notices and anything sent to a list",
   "contact_name": "the recruiter/contact's full name if mentioned in the body or signature, else null — their email address is resolved separately from message headers, not from this field",
   "company": "company name",
@@ -512,6 +514,11 @@ August 20", "you have 7 days to complete this assessment", etc.) — many OA inv
 one at all, in which case leave it null rather than estimating from the email's send date.
 The same goes for offer_deadline: only a stated respond-by date ("please let us know by
 November 14", "this offer expires in two weeks"), else null.
+
+OA_COMPLETED means an automated receipt confirming the candidate already finished/submitted the
+Online Assessment ("Your assessment has been submitted", "Thank you for completing the test") —
+this is the counterpart to OA_INVITE and should only be used for a genuine submission receipt,
+never for the original invite itself or a reminder to complete an assessment that's still open.
 
 NEW_CONTACT means this introduces or continues a relationship with someone potentially useful to
 the candidate's professional network — met at a career fair/event, an alum, a friendly employee at
@@ -629,6 +636,21 @@ export function pickApplication(rows, role) {
 // link), but an invite with a new link is a new assessment (a second round, a retake) and
 // reopens it: a missed OA costs more than one wrongly reopened.
 // scripts/email-pipeline.js has the same rule — keep the two in sync.
+// An OA_COMPLETED receipt marks an open OA done (v1.5 spec 07, ported from the Apps Script).
+// Only ever on an application that exists and isn't already done: a receipt never creates one.
+export function oaCompletedFields(data, existing) {
+  if (data.type !== 'OA_COMPLETED' || !existing || existing.oa_completed) return {}
+  return { oa_completed: true }
+}
+
+// Which application a completion receipt is for: the role match when it has an open OA, else the
+// newest application at that company with one (rows are newest first).
+export function pickOaApplication(rows, role) {
+  const open = r => r && !r.oa_completed && (r.oa_link || r.oa_due_date)
+  const byRole = pickApplication(rows, role)
+  return open(byRole) ? byRole : (rows || []).find(open) || null
+}
+
 export function oaInviteFields(data, existing) {
   if (data.type !== 'OA_INVITE') return {}
   const fields = { oa_due_date: data.oa_due_date || null, oa_link: data.oa_link || null, oa_research_checked_at: null }
@@ -678,9 +700,17 @@ async function upsertApplication(db, userId, data, { timeZone }) {
   const referrerId = data.referrer_name ? await findContactByName(db, userId, data.referrer_name) : null
 
   const { data: rows } = await db.from('applications')
-    .select('id,role,stage,referred_by_id,oa_completed,oa_link,interview_at,interview_time_known')
+    .select('id,role,stage,referred_by_id,oa_completed,oa_link,oa_due_date,interview_at,interview_time_known')
     .eq('user_id', userId).ilike('company', `%${data.company || ''}%`).eq('archived', false)
     .order('created_at', { ascending: false }).limit(50)
+  if (data.type === 'OA_COMPLETED') {
+    // Never creates or moves an application: it only closes an OA that's open. null = nothing changed.
+    const app = pickOaApplication(rows, data.role)
+    const fields = oaCompletedFields(data, app)
+    if (!Object.keys(fields).length) return null
+    await db.from('applications').update({ ...fields, last_activity: today }).eq('id', app.id)
+    return app.id
+  }
   const existing = pickApplication(rows, data.role)
   const change = scanStageChange(stage, existing)
   if (change.skip) return null
@@ -863,6 +893,9 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
       const oaHint = OA_INVITE_RE.test(msg.subject + ' ' + msg.plainBody)
         ? '\n\nThis email\'s subject/body matches typical Online Assessment (OA) invite phrasing (HackerRank/CodeSignal/Codility/etc., or a generic "complete your assessment" template) — likely type OA_INVITE. Extract oa_due_date only if the email actually states a completion deadline, and oa_link as the URL the candidate clicks to start/complete the assessment.'
         : ''
+      const oaCompletedHint = OA_COMPLETED_RE.test(msg.subject + ' ' + msg.plainBody)
+        ? '\n\nThis email\'s subject/body matches typical Online Assessment submission-confirmation phrasing ("assessment submitted", "thank you for completing", etc.) — likely type OA_COMPLETED, an automated receipt that the candidate finished the OA (distinct from OA_INVITE, which is the invitation to start it).'
+        : ''
       const companyHint = guessCompanyHint(msg.from)
       const shapeHint = recruitingShapeHint(msg.from, msg.subject, msg.plainBody)
       const networkingHint = networkingShapeHint(msg.subject, msg.plainBody)
@@ -870,7 +903,7 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
       const data = await classifyEmail(llm, {
         subject: msg.subject, from: msg.from, body: msg.plainBody,
         date: msg.date.toISOString().slice(0, 10), meetingLink, invite, bulk: msg.bulk,
-        extraHints: applicationHint + referralHint + oaHint + companyHint + shapeHint + networkingHint,
+        extraHints: applicationHint + referralHint + oaHint + oaCompletedHint + companyHint + shapeHint + networkingHint,
         profile,
       })
 
@@ -893,7 +926,7 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
       const contactId = await upsertContact(db, userId, data, { fromMe, sentDay })
 
       let applicationId = null
-      if (['APPLICATION_CONFIRMATION', 'OA_INVITE', 'INTERVIEW_INVITE', 'OFFER', 'REJECTION'].includes(data.type)) {
+      if (['APPLICATION_CONFIRMATION', 'OA_INVITE', 'OA_COMPLETED', 'INTERVIEW_INVITE', 'OFFER', 'REJECTION'].includes(data.type)) {
         applicationId = await upsertApplication(db, userId, data, { timeZone })
       }
 
@@ -949,7 +982,8 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
 
       threadProgress[threadId] = messages.length
       // Last, so a thread that fails above (and is retried next tick) never pushes twice.
-      const unmatchedProgress = !applicationId && (data.type === 'INTERVIEW_INVITE' || data.type === 'OFFER')
+      // OA_COMPLETED that closed nothing (no open OA at that company) changed nothing, so no push.
+      const unmatchedProgress = !applicationId && ['INTERVIEW_INVITE', 'OFFER', 'OA_COMPLETED'].includes(data.type)
       const push = isFreshEnoughToPush(msg.date) && !unmatchedProgress ? statusPush(data) : null
       if (push) pushes.push(push)
       return 'classified'
