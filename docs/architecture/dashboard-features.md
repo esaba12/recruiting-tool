@@ -16,6 +16,11 @@ shows 3 rows before "+N more".
 A header line gives the date and the open count (cards and lists that are on only), plus
 "Unhide N" when anything is snoozed, and **Customize**.
 
+**One derivation** (v1.5 spec 02): `lib/todayAttention.js` `deriveTodayAttention` builds every
+list from the data, the layout and the snoozes. `lib/useTodayAttention.js` (layout + snoozes +
+that) is mounted once in `AppInner` / `DemoAppInner` and passed to `TodayTab` as `attention`, and
+the sidebar's Today badge is its `openCount`, so the badge always equals the header's "N open".
+
 **Customize** (v1.4 spec 08). Each user arranges their own Today:
 - The card registry is `lib/todayCards.js`, which is pure. Each card has a default width (`third` / `half` / `full`) and optional `groups` (the lists inside it).
 - Users can turn any group off. Job boards to review is SWE/PM only, and Events needs a campus.

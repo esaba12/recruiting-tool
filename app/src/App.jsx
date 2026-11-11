@@ -28,7 +28,7 @@ import FeedbackHost from './components/onboarding/FeedbackHost.jsx'
 import { needsOnboarding } from './lib/onboarding.js'
 import { useKeysReady } from './lib/useKeyStatus.js'
 import { NAV_ITEMS } from './components/layout/Sidebar.jsx'
-import { overdueFollowUps, staleApplications, highUrgencyContacts, wantToSchedule, oaDue, oaNeedsCheck, keepInTouchDue, needsReviewApps } from './lib/attention.js'
+import useTodayAttention from './lib/useTodayAttention.js'
 import { Table2, Share2, Waypoints } from 'lucide-react'
 import NetworkingFlowPanel from './components/NetworkingFlowPanel.jsx'
 import { NetworkCharts } from './components/charts/ActivityCharts.jsx'
@@ -333,6 +333,8 @@ function AppInner() {
   // Google Calendar push for the pool (dedicated "Recruiting" calendar) — auto-pushes
   // relevance-high events, reconciles Google-side deletes; exposes push/unpush to the UI.
   const eventCalendarSync = useEventCalendarSync({ pool: eventPool, enabled: !!profile?.school_id })
+  // Today's lists, layout and snoozes, shared by Today and the sidebar badge (v1.5 spec 02).
+  const todayAttention = useTodayAttention({ contacts, apps, interactions, actionItems, emailDrafts, eventPool, profile })
   usePrefetchTabs(!loading)
 
   // Only the first load shows the full-screen loading state. Later refreshes (a row's
@@ -403,8 +405,7 @@ function AppInner() {
   }, [])
 
   const activeApps = apps.filter(a => !['Rejected','Accepted'].includes(a.stage))
-  const openActionItemCount = actionItems.filter(i => !i.completedAt && !i.dismissedAt).length
-  const todayCount = overdueFollowUps(contacts, interactions).length + staleApplications(apps).length + highUrgencyContacts(contacts).length + wantToSchedule(contacts).length + oaDue(apps).length + oaNeedsCheck(apps).length + keepInTouchDue(contacts, interactions).length + needsReviewApps(apps).length + openActionItemCount
+  const todayCount = todayAttention.openCount
 
   const inboxUnread = useMemo(
     () => buildThreads({ interactions }).filter(t => t.unread).length, [interactions])
@@ -444,7 +445,7 @@ function AppInner() {
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
           onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} onImported={refreshApps} views={pipelineViewsFor(profile)} />
       )}
-      {!loading && tab === 'today'    && <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships} actionItems={actionItems} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} emailDrafts={emailDrafts} onOpenDraft={openDraft} profile={profile} />}
+      {!loading && tab === 'today'    && <TodayTab attention={todayAttention} contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} onOpenDraft={openDraft} />}
       {!loading && tab === 'inbox'    && (
         <InboxTab contacts={contacts} apps={apps} interactions={interactions} actionItems={actionItems} onRefresh={load}
           drafts={emailDrafts} onDraftsChange={setEmailDrafts} initialThreadId={inboxThread} />
@@ -506,6 +507,9 @@ function DemoApp() {
   return <DemoAppInner />
 }
 
+// The demo has no email action items; a stable [] keeps useTodayAttention's memo warm.
+const NO_ACTION_ITEMS = []
+
 function DemoAppInner() {
   const [tab, setTabState] = useState('today')
   const [settingsReturnTab, setSettingsReturnTab] = useState('today')
@@ -524,6 +528,7 @@ function DemoAppInner() {
   // Recruiting events from demoData.js (db.js's demo branch). isDemo skips the AI
   // enrichment pass; there's no Google account, so no calendar sync hook.
   const eventPool = useRecruitingEvents({ enabled: true, isDemo: true, contacts, apps })
+  const todayAttention = useTodayAttention({ contacts, apps, interactions, actionItems: NO_ACTION_ITEMS, emailDrafts, eventPool, profile: null })
   usePrefetchTabs(!loading)
 
   useEffect(() => { load() }, [])
@@ -553,7 +558,7 @@ function DemoAppInner() {
   }
 
   const activeApps = apps.filter(a => !['Rejected', 'Accepted'].includes(a.stage))
-  const todayCount = overdueFollowUps(contacts, interactions).length + staleApplications(apps).length + highUrgencyContacts(contacts).length + wantToSchedule(contacts).length + oaDue(apps).length + oaNeedsCheck(apps).length + keepInTouchDue(contacts, interactions).length + needsReviewApps(apps).length
+  const todayCount = todayAttention.openCount
   const inboxUnread = buildThreads({ interactions }).filter(t => t.unread).length
   const counts = { inbox: inboxUnread || null, network: contacts.length, pipeline: activeApps.length, today: todayCount > 0 ? todayCount : null }
 
@@ -581,9 +586,9 @@ function DemoAppInner() {
           onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} onImported={refreshApps} />
       )}
       {!loading && tab === 'today' && (
-        <TodayTab contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships}
+        <TodayTab attention={todayAttention} contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships}
           onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} isDemoMode
-          eventPool={eventPool} onOpenEvents={() => setTab('calendar')} emailDrafts={emailDrafts} onOpenDraft={openDraft} />
+          eventPool={eventPool} onOpenEvents={() => setTab('calendar')} onOpenDraft={openDraft} />
       )}
       {!loading && tab === 'calendar' && (
         <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={[]} onRefresh={load} eventPool={eventPool} eventCalendarSync={null} isDemoMode onRefreshContacts={refreshContacts} />
