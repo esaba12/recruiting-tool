@@ -67,7 +67,7 @@ already done, or a badge that disagrees with it, is worse than what's there now.
 🤖 = Claude can do it · 👤 = owner (console, approvals, merge)
 
 - [x] 🤖 Specs written (2026-11-11)
-- [ ] 🤖 01 follow-ups clear themselves → PR
+- [x] 🤖 01 follow-ups clear themselves → PR (2026-11-11; also stops your own "following up" email from re-scheduling the follow-up 3 days out)
 - [ ] 🤖 02 one count → PR
 - [ ] 🤖 03 Up next → PR (biggest; check `/demo` desktop, 390px, dark, keyboard)
 - [ ] 🤖 04 snooze to a date → PR

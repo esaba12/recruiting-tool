@@ -57,3 +57,19 @@ reply to an overdue contact from Gmail and the row is gone after the next scan.
 ## Done when
 
 Sending the follow-up is the only step. Nothing on Today asks you to confirm it.
+
+## As built (2026-11-11)
+
+- **Shared rule** in `src/lib/followUps.js` (`followUpSatisfied`, `followedUp`), imported by
+  `lib/attention.js` and `api/_lib/emailPipeline.js`.
+- **The scan decides inside `upsertContact`** (`followUpPatch`), not after logging. Found while
+  building: the classifier can label your own "just following up" email `FOLLOW_UP_NEEDED`,
+  which re-scheduled the follow-up 3 days out on every send. Now your own email that satisfies
+  a due follow-up clears it and never schedules another. Threads that return early (UNRELATED /
+  generic networking) clear it through `clearSentFollowUp`.
+- **Awaiting reply** now includes a contact whose follow-up was sent, so the person moves from
+  Overdue to Awaiting instead of disappearing.
+- `/demo`: Amara Osei's seeded "Following up — Vercel SWE internship" (4 days ago, due 3 days
+  ago) now clears her overdue row, which is the bug this fixes. Ryan's "Done" removes his row.
+- Tests: `test/followUps.test.js` (13).
+

@@ -404,7 +404,7 @@ function AppInner() {
 
   const activeApps = apps.filter(a => !['Rejected','Accepted'].includes(a.stage))
   const openActionItemCount = actionItems.filter(i => !i.completedAt && !i.dismissedAt).length
-  const todayCount = overdueFollowUps(contacts).length + staleApplications(apps).length + highUrgencyContacts(contacts).length + wantToSchedule(contacts).length + oaDue(apps).length + oaNeedsCheck(apps).length + keepInTouchDue(contacts, interactions).length + needsReviewApps(apps).length + openActionItemCount
+  const todayCount = overdueFollowUps(contacts, interactions).length + staleApplications(apps).length + highUrgencyContacts(contacts).length + wantToSchedule(contacts).length + oaDue(apps).length + oaNeedsCheck(apps).length + keepInTouchDue(contacts, interactions).length + needsReviewApps(apps).length + openActionItemCount
 
   const inboxUnread = useMemo(
     () => buildThreads({ interactions }).filter(t => t.unread).length, [interactions])
@@ -553,7 +553,7 @@ function DemoAppInner() {
   }
 
   const activeApps = apps.filter(a => !['Rejected', 'Accepted'].includes(a.stage))
-  const todayCount = overdueFollowUps(contacts).length + staleApplications(apps).length + highUrgencyContacts(contacts).length + wantToSchedule(contacts).length + oaDue(apps).length + oaNeedsCheck(apps).length + keepInTouchDue(contacts, interactions).length + needsReviewApps(apps).length
+  const todayCount = overdueFollowUps(contacts, interactions).length + staleApplications(apps).length + highUrgencyContacts(contacts).length + wantToSchedule(contacts).length + oaDue(apps).length + oaNeedsCheck(apps).length + keepInTouchDue(contacts, interactions).length + needsReviewApps(apps).length
   const inboxUnread = buildThreads({ interactions }).filter(t => t.unread).length
   const counts = { inbox: inboxUnread || null, network: contacts.length, pipeline: activeApps.length, today: todayCount > 0 ? todayCount : null }
 

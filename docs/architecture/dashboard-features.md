@@ -49,6 +49,7 @@ chart, with no separate stat tiles repeating the same numbers. They're hidden un
 - **From your email:** AI action items, with "Dismiss all".
 - **People:** groups for Send a thank-you, Overdue follow-up, Awaiting reply, High urgency, Want to schedule and Keep in touch.
   - **Send a thank-you** (v1.4 spec 03, `thankYouDue`): an interview 0–48h ago (contact matched by `normalizeCompanyName`; shows even with nobody on file) or a Call/Meeting 0–2 days old, until an outbound Email/LinkedIn to that person. Draft opens `today/EmailDraft.jsx` on a template (AI rewrite behind `NeedsKey`); Sent it logs an outbound Email.
+  - **Overdue follow-up** (`overdueFollowUps(contacts, interactions)`): a passed Follow-Up Date, minus contacts you already wrote to (v1.5 spec 01, `lib/followUps.js` `followedUp`): an Outbound Email/LinkedIn/Call/Meeting dated no more than 3 days before the due date, or later, counts. **Done** clears the date (no automatic +7) and logs an `Other` "Followed up".
 - **Applications:** groups for Interviews coming up (`upcomingInterviews`, the next 14 days; a timed one leaves once it's over), OA due, Stale (14+ days without movement by default), Job boards to review (tech tracks) and OA deadline unknown.
 - **Events** (`today/EventAttentionSections.jsx` `EventsCard`): groups for signup steps due,
   registration closing and event follow-ups overdue, plus a footnote listing degraded feeds.
@@ -60,8 +61,8 @@ A fresh account sees `onboarding/GettingStarted.jsx` instead of "all clear": the
 first-scan state (`lib/gmailScan.js`) plus rows that open the tracker and LinkedIn importers.
 
 - **Awaiting Reply** (`awaitingReply`): the contact's last Email/LinkedIn interaction was
-  Outbound and 5+ days old with nothing back. Contacts with any Follow-Up Date are excluded, so
-  they're never double-nagged. "They replied" logs an Inbound; "Draft nudge" uses `DraftPanel`'s
+  Outbound and 5+ days old with nothing back. Contacts with an open Follow-Up Date are excluded, so
+  they're never double-nagged; once that follow-up is sent (`followedUp`) they show here. "They replied" logs an Inbound; "Draft nudge" uses `DraftPanel`'s
   `follow_up` kind.
 - **Keep in Touch** (`lib/keepInTouch.js`): reconnect cadence per contact from tie strength
   (`affinity.js`) × `DEFAULT_CADENCE`. Moderate ties get the tightest interval. Excludes Closed
