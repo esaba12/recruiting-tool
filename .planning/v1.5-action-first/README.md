@@ -71,7 +71,7 @@ already done, or a badge that disagrees with it, is worse than what's there now.
 - [x] 🤖 02 one count → PR (2026-11-11; `/demo` badge = header = 30, both 28 after Clear all on replies)
 - [x] 🤖 03 Up next → PR (2026-11-11; `/demo` desktop, 390px, dark, Customize checked)
 - [x] 🤖 04 snooze to a date → PR (2026-11-11)
-- [ ] 🤖 05 A reply actions on Today → PR
+- [x] 🤖 05 A reply actions on Today → PR (2026-11-11)
 - [ ] 🤖 06 interview rows → PR; 👤 approve `supabase db push` for `interview_link`
 - [ ] 🤖 07 OA done from email → PR
 - [ ] 👤 Live check after 01 + 07: send a follow-up from Gmail and finish an OA, wait for the

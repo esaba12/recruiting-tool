@@ -46,3 +46,17 @@ send from Gmail, and the row leaves after the next scan.
 ## Done when
 
 A drafted reply is one click from being in Gmail, and it leaves Today once you send it.
+
+## As built (2026-11-11, A only)
+
+- `lib/replySend.js` (`copyAndOpen`, `draftGmailUrl`), used by Today's `DraftRow` and Inbox's
+  `SuggestedReply`.
+- **Marks the draft done on copy**, like Inbox already did, instead of a "Waiting for you to send"
+  state until the next scan. The row shows "Copied. Paste it in Gmail and send." for ~2 s, then
+  leaves. Two different behaviors for the same button would be confusing, and the scan's
+  `settleThreadDrafts` still closes it out when the reply is seen.
+- **Edit** opens the text inline (saved on blur, `updateEmailDraft`); the row's subject still opens Inbox.
+- `/demo`: Copy & open Gmail → "Copied. (The demo doesn't open Gmail.)" → row leaves, badge 19 → 18.
+- Tests: `test/replySend.test.js` (4). B (real Gmail drafts) not built; still waiting on the
+  OAuth verification decision.
+

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react'
 import { m } from 'motion/react'
 import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TYPE_COLOR, fmt, daysUntil, daysSince, Badge, EmptyState } from '../shared.jsx'
-import { updateContact, addInteraction, updateApplicationTriage, archiveApplication, updateApplication, completeActionItem, dismissActionItem, dismissActionItems } from '../db.js'
+import { updateEmailDraft, updateContact, addInteraction, updateApplicationTriage, archiveApplication, updateApplication, completeActionItem, dismissActionItem, dismissActionItems } from '../db.js'
 import { logMetWithContact } from '../lib/quickLog.js'
 import { pipelineRates } from '../lib/attention.js'
 import { snoozeKey } from '../lib/todayAttention.js'
@@ -23,6 +23,7 @@ import Mono from './ui/Mono.jsx'
 import { SectionAction, RowCap } from './ui/Section.jsx'
 import { HeartHandshake, ClipboardCheck, Clock, MessageSquarePlus, ListTodo, PenLine, SlidersHorizontal, Scale } from 'lucide-react'
 import { draftPreview, DRAFT_INTENT_LABEL } from '../lib/replyDrafts.js'
+import { copyAndOpen, draftGmailUrl } from '../lib/replySend.js'
 import { DashCard, Group, Label } from './today/DashCard.jsx'
 import { PipelineCard, NetworkCard, OutreachCard, RatesCard } from './today/MetricCards.jsx'
 import GettingStarted from './onboarding/GettingStarted.jsx'
@@ -511,19 +512,60 @@ function ActionItemRow({ item, contacts, onRefresh, onOpen }) {
 
 // A reply the Gmail scan drafted (v1.4 spec 10). Opens the thread in Inbox, where it's edited
 // and copied into Gmail; nothing is sent from Today.
-function DraftRow({ draft, contacts, onOpen }) {
+// A drafted reply (v1.4 spec 10). v1.5 spec 05: send it from here: "Copy & open Gmail" copies
+// the text and opens the thread, then marks the draft done so it leaves Today. "Edit" opens the
+// text inline (saved on blur); the subject line still opens the thread in Inbox.
+function DraftRow({ draft, contacts, onOpen, onRefresh, isDemoMode }) {
   const to = String(draft.toAddress || '').toLowerCase()
   const contact = to ? contacts.find(c => String(c.email || '').toLowerCase() === to) : null
+  const [editing, setEditing] = useState(false)
+  const [body, setBody] = useState(draft.body)
+  const [note, setNote] = useState(null)   // { tone, text }
+  const [busy, setBusy] = useState(false)
+
+  async function send() {
+    setBusy(true)
+    const r = await copyAndOpen(draftGmailUrl(draft), body, { demo: isDemoMode })
+    if (!r.ok) { setNote({ tone: 'danger', text: r.error }); setEditing(true); setBusy(false); return }
+    setNote({ tone: 'success', text: r.opened ? 'Copied. Paste it in Gmail and send.' : 'Copied. (The demo doesn\'t open Gmail.)' })
+    try {
+      await updateEmailDraft(draft.id, { body, status: 'done' })
+      setTimeout(() => onRefresh?.(), 1800)
+    } catch (e) { setNote({ tone: 'danger', text: e.message }); setBusy(false) }
+  }
+  async function saveBody() {
+    if (body === draft.body) return
+    try { await updateEmailDraft(draft.id, { body }) } catch (e) { setNote({ tone: 'danger', text: e.message }) }
+  }
+
   return (
-    <div className={`py-2.5 flex items-start gap-3 ${ROW_HIT}`} onClick={() => onOpen(draft.threadId)}>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-ink-900 truncate">
-          {contact ? [contact.name, contact.company].filter(Boolean).join(' · ') : draft.toAddress}
-          <span className="text-ink-400 font-normal"> · {draft.subject}</span>
-        </p>
-        <p className="text-xs text-ink-500 truncate">{draftPreview(draft.body)}</p>
+    <div className="py-2.5">
+      <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className={`min-w-0 max-w-full ${ROW_HIT}`} onClick={() => onOpen(draft.threadId)}>
+          <p className="text-sm font-medium text-ink-900 truncate">
+            {contact ? [contact.name, contact.company].filter(Boolean).join(' · ') : draft.toAddress}
+            <span className="text-ink-400 font-normal"> · {draft.subject}</span>
+          </p>
+          <p className="text-xs text-ink-500 truncate">{draftPreview(body)}</p>
+        </div>
+        <div className="sm:text-right sm:shrink-0 space-y-1">
+          <p className="font-mono text-[10px] uppercase tracking-wide text-accent-700">{DRAFT_INTENT_LABEL[draft.intent] || 'Reply'}</p>
+          <div className="flex items-center gap-2 sm:justify-end">
+            <button onClick={send} disabled={busy} className="text-xs font-medium text-link hover:underline disabled:opacity-40">
+              Copy &amp; open Gmail
+            </button>
+            <button onClick={() => setEditing(e => !e)} className="text-xs text-ink-400 hover:text-ink-600 hover:underline">
+              {editing ? 'Hide' : 'Edit'}
+            </button>
+          </div>
+        </div>
       </div>
-      <span className="shrink-0 font-mono text-[10px] uppercase tracking-wide text-accent-700">{DRAFT_INTENT_LABEL[draft.intent] || 'Reply'}</span>
+      {editing && (
+        <textarea value={body} onChange={e => setBody(e.target.value)} onBlur={saveBody} aria-label="Drafted reply"
+          rows={Math.min(12, Math.max(4, body.split('\n').length + 1))}
+          className="mt-2 block w-full px-3 py-2 text-[13px] leading-relaxed text-ink-800 bg-surface border border-ink-200 rounded-sm resize-y focus:outline-none focus:border-accent-400" />
+      )}
+      {note && <p className={`mt-1 text-xs ${note.tone === 'danger' ? 'text-danger-600' : 'text-success-700'}`}>{note.text}</p>}
     </div>
   )
 }
@@ -591,7 +633,7 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
       case 'oa': return <OaRow key={key} app={row} onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />
       case 'oaCheck': return <OaRow key={key} app={row} needsCheck onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />
       case 'thankYou': return <ThankYouRow key={key} row={row} onRefresh={onRefresh} onOpenContact={openContact} onOpenApp={openApp} onHide={hide('thankYou')} />
-      case 'replies': return <DraftRow key={key} draft={row} contacts={contacts} onOpen={id => onOpenDraft?.(id)} />
+      case 'replies': return <DraftRow key={key} draft={row} contacts={contacts} onOpen={id => onOpenDraft?.(id)} onRefresh={onRefresh} isDemoMode={isDemoMode} />
       case 'overdue': return <OverdueRow key={key} contact={row} onRefresh={onRefresh} onOpen={openContact} />
       case 'awaiting': return <AwaitingReplyRow key={key} item={row} onRefresh={onRefresh} onOpen={openContact} />
       case 'schedule': return <ScheduleRow key={key} contact={row} onRefresh={onRefresh} onOpen={openContact} />
@@ -634,9 +676,9 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
     ),
     replies: replyDrafts.length > 0 && (
       <DashCard label="Replies drafted" tone="accent" icon={PenLine} count={replyDrafts.length} actions={clearAll({ replies: replyDrafts })}>
-        <p className="text-[11px] text-ink-400 mt-1">Written from the thread and your résumé. Review in Inbox, then send from Gmail.</p>
+        <p className="text-[11px] text-ink-400 mt-1">Written from the thread and your résumé. Copy one into Gmail and send it there.</p>
         <RowCap items={replyDrafts} cap={capOf('replies')} tier="accent" onHide={hide('replies')}
-          renderItem={d => <DraftRow key={d.id} draft={d} contacts={contacts} onOpen={id => onOpenDraft?.(id)} />} />
+          renderItem={d => <DraftRow key={d.id} draft={d} contacts={contacts} onOpen={id => onOpenDraft?.(id)} onRefresh={onRefresh} isDemoMode={isDemoMode} />} />
       </DashCard>
     ),
     email: openItems.length > 0 && (

@@ -58,7 +58,7 @@ chart, with no separate stat tiles repeating the same numbers. They're hidden un
 
 **Attention cards** (opt-in since v1.5 spec 03; half width), in two columns balanced by visible row count. Their lists feed Up next either way:
 - **Decisions** (v1.4 spec 02, first by default): every app at Offer, soonest deadline first (`offerDecisions`), with a countdown; danger tone within 3 days. A row opens the offer decision view (see Pipeline).
-- **Replies drafted** (v1.4 spec 10): replies the Gmail scan wrote for you, each opening its Inbox thread.
+- **Replies drafted** (v1.4 spec 10): replies the Gmail scan wrote for you. Each row (here or in Up next) has **Copy & open Gmail** (v1.5 spec 05, `lib/replySend.js` `copyAndOpen`: copies the text, opens the thread, marks the draft done so it leaves Today; `/demo` copies without navigating) and **Edit** (inline, saved on blur); the subject line opens the Inbox thread. Inbox's composer uses the same helper.
 - **From your email:** AI action items, with "Dismiss all".
 - **People:** groups for Send a thank-you, Overdue follow-up, Awaiting reply, High urgency, Want to schedule and Keep in touch.
   - **Send a thank-you** (v1.4 spec 03, `thankYouDue`): an interview 0–48h ago (contact matched by `normalizeCompanyName`; shows even with nobody on file) or a Call/Meeting 0–2 days old, until an outbound Email/LinkedIn to that person. Draft opens `today/EmailDraft.jsx` on a template (AI rewrite behind `NeedsKey`); Sent it logs an outbound Email.
