@@ -108,6 +108,12 @@ export function buildActionQueue(attention, { now = Date.now() } = {}) {
   return { ...tiers, count: tiers.now.length + tiers.week.length }
 }
 
+// "Hudson River Trading OA", "Ryan Kowalski Follow-up": a row's name for menus and labels.
+export function itemTitle(kind, row) {
+  const who = row?.company || row?.name || row?.contact?.name || row?.event?.title || row?.summary || ''
+  return `${who} ${KIND[kind]?.short || ''}`.trim()
+}
+
 // The earliest future dated item, for the "Nothing due" line.
 export function nextUp(queue) {
   return [...queue.week, ...queue.later].filter(i => i.due !== null).sort((a, b) => a.due - b.due)[0] || null

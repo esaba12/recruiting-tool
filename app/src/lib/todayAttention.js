@@ -8,6 +8,7 @@ import {
 import { enabledGroups, settingValue } from './todayCards.js'
 import { deriveEventAttention } from '../components/today/EventAttentionSections.jsx'
 import { buildActionQueue } from './actionQueue.js'
+import { dueOf } from './snooze.js'
 
 // Snooze key per list: `${list}:${SNOOZE_KEY[list](row)}` (user_settings.today_prefs.snoozed).
 export const SNOOZE_KEY = {
@@ -43,12 +44,14 @@ export function deriveTodayAttention(
     apps, now,
   })
   // Rows the user hid (✕ / Clear all) stay hidden until their snooze ends.
-  let snoozedHidden = 0
-  const visible = (id, rows) => {
-    const out = rows.filter(r => !isSnoozed(snoozeKey(id, r)))
-    snoozedHidden += rows.length - out.length
-    return out
-  }
+  // `hidden` feeds the Unhide list; a snooze whose item's date moved no longer applies.
+  const hidden = []
+  const visible = (id, rows) => rows.filter(r => {
+    const key = snoozeKey(id, r)
+    if (!isSnoozed(key, dueOf(id, r))) return true
+    hidden.push({ key, list: id, row: r })
+    return false
+  })
 
   const openItems = cardOn('email') ? trimmed.items : []
   const replyDrafts = cardOn('replies') ? visible('replies', emailDrafts) : []
@@ -78,6 +81,6 @@ export function deriveTodayAttention(
 
   return {
     placed, trimmed, openItems, replyDrafts, peopleGroups, appGroups, decisions, eventAttention,
-    queue, staleDays, counts, openCount, snoozedHidden,
+    queue, staleDays, counts, openCount, hidden, snoozedHidden: hidden.length,
   }
 }
