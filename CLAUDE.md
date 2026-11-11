@@ -9,7 +9,7 @@ single-tenant Notion version is legacy, kept only for the one-time migration scr
 > Personal profile and real deployment identifiers (prod URL, Supabase ref, Vercel team, secrets)
 > are in `CLAUDE.local.md` (gitignored). **This repo is public**: never put those in a tracked file.
 
-**Open work:** `.planning/v1.4-useful-and-lean/README.md` (import, onboarding, custom Today,
+**Open work:** `.planning/v1.5-action-first/README.md` (action-first Today: Up next queue, self-clearing follow-ups and OAs, one count, snooze to a date, reply and interview actions; specs 01–07 in build order) and `.planning/v1.4-useful-and-lean/README.md` (import, onboarding, custom Today,
 interview/offer dates, résumé + drafted replies; its "Where we are" checklist is the live status) and `.planning/v1.3-launch-and-cleanup/README.md` (launch owner steps). Roadmap history:
 `.planning/ROADMAP.md`. Deep dives by topic: `docs/architecture/` (index at the bottom).
 
