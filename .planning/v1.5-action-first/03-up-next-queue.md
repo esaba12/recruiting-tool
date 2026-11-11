@@ -114,3 +114,23 @@ Backlog; adding the old People card back works.
 ## Done when
 
 Opening Today answers "what do I do next" in the first screen, in order, with one button per item.
+
+## As built (2026-11-11)
+
+- `lib/actionQueue.js` (`buildActionQueue`, `QUEUE_KINDS`, `nextUp`, `backlogSummary`);
+  `deriveTodayAttention` builds the queue when the `queue` card is placed and derives a list when
+  either its old card or the queue has it on.
+- **Rows are the existing components** (`renderRow` in TodayTab) with a kind tag on the left
+  (hidden under `sm`), not new compact variants. The per-kind primary button table is what those
+  rows already offer; 05 and 06 add Copy & open Gmail and Prep/Join.
+- **No row-exit animation:** the design system allows three motion moments
+  (`docs/architecture/design-system.md`), so done rows just leave on refresh.
+- **No Rows setting** on the queue card (Now shows all, This week caps at 5).
+- Layout v2 + `upgradeV1Layout` as specced; an unavailable card (events without a campus) doesn't
+  turn its kinds off.
+- `/demo`: Now = Career Cafe follow-up, Ryan's follow-up, the Anthropic signup step, the HRT OA
+  (due today) and Deepak's thank-you; 14 this week; backlog 11. Badge 19 = header. Checked at
+  1280px, 390px (no horizontal scroll), dark mode, and Customize.
+- Tests: `test/actionQueue.test.js` (13), `test/todayLayout.test.js` (v2 + upgrade, 27),
+  `test/todayAttention.test.js` (5).
+

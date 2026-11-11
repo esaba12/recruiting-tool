@@ -1,11 +1,12 @@
 // Today's card registry and layout logic (v1.4 spec 08). Pure, no React: TodayTab renders the
 // cards, TodayEditor edits the layout, and useTodayLayout saves it to user_settings.
 //
-// A layout is { v: 1, cards: [{ id, size, cap, off, settings }], seen: [id…] }. Order is array
+// A layout is { v: 2, cards: [{ id, size, cap, off, settings }], seen: [id…] }. Order is array
 // order; a card that's absent is removed. `off` lists a card's groups the user turned off.
 // `seen` is every registry id the user has been offered, so a card added to the registry later
 // shows up once for everyone, and a card the user removed stays removed.
 import { usesTechSources } from './tracks.js'
+import { QUEUE_KINDS } from './actionQueue.js'
 
 export const SIZES = ['third', 'half', 'full']
 export const SIZE_LABEL = { third: '1/3', half: '1/2', full: 'Full' }
@@ -13,16 +14,33 @@ export const CAPS = [3, 5, 10]
 
 // `kind` groups the Add-cards drawer. `groups` are the attention lists inside an action card,
 // each one a toggle; their ids are the snooze keys TodayTab already uses.
+const REVIEW_AVAILABLE = ctx => usesTechSources(ctx.profile) || 'SWE and PM tracks only'
+const EVENTS_AVAILABLE = ctx => ctx.hasEvents || 'needs a campus with an events feed'
+const AWAITING_SETTING = { key: 'awaitingDays', label: 'Awaiting reply after', unit: 'd', options: [3, 5, 7, 10, 14], default: 5 }
+const STALE_SETTING = { key: 'staleDays', label: 'Stale after', unit: 'd', options: [7, 14, 21, 30], default: 14 }
+
+// `defaultOff` cards are in the registry (Customize can add them) but not in the default layout.
+// v1.5 spec 03: "Up next" replaced the six action cards, which stay available as opt-ins.
 export const TODAY_CARDS = [
-  { id: 'decisions', title: 'Decisions', kind: 'act', size: 'half', rows: true, description: 'Offers waiting on your answer, soonest deadline first.' },
+  {
+    // No rows setting: Now always shows everything and This week caps itself (UpNext WEEK_CAP).
+    id: 'queue', title: 'Up next', kind: 'act', size: 'full',
+    description: 'Everything to do, ranked: now, this week, then a backlog.',
+    groups: QUEUE_KINDS.map(k => ({
+      id: k.id, label: k.label,
+      ...(k.id === 'review' ? { available: REVIEW_AVAILABLE } : k.id === 'events' ? { available: EVENTS_AVAILABLE } : {}),
+    })),
+    settings: [AWAITING_SETTING, STALE_SETTING],
+  },
+  { id: 'decisions', title: 'Decisions', kind: 'act', size: 'half', rows: true, defaultOff: true, description: 'Offers waiting on your answer, soonest deadline first.' },
   { id: 'pipeline', title: 'Pipeline', kind: 'glance', size: 'third', description: 'How many you have applied to, the stage funnel and your next deadline.' },
   { id: 'network', title: 'Network', kind: 'glance', size: 'third', description: 'Contacts by warmth.' },
   { id: 'outreach', title: 'Outreach', kind: 'glance', size: 'third', description: 'Logged interactions per week, this week against last.' },
   { id: 'rates', title: 'Rates', kind: 'glance', size: 'full', description: 'Response, OA, interview, offer and rejection rates of what you sent.' },
-  { id: 'replies', title: 'Replies drafted', kind: 'act', size: 'half', rows: true, description: 'Replies the Gmail scan wrote for you, with call times.' },
-  { id: 'email', title: 'From your email', kind: 'act', size: 'half', rows: true, description: 'To-dos the email scan pulled out of your inbox.' },
+  { id: 'replies', title: 'Replies drafted', kind: 'act', size: 'half', rows: true, defaultOff: true, description: 'Replies the Gmail scan wrote for you, with call times.' },
+  { id: 'email', title: 'From your email', kind: 'act', size: 'half', rows: true, defaultOff: true, description: 'To-dos the email scan pulled out of your inbox.' },
   {
-    id: 'people', title: 'People', kind: 'act', size: 'half', rows: true,
+    id: 'people', title: 'People', kind: 'act', size: 'half', rows: true, defaultOff: true,
     description: 'Thank-yous after interviews and calls, follow-ups, unanswered messages and people to keep in touch with.',
     groups: [
       { id: 'thankYou', label: 'Send a thank-you' },
@@ -32,24 +50,24 @@ export const TODAY_CARDS = [
       { id: 'schedule', label: 'Want to schedule' },
       { id: 'keepInTouch', label: 'Keep in touch' },
     ],
-    settings: [{ key: 'awaitingDays', label: 'Awaiting reply after', unit: 'd', options: [3, 5, 7, 10, 14], default: 5 }],
+    settings: [AWAITING_SETTING],
   },
   {
-    id: 'apps', title: 'Applications', kind: 'act', size: 'half', rows: true,
+    id: 'apps', title: 'Applications', kind: 'act', size: 'half', rows: true, defaultOff: true,
     description: 'Upcoming interviews, OAs due, applications gone quiet and job-board listings to triage.',
     groups: [
       { id: 'interview', label: 'Interviews coming up' },
       { id: 'oa', label: 'OA due' },
       { id: 'stale', label: 'Stale' },
-      { id: 'review', label: 'Job boards to review', available: ctx => usesTechSources(ctx.profile) || 'SWE and PM tracks only' },
+      { id: 'review', label: 'Job boards to review', available: REVIEW_AVAILABLE },
       { id: 'oaCheck', label: 'OA deadline unknown' },
     ],
-    settings: [{ key: 'staleDays', label: 'Stale after', unit: 'd', options: [7, 14, 21, 30], default: 14 }],
+    settings: [STALE_SETTING],
   },
   {
-    id: 'events', title: 'Events', kind: 'act', size: 'half', rows: true,
+    id: 'events', title: 'Events', kind: 'act', size: 'half', rows: true, defaultOff: true,
     description: 'Campus event signup steps, closing registrations and follow-ups.',
-    available: ctx => ctx.hasEvents || 'needs a campus with an events feed',
+    available: EVENTS_AVAILABLE,
   },
 ]
 
@@ -86,8 +104,8 @@ function freshCard(id) {
 
 export function defaultLayout(ctx) {
   return {
-    v: 1,
-    cards: TODAY_CARDS.filter(d => cardAvailable(d.id, ctx) === true).map(d => freshCard(d.id)),
+    v: 2,
+    cards: TODAY_CARDS.filter(d => !d.defaultOff && cardAvailable(d.id, ctx) === true).map(d => freshCard(d.id)),
     seen: TODAY_CARDS.map(d => d.id),
   }
 }
@@ -111,8 +129,40 @@ function clampCard(raw) {
 
 // Brings a saved layout in line with the registry and this user's availability (see the
 // header comment). Anything unreadable falls back to the default layout.
+// The six action cards "Up next" replaced, and the queue kinds each one listed.
+const V1_ACTION_CARDS = {
+  decisions: ['decisions'], replies: ['replies'], email: ['email'], events: ['events'],
+  people: ['thankYou', 'overdue', 'awaiting', 'urgent', 'schedule', 'keepInTouch'],
+  apps: ['interview', 'oa', 'stale', 'review', 'oaCheck'],
+}
+
+// v1 → v2, once (v1.5 spec 03): "Up next" goes first and the action cards go, so a customized
+// Today doesn't show every item twice. What the user chose carries over: a list turned off in
+// an old card, or every list of a card they removed, is off in the queue, and the People /
+// Applications thresholds become the queue's. Glance cards keep their order and sizes.
+export function upgradeV1Layout(saved, ctx) {
+  const cards = (saved.cards || []).filter(c => c && BY_ID.has(c.id))
+  const byId = Object.fromEntries(cards.map(c => [c.id, c]))
+  const seen = new Set(saved.seen || [])
+  const off = []
+  for (const [id, kinds] of Object.entries(V1_ACTION_CARDS)) {
+    if (byId[id]) off.push(...(byId[id].off || []).filter(k => kinds.includes(k)))
+    else if (seen.has(id) && cardAvailable(id, ctx) === true) off.push(...kinds) // removed on purpose
+  }
+  const settings = {}
+  if (byId.people?.settings?.awaitingDays !== undefined) settings.awaitingDays = byId.people.settings.awaitingDays
+  if (byId.apps?.settings?.staleDays !== undefined) settings.staleDays = byId.apps.settings.staleDays
+  const queue = { ...freshCard('queue'), off: [...new Set(off)], settings }
+  return {
+    v: 2,
+    cards: [queue, ...cards.filter(c => c.id !== 'queue' && !V1_ACTION_CARDS[c.id])],
+    seen: TODAY_CARDS.map(d => d.id),
+  }
+}
+
 export function reconcileLayout(saved, ctx) {
-  if (!saved || saved.v !== 1 || !Array.isArray(saved.cards)) return defaultLayout(ctx)
+  if (saved?.v === 1 && Array.isArray(saved.cards)) saved = upgradeV1Layout(saved, ctx)
+  if (!saved || saved.v !== 2 || !Array.isArray(saved.cards)) return defaultLayout(ctx)
   const placed = new Set()
   const cards = []
   for (const raw of saved.cards) {
@@ -129,10 +179,11 @@ export function reconcileLayout(saved, ctx) {
       const k = cards.findIndex(c => c.id === TODAY_CARDS[j].id)
       if (k >= 0) { at = k + 1; break }
     }
+    if (def.defaultOff) return // offered in Add cards, never auto-placed
     cards.splice(at, 0, freshCard(def.id))
     placed.add(def.id)
   })
-  return { v: 1, cards, seen: TODAY_CARDS.map(d => d.id) }
+  return { v: 2, cards, seen: TODAY_CARDS.map(d => d.id) }
 }
 
 // Reducers. Each returns a new layout (or the same one when nothing changes).

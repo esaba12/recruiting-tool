@@ -134,7 +134,7 @@ function RowShell({ left, right, error }) {
   )
 }
 
-function StepRow({ item, pool, now, onOpenEvents }) {
+export function StepRow({ item, pool, now, onOpenEvents }) {
   const { event, requirement: r, overdue } = item
   const { busy, error, run } = useRowAction()
   const label = r.label || REQUIREMENT_LABEL[r.kind] || 'Signup step'
@@ -156,7 +156,7 @@ function StepRow({ item, pool, now, onOpenEvents }) {
   )
 }
 
-function RegistrationRow({ item, pool, now, onOpenEvents }) {
+export function RegistrationRow({ item, pool, now, onOpenEvents }) {
   const { event, overdue } = item
   const { busy, error, run } = useRowAction()
   const status = pool.userEventsById?.get?.(event.id)?.status || pool.userEvents?.find(u => u.eventId === event.id)?.status
@@ -181,7 +181,7 @@ function RegistrationRow({ item, pool, now, onOpenEvents }) {
   )
 }
 
-function FollowUpRow({ item, pool, onOpenEvents }) {
+export function FollowUpRow({ item, pool, onOpenEvents }) {
   const { event, userEvent, daysOverdue } = item
   const { busy, error, run } = useRowAction()
   const update = fields => run(() => pool.updateUserEvent(userEvent.eventId, fields))
@@ -218,18 +218,24 @@ export function EventsCard({ attention, pool, onOpenEvents, cap, now = Date.now(
         renderItem={it => <RegistrationRow key={it.event.id} item={it} pool={pool} now={now} onOpenEvents={onOpenEvents} />} />
       <Group label="Follow-ups overdue" tone="danger" cap={cap} items={followUps}
         renderItem={it => <FollowUpRow key={it.userEvent.eventId} item={it} pool={pool} onOpenEvents={onOpenEvents} />} />
-      {degraded.length > 0 && (
-        <div className="mt-3 pt-2 border-t border-ink-100 space-y-1">
-          <p className="flex items-center gap-1.5 text-xs text-ink-500"><RadioTower size={12} /> Feeds degraded, so events from them may be missing:</p>
-          {degraded.map(s => (
-            <p key={s.id} className="text-xs text-ink-500 break-words">
-              <span className="text-ink-800 font-medium">{s.label || s.ref || 'Feed'}</span>
-              {' · '}{s.degradedReason || 'Feed looks stale'}
-              {s.degradedAt && <> · since <Mono className="text-ink-500">{fmtWhen(s.degradedAt)}</Mono></>}
-            </p>
-          ))}
-        </div>
-      )}
+      <DegradedFeeds degraded={degraded} />
     </DashCard>
+  )
+}
+
+// Footnote for feeds whose freshness gate tripped: informational, not a to-do.
+export function DegradedFeeds({ degraded = [] }) {
+  if (!degraded.length) return null
+  return (
+    <div className="mt-3 pt-2 border-t border-ink-100 space-y-1">
+      <p className="flex items-center gap-1.5 text-xs text-ink-500"><RadioTower size={12} /> Feeds degraded, so events from them may be missing:</p>
+      {degraded.map(s => (
+        <p key={s.id} className="text-xs text-ink-500 break-words">
+          <span className="text-ink-800 font-medium">{s.label || s.ref || 'Feed'}</span>
+          {' · '}{s.degradedReason || 'Feed looks stale'}
+          {s.degradedAt && <> · since <Mono className="text-ink-500">{fmtWhen(s.degradedAt)}</Mono></>}
+        </p>
+      ))}
+    </div>
   )
 }

@@ -28,7 +28,9 @@ import { PipelineCard, NetworkCard, OutreachCard, RatesCard } from './today/Metr
 import GettingStarted from './onboarding/GettingStarted.jsx'
 import { isFreshAccount } from '../lib/onboarding.js'
 import { todayLocal } from '../lib/dates.js'
-import { EventsCard } from './today/EventAttentionSections.jsx'
+import { EventsCard, StepRow, RegistrationRow, FollowUpRow, DegradedFeeds } from './today/EventAttentionSections.jsx'
+import UpNext from './today/UpNext.jsx'
+import { KIND } from '../lib/actionQueue.js'
 
 // Edit mode, with @dnd-kit, loads only when Customize is pressed (v1.4 spec 08).
 const TodayEditor = lazy(() => import('./today/TodayEditor.jsx'))
@@ -529,7 +531,7 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
   // badge counts the same rows (v1.5 spec 02).
   const {
     prefs, ctx, layout, update, reset, customized, placed, trimmed, openItems, replyDrafts,
-    peopleGroups, appGroups, decisions, eventAttention, staleDays, counts, openCount, snoozedHidden,
+    peopleGroups, appGroups, decisions, eventAttention, queue, staleDays, counts, openCount, snoozedHidden,
   } = attention
   const [editing, setEditing] = useState(false)
   const capOf = id => placed[id]?.cap
@@ -579,8 +581,38 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
     </SectionAction>
   )
 
+  // One queue item → the row component its old card used (v1.5 spec 03).
+  const renderRow = ({ kind, row, key }) => {
+    switch (kind) {
+      case 'decisions': return <DecisionRow key={key} app={row} onOpen={openOffer} />
+      case 'interview': return <InterviewRow key={key} app={row} onOpen={openApp} />
+      case 'oa': return <OaRow key={key} app={row} onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />
+      case 'oaCheck': return <OaRow key={key} app={row} needsCheck onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />
+      case 'thankYou': return <ThankYouRow key={key} row={row} onRefresh={onRefresh} onOpenContact={openContact} onOpenApp={openApp} onHide={hide('thankYou')} />
+      case 'replies': return <DraftRow key={key} draft={row} contacts={contacts} onOpen={id => onOpenDraft?.(id)} />
+      case 'overdue': return <OverdueRow key={key} contact={row} onRefresh={onRefresh} onOpen={openContact} />
+      case 'awaiting': return <AwaitingReplyRow key={key} item={row} onRefresh={onRefresh} onOpen={openContact} />
+      case 'schedule': return <ScheduleRow key={key} contact={row} onRefresh={onRefresh} onOpen={openContact} />
+      case 'urgent': return <HighUrgencyRow key={key} contact={row} onOpen={openContact} />
+      case 'email': return <ActionItemRow key={key} item={row} contacts={contacts} onRefresh={onRefresh} onOpen={openContact} />
+      case 'stale': return <ApplicationRow key={key} app={row} showTriageChips={false} onOpen={openApp} changeAppTriage={changeAppTriage} />
+      case 'review': return <ApplicationRow key={key} app={row} showTriageChips onOpen={openApp} changeAppTriage={changeAppTriage} />
+      case 'keepInTouch': return <KeepInTouchRow key={key} contact={row.contact} status={row.status} interactions={interactions} onOpen={openContact} onLog={setLogContact} onMet={handleMet} />
+      case 'events':
+        if (row.type === 'step') return <StepRow key={key} item={row} pool={eventPool} now={Date.now()} onOpenEvents={onOpenEvents} />
+        if (row.type === 'registration') return <RegistrationRow key={key} item={row} pool={eventPool} now={Date.now()} onOpenEvents={onOpenEvents} />
+        return <FollowUpRow key={key} item={row} pool={eventPool} onOpenEvents={onOpenEvents} />
+      default: return null
+    }
+  }
+  const hideQueueItem = i => { const list = KIND[i.kind]?.list; if (list) hide(list)(i.row) }
+
   // Every card, keyed by registry id; false when it has nothing to show right now.
   const cards = {
+    queue: queue && (
+      <UpNext queue={queue} renderRow={renderRow} onHide={hideQueueItem}
+        footer={<DegradedFeeds degraded={eventAttention.degraded} />} />
+    ),
     pipeline: hasData && <PipelineCard apps={apps} />,
     network: hasData && <NetworkCard contacts={contacts} />,
     outreach: hasData && <OutreachCard interactions={interactions} />,
@@ -728,7 +760,7 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
           ? <GettingStarted hasApps={apps.length > 0} hasContacts={contacts.length > 0} apps={apps} contacts={contacts} />
           : <>
             {bands.map(renderBand)}
-            {allEmpty && <m.div variants={rise}><EmptyState msg={snoozedHidden ? `✓ Nothing left — ${snoozedHidden} hidden for now.` : "✓ Nothing needs your attention. You're on top of it."} /></m.div>}
+            {allEmpty && !queue && <m.div variants={rise}><EmptyState msg={snoozedHidden ? `✓ Nothing left — ${snoozedHidden} hidden for now.` : "✓ Nothing needs your attention. You're on top of it."} /></m.div>}
           </>}
 
       <SidePanel open={!!selectedContactId} onClose={() => setSelectedContactId(null)}>
