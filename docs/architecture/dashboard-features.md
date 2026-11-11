@@ -9,9 +9,16 @@ on seed data (`demoData.js`).
 
 ## Today (`TodayTab.jsx`, logic in `lib/attention.js`)
 
-A dashboard (PR #22, 2026-10-20). Cards share one shell, `today/DashCard.jsx`: a mono caps
-label with a status dot and a count. `Group` stacks labeled lists inside a card, and each list
-shows 3 rows before "+N more".
+A dashboard (PR #22, 2026-10-20), led since v1.5 spec 03 by **Up next**, one ranked to-do list,
+with the metric cards below it. Cards share one shell, `today/DashCard.jsx`: a mono caps label
+with a status dot and a count. `Group` stacks labeled lists inside a card, and each list shows 3
+rows before "+N more".
+
+**Up next** (v1.5 spec 03, `today/UpNext.jsx`, ranking in `lib/actionQueue.js`):
+- `buildActionQueue` merges every list `deriveTodayAttention` builds into one queue, tiered **Now** (past due, due today, interview within 36h, offer due ≤ 3 days, thank-yous, a drafted reply waiting 2+ days, registration closing ≤ 2 days), **This week** (due ≤ 7 days, other replies, awaiting reply, schedule, high urgency, email to-dos), and **Backlog** (stale apps, job boards to review, keep in touch, OA deadline unknown, interviews 8–14 days out). Within a tier: dated items by due date, then undated by age.
+- Now shows everything, This week shows 5 then "+N more", and the Backlog is one collapsed summary line. Each row is the old card's row component (TodayTab `renderRow`), tagged with its kind (`QUEUE_KINDS`), with ✕ (7-day snooze) for kinds that have a snooze list. Email to-dos and event rows keep their own Done/Dismiss/Skip.
+- Empty: "Nothing due. Next: …" (`nextUp`), or "All clear". Degraded event feeds are a footnote.
+- The queue's kinds are its Customize toggles; Awaiting reply / Stale thresholds are its settings. With the queue placed, the open count (header and badge) is Now + This week.
 
 A header line gives the date and the open count (cards and lists that are on only), plus
 "Unhide N" when anything is snoozed, and **Customize**.
@@ -25,7 +32,8 @@ the sidebar's Today badge is its `openCount`, so the badge always equals the hea
 - The card registry is `lib/todayCards.js`, which is pure. Each card has a default width (`third` / `half` / `full`) and optional `groups` (the lists inside it).
 - Users can turn any group off. Job boards to review is SWE/PM only, and Events needs a campus.
 - Per-card settings: rows shown (3 / 5 / 10), People's "Awaiting reply after" days and Applications' "Stale after" days.
-- The layout lives in `user_settings.today_layout` (`lib/useTodayLayout.js`), separate from snoozes. Nothing is saved until the user changes something, so an untouched account always gets `defaultLayout`, the PR #22 dashboard.
+- The layout lives in `user_settings.today_layout` (`lib/useTodayLayout.js`), separate from snoozes. Nothing is saved until the user changes something, so an untouched account always gets `defaultLayout`: Up next, then Pipeline / Network / Outreach, then Rates.
+- **Layout v2** (v1.5 spec 03): the six action cards below are `defaultOff` (in Add cards, never auto-placed). A saved v1 layout is upgraded once by `upgradeV1Layout`: queue first, action cards dropped, their turned-off lists (or every list of a card the user had removed) turned off in the queue, People/Applications thresholds moved onto it, glance cards kept in order.
 - `reconcileLayout`:
   - Drops unknown or unavailable cards.
   - Clamps bad values.
@@ -48,7 +56,7 @@ chart, with no separate stat tiles repeating the same numbers. They're hidden un
   - An app with only backfilled history counts as applied → rejected (an undercount, not a guess).
   - It replaced the Pipeline card's Applied → Phone Screen line.
 
-**Attention cards** (half width by default), in two columns balanced by visible row count:
+**Attention cards** (opt-in since v1.5 spec 03; half width), in two columns balanced by visible row count. Their lists feed Up next either way:
 - **Decisions** (v1.4 spec 02, first by default): every app at Offer, soonest deadline first (`offerDecisions`), with a countdown; danger tone within 3 days. A row opens the offer decision view (see Pipeline).
 - **Replies drafted** (v1.4 spec 10): replies the Gmail scan wrote for you, each opening its Inbox thread.
 - **From your email:** AI action items, with "Dismiss all".

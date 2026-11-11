@@ -10,20 +10,24 @@ const IB = { profile: { tracks: ['ib'] }, hasEvents: false }
 const ids = layout => layout.cards.map(c => c.id)
 
 describe('defaultLayout', () => {
-  it('reproduces the current dashboard order for SWE', () => {
-    expect(ids(defaultLayout(SWE))).toEqual(['decisions', 'pipeline', 'network', 'outreach', 'rates', 'replies', 'email', 'people', 'apps', 'events'])
+  it('puts Up next first, then the glance cards (v1.5 spec 03)', () => {
+    expect(ids(defaultLayout(SWE))).toEqual(['queue', 'pipeline', 'network', 'outreach', 'rates'])
     const sizes = Object.fromEntries(defaultLayout(SWE).cards.map(c => [c.id, c.size]))
-    expect(sizes).toMatchObject({ pipeline: 'third', rates: 'full', people: 'half' })
+    expect(sizes).toMatchObject({ queue: 'full', pipeline: 'third', rates: 'full' })
   })
 
-  it('has no events card without a campus feed', () => {
-    expect(ids(defaultLayout(IB))).not.toContain('events')
+  it('keeps the old action cards out of the default but available to add', () => {
+    for (const id of ['decisions', 'replies', 'email', 'people', 'apps']) {
+      expect(ids(defaultLayout(SWE))).not.toContain(id)
+      expect(cardAvailable(id, SWE)).toBe(true)
+    }
   })
 
-  it("turns off IB users' job-board group", () => {
-    const apps = defaultLayout(IB).cards.find(c => c.id === 'apps')
-    expect(enabledGroups(apps, IB)).not.toContain('review')
-    expect(enabledGroups(apps, SWE)).toContain('review')
+  it("turns off the queue's event kind without a campus feed, and job boards for IB", () => {
+    const queue = defaultLayout(IB).cards.find(c => c.id === 'queue')
+    expect(enabledGroups(queue, IB)).not.toContain('events')
+    expect(enabledGroups(queue, IB)).not.toContain('review')
+    expect(enabledGroups(queue, SWE)).toEqual(expect.arrayContaining(['events', 'review', 'oa', 'interview']))
   })
 
   it('marks every registry card as seen', () => {
@@ -32,7 +36,7 @@ describe('defaultLayout', () => {
 })
 
 describe('reconcileLayout', () => {
-  const saved = (cards, seen = TODAY_CARDS.map(c => c.id)) => ({ v: 1, cards, seen })
+  const saved = (cards, seen = TODAY_CARDS.map(c => c.id)) => ({ v: 2, cards, seen })
 
   it('falls back to the default when nothing is saved or the version is unknown', () => {
     expect(reconcileLayout(null, SWE)).toEqual(defaultLayout(SWE))
@@ -49,10 +53,15 @@ describe('reconcileLayout', () => {
   })
 
   it('inserts a new default card after its registry neighbour', () => {
+    const seenBefore = TODAY_CARDS.map(c => c.id).filter(id => id !== 'rates')
+    const out = reconcileLayout(saved([{ id: 'pipeline', size: 'third' }, { id: 'network', size: 'third' }], seenBefore), SWE)
+    expect(ids(out)).toEqual(['pipeline', 'network', 'rates'])
+    expect(out.seen).toContain('rates')
+  })
+
+  it('never auto-places an opt-in card', () => {
     const seenBefore = TODAY_CARDS.map(c => c.id).filter(id => id !== 'email')
-    const out = reconcileLayout(saved([{ id: 'people', size: 'half' }, { id: 'replies', size: 'half' }], seenBefore), SWE)
-    expect(ids(out)).toEqual(['people', 'replies', 'email'])
-    expect(out.seen).toContain('email')
+    expect(ids(reconcileLayout(saved([{ id: 'people', size: 'half' }], seenBefore), SWE))).toEqual(['people'])
   })
 
   it('puts a new card first when none of its registry predecessors are placed', () => {
@@ -70,11 +79,37 @@ describe('reconcileLayout', () => {
   })
 })
 
-describe('Decisions card (v1.4 spec 02)', () => {
-  it('lands first on a layout saved before it existed', () => {
-    const seenBefore = TODAY_CARDS.map(c => c.id).filter(id => id !== 'decisions')
-    const out = reconcileLayout({ v: 1, cards: [{ id: 'people', size: 'half' }, { id: 'apps', size: 'half' }], seen: seenBefore }, SWE)
-    expect(ids(out)).toEqual(['decisions', 'people', 'apps'])
+describe('v1 → v2 upgrade (v1.5 spec 03)', () => {
+  const V1_SEEN = ['decisions', 'pipeline', 'network', 'outreach', 'rates', 'replies', 'email', 'people', 'apps', 'events']
+  const v1 = (cards, seen = V1_SEEN) => ({ v: 1, cards, seen })
+  const card = (id, size = 'half', extra = {}) => ({ id, size, cap: 3, off: [], settings: {}, ...extra })
+
+  it('puts Up next first, drops the action cards, keeps glance order and sizes', () => {
+    const out = reconcileLayout(v1([card('rates', 'full'), card('people'), card('pipeline', 'full'), card('apps'), card('decisions')]), SWE)
+    expect(ids(out)).toEqual(['queue', 'rates', 'pipeline'])
+    expect(out.cards[2].size).toBe('full')
+    expect(out.v).toBe(2)
+  })
+
+  it('carries lists turned off in old cards, and every list of a card the user removed', () => {
+    const out = reconcileLayout(v1([card('people', 'half', { off: ['keepInTouch'] }), card('apps', 'half', { off: ['stale'] }), card('decisions'), card('email'), card('events')]), SWE)
+    const q = out.cards.find(c => c.id === 'queue')
+    expect(q.off.sort()).toEqual(['keepInTouch', 'replies', 'stale'].sort()) // replies card had been removed
+  })
+
+  it("doesn't turn off a card's lists just because it was unavailable", () => {
+    const out = reconcileLayout(v1([card('people'), card('apps'), card('decisions'), card('replies'), card('email')]), IB)
+    expect(out.cards.find(c => c.id === 'queue').off).not.toContain('events')
+  })
+
+  it('moves the People / Applications thresholds onto the queue', () => {
+    const out = reconcileLayout(v1([card('people', 'half', { settings: { awaitingDays: 7 } }), card('apps', 'half', { settings: { staleDays: 21 } })]), SWE)
+    expect(out.cards.find(c => c.id === 'queue').settings).toEqual({ awaitingDays: 7, staleDays: 21 })
+  })
+
+  it('is idempotent once upgraded', () => {
+    const once = reconcileLayout(v1([card('people'), card('pipeline', 'third')]), SWE)
+    expect(reconcileLayout(once, SWE)).toEqual(once)
   })
 })
 

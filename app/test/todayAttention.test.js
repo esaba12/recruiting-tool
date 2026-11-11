@@ -21,26 +21,32 @@ const emailDrafts = [{ id: 'd1', threadId: 't1', status: 'open' }]
 
 const derive = (over = {}) => deriveTodayAttention({ contacts, apps, interactions: [], actionItems: [], emailDrafts, eventPool: null }, { layout, ctx, now: NOW, ...over })
 
+const withQueue = fn => ({ ...layout, cards: layout.cards.map(c => c.id === 'queue' ? fn(c) : c) })
+
 describe('deriveTodayAttention', () => {
-  it('counts interviews, decisions, drafted replies, OAs and follow-ups', () => {
+  it('derives every list the queue needs and counts Now + This week', () => {
     const a = derive()
     expect(a.appGroups.interview.map(x => x.id)).toEqual(['i1'])
     expect(a.decisions.map(x => x.id)).toEqual(['o1'])
     expect(a.appGroups.oa.map(x => x.id)).toEqual(['oa1'])
     expect(a.replyDrafts).toHaveLength(1)
     expect(a.peopleGroups.overdue.map(c => c.id)).toEqual(['c1'])
-    expect(a.openCount).toBe(Object.values(a.counts).reduce((x, y) => x + y, 0))
-    expect(a.openCount).toBeGreaterThanOrEqual(5)
+    expect(a.queue.now.map(i => i.key).sort()).toEqual(['oa:oa1', 'overdue:c1'])
+    expect(a.queue.week.map(i => i.key).sort()).toEqual(['decisions:o1', 'interview:i1', 'replies:d1'])
+    expect(a.openCount).toBe(5)
   })
 
-  it("a list turned off in the layout doesn't count", () => {
-    const off = { ...layout, cards: layout.cards.map(c => c.id === 'apps' ? { ...c, off: ['oa'] } : c) }
-    expect(derive({ layout: off }).openCount).toBe(derive().openCount - 1)
+  it("a kind turned off in the queue doesn't count", () => {
+    expect(derive({ layout: withQueue(c => ({ ...c, off: ['oa'] })) }).openCount).toBe(4)
   })
 
-  it("a card removed from the layout doesn't count", () => {
-    const noReplies = { ...layout, cards: layout.cards.filter(c => c.id !== 'replies') }
-    expect(derive({ layout: noReplies }).openCount).toBe(derive().openCount - 1)
+  it('without the queue, the old cards still derive their lists and the count is their sum', () => {
+    const old = { v: 2, seen: [], cards: [{ id: 'apps', size: 'half', cap: 3, off: [], settings: {} }] }
+    const a = derive({ layout: old })
+    expect(a.queue).toBeNull()
+    expect(a.decisions).toEqual([])
+    expect(a.openCount).toBe(a.counts.apps)
+    expect(a.counts.apps).toBe(2) // interview + OA
   })
 
   it("a snoozed row doesn't count, and is reported as hidden", () => {
@@ -49,9 +55,12 @@ describe('deriveTodayAttention', () => {
     expect(a.snoozedHidden).toBe(1)
   })
 
-  it('uses the per-user stale threshold', () => {
-    const at = days => ({ ...layout, cards: layout.cards.map(c => c.id === 'apps' ? { ...c, settings: { staleDays: days } } : c) })
-    expect(derive({ layout: at(7) }).appGroups.stale.map(a => a.id)).toContain('s1')
+  it("uses the queue's stale threshold (stale apps go to the backlog, which doesn't count)", () => {
+    const at = days => withQueue(c => ({ ...c, settings: { staleDays: days } }))
+    const seven = derive({ layout: at(7) })
+    expect(seven.appGroups.stale.map(a => a.id)).toContain('s1')
+    expect(seven.queue.later.map(i => i.key)).toContain('stale:s1')
+    expect(seven.openCount).toBe(derive().openCount)
     expect(derive({ layout: at(14) }).appGroups.stale.map(a => a.id)).not.toContain('s1')
   })
 })

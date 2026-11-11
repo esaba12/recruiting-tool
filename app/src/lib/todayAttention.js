@@ -7,6 +7,7 @@ import {
 } from './attention.js'
 import { enabledGroups, settingValue } from './todayCards.js'
 import { deriveEventAttention } from '../components/today/EventAttentionSections.jsx'
+import { buildActionQueue } from './actionQueue.js'
 
 // Snooze key per list: `${list}:${SNOOZE_KEY[list](row)}` (user_settings.today_prefs.snoozed).
 export const SNOOZE_KEY = {
@@ -25,15 +26,20 @@ export function deriveTodayAttention(
 ) {
   const placed = Object.fromEntries(layout.cards.map(c => [c.id, c]))
   const groupsOn = id => (placed[id] ? enabledGroups(placed[id], ctx) : [])
+  // A list is derived when an old card shows it, or when "Up next" has that kind on (v1.5 spec 03).
+  const queueOn = new Set(groupsOn('queue'))
+  const listOn = (cardId, groupId) => groupsOn(cardId).includes(groupId) || queueOn.has(groupId)
+  const cardOn = id => !!placed[id] || queueOn.has(id)
+  // Thresholds: the queue's when it's placed, else the old card's.
+  const setting = (cardId, key) => (placed.queue ? settingValue(placed.queue, key) : placed[cardId] ? settingValue(placed[cardId], key) : undefined)
 
   // AI action items that already resolved themselves (replied on the thread, long expired,
   // duplicates) never reach the list.
   const trimmed = trimActionItems(openActionItems(actionItems), interactions, { now })
   // A contact shows up in one people group only, the first one that's on.
-  const peopleOn = groupsOn('people')
   const people = todayPeople(contacts, interactions, {
-    off: PEOPLE_GROUPS.filter(g => !peopleOn.includes(g)),
-    awaitingDays: placed.people ? settingValue(placed.people, 'awaitingDays') : undefined,
+    off: PEOPLE_GROUPS.filter(g => !listOn('people', g)),
+    awaitingDays: setting('people', 'awaitingDays'),
     apps, now,
   })
   // Rows the user hid (✕ / Clear all) stay hidden until their snooze ends.
@@ -44,12 +50,11 @@ export function deriveTodayAttention(
     return out
   }
 
-  const openItems = placed.email ? trimmed.items : []
-  const replyDrafts = placed.replies ? visible('replies', emailDrafts) : []
+  const openItems = cardOn('email') ? trimmed.items : []
+  const replyDrafts = cardOn('replies') ? visible('replies', emailDrafts) : []
   const peopleGroups = Object.fromEntries(PEOPLE_GROUPS.map(id => [id, visible(id, people[id])]))
-  const appsOn = groupsOn('apps')
-  const staleDays = placed.apps ? settingValue(placed.apps, 'staleDays') : 14
-  const decisions = placed.decisions ? visible('decisions', offerDecisions(apps, now)) : []
+  const staleDays = setting('apps', 'staleDays') ?? 14
+  const decisions = cardOn('decisions') ? visible('decisions', offerDecisions(apps, now)) : []
   const appRows = {
     interview: () => upcomingInterviews(apps, { now }),
     oa: () => oaDue(apps),
@@ -57,19 +62,22 @@ export function deriveTodayAttention(
     review: () => needsReviewApps(apps),
     oaCheck: () => oaNeedsCheck(apps),
   }
-  const appGroups = Object.fromEntries(Object.entries(appRows).map(([id, rows]) => [id, appsOn.includes(id) ? visible(id, rows()) : []]))
+  const appGroups = Object.fromEntries(Object.entries(appRows).map(([id, rows]) => [id, listOn('apps', id) ? visible(id, rows()) : []]))
   // Recruiting events (v1.1): empty when there's no pool or no campus picked yet.
-  const eventAttention = deriveEventAttention(placed.events ? eventPool : null, now)
+  const eventAttention = deriveEventAttention(cardOn('events') ? eventPool : null, now)
 
   // Counts cover the cards and lists that are on, so a hidden list never inflates the total.
   const counts = {
     decisions: decisions.length, replies: replyDrafts.length, email: openItems.length,
     people: total(peopleGroups), apps: total(appGroups), events: eventAttention.count,
   }
-  const openCount = Object.values(counts).reduce((a, b) => a + b, 0)
+  // With "Up next" placed, the open count is its Now + This week (the backlog doesn't nag).
+  const queue = placed.queue ? buildActionQueue({ decisions, replyDrafts, openItems, peopleGroups, appGroups, eventAttention }, { now }) : null
+  if (queue) counts.queue = queue.count
+  const openCount = queue ? queue.count : Object.values(counts).reduce((a, b) => a + b, 0)
 
   return {
     placed, trimmed, openItems, replyDrafts, peopleGroups, appGroups, decisions, eventAttention,
-    staleDays, counts, openCount, snoozedHidden,
+    queue, staleDays, counts, openCount, snoozedHidden,
   }
 }
