@@ -1,7 +1,7 @@
 // Today's card registry and layout logic (v1.4 spec 08). Pure, no React: TodayTab renders the
 // cards, TodayEditor edits the layout, and useTodayLayout saves it to user_settings.
 //
-// A layout is { v: 2, cards: [{ id, size, cap, off, settings }], seen: [id…] }. Order is array
+// A layout is { v: 3, cards: [{ id, size, cap, off, settings }], seen: [id…] }. Order is array
 // order; a card that's absent is removed. `off` lists a card's groups the user turned off.
 // `seen` is every registry id the user has been offered, so a card added to the registry later
 // shows up once for everyone, and a card the user removed stays removed.
@@ -20,23 +20,25 @@ const AWAITING_SETTING = { key: 'awaitingDays', label: 'Awaiting reply after', u
 const STALE_SETTING = { key: 'staleDays', label: 'Stale after', unit: 'd', options: [7, 14, 21, 30], default: 14 }
 
 // `defaultOff` cards are in the registry (Customize can add them) but not in the default layout.
-// v1.5 spec 03: "Up next" replaced the six action cards, which stay available as opt-ins.
+// v1.5 spec 03: the queue replaced the six action cards, which stay available as opt-ins. Since
+// 2026-11-11 (owner feedback: keep the charts first, less on the page) it's a short Now strip
+// under the charts.
 export const TODAY_CARDS = [
+  { id: 'decisions', title: 'Decisions', kind: 'act', size: 'half', rows: true, defaultOff: true, description: 'Offers waiting on your answer, soonest deadline first.' },
+  { id: 'pipeline', title: 'Pipeline', kind: 'glance', size: 'third', description: 'How many you have applied to, the stage funnel and your next deadline.' },
+  { id: 'network', title: 'Network', kind: 'glance', size: 'third', description: 'Contacts by warmth.' },
+  { id: 'outreach', title: 'Outreach', kind: 'glance', size: 'third', description: 'Logged interactions per week, this week against last.' },
+  { id: 'rates', title: 'Rates', kind: 'glance', size: 'full', description: 'Response, OA, interview, offer and rejection rates of what you sent.' },
   {
-    // No rows setting: Now always shows everything and This week caps itself (UpNext WEEK_CAP).
-    id: 'queue', title: 'Up next', kind: 'act', size: 'full',
-    description: 'Everything to do, ranked: now, this week, then a backlog.',
+    // No rows setting: the strip caps itself (UpNext NOW_CAP).
+    id: 'queue', title: 'Now', kind: 'act', size: 'full',
+    description: 'What is overdue or due today, at most 5 rows, under the charts.',
     groups: QUEUE_KINDS.map(k => ({
       id: k.id, label: k.label,
       ...(k.id === 'review' ? { available: REVIEW_AVAILABLE } : k.id === 'events' ? { available: EVENTS_AVAILABLE } : {}),
     })),
     settings: [AWAITING_SETTING, STALE_SETTING],
   },
-  { id: 'decisions', title: 'Decisions', kind: 'act', size: 'half', rows: true, defaultOff: true, description: 'Offers waiting on your answer, soonest deadline first.' },
-  { id: 'pipeline', title: 'Pipeline', kind: 'glance', size: 'third', description: 'How many you have applied to, the stage funnel and your next deadline.' },
-  { id: 'network', title: 'Network', kind: 'glance', size: 'third', description: 'Contacts by warmth.' },
-  { id: 'outreach', title: 'Outreach', kind: 'glance', size: 'third', description: 'Logged interactions per week, this week against last.' },
-  { id: 'rates', title: 'Rates', kind: 'glance', size: 'full', description: 'Response, OA, interview, offer and rejection rates of what you sent.' },
   { id: 'replies', title: 'Replies drafted', kind: 'act', size: 'half', rows: true, defaultOff: true, description: 'Replies the Gmail scan wrote for you, with call times.' },
   { id: 'email', title: 'From your email', kind: 'act', size: 'half', rows: true, defaultOff: true, description: 'To-dos the email scan pulled out of your inbox.' },
   {
@@ -104,7 +106,7 @@ function freshCard(id) {
 
 export function defaultLayout(ctx) {
   return {
-    v: 2,
+    v: 3,
     cards: TODAY_CARDS.filter(d => !d.defaultOff && cardAvailable(d.id, ctx) === true).map(d => freshCard(d.id)),
     seen: TODAY_CARDS.map(d => d.id),
   }
@@ -136,7 +138,7 @@ const V1_ACTION_CARDS = {
   apps: ['interview', 'oa', 'stale', 'review', 'oaCheck'],
 }
 
-// v1 → v2, once (v1.5 spec 03): "Up next" goes first and the action cards go, so a customized
+// v1 → v2, once (v1.5 spec 03): the Now strip goes after the glance cards, the action cards go, so a customized
 // Today doesn't show every item twice. What the user chose carries over: a list turned off in
 // an old card, or every list of a card they removed, is off in the queue, and the People /
 // Applications thresholds become the queue's. Glance cards keep their order and sizes.
@@ -155,14 +157,28 @@ export function upgradeV1Layout(saved, ctx) {
   const queue = { ...freshCard('queue'), off: [...new Set(off)], settings }
   return {
     v: 2,
-    cards: [queue, ...cards.filter(c => c.id !== 'queue' && !V1_ACTION_CARDS[c.id])],
+    cards: [...cards.filter(c => c.id !== 'queue' && !V1_ACTION_CARDS[c.id]), queue],
     seen: TODAY_CARDS.map(d => d.id),
   }
 }
 
+// v2 → v3 (2026-11-11): v2 put the queue first; the charts go back on top and the Now strip
+// sits after the last glance card. Everything else the user chose stays.
+export function moveQueueBelowCharts(saved) {
+  const cards = saved.cards.filter(Boolean)
+  const queue = cards.find(c => c.id === 'queue')
+  if (!queue) return { ...saved, v: 3 }
+  const rest = cards.filter(c => c !== queue)
+  let at = 0
+  rest.forEach((c, i) => { if (BY_ID.get(c.id)?.kind === 'glance') at = i + 1 })
+  rest.splice(at, 0, queue)
+  return { ...saved, v: 3, cards: rest }
+}
+
 export function reconcileLayout(saved, ctx) {
   if (saved?.v === 1 && Array.isArray(saved.cards)) saved = upgradeV1Layout(saved, ctx)
-  if (!saved || saved.v !== 2 || !Array.isArray(saved.cards)) return defaultLayout(ctx)
+  if (saved?.v === 2 && Array.isArray(saved.cards)) saved = moveQueueBelowCharts(saved)
+  if (!saved || saved.v !== 3 || !Array.isArray(saved.cards)) return defaultLayout(ctx)
   const placed = new Set()
   const cards = []
   for (const raw of saved.cards) {
@@ -183,7 +199,7 @@ export function reconcileLayout(saved, ctx) {
     cards.splice(at, 0, freshCard(def.id))
     placed.add(def.id)
   })
-  return { v: 2, cards, seen: TODAY_CARDS.map(d => d.id) }
+  return { v: 3, cards, seen: TODAY_CARDS.map(d => d.id) }
 }
 
 // Reducers. Each returns a new layout (or the same one when nothing changes).

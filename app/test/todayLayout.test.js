@@ -10,8 +10,8 @@ const IB = { profile: { tracks: ['ib'] }, hasEvents: false }
 const ids = layout => layout.cards.map(c => c.id)
 
 describe('defaultLayout', () => {
-  it('puts Up next first, then the glance cards (v1.5 spec 03)', () => {
-    expect(ids(defaultLayout(SWE))).toEqual(['queue', 'pipeline', 'network', 'outreach', 'rates'])
+  it('puts the charts first, then the Now strip', () => {
+    expect(ids(defaultLayout(SWE))).toEqual(['pipeline', 'network', 'outreach', 'rates', 'queue'])
     const sizes = Object.fromEntries(defaultLayout(SWE).cards.map(c => [c.id, c.size]))
     expect(sizes).toMatchObject({ queue: 'full', pipeline: 'third', rates: 'full' })
   })
@@ -36,7 +36,7 @@ describe('defaultLayout', () => {
 })
 
 describe('reconcileLayout', () => {
-  const saved = (cards, seen = TODAY_CARDS.map(c => c.id)) => ({ v: 2, cards, seen })
+  const saved = (cards, seen = TODAY_CARDS.map(c => c.id)) => ({ v: 3, cards, seen })
 
   it('falls back to the default when nothing is saved or the version is unknown', () => {
     expect(reconcileLayout(null, SWE)).toEqual(defaultLayout(SWE))
@@ -84,11 +84,16 @@ describe('v1 → v2 upgrade (v1.5 spec 03)', () => {
   const v1 = (cards, seen = V1_SEEN) => ({ v: 1, cards, seen })
   const card = (id, size = 'half', extra = {}) => ({ id, size, cap: 3, off: [], settings: {}, ...extra })
 
-  it('puts Up next first, drops the action cards, keeps glance order and sizes', () => {
+  it('drops the action cards, keeps glance order and sizes, Now strip after them', () => {
     const out = reconcileLayout(v1([card('rates', 'full'), card('people'), card('pipeline', 'full'), card('apps'), card('decisions')]), SWE)
-    expect(ids(out)).toEqual(['queue', 'rates', 'pipeline'])
-    expect(out.cards[2].size).toBe('full')
-    expect(out.v).toBe(2)
+    expect(ids(out)).toEqual(['rates', 'pipeline', 'queue'])
+    expect(out.cards[1].size).toBe('full')
+    expect(out.v).toBe(3)
+  })
+
+  it('v2 → v3 moves the queue from the top to after the last glance card', () => {
+    const v2 = { v: 2, seen: TODAY_CARDS.map(c => c.id), cards: [card('queue', 'full'), card('pipeline', 'third'), card('network', 'third'), card('people')] }
+    expect(ids(reconcileLayout(v2, SWE))).toEqual(['pipeline', 'network', 'queue', 'people'])
   })
 
   it('carries lists turned off in old cards, and every list of a card the user removed', () => {

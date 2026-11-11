@@ -24,7 +24,7 @@ const derive = (over = {}) => deriveTodayAttention({ contacts, apps, interaction
 const withQueue = fn => ({ ...layout, cards: layout.cards.map(c => c.id === 'queue' ? fn(c) : c) })
 
 describe('deriveTodayAttention', () => {
-  it('derives every list the queue needs and counts Now + This week', () => {
+  it('derives every list the queue needs and counts only Now', () => {
     const a = derive()
     expect(a.appGroups.interview.map(x => x.id)).toEqual(['i1'])
     expect(a.decisions.map(x => x.id)).toEqual(['o1'])
@@ -33,11 +33,11 @@ describe('deriveTodayAttention', () => {
     expect(a.peopleGroups.overdue.map(c => c.id)).toEqual(['c1'])
     expect(a.queue.now.map(i => i.key).sort()).toEqual(['oa:oa1', 'overdue:c1'])
     expect(a.queue.week.map(i => i.key).sort()).toEqual(['decisions:o1', 'interview:i1', 'replies:d1'])
-    expect(a.openCount).toBe(5)
+    expect(a.openCount).toBe(2)
   })
 
   it("a kind turned off in the queue doesn't count", () => {
-    expect(derive({ layout: withQueue(c => ({ ...c, off: ['oa'] })) }).openCount).toBe(4)
+    expect(derive({ layout: withQueue(c => ({ ...c, off: ['oa'] })) }).openCount).toBe(1)
   })
 
   it('without the queue, the old cards still derive their lists and the count is their sum', () => {

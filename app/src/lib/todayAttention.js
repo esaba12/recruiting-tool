@@ -74,10 +74,10 @@ export function deriveTodayAttention(
     decisions: decisions.length, replies: replyDrafts.length, email: openItems.length,
     people: total(peopleGroups), apps: total(appGroups), events: eventAttention.count,
   }
-  // With "Up next" placed, the open count is its Now + This week (the backlog doesn't nag).
+  // With the queue placed, the count is its Now tier: what the strip shows (overdue or due today).
   const queue = placed.queue ? buildActionQueue({ decisions, replyDrafts, openItems, peopleGroups, appGroups, eventAttention }, { now }) : null
-  if (queue) counts.queue = queue.count
-  const openCount = queue ? queue.count : Object.values(counts).reduce((a, b) => a + b, 0)
+  if (queue) counts.queue = queue.now.length
+  const openCount = queue ? queue.now.length : Object.values(counts).reduce((a, b) => a + b, 0)
 
   return {
     placed, trimmed, openItems, replyDrafts, peopleGroups, appGroups, decisions, eventAttention,

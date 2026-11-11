@@ -29,7 +29,7 @@ import { PipelineCard, NetworkCard, OutreachCard, RatesCard } from './today/Metr
 import GettingStarted from './onboarding/GettingStarted.jsx'
 import { isFreshAccount } from '../lib/onboarding.js'
 import { todayLocal } from '../lib/dates.js'
-import { EventsCard, StepRow, RegistrationRow, FollowUpRow, DegradedFeeds } from './today/EventAttentionSections.jsx'
+import { EventsCard, StepRow, RegistrationRow, FollowUpRow } from './today/EventAttentionSections.jsx'
 import UpNext from './today/UpNext.jsx'
 import { KIND } from '../lib/actionQueue.js'
 import { dueOf } from '../lib/snooze.js'
@@ -672,8 +672,7 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
   // Every card, keyed by registry id; false when it has nothing to show right now.
   const cards = {
     queue: queue && (
-      <UpNext queue={queue} renderRow={renderRow} onHide={hideQueueItem}
-        footer={<DegradedFeeds degraded={eventAttention.degraded} />} />
+      <UpNext queue={queue} renderRow={renderRow} onHide={hideQueueItem} />
     ),
     pipeline: hasData && <PipelineCard apps={apps} />,
     network: hasData && <NetworkCard contacts={contacts} />,
@@ -797,7 +796,7 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
     <m.div className="space-y-3" variants={container} initial="hidden" animate="show">
       <m.div variants={rise} className="flex items-center gap-4 flex-wrap px-1">
         <Label tone={allEmpty ? 'success' : 'accent'}>
-          {today} <span className="text-ink-300">/</span> {allEmpty ? 'all clear' : `${openCount} open`}
+          {today} <span className="text-ink-300">/</span> {allEmpty ? 'all clear' : `${openCount} ${queue ? 'due' : 'open'}`}
         </Label>
         <span className="ml-auto flex items-center gap-4 text-xs text-ink-400">
           {placed.email && trimmed.hidden > 0 && <span title="Already replied on the thread, long past due, or duplicates">{trimmed.hidden} resolved AI items auto-hidden</span>}
