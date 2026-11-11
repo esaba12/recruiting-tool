@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, ExternalLink, MailOpen, Mail, Search, Reply, CheckCircle2, Building2, Briefcase, PenLine, Copy, X, CalendarClock } from 'lucide-react'
 import { EmptyState } from '../shared.jsx'
 import { setThreadRead, completeActionItem, updateEmailDraft } from '../db.js'
+import { copyAndOpen } from '../lib/replySend.js'
 import { aiProviderLabel } from '../lib/ai.js'
 import { DRAFT_INTENT_LABEL } from '../lib/replyDrafts.js'
 import { buildThreads, filterThreads, filterCounts, FILTERS, CATEGORY, snippet, messageLead, messageTime, gmailThreadUrl } from '../lib/inbox.js'
@@ -212,9 +213,9 @@ function SuggestedReply({ draft, thread, onChange }) {
     try { await navigator.clipboard.writeText(body); setCopied(true); setTimeout(() => setCopied(false), 1800); return true }
     catch { setErr('Couldn\'t copy. Select the text and copy it yourself.'); return false }
   }
-  async function copyAndOpen() {
-    if (!(await copy())) return
-    window.open(gmailUrl, '_blank', 'noopener')
+  async function copyAndOpenGmail() {
+    const r = await copyAndOpen(gmailUrl, body)
+    if (!r.ok) { setErr(r.error); return }
     save({ body, status: 'done' })
   }
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -247,7 +248,7 @@ function SuggestedReply({ draft, thread, onChange }) {
         aria-label="Drafted reply"
         className="block w-full px-4 py-3 text-[14px] leading-relaxed text-ink-800 bg-surface resize-y focus:outline-none focus:bg-accent-50/40" />
       <footer className="flex items-center gap-2 flex-wrap px-4 py-2.5 border-t border-ink-100">
-        <button onClick={copyAndOpen}
+        <button onClick={copyAndOpenGmail}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold bg-accent-500 text-on-accent hover:bg-accent-600">
           <Reply size={13} /> Copy &amp; open in Gmail
         </button>
