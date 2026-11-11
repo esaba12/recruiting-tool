@@ -45,3 +45,15 @@ drop by the same amount; snooze a row and both drop by one.
 ## Done when
 
 There is one number for "things to do", and it's the same in the sidebar and on Today.
+
+## As built (2026-11-11)
+
+- `lib/todayAttention.js` `deriveTodayAttention` (pure, takes `isSnoozed` and `now`) and
+  `snoozeKey`; `lib/useTodayAttention.js` wraps it with `useTodayPrefs` + `useTodayLayout`.
+- `TodayTab` takes `attention` and no longer calls the layout/prefs hooks itself (one instance,
+  so Today's snoozes and Customize changes move the badge immediately). It also stopped taking
+  `actionItems`, `emailDrafts` and `profile`.
+- Both `todayCount` formulas in `App.jsx` are gone. `/demo`: badge 30 = header "30 open"; Clear
+  all on Replies drafted → both 28.
+- Tests: `test/todayAttention.test.js` (5).
+

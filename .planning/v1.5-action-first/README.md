@@ -68,7 +68,7 @@ already done, or a badge that disagrees with it, is worse than what's there now.
 
 - [x] 🤖 Specs written (2026-11-11)
 - [x] 🤖 01 follow-ups clear themselves → PR (2026-11-11; also stops your own "following up" email from re-scheduling the follow-up 3 days out)
-- [ ] 🤖 02 one count → PR
+- [x] 🤖 02 one count → PR (2026-11-11; `/demo` badge = header = 30, both 28 after Clear all on replies)
 - [ ] 🤖 03 Up next → PR (biggest; check `/demo` desktop, 390px, dark, keyboard)
 - [ ] 🤖 04 snooze to a date → PR
 - [ ] 🤖 05 A reply actions on Today → PR

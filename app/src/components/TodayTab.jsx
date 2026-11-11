@@ -1,12 +1,11 @@
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { m } from 'motion/react'
 import { STATUS_COLOR, URGENCY_COLOR, STAGE_COLOR, TYPE_COLOR, fmt, daysUntil, daysSince, Badge, EmptyState } from '../shared.jsx'
 import { updateContact, addInteraction, updateApplicationTriage, archiveApplication, updateApplication, completeActionItem, dismissActionItem, dismissActionItems } from '../db.js'
 import { logMetWithContact } from '../lib/quickLog.js'
-import { staleApplications, oaDue, oaNeedsCheck, needsReviewApps, openActionItems, trimActionItems, todayPeople, pipelineRates, offerDecisions, upcomingInterviews, PEOPLE_GROUPS } from '../lib/attention.js'
-import useTodayPrefs from '../lib/useTodayPrefs.js'
-import useTodayLayout from '../lib/useTodayLayout.js'
-import { enabledGroups, settingValue, layoutBands, layoutContext } from '../lib/todayCards.js'
+import { pipelineRates } from '../lib/attention.js'
+import { snoozeKey } from '../lib/todayAttention.js'
+import { layoutBands } from '../lib/todayCards.js'
 import { lastPointOfContact } from '../lib/keepInTouch.js'
 import { tieStrengthBucket } from '../lib/affinity.js'
 import { statusIconFor } from '../lib/icons.js'
@@ -29,7 +28,7 @@ import { PipelineCard, NetworkCard, OutreachCard, RatesCard } from './today/Metr
 import GettingStarted from './onboarding/GettingStarted.jsx'
 import { isFreshAccount } from '../lib/onboarding.js'
 import { todayLocal } from '../lib/dates.js'
-import { deriveEventAttention, EventsCard } from './today/EventAttentionSections.jsx'
+import { EventsCard } from './today/EventAttentionSections.jsx'
 
 // Edit mode, with @dnd-kit, loads only when Customize is pressed (v1.4 spec 08).
 const TodayEditor = lazy(() => import('./today/TodayEditor.jsx'))
@@ -525,51 +524,15 @@ function DraftRow({ draft, contacts, onOpen }) {
   )
 }
 
-export default function TodayTab({ contacts, apps, interactions = [], relationships = [], actionItems = [], onLogOa, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, emailDrafts = [], onOpenDraft, profile = null, isDemoMode = false }) {
-  const prefs = useTodayPrefs()
-  // Which cards show, in what order and width, and which lists inside them (v1.4 spec 08).
-  const school = eventPool?.school
-  const ctx = useMemo(() => layoutContext(profile, school), [profile, school])
-  const { layout, update, reset, customized } = useTodayLayout(ctx)
+export default function TodayTab({ attention, contacts, apps, interactions = [], relationships = [], onLogOa, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, onOpenDraft, isDemoMode = false }) {
+  // Lists, layout and snoozes come from lib/useTodayAttention.js, mounted in App so the sidebar
+  // badge counts the same rows (v1.5 spec 02).
+  const {
+    prefs, ctx, layout, update, reset, customized, placed, trimmed, openItems, replyDrafts,
+    peopleGroups, appGroups, decisions, eventAttention, staleDays, counts, openCount, snoozedHidden,
+  } = attention
   const [editing, setEditing] = useState(false)
-  const placed = Object.fromEntries(layout.cards.map(c => [c.id, c]))
-  const groupsOn = id => (placed[id] ? enabledGroups(placed[id], ctx) : [])
   const capOf = id => placed[id]?.cap
-
-  // Declutter pass 1: AI action items that already resolved themselves (replied on the
-  // thread, long expired, duplicates) never reach the list.
-  const trimmed = trimActionItems(openActionItems(actionItems), interactions)
-  // Pass 2: a contact shows up in one people group only, the first one that's on.
-  const peopleOn = groupsOn('people')
-  const people = todayPeople(contacts, interactions, {
-    off: PEOPLE_GROUPS.filter(g => !peopleOn.includes(g)),
-    awaitingDays: placed.people ? settingValue(placed.people, 'awaitingDays') : undefined,
-    apps,
-  })
-  // Pass 3: rows the user hid (✕ / Clear all) stay hidden for a week.
-  const SNOOZE_KEY = { thankYou: x => x.id, overdue: c => c.id, awaiting: x => x.contact.id, schedule: c => c.id, urgent: c => c.id, keepInTouch: x => x.contact.id, stale: a => a.id, review: a => a.id, oa: a => a.id, oaCheck: a => a.id, replies: d => d.id, interview: a => a.id, decisions: a => a.id }
-  let snoozedHidden = 0
-  const visible = (id, rows) => {
-    const out = rows.filter(r => !prefs.isSnoozed(`${id}:${SNOOZE_KEY[id](r)}`))
-    snoozedHidden += rows.length - out.length
-    return out
-  }
-  const openItems = placed.email ? trimmed.items : []
-  const replyDrafts = placed.replies ? visible('replies', emailDrafts) : []
-  const peopleGroups = Object.fromEntries(PEOPLE_GROUPS.map(id => [id, visible(id, people[id])]))
-  const appsOn = groupsOn('apps')
-  const staleDays = placed.apps ? settingValue(placed.apps, 'staleDays') : 14
-  const decisions = placed.decisions ? visible('decisions', offerDecisions(apps)) : []
-  const appRows = {
-    interview: () => upcomingInterviews(apps),
-    oa: () => oaDue(apps),
-    stale: () => staleApplications(apps, { days: staleDays }),
-    review: () => needsReviewApps(apps),
-    oaCheck: () => oaNeedsCheck(apps),
-  }
-  const appGroups = Object.fromEntries(Object.entries(appRows).map(([id, rows]) => [id, appsOn.includes(id) ? visible(id, rows()) : []]))
-  // Recruiting events (v1.1): empty when there's no pool or no campus picked yet.
-  const eventAttention = deriveEventAttention(placed.events ? eventPool : null)
 
   const [selectedContactId, setSelectedContactId] = useState(null)
   const [selectedAppId, setSelectedAppId] = useState(null)
@@ -602,20 +565,16 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
   const openApp = x => { setAppView(null); setSelectedAppId(x.id) }
   const openOffer = x => { setAppView('offer'); setSelectedAppId(x.id) }
 
-  const total = groups => Object.values(groups).reduce((n, rows) => n + rows.length, 0)
-  const peopleCount = total(peopleGroups)
-  const appCount = total(appGroups)
-  // Counts cover the cards and lists that are on, so a hidden list never inflates the header.
-  const counts = { decisions: decisions.length, replies: replyDrafts.length, email: openItems.length, people: peopleCount, apps: appCount, events: eventAttention.count }
-  const openCount = Object.values(counts).reduce((a, b) => a + b, 0)
+  const peopleCount = counts.people
+  const appCount = counts.apps
   const allEmpty = openCount === 0
   const hasData = apps.length > 0 || contacts.length > 0 || interactions.length > 0
   const fresh = allEmpty && !isDemoMode && isFreshAccount({ contacts, apps })
 
   // Per-row ✕ snoozes one row; a card's "Clear all" snoozes every row in it.
-  const hide = id => x => prefs.snooze([`${id}:${SNOOZE_KEY[id](x)}`])
+  const hide = id => x => prefs.snooze([snoozeKey(id, x)])
   const clearAll = groups => (
-    <SectionAction onClick={() => prefs.snooze(Object.entries(groups).flatMap(([id, rows]) => rows.map(x => `${id}:${SNOOZE_KEY[id](x)}`)))}>
+    <SectionAction onClick={() => prefs.snooze(Object.entries(groups).flatMap(([id, rows]) => rows.map(x => snoozeKey(id, x))))}>
       Clear all
     </SectionAction>
   )
