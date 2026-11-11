@@ -73,7 +73,7 @@ already done, or a badge that disagrees with it, is worse than what's there now.
 - [x] 🤖 04 snooze to a date → PR (2026-11-11)
 - [x] 🤖 05 A reply actions on Today → PR (2026-11-11)
 - [ ] 🤖 06 interview rows → PR; 👤 approve `supabase db push` for `interview_link`
-- [ ] 🤖 07 OA done from email → PR
+- [x] 🤖 07 OA done from email → PR (2026-11-11)
 - [ ] 👤 Live check after 01 + 07: send a follow-up from Gmail and finish an OA, wait for the
   next 10-min scan, and both rows leave Today without a click
 - [ ] 👤 Decide 05 B (Gmail drafts) together with the OAuth verification decision

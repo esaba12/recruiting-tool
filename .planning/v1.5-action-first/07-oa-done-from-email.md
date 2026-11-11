@@ -49,3 +49,18 @@ leaves Today and a "✅ OA marked complete" push arrives.
 ## Done when
 
 Finishing an OA is the only step; the app notices from your inbox.
+
+## As built (2026-11-11)
+
+- `api/_lib/emailPipeline.js`: `OA_COMPLETED` in the prompt's type list with the Apps Script's
+  definition, `OA_COMPLETED_RE` + hint, `oaCompletedFields`, `pickOaApplication` (added: the
+  receipt rarely names the role, so it falls back to the newest app at that company with an open
+  OA), and an early branch in `upsertApplication` that only closes an open OA.
+- No push when nothing changed (`unmatchedProgress` now includes `OA_COMPLETED`).
+- **Not built:** the "Marked done from email · Nov 11" line in the application panel. Receipts
+  come from no-reply senders, so their interaction has no contact or application to hang it on,
+  and matching it back by company is guesswork. The push says it, and the panel's OA toggle
+  reverses it.
+- `classifyEmail` is now exported (for the prompt test).
+- Tests: `test/oaCompleted.test.js` (8).
+
