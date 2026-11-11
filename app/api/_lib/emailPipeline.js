@@ -18,6 +18,7 @@ import { tracksLabel, isTechOnly } from '../../src/lib/tracks.js'
 import { shouldDraftReply, replyIntent, replySubject, draftReply, slotsFor, calendarRefreshTokens, saveReplyDraft, settleThreadDrafts } from './replyDraft.js'
 import { AUTO_DRAFT_SETTING_KEY } from '../../src/lib/replyDrafts.js'
 import { AVAILABILITY_SETTING_KEY } from '../../src/lib/availability.js'
+import { followUpSatisfied } from '../../src/lib/followUps.js'
 
 // ── Discovery queries + recall-hint constants (ported verbatim) ─────────────────────────
 const SENT_SCAN_QUERY = 'in:sent newer_than:30d'
@@ -151,6 +152,17 @@ export function contactFollowUpDate(data, existingFollowUp, today) {
   const d = new Date(today + 'T00:00:00Z')
   d.setUTCDate(d.getUTCDate() + 3)
   return d.toISOString().slice(0, 10)
+}
+
+// What a message does to the contact's follow_up_date (v1.5 spec 01). Your own email that
+// satisfies a due follow-up (src/lib/followUps.js) clears it, and is never itself a reason to
+// schedule another: the classifier can read "just following up" as FOLLOW_UP_NEEDED, which used
+// to push the date 3 days out every time you followed up. Awaiting Reply covers the wait.
+// Returns the patch: { follow_up_date: null | 'YYYY-MM-DD' } or {}.
+export function followUpPatch(data, existingFollowUp, { fromMe = false, sentDay, today }) {
+  if (fromMe && followUpSatisfied(existingFollowUp, sentDay)) return { follow_up_date: null }
+  const next = contactFollowUpDate(data, existingFollowUp, today)
+  return next ? { follow_up_date: next } : {}
 }
 
 export function keepActionItem(data, senderEmail) {
@@ -526,7 +538,7 @@ ${body}`
 }
 
 // ── Supabase writes (ported from the raw-PostgREST version to real supabase-js calls) ───
-async function upsertContact(db, userId, data) {
+async function upsertContact(db, userId, data, { fromMe = false, sentDay } = {}) {
   if (!shouldCreateContact(data, data.contact_email)) return null
   const today = new Date().toISOString().slice(0, 10)
 
@@ -534,12 +546,12 @@ async function upsertContact(db, userId, data) {
     .eq('user_id', userId).eq('email', data.contact_email).limit(1)
   const existingId = rows?.[0]?.id
   const existingPhone = rows?.[0]?.phone
-  const followUp = contactFollowUpDate(data, rows?.[0]?.follow_up_date, today)
+  const followUp = followUpPatch(data, rows?.[0]?.follow_up_date, { fromMe, sentDay, today })
 
   const updateProps = {
     ...(data.company ? { company: data.company } : existingId ? {} : { company: '' }),
     last_interaction: today,
-    ...(followUp ? { follow_up_date: followUp } : {}),
+    ...followUp,
     urgency: data.urgency || 'LOW',
     notes: data.summary || '',
     ...(data.contact_email ? { email: data.contact_email } : {}),
@@ -554,6 +566,19 @@ async function upsertContact(db, userId, data) {
     user_id: userId, name: data.contact_name || 'Unknown', status: '🟡 Cooling', ...updateProps,
   }).select('id').single()
   return created?.id || null
+}
+
+// The early-return path (UNRELATED / generic networking) never reaches upsertContact, so your
+// own email there still clears a follow-up it satisfies. Best effort: a failure just leaves
+// the date for Today's client-side rule (followedUp) to hide.
+export async function clearSentFollowUp(db, userId, email, sentDay) {
+  if (!email) return false
+  const { data: rows } = await db.from('contacts').select('id,follow_up_date')
+    .eq('user_id', userId).eq('email', email).limit(1)
+  const row = rows?.[0]
+  if (!row || !followUpSatisfied(row.follow_up_date, sentDay)) return false
+  await db.from('contacts').update({ follow_up_date: null }).eq('id', row.id).eq('user_id', userId)
+  return true
 }
 
 async function findContactByName(db, userId, name) {
@@ -853,7 +878,9 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
       const fromMe = parseAddress(msg.from)?.email === myEmail
       // You wrote back yourself, so any draft waiting on this thread is done.
       if (fromMe) await settleThreadDrafts(db, userId, threadId)
+      const sentDay = msg.date.toISOString().slice(0, 10)
       if (!data || data.type === 'UNRELATED' || isGenericNetworking(data, counterpart.email)) {
+        if (fromMe) await clearSentFollowUp(db, userId, counterpart.email, sentDay)
         threadProgress[threadId] = messages.length
         return 'classified'
       }
@@ -863,7 +890,7 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
       data.contact_email = counterpart.email || null
       if (!data.contact_name && counterpart.displayName) data.contact_name = counterpart.displayName
 
-      const contactId = await upsertContact(db, userId, data)
+      const contactId = await upsertContact(db, userId, data, { fromMe, sentDay })
 
       let applicationId = null
       if (['APPLICATION_CONFIRMATION', 'OA_INVITE', 'INTERVIEW_INVITE', 'OFFER', 'REJECTION'].includes(data.type)) {

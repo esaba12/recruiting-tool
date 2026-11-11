@@ -4,6 +4,7 @@
 // any future consumer) imports the same logic instead of re-deriving it independently.
 import { TERMINAL_STAGES, INTERVIEW_STAGES, daysSince, daysUntil, isUntriaged, isOverdue, isStaleApplication } from '../shared.jsx'
 import { keepInTouchQueue } from './keepInTouch.js'
+import { followedUp } from './followUps.js'
 import { normalizeCompanyName } from './networkGraph.js'
 import { parseDay } from './dates.js'
 import { stagePath } from './stageHistory.js'
@@ -39,9 +40,11 @@ export function wantToSchedule(contacts) {
     })
 }
 
-// Ported verbatim from the former Actions tab
-export function overdueFollowUps(contacts) {
-  return contacts.filter(isOverdue).sort((a, b) => daysUntil(a.followUpDate) - daysUntil(b.followUpDate))
+// Follow-up dates that have passed, minus contacts you already wrote to (v1.5 spec 01): the
+// Gmail scan logs your sent email, and that counts without a "mark it" click.
+export function overdueFollowUps(contacts, interactions = []) {
+  return contacts.filter(c => isOverdue(c) && !followedUp(c, interactions))
+    .sort((a, b) => daysUntil(a.followUpDate) - daysUntil(b.followUpDate))
 }
 
 // Ported from the former Actions tab (depends on activeApps above). `days` is Today's
@@ -110,7 +113,9 @@ export function awaitingReply(contacts, interactions, { thresholdDays = 5 } = {}
   const out = []
   for (const c of contacts) {
     if (c.status === '✅ Closed') continue
-    if (c.followUpDate) continue // already tracked by the explicit follow-up system
+    // Already tracked by the explicit follow-up system, unless that follow-up was sent: then
+    // waiting on their reply is exactly this list's job.
+    if (c.followUpDate && !followedUp(c, interactions)) continue
     const last = byContact.get(c.id)
     if (!last || last.direction !== 'Outbound') continue
     const waiting = daysSince(last.date)
@@ -417,7 +422,7 @@ export const PEOPLE_GROUPS = ['thankYou', 'overdue', 'awaiting', 'schedule', 'ur
 export function todayPeople(contacts, interactions, { off = [], awaitingDays = 5, apps = [], now = Date.now() } = {}) {
   const derive = {
     thankYou: () => thankYouDue(apps, contacts, interactions, { now }),
-    overdue: () => overdueFollowUps(contacts),
+    overdue: () => overdueFollowUps(contacts, interactions),
     awaiting: () => awaitingReply(contacts, interactions, { thresholdDays: awaitingDays }),
     urgent: () => highUrgencyContacts(contacts),
     schedule: () => wantToSchedule(contacts),

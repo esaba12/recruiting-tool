@@ -28,7 +28,7 @@ import { DashCard, Group, Label } from './today/DashCard.jsx'
 import { PipelineCard, NetworkCard, OutreachCard, RatesCard } from './today/MetricCards.jsx'
 import GettingStarted from './onboarding/GettingStarted.jsx'
 import { isFreshAccount } from '../lib/onboarding.js'
-import { addDaysLocal, todayLocal } from '../lib/dates.js'
+import { todayLocal } from '../lib/dates.js'
 import { deriveEventAttention, EventsCard } from './today/EventAttentionSections.jsx'
 
 // Edit mode, with @dnd-kit, loads only when Customize is pressed (v1.4 spec 08).
@@ -46,24 +46,19 @@ const TIE_LABEL = { strong: 'Close tie', moderate: 'Moderate tie', weak: 'Weak t
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.07 } } }
 const rise = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } }
 
-// A contact whose Follow-Up Date already passed, but who has a logged interaction newer
-// than that date — the date's just stale, not actually overdue. Ported verbatim from the
-// former Actions tab.
-function hasNewerInteraction(contact, interactions) {
-  return interactions.some(i => i.contactId === contact.id && i.date && contact.followUpDate && new Date(i.date) > new Date(contact.followUpDate))
-}
-
-function OverdueRow({ contact: c, interactions, onRefresh, onOpen }) {
+// Contacts you already wrote to never reach this row: overdueFollowUps drops them (v1.5
+// spec 01), so it only needs "Done" for a follow-up made outside email (text, in person).
+function OverdueRow({ contact: c, onRefresh, onOpen }) {
   const [panel, setPanel] = useState(null) // null | 'draft' | 'text'
   const [marking, setMarking] = useState(false)
-  const alreadyTouched = hasNewerInteraction(c, interactions)
 
+  // Clears the date rather than pushing it a week out: Awaiting reply and Keep in touch take
+  // it from here, and the contact panel can set a new date. The interaction keeps warmth right.
   async function markFollowedUp() {
     setMarking(true)
     try {
-      const nextFollowUp = addDaysLocal(7)
-      await updateContact(c.id, { followUpDate: nextFollowUp, lastInteraction: todayLocal() })
-      await addInteraction({ contactId: c.id, contactName: c.name, type: 'Other', direction: 'Outbound', summary: 'Followed up (marked via Actions)' })
+      await updateContact(c.id, { followUpDate: null, lastInteraction: todayLocal() })
+      await addInteraction({ contactId: c.id, contactName: c.name, type: 'Other', direction: 'Outbound', summary: 'Followed up' })
       onRefresh?.()
     } catch {
       setMarking(false)
@@ -85,7 +80,7 @@ function OverdueRow({ contact: c, interactions, onRefresh, onOpen }) {
           </p>
           <div className="flex items-center gap-2 sm:justify-end">
             <button onClick={() => setPanel(p => p === 'draft' ? null : 'draft')} className="text-xs text-link hover:underline">
-              {panel === 'draft' ? 'Hide' : alreadyTouched ? 'Details' : 'Draft follow-up'}
+              {panel === 'draft' ? 'Hide' : 'Draft follow-up'}
             </button>
             {c.phone && (
               <button onClick={() => setPanel(p => p === 'text' ? null : 'text')} className="text-xs text-link hover:underline">
@@ -93,21 +88,13 @@ function OverdueRow({ contact: c, interactions, onRefresh, onOpen }) {
               </button>
             )}
             <button onClick={markFollowedUp} disabled={marking} className="text-xs text-ink-400 hover:text-ink-600 hover:underline disabled:opacity-40">
-              {marking ? 'Marking...' : 'Mark followed up'}
+              {marking ? 'Saving…' : 'Done'}
             </button>
           </div>
         </div>
       </div>
 
-      {panel === 'draft' && (
-        alreadyTouched
-          ? (
-            <div className="bg-warning-50 border border-warning-200 rounded-xl p-3 mt-2 text-xs text-warning-800">
-              A newer interaction is already logged for this contact — the Follow-Up Date field is just stale. Open the contact and update it, or use "Mark followed up" above.
-            </div>
-          )
-          : <DraftPanel contact={c} kind="follow_up" daysOverdue={Math.abs(daysUntil(c.followUpDate))} onSaved={onRefresh} />
-      )}
+      {panel === 'draft' && <DraftPanel contact={c} kind="follow_up" daysOverdue={Math.abs(daysUntil(c.followUpDate))} onSaved={onRefresh} />}
       {panel === 'text' && <TextDraftPanel contact={c} daysOverdue={Math.abs(daysUntil(c.followUpDate))} />}
     </div>
   )
@@ -670,7 +657,7 @@ export default function TodayTab({ contacts, apps, interactions = [], relationsh
         <Group label="Send a thank-you" tone="accent" cap={capOf('people')} items={peopleGroups.thankYou} onHide={hide('thankYou')}
           renderItem={row => <ThankYouRow key={row.id} row={row} onRefresh={onRefresh} onOpenContact={openContact} onOpenApp={openApp} onHide={hide('thankYou')} />} />
         <Group label="Overdue follow-up" tone="danger" cap={capOf('people')} items={peopleGroups.overdue} onHide={hide('overdue')}
-          renderItem={c => <OverdueRow key={c.id} contact={c} interactions={interactions} onRefresh={onRefresh} onOpen={openContact} />} />
+          renderItem={c => <OverdueRow key={c.id} contact={c} onRefresh={onRefresh} onOpen={openContact} />} />
         <Group label="Awaiting reply" tone="warning" cap={capOf('people')} items={peopleGroups.awaiting} onHide={hide('awaiting')}
           renderItem={item => <AwaitingReplyRow key={item.contact.id} item={item} onRefresh={onRefresh} onOpen={openContact} />} />
         <Group label="High urgency" tone="danger" cap={capOf('people')} items={peopleGroups.urgent} onHide={hide('urgent')}
