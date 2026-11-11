@@ -288,3 +288,11 @@ Specs in `.planning/v1.2-launch/`. Code is done; the owner console steps moved t
 ## Milestone v1.3 — Launch + cleanup (started 2026-10-16)
 
 Specs in `.planning/v1.3-launch-and-cleanup/` (README has the status table). 05–07 (code follow-ups, pruning, docs restructure) merged in PR #13 (2026-10-17); 01 is PR #9; 02–04 are owner steps; 08 (retire the Apps Script pipeline) comes after the Gmail cron is live.
+
+## Milestone v1.5 — Action first (planned 2026-11-11)
+
+Specs in `.planning/v1.5-action-first/` (README has the findings, decisions and checklist). Today
+leads with one ranked "Up next" list (interviews, OAs, replies, follow-ups) instead of six
+source-grouped cards under the charts, and items the Gmail scan can already see as done clear
+themselves. 01 follow-ups clear themselves · 02 one count · 03 Up next queue · 04 snooze to a
+date · 05 send replies from Today · 06 interview rows (one migration) · 07 OA done from email.
