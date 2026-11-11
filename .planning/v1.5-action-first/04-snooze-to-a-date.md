@@ -43,3 +43,16 @@ brings her back. Keyboard-only through the popover. 390px: the popover stays on 
 ## Done when
 
 You can put any row away until the moment it matters again, in two clicks.
+
+## As built (2026-11-11)
+
+- `lib/snooze.js` (`snoozeOptions`, `snoozeActive`, `snoozeEntry`, `dueOf`, `backLabel`);
+  `useTodayPrefs` gained `snoozeUntil`, `unsnooze` and `untilOf`. `deriveTodayAttention` returns
+  `hidden` (key, list, row) for the Unhide list.
+- **One control, not two:** the queue row's ✕ became a clock that opens the menu (two clicks for
+  any choice, Next week included), instead of ✕ = 7 days plus a separate menu. One hover target
+  per row reads cleaner, and every option is two clicks either way. Old opt-in cards keep ✕ = 7 days.
+- `/demo`: HRT OA → Tomorrow (keyboard: Enter on the focused first option) → gone, badge 19 → 18,
+  Unhide shows "back tomorrow"; Unhide → back, 19.
+- Tests: `test/snooze.test.js` (10).
+

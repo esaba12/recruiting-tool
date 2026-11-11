@@ -84,8 +84,9 @@ first-scan state (`lib/gmailScan.js`) plus rows that open the tracker and Linked
   - `trimActionItems` hides AI items already answered on the thread, long past due, or duplicated.
   - `todayPeople` (via `dedupeAcross`) keeps each contact in one People group. Priority: Overdue → Awaiting →
     Schedule → High Urgency → Keep in Touch, with Send a thank-you ahead of all of them. A group that's turned off is skipped, so its people show in the next one.
-  - A row's ✕ snoozes it for 7 days, and a card's "Clear all" snoozes every row in the card.
-    Snoozes live in `user_settings.today_prefs` (`lib/useTodayPrefs.js`), so they follow the account.
+  - An Up next row's clock (`today/SnoozeMenu.jsx`, v1.5 spec 04) hides it until Tomorrow or Monday (8:00 local), Next week, or After the interview / After the deadline (`lib/snooze.js` `snoozeOptions`). An old card's ✕ snoozes for 7 days, and its "Clear all" snoozes every row in the card.
+    Snoozes live in `user_settings.today_prefs` (`lib/useTodayPrefs.js`) as `{ until, due }` (older ones are a bare `untilMs`), so they follow the account. `due` is the item's date when hidden; if it moves (new OA deadline, rescheduled interview), the item comes back early (`snoozeActive`).
+  - The header's "Unhide N" (`today/UnhideMenu.jsx`) lists what's hidden with "back Mon"-style return dates, each with Unhide, plus Unhide all.
 - Full-size versions of the metric charts are also on Pipeline → Sheet → Flow (funnel) and
   Network → Flow (status donut, weekly trend), in `charts/ActivityCharts.jsx`.
 

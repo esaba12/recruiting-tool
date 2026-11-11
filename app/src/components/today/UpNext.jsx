@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { ChevronRight, ListChecks, X } from 'lucide-react'
-import { KIND, QUEUE_KINDS, backlogSummary, nextUp } from '../../lib/actionQueue.js'
+import { ChevronRight, ListChecks } from 'lucide-react'
+import { KIND, QUEUE_KINDS, backlogSummary, nextUp, itemTitle as titleOf } from '../../lib/actionQueue.js'
+import SnoozeMenu from './SnoozeMenu.jsx'
 import { fmt } from '../../shared.jsx'
 import Mono from '../ui/Mono.jsx'
 import { DashCard, Label } from './DashCard.jsx'
@@ -14,15 +15,10 @@ const WEEK_CAP = 5
 // "Stale applications" → "stale applications", but "OA deadline unknown" keeps its acronym.
 const lowerFirst = s => s.replace(/^([A-Z])(?=[a-z])/, c => c.toLowerCase())
 
-function itemTitle(i) {
-  const r = i.row
-  const who = r?.company || r?.name || r?.contact?.name || r?.event?.title || r?.summary || ''
-  return `${who} ${KIND[i.kind]?.short || ''}`.trim()
-}
+const itemTitle = i => titleOf(i.kind, i.row)
 
 function QueueRow({ item, renderRow, onHide }) {
   const kind = KIND[item.kind]
-  const hideLabel = 'Hide for 7 days'
   return (
     <div className="group flex items-start gap-3">
       <span className="hidden sm:block w-[4.75rem] shrink-0 pt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-400 truncate" title={kind?.label}>
@@ -30,12 +26,7 @@ function QueueRow({ item, renderRow, onHide }) {
       </span>
       <div className="flex-1 min-w-0">{renderRow(item)}</div>
       {kind?.list
-        ? (
-          <button onClick={() => onHide(item)} title={hideLabel} aria-label={`${hideLabel}: ${itemTitle(item)}`}
-            className="mt-2.5 p-1 rounded text-ink-300 hover:text-ink-700 hover:bg-ink-50 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity">
-            <X size={13} />
-          </button>
-        )
+        ? <SnoozeMenu item={item} title={itemTitle(item)} onPick={until => onHide(item, until)} />
         : <span className="w-[21px] shrink-0" aria-hidden />}
     </div>
   )

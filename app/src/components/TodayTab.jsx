@@ -31,6 +31,8 @@ import { todayLocal } from '../lib/dates.js'
 import { EventsCard, StepRow, RegistrationRow, FollowUpRow, DegradedFeeds } from './today/EventAttentionSections.jsx'
 import UpNext from './today/UpNext.jsx'
 import { KIND } from '../lib/actionQueue.js'
+import { dueOf } from '../lib/snooze.js'
+import UnhideMenu from './today/UnhideMenu.jsx'
 
 // Edit mode, with @dnd-kit, loads only when Customize is pressed (v1.4 spec 08).
 const TodayEditor = lazy(() => import('./today/TodayEditor.jsx'))
@@ -531,7 +533,7 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
   // badge counts the same rows (v1.5 spec 02).
   const {
     prefs, ctx, layout, update, reset, customized, placed, trimmed, openItems, replyDrafts,
-    peopleGroups, appGroups, decisions, eventAttention, queue, staleDays, counts, openCount, snoozedHidden,
+    peopleGroups, appGroups, decisions, eventAttention, queue, staleDays, counts, openCount, snoozedHidden, hidden,
   } = attention
   const [editing, setEditing] = useState(false)
   const capOf = id => placed[id]?.cap
@@ -605,7 +607,11 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
       default: return null
     }
   }
-  const hideQueueItem = i => { const list = KIND[i.kind]?.list; if (list) hide(list)(i.row) }
+  // v1.5 spec 04: hide until the picked time; the item's date rides along, so moving it un-hides.
+  const hideQueueItem = (i, until) => {
+    const list = KIND[i.kind]?.list
+    if (list) prefs.snoozeUntil([snoozeKey(list, i.row)], until, dueOf(list, i.row))
+  }
 
   // Every card, keyed by registry id; false when it has nothing to show right now.
   const cards = {
@@ -739,9 +745,7 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
         </Label>
         <span className="ml-auto flex items-center gap-4 text-xs text-ink-400">
           {placed.email && trimmed.hidden > 0 && <span title="Already replied on the thread, long past due, or duplicates">{trimmed.hidden} resolved AI items auto-hidden</span>}
-          {snoozedHidden > 0 && (
-            <button onClick={prefs.clearSnoozes} className="hover:text-ink-700 hover:underline">Unhide {snoozedHidden}</button>
-          )}
+          {snoozedHidden > 0 && <UnhideMenu hidden={hidden} prefs={prefs} />}
           {!fresh && !editing && (
             <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1.5 hover:text-ink-700">
               <SlidersHorizontal size={12} /> Customize
