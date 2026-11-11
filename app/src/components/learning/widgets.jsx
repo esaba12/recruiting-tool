@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ExternalLink, RotateCcw, X, Sparkles, MessageSquareText, Trash2, AlertTriangle } from 'lucide-react'
 import Mono from '../ui/Mono.jsx'
 import { daysUntil } from '../../lib/dates.js'
@@ -10,6 +10,7 @@ import { weeklyActivity, difficultySplit, startOfWeek } from '../../lib/learning
 import { reviewQueue } from '../../lib/learning/review.js'
 import { candidateProblems, buildStudyPlan } from '../../lib/learning/coach.js'
 import { companyCoverage, practicedSlugs, COMPANY_REPO } from '../../lib/learning/companyProblems.js'
+import { normalizeCompanyName } from '../../lib/networkGraph.js'
 import { getUserSetting, setUserSetting } from '../../db.js'
 import { aiProviderLabel } from '../../lib/ai.js'
 import NeedsKey from '../onboarding/NeedsKey.jsx'
@@ -367,8 +368,18 @@ export function RecentWidget({ view, onDelete }) {
 const WHY_LABEL = { oa: 'OA due', interview: 'interviewing', pinned: 'pinned' }
 const DIFF_TEXT = { Easy: 'text-success-700', Medium: 'text-warning-700', Hard: 'text-danger-700' }
 
-export function CompanyPrepWidget({ view, prep, onLog, onPin, isDemoMode = false }) {
+// `focus` ({ company, ts }, from Today's interview Prep, v1.5 spec 06) selects that company's set
+// and scrolls the widget into view.
+export function CompanyPrepWidget({ view, prep, onLog, onPin, focus = null, isDemoMode = false }) {
   const [active, setActive] = useState(null)
+  const rootRef = useRef(null)
+  useEffect(() => {
+    if (!focus?.company) return
+    const want = normalizeCompanyName(focus.company)
+    const match = (view.companySets || []).find(x => normalizeCompanyName(x.company) === want)
+    if (match) setActive(match.company)
+    rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [focus?.ts, view.companySets])
   const [adding, setAdding] = useState('')
   const pinned = view.track.config?.prepCompanies || []
   const sets = view.companySets || []
@@ -385,6 +396,7 @@ export function CompanyPrepWidget({ view, prep, onLog, onPin, isDemoMode = false
 
   const meta = prep.loading ? 'loading…' : set ? `${set.problems.length} tagged problems` : null
   return (
+    <div ref={rootRef} className="scroll-mt-4">
     <Panel title="Company prep" meta={meta}>
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -467,6 +479,7 @@ export function CompanyPrepWidget({ view, prep, onLog, onPin, isDemoMode = false
         </p>
       </div>
     </Panel>
+    </div>
   )
 }
 

@@ -156,7 +156,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
   const [savingOa, setSavingOa] = useState(false)
   // Interview and offer dates (v1.4 spec 02): the scan fills these from invite and offer
   // emails; same separate state/save path as the OA fields above.
-  const [interview, setInterview] = useState(() => instantToInputs(app?.interviewAt, app?.interviewTimeKnown))
+  const [interview, setInterview] = useState(() => ({ ...instantToInputs(app?.interviewAt, app?.interviewTimeKnown), link: app?.interviewLink || '' }))
   const [savingSchedule, setSavingSchedule] = useState(false)
   // The offer decision view (v1.4 spec 04) opens in place, like a contact does.
   const [deciding, setDeciding] = useState(initialView === 'offer' && app?.stage === 'Offer')
@@ -205,7 +205,7 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
     setSavingSchedule(true); setError(null)
     try {
       const { at, timeKnown } = inputsToInstant(interview.date, interview.time)
-      await updateApplication(app.id, { interviewAt: at, interviewTimeKnown: timeKnown })
+      await updateApplication(app.id, { interviewAt: at, interviewTimeKnown: timeKnown, interviewLink: interview.link.trim() || null })
       onSaved()
     } catch (e) {
       setError(e.message)
@@ -466,6 +466,12 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
                 <input type="time" value={interview.time} onChange={e => setInterview(i => ({ ...i, time: e.target.value }))}
                   className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
               </div>
+            </div>
+            <div className="mt-3">
+              <label className="block text-xs text-ink-400 mb-0.5">Join link (optional)</label>
+              <input type="url" value={interview.link} onChange={e => setInterview(i => ({ ...i, link: e.target.value }))}
+                placeholder="https://meet.google.com/…"
+                className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
             </div>
             <button onClick={saveInterview} disabled={savingSchedule}
               className="w-full mt-3 py-2 bg-ink-900 text-on-fill text-xs rounded-md hover:bg-ink-800 disabled:opacity-50 font-medium transition-colors">

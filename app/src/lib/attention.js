@@ -228,6 +228,23 @@ export function offerDecisions(apps, now = Date.now()) {
   return (apps || []).filter(a => a.stage === 'Offer').sort((a, b) => key(a) - key(b))
 }
 
+// The video link for an application's next interview (v1.5 spec 06): the stored one, else the
+// "📅 Meeting link:" lead the Gmail scan writes on an interview invite (interactionRow) from
+// someone at that company in the 30 days before it. null when there's none.
+const MEETING_LINK_RE = /📅 Meeting link: (\S+)/
+export function interviewJoinLink(app, { interactions = [], contacts = [] } = {}) {
+  if (app?.interviewLink) return app.interviewLink
+  if (!app?.interviewAt) return null
+  const company = normalizeCompanyName(app.company || '')
+  const atCompany = new Set(contacts.filter(c => c.company && normalizeCompanyName(c.company) === company).map(c => c.id))
+  const since = new Date(app.interviewAt).getTime() - 30 * 86400000
+  const when = i => Date.parse(i.sentAt || i.date)
+  const hit = interactions
+    .filter(i => i.emailCategory === 'INTERVIEW_INVITE' && atCompany.has(i.contactId) && MEETING_LINK_RE.test(i.summary || '') && when(i) >= since)
+    .sort((a, b) => when(b) - when(a))[0]
+  return hit ? hit.summary.match(MEETING_LINK_RE)[1] : null
+}
+
 // Interviews from today through `withinDays`, soonest first. One that's over (see
 // interviewOver) leaves, and spec 03's thank-you takes it from there.
 export function upcomingInterviews(apps, { now = Date.now(), withinDays = 14 } = {}) {

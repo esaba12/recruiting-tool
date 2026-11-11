@@ -667,7 +667,16 @@ export function oaInviteFields(data, existing) {
 // clears a value the user may have typed.
 // scripts/email-pipeline.js has the same rule — keep the two in sync.
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/
-export function scheduleFields(data, existing, { timeZone }) {
+// The interview's video link rides along with its time (v1.5 spec 06): on a new or moved time,
+// or to fill a link the stored interview is missing. An email with no link never clears one.
+export function scheduleFields(data, existing, opts) {
+  const fields = scheduleTimeFields(data, existing, opts)
+  if (data.type !== 'INTERVIEW_INVITE' || !data.meeting_link) return fields
+  if (fields.interview_at || (existing?.interview_at && !existing.interview_link)) return { ...fields, interview_link: data.meeting_link }
+  return fields
+}
+
+function scheduleTimeFields(data, existing, { timeZone }) {
   if (data.type === 'OFFER') return DATE_ONLY_RE.test(data.offer_deadline || '') ? { offer_deadline: data.offer_deadline } : {}
   if (data.type !== 'INTERVIEW_INVITE') return {}
   let next
@@ -700,7 +709,7 @@ async function upsertApplication(db, userId, data, { timeZone }) {
   const referrerId = data.referrer_name ? await findContactByName(db, userId, data.referrer_name) : null
 
   const { data: rows } = await db.from('applications')
-    .select('id,role,stage,referred_by_id,oa_completed,oa_link,oa_due_date,interview_at,interview_time_known')
+    .select('id,role,stage,referred_by_id,oa_completed,oa_link,oa_due_date,interview_at,interview_time_known,interview_link')
     .eq('user_id', userId).ilike('company', `%${data.company || ''}%`).eq('archived', false)
     .order('created_at', { ascending: false }).limit(50)
   if (data.type === 'OA_COMPLETED') {

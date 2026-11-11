@@ -72,7 +72,8 @@ already done, or a badge that disagrees with it, is worse than what's there now.
 - [x] 🤖 03 Up next → PR (2026-11-11; `/demo` desktop, 390px, dark, Customize checked)
 - [x] 🤖 04 snooze to a date → PR (2026-11-11)
 - [x] 🤖 05 A reply actions on Today → PR (2026-11-11)
-- [ ] 🤖 06 interview rows → PR; 👤 approve `supabase db push` for `interview_link`
+- [x] 🤖 06 interview rows → PR (2026-11-11)
+- [ ] 👤 approve `supabase db push` for `20261112000000_interview_link.sql`, **before** 06 merges (the scan writes the column)
 - [x] 🤖 07 OA done from email → PR (2026-11-11)
 - [ ] 👤 Live check after 01 + 07: send a follow-up from Gmail and finish an OA, wait for the
   next 10-min scan, and both rows leave Today without a click

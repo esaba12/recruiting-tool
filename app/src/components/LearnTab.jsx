@@ -25,7 +25,7 @@ const ACTIVE_TRACK_KEY = 'rec_learn_active_track'
 // from the widgets the user chose in Customize, over a pure mastery/gap/goal engine
 // (lib/learning/mastery.js). Practice happens off-app (LeetCode, CodeSignal, mocks); this
 // tab is where it gets logged, measured against targets, and turned into what to do next.
-export default function LearnTab({ learning, apps, profile, logRequest, onLogRequestHandled, isDemoMode = false }) {
+export default function LearnTab({ learning, apps, profile, logRequest, onLogRequestHandled, focusCompany = null, isDemoMode = false }) {
   const [trackId, setTrackId] = useState(() => lsGet(ACTIVE_TRACK_KEY))
   const [customizing, setCustomizing] = useState(false) // false | section key
   const [logInitial, setLogInitial] = useState(null)
@@ -68,7 +68,7 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
       case 'difficulty': return <DifficultyWidget view={view} snapshot={view.track.config?.leetcodeUsername ? learning.snapshot : null} />
       case 'languages': return <LanguagesWidget snapshot={trackSnapshot} onCustomize={() => setCustomizing('track')} />
       case 'recent': return <RecentWidget view={view} onDelete={id => learning.removeLog(id)} />
-      case 'company': return <CompanyPrepWidget view={view} prep={companyPrep} onLog={openLog} isDemoMode={isDemoMode}
+      case 'company': return <CompanyPrepWidget view={view} prep={companyPrep} onLog={openLog} isDemoMode={isDemoMode} focus={focusCompany}
         onPin={names => learning.saveTrack(view.track.id, { config: { ...view.track.config, prepCompanies: names } })} />
       default: return null
     }

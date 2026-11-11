@@ -312,6 +312,9 @@ function AppInner() {
   const learning = useLearning({ enabled: true })
   const [learnLogRequest, setLearnLogRequest] = useState(null)
   const logOa = app => { setLearnLogRequest({ kind: 'assessment', applicationId: app.id, title: `${app.company} OA` }); setTab('learn') }
+  // Today's interview Prep (v1.5 spec 06): Learn opens with that company's prep in front.
+  const [learnFocus, setLearnFocus] = useState(null)
+  const openPrep = company => { setLearnFocus({ company, ts: Date.now() }); setTab('learn') }
   const openDraft = threadId => { setInboxThread(threadId); setTab('inbox') }
 
   useEffect(() => { load() }, [])
@@ -445,12 +448,12 @@ function AppInner() {
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
           onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} onImported={refreshApps} views={pipelineViewsFor(profile)} />
       )}
-      {!loading && tab === 'today'    && <TodayTab attention={todayAttention} contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships} onLogOa={logOa} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} onOpenDraft={openDraft} />}
+      {!loading && tab === 'today'    && <TodayTab attention={todayAttention} contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships} onLogOa={logOa} onOpenPrep={openPrep} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} onOpenDraft={openDraft} />}
       {!loading && tab === 'inbox'    && (
         <InboxTab contacts={contacts} apps={apps} interactions={interactions} actionItems={actionItems} onRefresh={load}
           drafts={emailDrafts} onDraftsChange={setEmailDrafts} initialThreadId={inboxThread} />
       )}
-      {!loading && tab === 'learn'    && <LearnTab learning={learning} apps={apps} profile={profile} logRequest={learnLogRequest} onLogRequestHandled={() => setLearnLogRequest(null)} />}
+      {!loading && tab === 'learn'    && <LearnTab learning={learning} apps={apps} profile={profile} logRequest={learnLogRequest} onLogRequestHandled={() => setLearnLogRequest(null)} focusCompany={learnFocus} />}
       {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} eventPool={eventPool} eventCalendarSync={eventCalendarSync} onRefreshContacts={refreshContacts} />}
       {tab === 'settings' && (
         <SettingsTab onDone={leaveSettings}
@@ -523,6 +526,8 @@ function DemoAppInner() {
   const [emailDrafts, setEmailDrafts] = useState([])
   const [inboxThread, setInboxThread] = useState(null)
   const openDraft = threadId => { setInboxThread(threadId); setTab('inbox') }
+  const [learnFocus, setLearnFocus] = useState(null)
+  const openPrep = company => { setLearnFocus({ company, ts: Date.now() }); setTab('learn') }
   const [loading, setLoading] = useState(true)
   const learning = useLearning({ enabled: true })
   // Recruiting events from demoData.js (db.js's demo branch). isDemo skips the AI
@@ -587,7 +592,7 @@ function DemoAppInner() {
       )}
       {!loading && tab === 'today' && (
         <TodayTab attention={todayAttention} contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships}
-          onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} isDemoMode
+          onOpenPrep={openPrep} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} isDemoMode
           eventPool={eventPool} onOpenEvents={() => setTab('calendar')} onOpenDraft={openDraft} />
       )}
       {!loading && tab === 'calendar' && (
@@ -597,7 +602,7 @@ function DemoAppInner() {
         <InboxTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} demoMode
           drafts={emailDrafts} onDraftsChange={setEmailDrafts} initialThreadId={inboxThread} />
       )}
-      {!loading && tab === 'learn' && <LearnTab learning={learning} apps={apps} isDemoMode />}
+      {!loading && tab === 'learn' && <LearnTab learning={learning} apps={apps} isDemoMode focusCompany={learnFocus} />}
       {tab === 'settings' && (
         <SettingsTab demoMode onDone={() => setTab(settingsReturnTab)}
           returnLabel={NAV_ITEMS.find(i => i.id === settingsReturnTab)?.label || 'Today'} />
