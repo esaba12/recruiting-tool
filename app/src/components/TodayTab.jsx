@@ -21,7 +21,7 @@ import LogInteractionModal from './LogInteractionModal.jsx'
 import MetButton from './MetButton.jsx'
 import Mono from './ui/Mono.jsx'
 import { SectionAction, RowCap } from './ui/Section.jsx'
-import { HeartHandshake, ClipboardCheck, Clock, MessageSquarePlus, ListTodo, PenLine, SlidersHorizontal, Scale } from 'lucide-react'
+import { HeartHandshake, ClipboardCheck, Clock, MessageSquarePlus, ListTodo, PenLine, SlidersHorizontal, Scale, FileCode2, CalendarClock, History } from 'lucide-react'
 import { draftPreview, DRAFT_INTENT_LABEL } from '../lib/replyDrafts.js'
 import { copyAndOpen, draftGmailUrl } from '../lib/replySend.js'
 import { DashCard, Group, Label } from './today/DashCard.jsx'
@@ -29,7 +29,7 @@ import { PipelineCard, NetworkCard, OutreachCard, RatesCard } from './today/Metr
 import GettingStarted from './onboarding/GettingStarted.jsx'
 import { isFreshAccount } from '../lib/onboarding.js'
 import { todayLocal } from '../lib/dates.js'
-import { EventsCard, StepRow, RegistrationRow, FollowUpRow, DegradedFeeds } from './today/EventAttentionSections.jsx'
+import { EventsCard, StepRow, RegistrationRow, FollowUpRow } from './today/EventAttentionSections.jsx'
 import UpNext from './today/UpNext.jsx'
 import { KIND } from '../lib/actionQueue.js'
 import { dueOf } from '../lib/snooze.js'
@@ -394,6 +394,24 @@ function InterviewRow({ app: a, onOpen, onOpenPrep, joinLink }) {
   )
 }
 
+// One stage move on the Recent updates card: "Stripe  → Phone Screen  2d ago".
+function UpdateRow({ update: u, onOpen }) {
+  const hours = (Date.now() - new Date(u.at).getTime()) / 36e5
+  const ago = hours < 1 ? 'just now' : hours < 24 ? `${Math.floor(hours)}h ago` : `${Math.floor(hours / 24)}d ago`
+  return (
+    <div className={`flex items-center justify-between gap-3 py-2.5 ${ROW_HIT}`} onClick={() => onOpen(u.app)}>
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-ink-900 truncate">{u.app.company}</p>
+        <p className="text-xs text-ink-500 truncate">{u.app.role}</p>
+      </div>
+      <div className="text-right shrink-0">
+        <Badge label={u.toStage} color={STAGE_COLOR[u.toStage]} />
+        <Mono className="block mt-0.5 text-xs text-ink-500" title={u.estimated ? 'Estimated from the application dates' : undefined}>{u.estimated ? '~' : ''}{ago}</Mono>
+      </div>
+    </div>
+  )
+}
+
 // An offer waiting on an answer, with its deadline counting down. No deadline on file is
 // its own prompt: most offer letters state one, and the panel is where it goes.
 function DecisionRow({ app: a, onOpen }) {
@@ -446,17 +464,19 @@ function OaRow({ app: a, needsCheck, onOpen, onRefresh, onLogOa }) {
         <p className="text-xs text-ink-500">{a.role || ''}</p>
         {a.oaLink && (
           <a href={a.oaLink} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-            className="text-xs text-link hover:underline">
+            className="text-xs text-link hover:underline whitespace-nowrap">
             Open assessment ↗
           </a>
         )}
       </div>
       <div className="sm:text-right sm:shrink-0 space-y-1">
         {needsCheck
-          ? <p className="text-xs font-medium text-ink-400">No stated deadline found — check manually</p>
+          ? <p className="text-xs font-medium text-ink-400">No deadline found</p>
           : (
             <p className={`text-xs font-medium ${overdue ? 'text-danger-600' : 'text-ink-500'}`}>
-              {overdue
+              {daysUntil(a.oaDueDate) === 0
+                ? <span className="text-danger-600">Due today</span>
+                : overdue
                 ? <>Was due <Mono>{fmt(a.oaDueDate)}</Mono> (<Mono className="text-danger-600 font-medium">{Math.abs(daysUntil(a.oaDueDate))}d</Mono> ago)</>
                 : <>Due <Mono>{fmt(a.oaDueDate)}</Mono> (<Mono>{daysUntil(a.oaDueDate)}d</Mono>)</>}
             </p>
@@ -589,7 +609,7 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
   // badge counts the same rows (v1.5 spec 02).
   const {
     prefs, ctx, layout, update, reset, customized, placed, trimmed, openItems, replyDrafts,
-    peopleGroups, appGroups, decisions, eventAttention, queue, staleDays, counts, openCount, snoozedHidden, hidden,
+    peopleGroups, appGroups, decisions, eventAttention, queue, oas = [], interviews = [], updates = [], staleDays, counts, openCount, snoozedHidden, hidden,
   } = attention
   const [editing, setEditing] = useState(false)
   const capOf = id => placed[id]?.cap
@@ -672,8 +692,29 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
   // Every card, keyed by registry id; false when it has nothing to show right now.
   const cards = {
     queue: queue && (
-      <UpNext queue={queue} renderRow={renderRow} onHide={hideQueueItem}
-        footer={<DegradedFeeds degraded={eventAttention.degraded} />} />
+      <UpNext queue={queue} renderRow={renderRow} onHide={hideQueueItem} />
+    ),
+    oas: (
+      <DashCard label="OAs" tone={oas.some(a => a.oaDueDate && daysUntil(a.oaDueDate) <= 1) ? 'danger' : oas.length ? 'warning' : 'success'}
+        icon={FileCode2} count={oas.length || null}>
+        {oas.length
+          ? <div className="mt-1 divide-y divide-ink-100">{oas.map(a => <OaRow key={a.id} app={a} needsCheck={!a.oaDueDate} onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />)}</div>
+          : <p className="mt-2 text-sm text-ink-500">No OAs outstanding.</p>}
+      </DashCard>
+    ),
+    interviews: (
+      <DashCard label="Interviews" tone={interviews.length ? 'accent' : 'success'} icon={CalendarClock} count={interviews.length || null}>
+        {interviews.length
+          ? <div className="mt-1 divide-y divide-ink-100">{interviews.map(a => <InterviewRow key={a.id} app={a} onOpen={openApp} onOpenPrep={onOpenPrep} joinLink={interviewJoinLink(a, { interactions, contacts })} />)}</div>
+          : <p className="mt-2 text-sm text-ink-500">No interviews scheduled.</p>}
+      </DashCard>
+    ),
+    updates: hasData && (
+      <DashCard label="Recent updates" tone="ink" icon={History}>
+        {updates.length
+          ? <div className="mt-1 divide-y divide-ink-100">{updates.map(u => <UpdateRow key={u.key} update={u} onOpen={openApp} />)}</div>
+          : <p className="mt-2 text-sm text-ink-500">No stage changes yet.</p>}
+      </DashCard>
     ),
     pipeline: hasData && <PipelineCard apps={apps} />,
     network: hasData && <NetworkCard contacts={contacts} />,
@@ -797,7 +838,7 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
     <m.div className="space-y-3" variants={container} initial="hidden" animate="show">
       <m.div variants={rise} className="flex items-center gap-4 flex-wrap px-1">
         <Label tone={allEmpty ? 'success' : 'accent'}>
-          {today} <span className="text-ink-300">/</span> {allEmpty ? 'all clear' : `${openCount} open`}
+          {today} <span className="text-ink-300">/</span> {allEmpty ? 'all clear' : `${openCount} ${queue ? 'due' : 'open'}`}
         </Label>
         <span className="ml-auto flex items-center gap-4 text-xs text-ink-400">
           {placed.email && trimmed.hidden > 0 && <span title="Already replied on the thread, long past due, or duplicates">{trimmed.hidden} resolved AI items auto-hidden</span>}
@@ -820,7 +861,7 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
           ? <GettingStarted hasApps={apps.length > 0} hasContacts={contacts.length > 0} apps={apps} contacts={contacts} />
           : <>
             {bands.map(renderBand)}
-            {allEmpty && !queue && <m.div variants={rise}><EmptyState msg={snoozedHidden ? `✓ Nothing left — ${snoozedHidden} hidden for now.` : "✓ Nothing needs your attention. You're on top of it."} /></m.div>}
+            {allEmpty && !queue && !placed.oas && !placed.interviews && <m.div variants={rise}><EmptyState msg={snoozedHidden ? `✓ Nothing left — ${snoozedHidden} hidden for now.` : "✓ Nothing needs your attention. You're on top of it."} /></m.div>}
           </>}
 
       <SidePanel open={!!selectedContactId} onClose={() => setSelectedContactId(null)}>

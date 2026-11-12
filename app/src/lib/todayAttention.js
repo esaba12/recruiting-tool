@@ -3,7 +3,7 @@
 // and lib/useTodayAttention.js wires them to user_settings.
 import {
   staleApplications, oaDue, oaNeedsCheck, needsReviewApps, openActionItems, trimActionItems,
-  todayPeople, offerDecisions, upcomingInterviews, PEOPLE_GROUPS,
+  todayPeople, offerDecisions, upcomingInterviews, PEOPLE_GROUPS, outstandingOas, recentUpdates,
 } from './attention.js'
 import { enabledGroups, settingValue } from './todayCards.js'
 import { deriveEventAttention } from '../components/today/EventAttentionSections.jsx'
@@ -69,18 +69,25 @@ export function deriveTodayAttention(
   // Recruiting events (v1.1): empty when there's no pool or no campus picked yet.
   const eventAttention = deriveEventAttention(cardOn('events') ? eventPool : null, now)
 
+  // The default Today (2026-11-11): what's outstanding, not what's overdue. No snoozes here:
+  // an OA leaves when it's marked done (or the scan sees it submitted), an interview when it's over.
+  const oas = placed.oas ? outstandingOas(apps) : []
+  const interviews = placed.interviews ? upcomingInterviews(apps, { now, withinDays: 365 }) : []
+  const updates = placed.updates ? recentUpdates(apps) : []
+
   // Counts cover the cards and lists that are on, so a hidden list never inflates the total.
   const counts = {
     decisions: decisions.length, replies: replyDrafts.length, email: openItems.length,
     people: total(peopleGroups), apps: total(appGroups), events: eventAttention.count,
+    oas: oas.length, interviews: interviews.length,
   }
-  // With "Up next" placed, the open count is its Now + This week (the backlog doesn't nag).
+  // With the queue placed, the count is its Now tier: what the strip shows (overdue or due today).
   const queue = placed.queue ? buildActionQueue({ decisions, replyDrafts, openItems, peopleGroups, appGroups, eventAttention }, { now }) : null
-  if (queue) counts.queue = queue.count
-  const openCount = queue ? queue.count : Object.values(counts).reduce((a, b) => a + b, 0)
+  if (queue) counts.queue = queue.now.length
+  const openCount = queue ? queue.now.length : Object.values(counts).reduce((a, b) => a + b, 0)
 
   return {
     placed, trimmed, openItems, replyDrafts, peopleGroups, appGroups, decisions, eventAttention,
-    queue, staleDays, counts, openCount, hidden, snoozedHidden: hidden.length,
+    queue, oas, interviews, updates, staleDays, counts, openCount, hidden, snoozedHidden: hidden.length,
   }
 }

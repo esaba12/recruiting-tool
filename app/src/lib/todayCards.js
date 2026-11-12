@@ -1,7 +1,7 @@
 // Today's card registry and layout logic (v1.4 spec 08). Pure, no React: TodayTab renders the
 // cards, TodayEditor edits the layout, and useTodayLayout saves it to user_settings.
 //
-// A layout is { v: 2, cards: [{ id, size, cap, off, settings }], seen: [id…] }. Order is array
+// A layout is { v: 3, cards: [{ id, size, cap, off, settings }], seen: [id…] }. Order is array
 // order; a card that's absent is removed. `off` lists a card's groups the user turned off.
 // `seen` is every registry id the user has been offered, so a card added to the registry later
 // shows up once for everyone, and a card the user removed stays removed.
@@ -20,23 +20,28 @@ const AWAITING_SETTING = { key: 'awaitingDays', label: 'Awaiting reply after', u
 const STALE_SETTING = { key: 'staleDays', label: 'Stale after', unit: 'd', options: [7, 14, 21, 30], default: 14 }
 
 // `defaultOff` cards are in the registry (Customize can add them) but not in the default layout.
-// v1.5 spec 03: "Up next" replaced the six action cards, which stay available as opt-ins.
+// v1.5 spec 03: the queue replaced the six action cards, which stay available as opt-ins.
+// 2026-11-11 (owner feedback: charts first, less clutter): under the charts, three cards —
+// OAs outstanding, interviews scheduled, recent updates. The queue is an opt-in "Now" card.
 export const TODAY_CARDS = [
+  { id: 'decisions', title: 'Decisions', kind: 'act', size: 'half', rows: true, defaultOff: true, description: 'Offers waiting on your answer, soonest deadline first.' },
+  { id: 'pipeline', title: 'Pipeline', kind: 'glance', size: 'third', description: 'How many you have applied to, the stage funnel and your next deadline.' },
+  { id: 'network', title: 'Network', kind: 'glance', size: 'third', description: 'Contacts by warmth.' },
+  { id: 'outreach', title: 'Outreach', kind: 'glance', size: 'third', description: 'Logged interactions per week, this week against last.' },
+  { id: 'rates', title: 'Rates', kind: 'glance', size: 'full', description: 'Response, OA, interview, offer and rejection rates of what you sent.' },
+  { id: 'oas', title: 'OAs', kind: 'act', size: 'third', description: 'Every online assessment you have not finished, soonest due first.' },
+  { id: 'interviews', title: 'Interviews', kind: 'act', size: 'third', description: 'Every interview on your calendar, next one first, with Prep and Join.' },
+  { id: 'updates', title: 'Recent updates', kind: 'glance', size: 'third', description: 'The latest stage changes across your applications.' },
   {
-    // No rows setting: Now always shows everything and This week caps itself (UpNext WEEK_CAP).
-    id: 'queue', title: 'Up next', kind: 'act', size: 'full',
-    description: 'Everything to do, ranked: now, this week, then a backlog.',
+    // No rows setting: the strip caps itself (UpNext NOW_CAP).
+    id: 'queue', title: 'Now', kind: 'act', size: 'full', defaultOff: true,
+    description: 'What is overdue or due today, at most 5 rows, under the charts.',
     groups: QUEUE_KINDS.map(k => ({
       id: k.id, label: k.label,
       ...(k.id === 'review' ? { available: REVIEW_AVAILABLE } : k.id === 'events' ? { available: EVENTS_AVAILABLE } : {}),
     })),
     settings: [AWAITING_SETTING, STALE_SETTING],
   },
-  { id: 'decisions', title: 'Decisions', kind: 'act', size: 'half', rows: true, defaultOff: true, description: 'Offers waiting on your answer, soonest deadline first.' },
-  { id: 'pipeline', title: 'Pipeline', kind: 'glance', size: 'third', description: 'How many you have applied to, the stage funnel and your next deadline.' },
-  { id: 'network', title: 'Network', kind: 'glance', size: 'third', description: 'Contacts by warmth.' },
-  { id: 'outreach', title: 'Outreach', kind: 'glance', size: 'third', description: 'Logged interactions per week, this week against last.' },
-  { id: 'rates', title: 'Rates', kind: 'glance', size: 'full', description: 'Response, OA, interview, offer and rejection rates of what you sent.' },
   { id: 'replies', title: 'Replies drafted', kind: 'act', size: 'half', rows: true, defaultOff: true, description: 'Replies the Gmail scan wrote for you, with call times.' },
   { id: 'email', title: 'From your email', kind: 'act', size: 'half', rows: true, defaultOff: true, description: 'To-dos the email scan pulled out of your inbox.' },
   {
@@ -104,7 +109,7 @@ function freshCard(id) {
 
 export function defaultLayout(ctx) {
   return {
-    v: 2,
+    v: 3,
     cards: TODAY_CARDS.filter(d => !d.defaultOff && cardAvailable(d.id, ctx) === true).map(d => freshCard(d.id)),
     seen: TODAY_CARDS.map(d => d.id),
   }
@@ -127,42 +132,27 @@ function clampCard(raw) {
   }
 }
 
+// The six action cards "Up next" replaced (v1.5 spec 03); they stay in Add cards as opt-ins.
+const V1_ACTION_CARDS = ['decisions', 'replies', 'email', 'events', 'people', 'apps']
+
+// v1 → v2, once: the action cards come off, so a customized Today doesn't list everything
+// twice. Glance cards keep their order and sizes. (v2 also had the queue; v3 takes it off.)
+export function upgradeV1Layout(saved) {
+  return { ...saved, v: 2, cards: (saved.cards || []).filter(c => c && BY_ID.has(c.id) && !V1_ACTION_CARDS.includes(c.id)) }
+}
+
+// v2 → v3 (2026-11-11): the queue comes off Today. The new OAs / Interviews / Recent updates
+// cards aren't in `seen` yet, so reconcileLayout places them after the charts.
+export function retireQueue(saved) {
+  return { ...saved, v: 3, cards: saved.cards.filter(c => c && c.id !== 'queue') }
+}
+
 // Brings a saved layout in line with the registry and this user's availability (see the
 // header comment). Anything unreadable falls back to the default layout.
-// The six action cards "Up next" replaced, and the queue kinds each one listed.
-const V1_ACTION_CARDS = {
-  decisions: ['decisions'], replies: ['replies'], email: ['email'], events: ['events'],
-  people: ['thankYou', 'overdue', 'awaiting', 'urgent', 'schedule', 'keepInTouch'],
-  apps: ['interview', 'oa', 'stale', 'review', 'oaCheck'],
-}
-
-// v1 → v2, once (v1.5 spec 03): "Up next" goes first and the action cards go, so a customized
-// Today doesn't show every item twice. What the user chose carries over: a list turned off in
-// an old card, or every list of a card they removed, is off in the queue, and the People /
-// Applications thresholds become the queue's. Glance cards keep their order and sizes.
-export function upgradeV1Layout(saved, ctx) {
-  const cards = (saved.cards || []).filter(c => c && BY_ID.has(c.id))
-  const byId = Object.fromEntries(cards.map(c => [c.id, c]))
-  const seen = new Set(saved.seen || [])
-  const off = []
-  for (const [id, kinds] of Object.entries(V1_ACTION_CARDS)) {
-    if (byId[id]) off.push(...(byId[id].off || []).filter(k => kinds.includes(k)))
-    else if (seen.has(id) && cardAvailable(id, ctx) === true) off.push(...kinds) // removed on purpose
-  }
-  const settings = {}
-  if (byId.people?.settings?.awaitingDays !== undefined) settings.awaitingDays = byId.people.settings.awaitingDays
-  if (byId.apps?.settings?.staleDays !== undefined) settings.staleDays = byId.apps.settings.staleDays
-  const queue = { ...freshCard('queue'), off: [...new Set(off)], settings }
-  return {
-    v: 2,
-    cards: [queue, ...cards.filter(c => c.id !== 'queue' && !V1_ACTION_CARDS[c.id])],
-    seen: TODAY_CARDS.map(d => d.id),
-  }
-}
-
 export function reconcileLayout(saved, ctx) {
-  if (saved?.v === 1 && Array.isArray(saved.cards)) saved = upgradeV1Layout(saved, ctx)
-  if (!saved || saved.v !== 2 || !Array.isArray(saved.cards)) return defaultLayout(ctx)
+  if (saved?.v === 1 && Array.isArray(saved.cards)) saved = upgradeV1Layout(saved)
+  if (saved?.v === 2 && Array.isArray(saved.cards)) saved = retireQueue(saved)
+  if (!saved || saved.v !== 3 || !Array.isArray(saved.cards)) return defaultLayout(ctx)
   const placed = new Set()
   const cards = []
   for (const raw of saved.cards) {
@@ -183,7 +173,7 @@ export function reconcileLayout(saved, ctx) {
     cards.splice(at, 0, freshCard(def.id))
     placed.add(def.id)
   })
-  return { v: 2, cards, seen: TODAY_CARDS.map(d => d.id) }
+  return { v: 3, cards, seen: TODAY_CARDS.map(d => d.id) }
 }
 
 // Reducers. Each returns a new layout (or the same one when nothing changes).

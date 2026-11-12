@@ -9,16 +9,20 @@ on seed data (`demoData.js`).
 
 ## Today (`TodayTab.jsx`, logic in `lib/attention.js`)
 
-A dashboard (PR #22, 2026-10-20), led since v1.5 spec 03 by **Up next**, one ranked to-do list,
-with the metric cards below it. Cards share one shell, `today/DashCard.jsx`: a mono caps label
-with a status dot and a count. `Group` stacks labeled lists inside a card, and each list shows 3
-rows before "+N more".
+A dashboard (PR #22, 2026-10-20): the metric cards first, then three cards (2026-11-11, owner
+feedback: less clutter, no overdue lists by default):
+- **OAs** (`outstandingOas`): every unfinished assessment on an active application, dated ones soonest first, then link-only ones ("No deadline found"). A row leaves when marked completed or when the Gmail scan sees it submitted.
+- **Interviews** (`upcomingInterviews`, 365-day window): everything scheduled, with Prep and Join.
+- **Recent updates** (`recentUpdates`): the 6 latest stage moves from `stageEvents`, newest first; Wishlist adds skipped, backfilled history marked `~`.
 
-**Up next** (v1.5 spec 03, `today/UpNext.jsx`, ranking in `lib/actionQueue.js`):
-- `buildActionQueue` merges every list `deriveTodayAttention` builds into one queue, tiered **Now** (past due, due today, interview within 36h, offer due ≤ 3 days, thank-yous, a drafted reply waiting 2+ days, registration closing ≤ 2 days), **This week** (due ≤ 7 days, other replies, awaiting reply, schedule, high urgency, email to-dos), and **Backlog** (stale apps, job boards to review, keep in touch, OA deadline unknown, interviews 8–14 days out). Within a tier: dated items by due date, then undated by age.
-- Now shows everything, This week shows 5 then "+N more", and the Backlog is one collapsed summary line. Each row is the old card's row component (TodayTab `renderRow`), tagged with its kind (`QUEUE_KINDS`), with ✕ (7-day snooze) for kinds that have a snooze list. Email to-dos and event rows keep their own Done/Dismiss/Skip.
-- Empty: "Nothing due. Next: …" (`nextUp`), or "All clear". Degraded event feeds are a footnote.
-- The queue's kinds are its Customize toggles; Awaiting reply / Stale thresholds are its settings. With the queue placed, the open count (header and badge) is Now + This week.
+The open count (header and sidebar badge) is OAs + interviews. Nothing on these cards snoozes. Cards share one shell, `today/DashCard.jsx`: a
+mono caps label with a status dot and a count. `Group` stacks labeled lists inside a card, and
+each list shows 3 rows before "+N more".
+
+**Now card, opt-in** (`today/UpNext.jsx`, ranking in `lib/actionQueue.js`):
+- `buildActionQueue` merges every list `deriveTodayAttention` builds and tiers it (Now / This week / Backlog; rules in the file header). Only the **Now** tier renders: overdue or due today, an interview within 36h, an offer due ≤ 3 days, thank-yous, a drafted reply waiting 2+ days, registration closing ≤ 2 days. 5 rows, then "+N more". Dated items by due date, then undated by age.
+- Each row is the old card's row component (TodayTab `renderRow`), tagged with its kind, with a clock (snooze menu) for kinds that have a snooze list. Empty: "Nothing overdue or due today. Next: …" (`nextUp`).
+- The queue's kinds are its Customize toggles; Awaiting reply / Stale thresholds are its settings. With it placed, the open count (header "N due" and the sidebar badge) is the Now count.
 
 A header line gives the date and the open count (cards and lists that are on only), plus
 "Unhide N" when anything is snoozed, and **Customize**.
@@ -32,8 +36,8 @@ the sidebar's Today badge is its `openCount`, so the badge always equals the hea
 - The card registry is `lib/todayCards.js`, which is pure. Each card has a default width (`third` / `half` / `full`) and optional `groups` (the lists inside it).
 - Users can turn any group off. Job boards to review is SWE/PM only, and Events needs a campus.
 - Per-card settings: rows shown (3 / 5 / 10), People's "Awaiting reply after" days and Applications' "Stale after" days.
-- The layout lives in `user_settings.today_layout` (`lib/useTodayLayout.js`), separate from snoozes. Nothing is saved until the user changes something, so an untouched account always gets `defaultLayout`: Up next, then Pipeline / Network / Outreach, then Rates.
-- **Layout v2** (v1.5 spec 03): the six action cards below are `defaultOff` (in Add cards, never auto-placed). A saved v1 layout is upgraded once by `upgradeV1Layout`: queue first, action cards dropped, their turned-off lists (or every list of a card the user had removed) turned off in the queue, People/Applications thresholds moved onto it, glance cards kept in order.
+- The layout lives in `user_settings.today_layout` (`lib/useTodayLayout.js`), separate from snoozes. Nothing is saved until the user changes something, so an untouched account always gets `defaultLayout`: Pipeline / Network / Outreach, Rates, then OAs / Interviews / Recent updates.
+- **Layout v2** (v1.5 spec 03): the six action cards below are `defaultOff` (in Add cards, never auto-placed). A saved v1 layout is upgraded once by `upgradeV1Layout`: action cards dropped, glance cards kept in order. **v3** (2026-11-11): `retireQueue` takes the queue off a v2 layout; the three new cards aren't in `seen` yet, so `reconcileLayout` places them after the charts.
 - `reconcileLayout`:
   - Drops unknown or unavailable cards.
   - Clamps bad values.
@@ -84,7 +88,7 @@ first-scan state (`lib/gmailScan.js`) plus rows that open the tracker and Linked
   - `trimActionItems` hides AI items already answered on the thread, long past due, or duplicated.
   - `todayPeople` (via `dedupeAcross`) keeps each contact in one People group. Priority: Overdue → Awaiting →
     Schedule → High Urgency → Keep in Touch, with Send a thank-you ahead of all of them. A group that's turned off is skipped, so its people show in the next one.
-  - An Up next row's clock (`today/SnoozeMenu.jsx`, v1.5 spec 04) hides it until Tomorrow or Monday (8:00 local), Next week, or After the interview / After the deadline (`lib/snooze.js` `snoozeOptions`). An old card's ✕ snoozes for 7 days, and its "Clear all" snoozes every row in the card.
+  - A Now row's clock (`today/SnoozeMenu.jsx`, v1.5 spec 04) hides it until Tomorrow or Monday (8:00 local), Next week, or After the interview / After the deadline (`lib/snooze.js` `snoozeOptions`). An old card's ✕ snoozes for 7 days, and its "Clear all" snoozes every row in the card.
     Snoozes live in `user_settings.today_prefs` (`lib/useTodayPrefs.js`) as `{ until, due }` (older ones are a bare `untilMs`), so they follow the account. `due` is the item's date when hidden; if it moves (new OA deadline, rescheduled interview), the item comes back early (`snoozeActive`).
   - The header's "Unhide N" (`today/UnhideMenu.jsx`) lists what's hidden with "back Mon"-style return dates, each with Unhide, plus Unhide all.
 - Full-size versions of the metric charts are also on Pipeline → Sheet → Flow (funnel) and

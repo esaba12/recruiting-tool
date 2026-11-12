@@ -134,3 +134,12 @@ Opening Today answers "what do I do next" in the first screen, in order, with on
 - Tests: `test/actionQueue.test.js` (13), `test/todayLayout.test.js` (v2 + upgrade, 27),
   `test/todayAttention.test.js` (5).
 
+## Revised after shipping (2026-11-11)
+
+Owner feedback on the live version: "i liked having my graphs and stuff. theres even more
+bullshit now." Picked fix: **charts first, then a short Now strip**. The card is titled "Now",
+renders only the Now tier (5 rows + "+N more"), and has no This week list, backlog or degraded-feeds
+footnote. The header reads "N due" and the badge counts Now only. Layout v3 moves the queue after
+the last glance card for anyone who saved a v2 layout. `buildActionQueue` still computes all
+three tiers (the empty state's "Next: …" reads the later ones).
+
