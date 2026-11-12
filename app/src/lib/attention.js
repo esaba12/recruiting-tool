@@ -448,3 +448,24 @@ export function todayPeople(contacts, interactions, { off = [], awaitingDays = 5
   const lists = Object.fromEntries(PEOPLE_GROUPS.map(id => [id, off.includes(id) ? [] : derive[id]()]))
   return dedupeAcross(lists)
 }
+
+// Today's OAs card (2026-11-11): every assessment you haven't finished, on an active
+// application. Dated ones first (soonest due), then the ones with a link but no deadline.
+export function outstandingOas(apps = []) {
+  const open = apps.filter(a => !a.oaCompleted && (a.oaDueDate || a.oaLink) && !TERMINAL_STAGES.includes(a.stage))
+  const dated = open.filter(a => a.oaDueDate).sort((a, b) => String(a.oaDueDate).localeCompare(String(b.oaDueDate)))
+  return [...dated, ...open.filter(a => !a.oaDueDate)]
+}
+
+// Today's Recent updates card: the latest stage moves across applications, newest first.
+// Adding a listing (→ Wishlist) isn't an update. Backfilled history counts, marked estimated.
+export function recentUpdates(apps = [], { limit = 6 } = {}) {
+  const out = []
+  for (const app of apps) {
+    for (const e of app.stageEvents || []) {
+      if (!e.changedAt || !e.toStage || e.toStage === 'Wishlist') continue
+      out.push({ key: `${app.id}:${e.toStage}:${e.changedAt}`, app, fromStage: e.fromStage, toStage: e.toStage, at: e.changedAt, estimated: e.source === 'backfill' })
+    }
+  }
+  return out.sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, limit)
+}

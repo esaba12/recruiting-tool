@@ -20,18 +20,21 @@ const AWAITING_SETTING = { key: 'awaitingDays', label: 'Awaiting reply after', u
 const STALE_SETTING = { key: 'staleDays', label: 'Stale after', unit: 'd', options: [7, 14, 21, 30], default: 14 }
 
 // `defaultOff` cards are in the registry (Customize can add them) but not in the default layout.
-// v1.5 spec 03: the queue replaced the six action cards, which stay available as opt-ins. Since
-// 2026-11-11 (owner feedback: keep the charts first, less on the page) it's a short Now strip
-// under the charts.
+// v1.5 spec 03: the queue replaced the six action cards, which stay available as opt-ins.
+// 2026-11-11 (owner feedback: charts first, less clutter): under the charts, three cards —
+// OAs outstanding, interviews scheduled, recent updates. The queue is an opt-in "Now" card.
 export const TODAY_CARDS = [
   { id: 'decisions', title: 'Decisions', kind: 'act', size: 'half', rows: true, defaultOff: true, description: 'Offers waiting on your answer, soonest deadline first.' },
   { id: 'pipeline', title: 'Pipeline', kind: 'glance', size: 'third', description: 'How many you have applied to, the stage funnel and your next deadline.' },
   { id: 'network', title: 'Network', kind: 'glance', size: 'third', description: 'Contacts by warmth.' },
   { id: 'outreach', title: 'Outreach', kind: 'glance', size: 'third', description: 'Logged interactions per week, this week against last.' },
   { id: 'rates', title: 'Rates', kind: 'glance', size: 'full', description: 'Response, OA, interview, offer and rejection rates of what you sent.' },
+  { id: 'oas', title: 'OAs', kind: 'act', size: 'third', description: 'Every online assessment you have not finished, soonest due first.' },
+  { id: 'interviews', title: 'Interviews', kind: 'act', size: 'third', description: 'Every interview on your calendar, next one first, with Prep and Join.' },
+  { id: 'updates', title: 'Recent updates', kind: 'glance', size: 'third', description: 'The latest stage changes across your applications.' },
   {
     // No rows setting: the strip caps itself (UpNext NOW_CAP).
-    id: 'queue', title: 'Now', kind: 'act', size: 'full',
+    id: 'queue', title: 'Now', kind: 'act', size: 'full', defaultOff: true,
     description: 'What is overdue or due today, at most 5 rows, under the charts.',
     groups: QUEUE_KINDS.map(k => ({
       id: k.id, label: k.label,
@@ -129,55 +132,26 @@ function clampCard(raw) {
   }
 }
 
+// The six action cards "Up next" replaced (v1.5 spec 03); they stay in Add cards as opt-ins.
+const V1_ACTION_CARDS = ['decisions', 'replies', 'email', 'events', 'people', 'apps']
+
+// v1 → v2, once: the action cards come off, so a customized Today doesn't list everything
+// twice. Glance cards keep their order and sizes. (v2 also had the queue; v3 takes it off.)
+export function upgradeV1Layout(saved) {
+  return { ...saved, v: 2, cards: (saved.cards || []).filter(c => c && BY_ID.has(c.id) && !V1_ACTION_CARDS.includes(c.id)) }
+}
+
+// v2 → v3 (2026-11-11): the queue comes off Today. The new OAs / Interviews / Recent updates
+// cards aren't in `seen` yet, so reconcileLayout places them after the charts.
+export function retireQueue(saved) {
+  return { ...saved, v: 3, cards: saved.cards.filter(c => c && c.id !== 'queue') }
+}
+
 // Brings a saved layout in line with the registry and this user's availability (see the
 // header comment). Anything unreadable falls back to the default layout.
-// The six action cards "Up next" replaced, and the queue kinds each one listed.
-const V1_ACTION_CARDS = {
-  decisions: ['decisions'], replies: ['replies'], email: ['email'], events: ['events'],
-  people: ['thankYou', 'overdue', 'awaiting', 'urgent', 'schedule', 'keepInTouch'],
-  apps: ['interview', 'oa', 'stale', 'review', 'oaCheck'],
-}
-
-// v1 → v2, once (v1.5 spec 03): the Now strip goes after the glance cards, the action cards go, so a customized
-// Today doesn't show every item twice. What the user chose carries over: a list turned off in
-// an old card, or every list of a card they removed, is off in the queue, and the People /
-// Applications thresholds become the queue's. Glance cards keep their order and sizes.
-export function upgradeV1Layout(saved, ctx) {
-  const cards = (saved.cards || []).filter(c => c && BY_ID.has(c.id))
-  const byId = Object.fromEntries(cards.map(c => [c.id, c]))
-  const seen = new Set(saved.seen || [])
-  const off = []
-  for (const [id, kinds] of Object.entries(V1_ACTION_CARDS)) {
-    if (byId[id]) off.push(...(byId[id].off || []).filter(k => kinds.includes(k)))
-    else if (seen.has(id) && cardAvailable(id, ctx) === true) off.push(...kinds) // removed on purpose
-  }
-  const settings = {}
-  if (byId.people?.settings?.awaitingDays !== undefined) settings.awaitingDays = byId.people.settings.awaitingDays
-  if (byId.apps?.settings?.staleDays !== undefined) settings.staleDays = byId.apps.settings.staleDays
-  const queue = { ...freshCard('queue'), off: [...new Set(off)], settings }
-  return {
-    v: 2,
-    cards: [...cards.filter(c => c.id !== 'queue' && !V1_ACTION_CARDS[c.id]), queue],
-    seen: TODAY_CARDS.map(d => d.id),
-  }
-}
-
-// v2 → v3 (2026-11-11): v2 put the queue first; the charts go back on top and the Now strip
-// sits after the last glance card. Everything else the user chose stays.
-export function moveQueueBelowCharts(saved) {
-  const cards = saved.cards.filter(Boolean)
-  const queue = cards.find(c => c.id === 'queue')
-  if (!queue) return { ...saved, v: 3 }
-  const rest = cards.filter(c => c !== queue)
-  let at = 0
-  rest.forEach((c, i) => { if (BY_ID.get(c.id)?.kind === 'glance') at = i + 1 })
-  rest.splice(at, 0, queue)
-  return { ...saved, v: 3, cards: rest }
-}
-
 export function reconcileLayout(saved, ctx) {
-  if (saved?.v === 1 && Array.isArray(saved.cards)) saved = upgradeV1Layout(saved, ctx)
-  if (saved?.v === 2 && Array.isArray(saved.cards)) saved = moveQueueBelowCharts(saved)
+  if (saved?.v === 1 && Array.isArray(saved.cards)) saved = upgradeV1Layout(saved)
+  if (saved?.v === 2 && Array.isArray(saved.cards)) saved = retireQueue(saved)
   if (!saved || saved.v !== 3 || !Array.isArray(saved.cards)) return defaultLayout(ctx)
   const placed = new Set()
   const cards = []

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { openActionItems } from '../src/lib/attention.js'
+import { openActionItems, outstandingOas, recentUpdates } from '../src/lib/attention.js'
 
 describe('openActionItems', () => {
   it('sorts high before medium before low priority', () => {
@@ -32,5 +32,26 @@ describe('openActionItems', () => {
     const copy = [...items]
     openActionItems(items)
     expect(items).toEqual(copy)
+  })
+})
+
+describe('outstandingOas / recentUpdates (Today, 2026-11-11)', () => {
+  it('keeps unfinished OAs on active apps, dated first', () => {
+    const apps = [
+      { id: 'a', oaLink: 'x', stage: 'Applied' },
+      { id: 'b', oaDueDate: '2026-11-20', stage: 'Applied' },
+      { id: 'c', oaDueDate: '2026-11-15', stage: 'Applied' },
+      { id: 'd', oaDueDate: '2026-11-15', oaCompleted: true, stage: 'Applied' },
+      { id: 'e', oaDueDate: '2026-11-15', stage: 'Rejected' },
+      { id: 'f', stage: 'Applied' },
+    ]
+    expect(outstandingOas(apps).map(a => a.id)).toEqual(['c', 'b', 'a'])
+  })
+  it('skips Wishlist adds and caps the list', () => {
+    const apps = Array.from({ length: 8 }, (_, i) => ({ id: `x${i}`, stageEvents: [{ toStage: 'Wishlist', changedAt: '2026-11-01' }, { toStage: 'Applied', changedAt: `2026-11-0${i + 1}` }] }))
+    const u = recentUpdates(apps)
+    expect(u).toHaveLength(6)
+    expect(u[0].app.id).toBe('x7')
+    expect(u.every(x => x.toStage === 'Applied')).toBe(true)
   })
 })

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { deriveTodayAttention, snoozeKey } from '../src/lib/todayAttention.js'
-import { defaultLayout, layoutContext } from '../src/lib/todayCards.js'
+import { defaultLayout, layoutContext, addCard } from '../src/lib/todayCards.js'
 
 // v1.5 spec 02: one derivation behind both Today and the sidebar badge.
 // Real "now": staleApplications and oaDue read the clock themselves.
@@ -8,7 +8,7 @@ const NOW = Date.now()
 const day = n => { const d = new Date(NOW + n * 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 
 const ctx = layoutContext({ tracks: ['swe'] }, null)
-const layout = defaultLayout(ctx)
+const layout = addCard({ v: 3, seen: [], cards: [] }, 'queue') // the opt-in Now card
 
 const apps = [
   { id: 'i1', company: 'Anthropic', role: 'SWE', stage: 'Technical', interviewAt: new Date(NOW + 2 * 86400000).toISOString(), interviewTimeKnown: true, lastActivity: day(-1), appliedDate: day(-20), triage: 'Applied' },
@@ -23,7 +23,27 @@ const derive = (over = {}) => deriveTodayAttention({ contacts, apps, interaction
 
 const withQueue = fn => ({ ...layout, cards: layout.cards.map(c => c.id === 'queue' ? fn(c) : c) })
 
-describe('deriveTodayAttention', () => {
+describe('the default Today (OAs, interviews, recent updates)', () => {
+  const a = derive({ layout: defaultLayout(ctx) })
+  it('lists outstanding OAs and scheduled interviews, and counts them', () => {
+    expect(a.queue).toBeNull()
+    expect(a.oas.map(x => x.id)).toEqual(['oa1'])
+    expect(a.interviews.map(x => x.id)).toEqual(['i1'])
+    expect(a.openCount).toBe(2)
+  })
+  it("doesn't list or count follow-ups, drafts or offers", () => {
+    expect(a.peopleGroups.overdue).toEqual([])
+    expect(a.replyDrafts).toEqual([])
+    expect(a.decisions).toEqual([])
+  })
+  it('lists recent stage changes, newest first', () => {
+    const withHistory = [{ ...apps[0], stageEvents: [{ toStage: 'Applied', changedAt: day(-20) }, { fromStage: 'Applied', toStage: 'Technical', changedAt: day(-1) }] }, { ...apps[3], stageEvents: [{ toStage: 'Applied', changedAt: day(-10) }] }]
+    const u = deriveTodayAttention({ apps: withHistory }, { layout: defaultLayout(ctx), ctx, now: NOW }).updates
+    expect(u.map(x => `${x.app.id}:${x.toStage}`)).toEqual(['i1:Technical', 's1:Applied', 'i1:Applied'])
+  })
+})
+
+describe('deriveTodayAttention with the Now card', () => {
   it('derives every list the queue needs and counts only Now', () => {
     const a = derive()
     expect(a.appGroups.interview.map(x => x.id)).toEqual(['i1'])

@@ -9,12 +9,17 @@ on seed data (`demoData.js`).
 
 ## Today (`TodayTab.jsx`, logic in `lib/attention.js`)
 
-A dashboard (PR #22, 2026-10-20): the metric cards first, then a short **Now** strip (v1.5
-spec 03, cut down 2026-11-11 on owner feedback). Cards share one shell, `today/DashCard.jsx`: a
+A dashboard (PR #22, 2026-10-20): the metric cards first, then three cards (2026-11-11, owner
+feedback: less clutter, no overdue lists by default):
+- **OAs** (`outstandingOas`): every unfinished assessment on an active application, dated ones soonest first, then link-only ones ("No deadline found"). A row leaves when marked completed or when the Gmail scan sees it submitted.
+- **Interviews** (`upcomingInterviews`, 365-day window): everything scheduled, with Prep and Join.
+- **Recent updates** (`recentUpdates`): the 6 latest stage moves from `stageEvents`, newest first; Wishlist adds skipped, backfilled history marked `~`.
+
+The open count (header and sidebar badge) is OAs + interviews. Nothing on these cards snoozes. Cards share one shell, `today/DashCard.jsx`: a
 mono caps label with a status dot and a count. `Group` stacks labeled lists inside a card, and
 each list shows 3 rows before "+N more".
 
-**Now strip** (`today/UpNext.jsx`, ranking in `lib/actionQueue.js`):
+**Now card, opt-in** (`today/UpNext.jsx`, ranking in `lib/actionQueue.js`):
 - `buildActionQueue` merges every list `deriveTodayAttention` builds and tiers it (Now / This week / Backlog; rules in the file header). Only the **Now** tier renders: overdue or due today, an interview within 36h, an offer due ≤ 3 days, thank-yous, a drafted reply waiting 2+ days, registration closing ≤ 2 days. 5 rows, then "+N more". Dated items by due date, then undated by age.
 - Each row is the old card's row component (TodayTab `renderRow`), tagged with its kind, with a clock (snooze menu) for kinds that have a snooze list. Empty: "Nothing overdue or due today. Next: …" (`nextUp`).
 - The queue's kinds are its Customize toggles; Awaiting reply / Stale thresholds are its settings. With it placed, the open count (header "N due" and the sidebar badge) is the Now count.
@@ -31,8 +36,8 @@ the sidebar's Today badge is its `openCount`, so the badge always equals the hea
 - The card registry is `lib/todayCards.js`, which is pure. Each card has a default width (`third` / `half` / `full`) and optional `groups` (the lists inside it).
 - Users can turn any group off. Job boards to review is SWE/PM only, and Events needs a campus.
 - Per-card settings: rows shown (3 / 5 / 10), People's "Awaiting reply after" days and Applications' "Stale after" days.
-- The layout lives in `user_settings.today_layout` (`lib/useTodayLayout.js`), separate from snoozes. Nothing is saved until the user changes something, so an untouched account always gets `defaultLayout`: Pipeline / Network / Outreach, Rates, then the Now strip.
-- **Layout v2** (v1.5 spec 03): the six action cards below are `defaultOff` (in Add cards, never auto-placed). A saved v1 layout is upgraded once by `upgradeV1Layout`: action cards dropped, the Now strip after the glance cards, their turned-off lists (or every list of a card the user had removed) turned off in the queue, People/Applications thresholds moved onto it, glance cards kept in order. **v3** (2026-11-11): a v2 layout (queue first) gets the queue moved after its last glance card (`moveQueueBelowCharts`).
+- The layout lives in `user_settings.today_layout` (`lib/useTodayLayout.js`), separate from snoozes. Nothing is saved until the user changes something, so an untouched account always gets `defaultLayout`: Pipeline / Network / Outreach, Rates, then OAs / Interviews / Recent updates.
+- **Layout v2** (v1.5 spec 03): the six action cards below are `defaultOff` (in Add cards, never auto-placed). A saved v1 layout is upgraded once by `upgradeV1Layout`: action cards dropped, glance cards kept in order. **v3** (2026-11-11): `retireQueue` takes the queue off a v2 layout; the three new cards aren't in `seen` yet, so `reconcileLayout` places them after the charts.
 - `reconcileLayout`:
   - Drops unknown or unavailable cards.
   - Clamps bad values.
