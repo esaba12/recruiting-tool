@@ -310,8 +310,6 @@ function AppInner() {
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false)
   // Learn tab data lives here (not in LearnTab) so Today's Interview Prep section can read it.
   const learning = useLearning({ enabled: true })
-  const [learnLogRequest, setLearnLogRequest] = useState(null)
-  const logOa = app => { setLearnLogRequest({ kind: 'assessment', applicationId: app.id, title: `${app.company} OA` }); setTab('learn') }
   // Today's interview Prep (v1.5 spec 06): Learn opens with that company's prep in front.
   const [learnFocus, setLearnFocus] = useState(null)
   const openPrep = company => { setLearnFocus({ company, ts: Date.now() }); setTab('learn') }
@@ -448,12 +446,12 @@ function AppInner() {
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
           onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} onImported={refreshApps} views={pipelineViewsFor(profile)} />
       )}
-      {!loading && tab === 'today'    && <TodayTab attention={todayAttention} contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships} onLogOa={logOa} onOpenPrep={openPrep} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} onOpenDraft={openDraft} />}
+      {!loading && tab === 'today'    && <TodayTab attention={todayAttention} contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships} onOpenPrep={openPrep} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} onOpenDraft={openDraft} />}
       {!loading && tab === 'inbox'    && (
         <InboxTab contacts={contacts} apps={apps} interactions={interactions} actionItems={actionItems} onRefresh={load}
           drafts={emailDrafts} onDraftsChange={setEmailDrafts} initialThreadId={inboxThread} />
       )}
-      {!loading && tab === 'learn'    && <LearnTab learning={learning} apps={apps} profile={profile} logRequest={learnLogRequest} onLogRequestHandled={() => setLearnLogRequest(null)} focusCompany={learnFocus} />}
+      {!loading && tab === 'learn'    && <LearnTab learning={learning} apps={apps} profile={profile} focusCompany={learnFocus} />}
       {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} eventPool={eventPool} eventCalendarSync={eventCalendarSync} onRefreshContacts={refreshContacts} />}
       {tab === 'settings' && (
         <SettingsTab onDone={leaveSettings}
