@@ -40,15 +40,9 @@ The pipeline can push a real phone notification instead of relying on you to not
 - **`UrlFetchApp` intermittently fails against ntfy.sh specifically** with `Address unavailable`, even though ntfy.sh itself responds in well under a second from anywhere else (confirmed via a direct `curl` during setup) — a known, reported Apps Script flakiness against Cloudflare-fronted origins, the same class of issue as the `events.umich.edu` Cloudflare challenge documented under Ingestion above. `sendPush()` retries up to 3 times with a 1.5s delay before giving up (`PUSH_RETRY_ATTEMPTS`/`PUSH_RETRY_DELAY_MS`) — fixed and **verified live** 2026-09-17 (failed on first attempt in production, succeeded on retry).
 - **Verified live end-to-end 2026-09-17**: `testPush()` delivered to the real device after the retry fix, confirming the full chain (Script Properties → `UrlFetchApp` → ntfy.sh → phone app) actually works, not just that the code runs without throwing.
 
-### Drafted replies (server scan only, v1.4 spec 10)
+### Drafted replies (removed 2026-11-16)
 
-`app/api/_lib/emailPipeline.js` drafts a reply whenever it classifies a thread whose newest message is a person waiting on the user. Spec: `.planning/v1.4-useful-and-lean/10-reply-drafts.md`.
-
-- **Gate** (`shouldDraftReply` in `api/_lib/replyDraft.js`). The classifier must return `needs_reply: true` and `personal` not false. Receipts, OA invites, OA completions and rejections are never drafted. Neither is a newest message from the user, an automated sender (`isAutomatedSender`), or bulk mail. The message must be at most 7 days old, so the 45-day first pass doesn't spray drafts. `user_settings.auto_draft_replies !== false`, and there's a cap of 8 per mailbox per run (it's the user's key).
-- **Call times.** When `reply_intent` is `schedule_call` and `user_settings.availability` is set, `slotsFor` merges Google `freeBusy` across every connected calendar slot and `suggestSlots` (`src/lib/availability.js`, pure) picks 3 free slots: at least 18h out, inside the stated hours and zone, on different days. Without availability, the draft asks the other person for times instead of inventing any. Without a calendar, the slots come from the stated hours alone, and `slots_checked = false` says so in the UI.
-- **Draft.** `draftReply` runs on the standard tier, using the last 3 messages with quoted history stripped, the classifier summary, the profile, and up to 3k chars of `profiles.resume_text`. It's written to `email_drafts` with ignore-duplicates, so a draft the user dismissed or finished never comes back. A newer message in the thread dismisses the older pending draft.
-- **Settling.** When the user replies themselves (the thread's newest message is theirs), the next scan marks that thread's pending drafts `done`.
-- **Never sends.** Inbox shows the draft under the thread (edit, Copy, "Copy & open in Gmail", Dismiss), and Today lists them in the "Replies drafted" card. The Apps Script pipeline doesn't draft, so its prompt needs no `needs_reply`/`reply_intent` mirror.
+v1.4 spec 10 had the scan draft a reply (with free call times) for any thread waiting on the user. The owner never used it, so it was removed: no `needs_reply`/`reply_intent` in the classifier, no drafting step, no call-hours setting. The `email_drafts` table and the `availability` / `auto_draft_replies` settings rows are left in place, unused (no migration).
 
 ### Serverless scan: cron, claims, first live run (2026-11-02)
 

@@ -455,9 +455,8 @@ export default function SettingsTab({ onDone, returnLabel = 'Today', demoMode = 
         </div>
       </section>
 
-      {/* Résumé + drafted replies (v1.4 specs 09 + 10) */}
-      <DraftingSettings profile={profile} refreshProfile={refreshProfile} demoMode={demoMode}
-        hasAiKey={keys.some(k => (k.provider === 'anthropic' || k.provider === 'openai') && k.hasKey)} />
+      {/* Résumé (v1.4 spec 09) */}
+      <DraftingSettings profile={profile} refreshProfile={refreshProfile} demoMode={demoMode} />
 
       {/* Phone pushes via ntfy.sh — api/_lib/pushes.js sends them from the Gmail scan. */}
       <section className="bg-surface rounded-2xl border border-ink-100 p-5 space-y-3">

@@ -42,7 +42,6 @@ export const TODAY_CARDS = [
     })),
     settings: [AWAITING_SETTING, STALE_SETTING],
   },
-  { id: 'replies', title: 'Replies drafted', kind: 'act', size: 'half', rows: true, defaultOff: true, description: 'Replies the Gmail scan wrote for you, with call times.' },
   { id: 'email', title: 'From your email', kind: 'act', size: 'half', rows: true, defaultOff: true, description: 'To-dos the email scan pulled out of your inbox.' },
   {
     id: 'people', title: 'People', kind: 'act', size: 'half', rows: true, defaultOff: true,

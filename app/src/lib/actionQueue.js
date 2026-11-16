@@ -4,8 +4,8 @@
 //
 // Tiers, first matching rule wins (the table in .planning/v1.5-action-first/03-up-next-queue.md):
 //   now   past due, due today, an interview within 36h, an offer due within 3 days, a
-//         thank-you (48h window), a drafted reply waiting 2+ days, registration closing ≤ 2 days
-//   week  due within 7 days, other replies, awaiting reply, schedule, high urgency, email to-dos
+//         thank-you (48h window), registration closing ≤ 2 days
+//   week  due within 7 days, awaiting reply, schedule, high urgency, email to-dos
 //   later stale apps, job boards to review, keep in touch, OA deadline unknown, far-off items
 import { daysUntil, parseDay } from './dates.js'
 
@@ -19,7 +19,6 @@ export const QUEUE_KINDS = [
   { id: 'interview', label: 'Interviews', short: 'Interview', list: 'interview' },
   { id: 'oa', label: 'OAs due', short: 'OA', list: 'oa' },
   { id: 'thankYou', label: 'Thank-yous', short: 'Thank-you', list: 'thankYou' },
-  { id: 'replies', label: 'Drafted replies', short: 'Reply', list: 'replies' },
   { id: 'overdue', label: 'Overdue follow-ups', short: 'Follow-up', list: 'overdue' },
   { id: 'awaiting', label: 'Awaiting reply', short: 'Awaiting', list: 'awaiting' },
   { id: 'schedule', label: 'Want to schedule', short: 'Schedule', list: 'schedule' },
@@ -54,7 +53,7 @@ function item(kind, key, row, tier, due = null, since = null) {
 
 // attention: the object deriveTodayAttention returns.
 export function buildActionQueue(attention, { now = Date.now() } = {}) {
-  const { decisions = [], replyDrafts = [], openItems = [], peopleGroups = {}, appGroups = {}, eventAttention = {} } = attention
+  const { decisions = [], openItems = [], peopleGroups = {}, appGroups = {}, eventAttention = {} } = attention
   const p = name => peopleGroups[name] || []
   const a = name => appGroups[name] || []
   const out = []
@@ -69,10 +68,6 @@ export function buildActionQueue(attention, { now = Date.now() } = {}) {
   }
   for (const app of a('oa')) out.push(item('oa', `oa:${app.id}`, app, byDay(app.oaDueDate, now), dayMs(app.oaDueDate)))
   for (const row of p('thankYou')) out.push(item('thankYou', `thankYou:${row.id}`, row, 'now', null, ms(row.at)))
-  for (const d of replyDrafts) {
-    const created = ms(d.createdAt)
-    out.push(item('replies', `replies:${d.id}`, d, created && now - created >= 2 * DAY ? 'now' : 'week', null, created))
-  }
   for (const c of p('overdue')) out.push(item('overdue', `overdue:${c.id}`, c, 'now', dayMs(c.followUpDate)))
   for (const x of p('awaiting')) out.push(item('awaiting', `awaiting:${x.contact.id}`, x, 'week', null, dayMs(x.lastInteraction?.date)))
   for (const c of p('schedule')) out.push(item('schedule', `schedule:${c.id}`, c, c.scheduleBy ? (byDay(c.scheduleBy, now) === 'now' ? 'now' : 'week') : 'week', dayMs(c.scheduleBy)))

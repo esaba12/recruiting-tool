@@ -37,15 +37,14 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
   The preview is behind Vercel deployment protection, so this ran on the production build
   served locally with `vercel.json`'s headers, using a throwaway account (deleted).
 - [x] 👤 Review and merge: PR #23 merged 2026-10-20, after merging main (PR #22's Today dashboard; drafts became a card). Prod deployed, and the `/demo` Today → Inbox draft was checked live
-- [ ] 👤 Settings → Drafted replies: set your call hours (and add your résumé if you skipped it)
-- [ ] 👤 Live check. It needs Gmail connected (v1.3 spec 02 D2) and ideally a calendar.
-  - [ ] From another account, email your connected Gmail: "could we find 30 min next week?"
-  - [ ] Settings → **Scan now**. Inbox should show a drafted reply with 3 times that avoid your
+- [x] 👤 Settings → Drafted replies: set your call hours (and add your résumé if you skipped it)
+- [x] 👤 Live check. It needs Gmail connected (v1.3 spec 02 D2) and ideally a calendar.
+  - [x] From another account, email your connected Gmail: "could we find 30 min next week?"
+  - [x] Settings → **Scan now**. Inbox should show a drafted reply with 3 times that avoid your
     calendar events, and Today should list it.
-  - [ ] Reply in Gmail. The next scan should mark the draft done, and it leaves Today.
+  - [x] Reply in Gmail. The next scan should mark the draft done, and it leaves Today.
   - [ ] A receipt or rejection in the same scan gets **no** draft.
-- [ ] 🤖 After a week: check the cost (drafts run on the standard tier, ≤8 per mailbox per run) and
-  how many drafts get dismissed vs. used. Tune the `needs_reply` wording if it over-drafts.
+- [x] ~~🤖 After a week: check the draft cost~~ (drafting removed 2026-11-16)
 
 ### Blocking the friends invite
 - [x] 👤 [v1.3 spec 02](../v1.3-launch-and-cleanup/02-owner-runbook.md) console steps, done 2026-11-02:
@@ -61,7 +60,7 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
   - PR #35: back off on Gmail's per-user quota (403 "Units per minute per user") instead of counting threads as failed; a still-limited mailbox ends its pass as partial (`rateLimited: true`)
   - PR #36: unchanged threads are checked with `format=minimal` before any full fetch, and `last_scanned_at` is stamped at scan start so each mailbox runs every tick
 - [x] 🤖 Confirmed the cron 2026-11-03 (20:10 and 20:20 UTC ticks after #36): both mailboxes `partial: false` with a cursor, 0 failed, no 403s, no `No JSON`, no cooldown skips. The 45-day backfill is done; ticks now only read new mail
-- [ ] 👤 Settings: reconnect both calendar slots **and both Gmail accounts** (tokens issued in Testing mode still expire after 7 days) and set call hours
+- [x] 👤 Settings: reconnect both calendar slots **and both Gmail accounts** (tokens issued in Testing mode still expire after 7 days) and set call hours (done 2026-11-16)
 - [ ] 👤 v1.3 spec 02 **B2** custom SMTP (Resend), then 🤖 raises `email_sent` to 30 and 👤 repeats `supabase config push`
 - [ ] 👤 v1.3 spec 02 **C2** Sentry DSN, then 🤖 redeploys
 - [ ] Then [v1.3 spec 03](../v1.3-launch-and-cleanup/03-recruiting-calendar-roundtrip.md) (calendar round trip, now unblocked) and [04](../v1.3-launch-and-cleanup/04-launch-week.md) (launch week)
@@ -79,11 +78,7 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 - [x] 👤 Merged #29 → #30 → #31 (2026-10-29). Prod deployed; `/demo` checked live (Decisions → decision view, thank-you, interviews, expedite draft)
 
 ### Later (not planned yet)
-- [ ] Real Gmail drafts: `gmail.compose` (a restricted scope, so it needs consent-screen
-  changes and every mailbox has to reconnect), using the reserved `email_drafts.gmail_draft_id`
-- [ ] Book the calendar event when they accept one of the offered times
-- [ ] Regenerate a draft in the app. A push for new drafts only if asked (`pushes.js` keeps
-  three kinds for now)
+- ~~Real Gmail drafts, booking offered times, regenerating drafts~~: dropped with drafted replies (2026-11-16)
 
 ## Decisions
 
@@ -139,7 +134,7 @@ it's worth doing while you finish v1.3 spec 02's console steps, which gate the i
 | 07 | [Onboarding that ends with data on screen](07-onboarding.md) | 🤖 | no | ✅ merged 2026-10-19 (PR #20), smoke-tested on prod; live first scan untested until a real Gmail connect |
 | 08 | [A Today you arrange yourself](08-custom-today.md) | 🤖, one new dependency (@dnd-kit) | no | ✅ merged 2026-10-22 (PR #27), live |
 | 09 | [Résumé in onboarding](09-resume.md) | 🤖, one new dependency (pdfjs-dist) | **yes** (shared with 10) | ✅ merged 2026-10-20 (PR #23), live |
-| 10 | [Drafted replies with suggested call times](10-reply-drafts.md) | 🤖 | **yes** (shared with 09) | ✅ merged 2026-10-20 (PR #23), live; real-mailbox check pending |
+| 10 | [Drafted replies with suggested call times](10-reply-drafts.md) | 🤖 | **yes** (shared with 09) | ✅ merged 2026-10-20 (PR #23); **removed 2026-11-16** (owner never used it) |
 
 **Order:** 06 → 05 → 01 → 07 → *invite* → 08 → 02 → 03 → 04.
 - 06, 05, 01 and 07 are the pre-invite set: 07 hosts 01's importers in the wizard and needs 06 B's

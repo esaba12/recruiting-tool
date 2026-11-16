@@ -7,7 +7,7 @@ import Mono from '../ui/Mono.jsx'
 // to bring any of them (or all) back now.
 // Snooze list ids are queue kind ids (lib/actionQueue.js QUEUE_KINDS), so itemTitle reads them directly.
 function rowTitle({ list, row }) {
-  return list === 'replies' ? row.subject || 'Drafted reply' : itemTitle(list, row)
+  return itemTitle(list, row)
 }
 
 export default function UnhideMenu({ hidden, prefs }) {

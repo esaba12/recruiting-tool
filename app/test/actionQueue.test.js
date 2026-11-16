@@ -27,11 +27,6 @@ describe('tiers', () => {
     expect(['a', 'b', 'c', 'd'].map(id => tierOf(queue, `oa:${id}`))).toEqual(['now', 'now', 'week', 'later'])
   })
 
-  it('drafted replies: 2+ days old now, newer this week', () => {
-    const queue = q({ replyDrafts: [{ id: 'a', createdAt: at(-49) }, { id: 'b', createdAt: at(-5) }] })
-    expect([tierOf(queue, 'replies:a'), tierOf(queue, 'replies:b')]).toEqual(['now', 'week'])
-  })
-
   it('people: thank-yous and overdue follow-ups now; awaiting, urgent this week; keep in touch later', () => {
     const queue = q({ peopleGroups: {
       thankYou: [{ id: 't', at: at(-20) }], overdue: [{ id: 'o', followUpDate: day(-2) }],
