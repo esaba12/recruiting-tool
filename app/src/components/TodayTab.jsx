@@ -440,17 +440,15 @@ function DecisionRow({ app: a, onOpen }) {
 // stopPropagation added to the two nested interactive elements (open-assessment link,
 // mark-completed button), neither of which stopped propagation before this phase since the
 // row itself wasn't clickable yet.
-function OaRow({ app: a, needsCheck, onOpen, onRefresh, onLogOa }) {
+function OaRow({ app: a, needsCheck, onOpen, onRefresh }) {
   const [marking, setMarking] = useState(false)
   const overdue = !needsCheck && daysUntil(a.oaDueDate) <= 0
 
-  // withLog: also open Learn's log modal pre-filled as an assessment for this application —
-  // the only way CodeSignal/HackerRank results reach the Learn tab (no public score APIs).
-  async function markCompleted(withLog = false) {
+  // An OA is a task, not practice: Done just clears it and keeps you on Today.
+  async function markCompleted() {
     setMarking(true)
     try {
       await updateApplication(a.id, { oaCompleted: true })
-      if (withLog) onLogOa?.(a)
       onRefresh?.()
     } catch {
       setMarking(false)
@@ -483,14 +481,8 @@ function OaRow({ app: a, needsCheck, onOpen, onRefresh, onLogOa }) {
           )}
         <button onClick={e => { e.stopPropagation(); markCompleted() }} disabled={marking}
           className="text-xs text-ink-400 hover:text-ink-600 hover:underline disabled:opacity-40">
-          {marking ? 'Marking...' : '✓ Mark completed'}
+          {marking ? 'Marking...' : '✓ Done'}
         </button>
-        {onLogOa && !marking && (
-          <button onClick={e => { e.stopPropagation(); markCompleted(true) }}
-            className="block ml-auto text-xs text-accent-700 hover:underline">
-            Done — log how it went →
-          </button>
-        )}
       </div>
     </div>
   )
@@ -604,7 +596,7 @@ function DraftRow({ draft, contacts, onOpen, onRefresh, isDemoMode }) {
   )
 }
 
-export default function TodayTab({ attention, contacts, apps, interactions = [], relationships = [], onLogOa, onOpenPrep, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, onOpenDraft, isDemoMode = false }) {
+export default function TodayTab({ attention, contacts, apps, interactions = [], relationships = [], onOpenPrep, onFindPeople, onRefresh, onRefreshRelationships, eventPool = null, onOpenEvents, onOpenDraft, isDemoMode = false }) {
   // Lists, layout and snoozes come from lib/useTodayAttention.js, mounted in App so the sidebar
   // badge counts the same rows (v1.5 spec 02).
   const {
@@ -664,8 +656,8 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
     switch (kind) {
       case 'decisions': return <DecisionRow key={key} app={row} onOpen={openOffer} />
       case 'interview': return <InterviewRow key={key} app={row} onOpen={openApp} onOpenPrep={onOpenPrep} joinLink={interviewJoinLink(row, { interactions, contacts })} />
-      case 'oa': return <OaRow key={key} app={row} onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />
-      case 'oaCheck': return <OaRow key={key} app={row} needsCheck onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />
+      case 'oa': return <OaRow key={key} app={row} onOpen={openApp} onRefresh={onRefresh} />
+      case 'oaCheck': return <OaRow key={key} app={row} needsCheck onOpen={openApp} onRefresh={onRefresh} />
       case 'thankYou': return <ThankYouRow key={key} row={row} onRefresh={onRefresh} onOpenContact={openContact} onOpenApp={openApp} onHide={hide('thankYou')} />
       case 'replies': return <DraftRow key={key} draft={row} contacts={contacts} onOpen={id => onOpenDraft?.(id)} onRefresh={onRefresh} isDemoMode={isDemoMode} />
       case 'overdue': return <OverdueRow key={key} contact={row} onRefresh={onRefresh} onOpen={openContact} />
@@ -698,7 +690,7 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
       <DashCard label="OAs" tone={oas.some(a => a.oaDueDate && daysUntil(a.oaDueDate) <= 1) ? 'danger' : oas.length ? 'warning' : 'success'}
         icon={FileCode2} count={oas.length || null}>
         {oas.length
-          ? <div className="mt-1 divide-y divide-ink-100">{oas.map(a => <OaRow key={a.id} app={a} needsCheck={!a.oaDueDate} onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />)}</div>
+          ? <div className="mt-1 divide-y divide-ink-100">{oas.map(a => <OaRow key={a.id} app={a} needsCheck={!a.oaDueDate} onOpen={openApp} onRefresh={onRefresh} />)}</div>
           : <p className="mt-2 text-sm text-ink-500">No OAs outstanding.</p>}
       </DashCard>
     ),
@@ -771,13 +763,13 @@ export default function TodayTab({ attention, contacts, apps, interactions = [],
         <Group label="Interviews coming up" tone="accent" cap={capOf('apps')} items={appGroups.interview} onHide={hide('interview')}
           renderItem={a => <InterviewRow key={a.id} app={a} onOpen={openApp} onOpenPrep={onOpenPrep} joinLink={interviewJoinLink(a, { interactions, contacts })} />} />
         <Group label="OA due" tone="warning" cap={capOf('apps')} items={appGroups.oa} onHide={hide('oa')}
-          renderItem={a => <OaRow key={a.id} app={a} onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />} />
+          renderItem={a => <OaRow key={a.id} app={a} onOpen={openApp} onRefresh={onRefresh} />} />
         <Group label={`Stale · no movement ${staleDays}d+`} tone="danger" cap={capOf('apps')} items={appGroups.stale} onHide={hide('stale')}
           renderItem={a => <ApplicationRow key={a.id} app={a} showTriageChips={false} onOpen={openApp} changeAppTriage={changeAppTriage} />} />
         <Group label="Job boards to review" tone="warning" cap={capOf('apps')} items={appGroups.review} onHide={hide('review')}
           renderItem={a => <ApplicationRow key={a.id} app={a} showTriageChips onOpen={openApp} changeAppTriage={changeAppTriage} />} />
         <Group label="OA deadline unknown" tone="ink" cap={capOf('apps')} items={appGroups.oaCheck} onHide={hide('oaCheck')}
-          renderItem={a => <OaRow key={a.id} app={a} needsCheck onOpen={openApp} onRefresh={onRefresh} onLogOa={onLogOa} />} />
+          renderItem={a => <OaRow key={a.id} app={a} needsCheck onOpen={openApp} onRefresh={onRefresh} />} />
       </DashCard>
     ),
     events: (eventAttention.count > 0 || eventAttention.degraded.length > 0) && (
