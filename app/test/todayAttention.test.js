@@ -17,9 +17,8 @@ const apps = [
   { id: 's1', company: 'Plaid', role: 'SWE', stage: 'Applied', lastActivity: day(-10), appliedDate: day(-10), triage: 'Applied' },
 ]
 const contacts = [{ id: 'c1', name: 'Ryan', status: '🟡 Cooling', followUpDate: day(-1) }]
-const emailDrafts = [{ id: 'd1', threadId: 't1', status: 'open' }]
 
-const derive = (over = {}) => deriveTodayAttention({ contacts, apps, interactions: [], actionItems: [], emailDrafts, eventPool: null }, { layout, ctx, now: NOW, ...over })
+const derive = (over = {}) => deriveTodayAttention({ contacts, apps, interactions: [], actionItems: [], eventPool: null }, { layout, ctx, now: NOW, ...over })
 
 const withQueue = fn => ({ ...layout, cards: layout.cards.map(c => c.id === 'queue' ? fn(c) : c) })
 
@@ -31,9 +30,8 @@ describe('the default Today (OAs, interviews, recent updates)', () => {
     expect(a.interviews.map(x => x.id)).toEqual(['i1'])
     expect(a.openCount).toBe(2)
   })
-  it("doesn't list or count follow-ups, drafts or offers", () => {
+  it("doesn't list or count follow-ups or offers", () => {
     expect(a.peopleGroups.overdue).toEqual([])
-    expect(a.replyDrafts).toEqual([])
     expect(a.decisions).toEqual([])
   })
   it('lists recent stage changes, newest first', () => {
@@ -49,10 +47,9 @@ describe('deriveTodayAttention with the Now card', () => {
     expect(a.appGroups.interview.map(x => x.id)).toEqual(['i1'])
     expect(a.decisions.map(x => x.id)).toEqual(['o1'])
     expect(a.appGroups.oa.map(x => x.id)).toEqual(['oa1'])
-    expect(a.replyDrafts).toHaveLength(1)
     expect(a.peopleGroups.overdue.map(c => c.id)).toEqual(['c1'])
     expect(a.queue.now.map(i => i.key).sort()).toEqual(['oa:oa1', 'overdue:c1'])
-    expect(a.queue.week.map(i => i.key).sort()).toEqual(['decisions:o1', 'interview:i1', 'replies:d1'])
+    expect(a.queue.week.map(i => i.key).sort()).toEqual(['decisions:o1', 'interview:i1'])
     expect(a.openCount).toBe(2)
   })
 

@@ -20,7 +20,7 @@ mono caps label with a status dot and a count. `Group` stacks labeled lists insi
 each list shows 3 rows before "+N more".
 
 **Now card, opt-in** (`today/UpNext.jsx`, ranking in `lib/actionQueue.js`):
-- `buildActionQueue` merges every list `deriveTodayAttention` builds and tiers it (Now / This week / Backlog; rules in the file header). Only the **Now** tier renders: overdue or due today, an interview within 36h, an offer due ≤ 3 days, thank-yous, a drafted reply waiting 2+ days, registration closing ≤ 2 days. 5 rows, then "+N more". Dated items by due date, then undated by age.
+- `buildActionQueue` merges every list `deriveTodayAttention` builds and tiers it (Now / This week / Backlog; rules in the file header). Only the **Now** tier renders: overdue or due today, an interview within 36h, an offer due ≤ 3 days, thank-yous, registration closing ≤ 2 days. 5 rows, then "+N more". Dated items by due date, then undated by age.
 - Each row is the old card's row component (TodayTab `renderRow`), tagged with its kind, with a clock (snooze menu) for kinds that have a snooze list. Empty: "Nothing overdue or due today. Next: …" (`nextUp`).
 - The queue's kinds are its Customize toggles; Awaiting reply / Stale thresholds are its settings. With it placed, the open count (header "N due" and the sidebar badge) is the Now count.
 
@@ -62,7 +62,6 @@ chart, with no separate stat tiles repeating the same numbers. They're hidden un
 
 **Attention cards** (opt-in since v1.5 spec 03; half width), in two columns balanced by visible row count. Their lists feed Up next either way:
 - **Decisions** (v1.4 spec 02, first by default): every app at Offer, soonest deadline first (`offerDecisions`), with a countdown; danger tone within 3 days. A row opens the offer decision view (see Pipeline).
-- **Replies drafted** (v1.4 spec 10): replies the Gmail scan wrote for you. Each row (here or in Up next) has **Copy & open Gmail** (v1.5 spec 05, `lib/replySend.js` `copyAndOpen`: copies the text, opens the thread, marks the draft done so it leaves Today; `/demo` copies without navigating) and **Edit** (inline, saved on blur); the subject line opens the Inbox thread. Inbox's composer uses the same helper.
 - **From your email:** AI action items, with "Dismiss all".
 - **People:** groups for Send a thank-you, Overdue follow-up, Awaiting reply, High urgency, Want to schedule and Keep in touch.
   - **Send a thank-you** (v1.4 spec 03, `thankYouDue`): an interview 0–48h ago (contact matched by `normalizeCompanyName`; shows even with nobody on file) or a Call/Meeting 0–2 days old, until an outbound Email/LinkedIn to that person. Draft opens `today/EmailDraft.jsx` on a template (AI rewrite behind `NeedsKey`); Sent it logs an outbound Email.
@@ -101,13 +100,6 @@ A pure derivation over `interactions`: Email rows grouped by Gmail thread (`chan
 - Filters: All, Needs a reply, Applications, People, Sent.
 - Application receipts are dropped unless you wrote back or there's an action item.
 - "Reply in Gmail" deep-links to the right account (`gmailThreadUrl`).
-- **Drafted replies** (v1.4 spec 10, `email_drafts`, written by the scan; see `email-pipeline.md`).
-  `buildThreads` attaches `thread.draft`, and the row shows "Reply drafted". Under the messages there's a composer:
-  - proposed time chips, with "checked against your calendar" or not;
-  - editable text, saved on blur;
-  - **Copy & open in Gmail** (marks it done), **Copy**, **Dismiss**.
-
-  Nothing is sent from the app. Today's "Replies Drafted" opens the thread here (`initialThreadId`).
 
 ## Network (`NetworkTab` in `App.jsx`)
 
@@ -237,8 +229,6 @@ Views:
 - Profile (tracks, school, AI provider) and appearance.
 - Résumé (v1.4 spec 09): a PDF parsed in the browser (`lib/resumePdf.js`, lazy pdf.js), with only the text saved
   (`profiles.resume_text`). Shared `ResumeEditor` with the onboarding step.
-- Drafted replies (v1.4 spec 10): the on/off switch (`user_settings.auto_draft_replies`) and call hours
-  (`user_settings.availability`, shared `AvailabilityEditor` with the onboarding Calendar step).
 - API keys (Anthropic, OpenAI, Exa, GitHub).
 - Networking email accounts (Gmail connections, **Scan now** → `api/gmail.js ?action=scan-mine`).
 - Push notifications (ntfy topic).

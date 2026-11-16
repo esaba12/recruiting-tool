@@ -6,14 +6,12 @@ import Mono from '../ui/Mono.jsx'
 import GetAKey from './GetAKey.jsx'
 import UnverifiedAppNote from './UnverifiedAppNote.jsx'
 import ResumeEditor from './ResumeEditor.jsx'
-import AvailabilityEditor from './AvailabilityEditor.jsx'
 import { useAuth } from '../../lib/AuthContext.jsx'
 import { supabase } from '../../lib/supabaseClient.js'
 import useKeyStatus from '../../lib/useKeyStatus.js'
 import { TRACKS, profileTracks } from '../../lib/tracks.js'
 import { connectGmail, connectGoogleCalendar, getGoogleCalendarStatus } from '../../lib/googleAuth.js'
 import { fetchSchools, getUserSetting, setUserSetting, fetchTargetCompanies, saveTargetCompanies, addContact, fetchApplications, fetchContacts, saveResumeText } from '../../db.js'
-import { AVAILABILITY_SETTING_KEY, defaultAvailability, normalizeAvailability } from '../../lib/availability.js'
 import { resumeStep, STEP_IDS, STEP_SETTING_KEY, gmailSetupState, targetSuggestions, appendOnboardingLog, ONBOARDING_LOG_KEY } from '../../lib/onboarding.js'
 import { useGmailScan } from '../../lib/gmailScan.js'
 import { ImportPanel } from '../import/ImportPanel.jsx'
@@ -24,7 +22,7 @@ import { ImportPanel } from '../import/ImportPanel.jsx'
 // back from Google (the callbacks always redirect to "/") lands on the same step.
 const STEPS = [
   { id: 'about',    title: 'About you',   blurb: 'So everything is tuned to what you\'re recruiting for.' },
-  { id: 'resume',   title: 'Résumé',      blurb: 'Drafted replies and outreach draw on your real experience instead of guessing.' },
+  { id: 'resume',   title: 'Résumé',      blurb: 'Outreach drafts draw on your real experience instead of guessing.' },
   { id: 'key',      title: 'AI key',      blurb: 'Powers extraction, drafting, and ranking. Bring your own key.' },
   { id: 'gmail',    title: 'Gmail',       blurb: 'The magic part: applications and contacts fill in from your inbox.' },
   { id: 'calendar', title: 'Calendar',    blurb: 'Interviews, OAs, recruiting events, and when you\'re free for calls.' },
@@ -302,28 +300,12 @@ function ScanStatus({ g, scan }) {
   return scan.error ? <p className="text-xs text-danger-600">{scan.error}</p> : null
 }
 
-// Calendar, plus when you're open to calls (v1.4 spec 10). Availability is asked whether or
-// not a calendar gets connected: drafted replies offer times inside it, skipping anything
-// already on a connected calendar. Skipping the step leaves it unset.
 function CalendarStep({ onNext, onSkip, onBack }) {
   const [status, setStatus] = useState(null)
   const [err, setErr] = useState(null)
-  const [offerTimes, setOfferTimes] = useState(true)
-  const [availability, setAvailability] = useState(() => defaultAvailability())
-  const [busy, setBusy] = useState(false)
   useEffect(() => {
     getGoogleCalendarStatus('personal').then(setStatus).catch(() => setStatus({ connected: false }))
-    getUserSetting(AVAILABILITY_SETTING_KEY).then(v => { if (v) setAvailability(v) }).catch(() => {})
   }, [])
-  const valid = normalizeAvailability(availability)
-  async function save() {
-    setBusy(true); setErr(null)
-    try {
-      await setUserSetting(AVAILABILITY_SETTING_KEY, offerTimes ? valid : null)
-      onNext()
-    } catch (e) { setErr(e.message) }
-    finally { setBusy(false) }
-  }
   return (
     <div className="space-y-4">
       {status?.connected
@@ -338,20 +320,8 @@ function CalendarStep({ onNext, onSkip, onBack }) {
               <CalendarDays size={14} /> Connect Google Calendar
             </Button>
           </>}
-      <section className="pt-5 border-t border-ink-200">
-        <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-ink-500 mb-1 cursor-pointer">
-          <input type="checkbox" checked={offerTimes} onChange={e => setOfferTimes(e.target.checked)} />
-          When are you free for calls?
-        </label>
-        <p className="text-xs text-ink-500 mb-3">
-          When someone asks to find a time, the drafted reply offers three slots inside these hours.
-          {status?.connected ? ' Anything already on your calendar is skipped.' : ' Connect a calendar and it skips anything already on it.'}
-        </p>
-        {offerTimes && <AvailabilityEditor value={availability} onChange={setAvailability} disabled={busy} />}
-      </section>
       {err && <p className="text-xs text-danger-600">{err}</p>}
-      <Nav onBack={onBack} onNext={save} skip={onSkip} nextLabel={busy ? 'Saving…' : 'Continue'}
-        nextDisabled={busy || (offerTimes ? !valid : !status?.connected)} />
+      <Nav onBack={onBack} onNext={onNext} skip={onSkip} nextDisabled={!status?.connected} />
     </div>
   )
 }
@@ -460,11 +430,9 @@ function DoneStep({ user, profile, imported, onFinish, onBack }) {
   const status = useKeyStatus(user?.id)
   const scan = useGmailScan()
   const [cal, setCal] = useState(null)
-  const [callTimes, setCallTimes] = useState(null)
   const [busy, setBusy] = useState(false)
   useEffect(() => {
     getGoogleCalendarStatus('personal').then(s => setCal(!!s.connected)).catch(() => setCal(false))
-    getUserSetting(AVAILABILITY_SETTING_KEY).then(v => setCallTimes(!!normalizeAvailability(v))).catch(() => setCallTimes(false))
   }, [])
   const g = gmailSetupState({ connections: scan.connections, scanning: scan.scanning, anyAiKey: status.anyAi, keyLoading: status.loading })
   const gmailOn = g.kind === 'loading' ? null : ['scanning', 'waiting', 'done'].includes(g.kind)
@@ -473,7 +441,6 @@ function DoneStep({ user, profile, imported, onFinish, onBack }) {
     { label: 'Gmail auto-tracking', on: gmailOn, off: g.kind === 'needsKey' ? 'Connected, waiting for an AI key' : 'Off: connect in Settings anytime' },
     { label: 'Google Calendar', on: cal, off: 'Off: connect in Settings anytime' },
     { label: 'Résumé', on: !!profile?.resume_text, off: 'Not added: add it in Settings anytime' },
-    { label: 'Call times in drafted replies', on: callTimes, off: 'Not set: drafts ask them for times instead' },
   ]
   const done = async opts => { setBusy(true); await onFinish(opts) }
   return (

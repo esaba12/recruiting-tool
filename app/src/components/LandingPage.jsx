@@ -6,7 +6,7 @@ import { NAV_ICON } from '../lib/icons.js'
 
 const FEATURES = [
   ['Today', 'A daily list of what needs you: follow-ups that are due, online assessments about to close, upcoming interviews, and contacts you haven’t talked to in a while.'],
-  ['Inbox', 'Connect Gmail and recruiting email is pulled into threads. Interview invites become calendar events, and reply drafts use your résumé and availability.'],
+  ['Inbox', 'Connect Gmail and recruiting email is pulled into threads. Interview invites become calendar events.'],
   ['Network', 'Recruiters, alumni and referrers in one list, with every call and email logged against them and a reminder when it’s time to reach out again.'],
   ['Pipeline', 'Every application from sourced to offer, as a board or a spreadsheet. Import an existing tracker or a LinkedIn export to start.'],
   ['Calendar', 'Info sessions, coffee chats and interviews from your school’s event feeds and your Google Calendar, with conflicts flagged.'],

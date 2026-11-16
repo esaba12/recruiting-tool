@@ -10,7 +10,7 @@ single-tenant Notion version is legacy, kept only for the one-time migration scr
 > are in `CLAUDE.local.md` (gitignored). **This repo is public**: never put those in a tracked file.
 
 **Open work:** `.planning/v1.5-action-first/README.md` (action-first Today: Up next queue, self-clearing follow-ups and OAs, one count, snooze to a date, reply and interview actions; specs 01–07 in build order) and `.planning/v1.4-useful-and-lean/README.md` (import, onboarding, custom Today,
-interview/offer dates, résumé + drafted replies; its "Where we are" checklist is the live status) and `.planning/v1.3-launch-and-cleanup/README.md` (launch owner steps). Roadmap history:
+interview/offer dates, résumé; its "Where we are" checklist is the live status) and `.planning/v1.3-launch-and-cleanup/README.md` (launch owner steps). Roadmap history:
 `.planning/ROADMAP.md`. Deep dives by topic: `docs/architecture/` (index at the bottom).
 
 ---
@@ -119,7 +119,6 @@ Pipeline · Calendar**, with Settings in the sidebar footer. `/demo` shows every
 - Gmail scan cron (cron-job.org, every 10 min, `x-cron-secret`): `POST /api/gmail` answers **202** and scans under `waitUntil`, since the pinger times out at 30 s. `?wait=1` returns the summary. Each mailbox is claimed first (`gmail_tokens.scan_claimed_at`, 300 s lease) so overlapping runs skip it instead of tripping Gmail's per-user quota (403). Gmail calls go through `gmailFetch` (backs off on rate-limit 403/429); already-seen threads are checked with `format=minimal` first, and the 9-min cooldown is timed from scan start.
 - OpenAI gpt-5-mini is a reasoning model: reasoning tokens count against `max_completion_tokens`, so both `api/_lib/llm.js` and `src/lib/openai.js` send `reasoning_effort: 'minimal'` (an empty reply = "No JSON in OpenAI response").
 - pdf.js under the CSP: no `unsafe-eval`, so `getDocument` needs `isEvalSupported: false`. The worker comes from a same-origin `?url` import, and cleanup is `loadingTask.destroy()` (pdf.js 6 has no `doc.destroy()`).
-- Reply drafts are scan-written only (`email_drafts` has no client insert policy). Slot math is pure in `src/lib/availability.js` and shared by server and client.
 - ICS invites: read fields only from the `VEVENT` block (`VTIMEZONE` has its own `DTSTART`). Server-side, convert `TZID` times through `api/_lib/ics.js` (Vercel runs in UTC).
 - Node 20 + Supabase Realtime in scripts/tests: pass `realtime: { transport: ws }`.
 - Apps Script: more than 50 Script Properties makes the UI read-only (set them from code); `UrlFetchApp` to ntfy.sh fails intermittently (retries in place).

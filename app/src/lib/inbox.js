@@ -5,7 +5,6 @@
 // supabase/migrations/20261007000000_inbox.sql for the per-message fields.
 
 import { normalizeCompanyName } from './networkGraph.js'
-import { draftsByThread } from './replyDrafts.js'
 
 export const CATEGORY = {
   APPLICATION_CONFIRMATION: { label: 'Applied',            group: 'recruiting', tone: 'ink' },
@@ -79,8 +78,7 @@ export function snippet(m) {
   return messageLead(m).text.replace(/\s+/g, ' ').trim().slice(0, 160)
 }
 
-export function buildThreads({ interactions = [], contacts = [], apps = [], actionItems = [], drafts = [], now = Date.now() }) {
-  const draftByThread = draftsByThread(drafts)
+export function buildThreads({ interactions = [], contacts = [], apps = [], actionItems = [], now = Date.now() }) {
   const contactById = new Map(contacts.map(c => [c.id, c]))
   const appById = new Map(apps.map(a => [a.id, a]))
   const byThread = new Map()
@@ -134,9 +132,7 @@ export function buildThreads({ interactions = [], contacts = [], apps = [], acti
 
     const lastIsHumanInbound = last.direction === 'Inbound' && !isAutomated(last.fromAddress)
     const recent = now - messageTime(last) <= NEEDS_REPLY_WINDOW_DAYS * 86400000
-    // A drafted reply (v1.4 spec 10) only exists while the newest message is theirs and unanswered.
-    const draft = draftByThread.get(id) || null
-    const needsReply = !!draft || actionItems.length > 0 || (lastIsHumanInbound && recent && category !== 'REJECTION')
+    const needsReply = actionItems.length > 0 || (lastIsHumanInbound && recent && category !== 'REJECTION')
 
     const lastInbound = inbound[inbound.length - 1]
     const manual = id.startsWith('manual:')
@@ -152,7 +148,6 @@ export function buildThreads({ interactions = [], contacts = [], apps = [], acti
       group,
       actionItems,
       needsReply,
-      draft,
       unread: !manual && inbound.some(m => !m.readAt), // you typed a manual one in, so you've read it
       hasSent,
       mailbox: messages.find(m => m.mailbox)?.mailbox || null,

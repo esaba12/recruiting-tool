@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react'
-import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships, fetchActionItems, fetchEmailDrafts, setDemoData } from './db.js'
+import { fetchContacts, fetchApplications, fetchInteractions, fetchCalls, fetchContactRelationships, fetchActionItems, setDemoData } from './db.js'
 import { researchOaDeadlines } from './lib/oaResearch.js'
 import { useAuth } from './lib/AuthContext.jsx'
 import useApplicationsLive from './lib/useApplicationsLive.js'
@@ -300,8 +300,6 @@ function AppInner() {
   const [calls, setCalls]       = useState([])
   const [contactRelationships, setContactRelationships] = useState([])
   const [actionItems, setActionItems] = useState([])
-  const [emailDrafts, setEmailDrafts] = useState([])
-  const [inboxThread, setInboxThread] = useState(null) // Today → a drafted reply's thread
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
   const [lastLoaded, setLastLoaded] = useState(null)
@@ -313,7 +311,6 @@ function AppInner() {
   // Today's interview Prep (v1.5 spec 06): Learn opens with that company's prep in front.
   const [learnFocus, setLearnFocus] = useState(null)
   const openPrep = company => { setLearnFocus({ company, ts: Date.now() }); setTab('learn') }
-  const openDraft = threadId => { setInboxThread(threadId); setTab('inbox') }
 
   useEffect(() => { load() }, [])
 
@@ -335,7 +332,7 @@ function AppInner() {
   // relevance-high events, reconciles Google-side deletes; exposes push/unpush to the UI.
   const eventCalendarSync = useEventCalendarSync({ pool: eventPool, enabled: !!profile?.school_id })
   // Today's lists, layout and snoozes, shared by Today and the sidebar badge (v1.5 spec 02).
-  const todayAttention = useTodayAttention({ contacts, apps, interactions, actionItems, emailDrafts, eventPool, profile })
+  const todayAttention = useTodayAttention({ contacts, apps, interactions, actionItems, eventPool, profile })
   usePrefetchTabs(!loading)
 
   // Only the first load shows the full-screen loading state. Later refreshes (a row's
@@ -346,12 +343,12 @@ function AppInner() {
     if (loadedOnceRef.current) setRefreshing(true); else setLoading(true)
     setError(null)
     try {
-      const [c, a, i, cl, cr, ai, ed] = await Promise.all([
+      const [c, a, i, cl, cr, ai] = await Promise.all([
         fetchContacts(), fetchApplications(), fetchInteractions(), fetchCalls(), fetchContactRelationships(),
-        fetchActionItems(), fetchEmailDrafts().catch(() => []), // drafts are extra: never block the app
+        fetchActionItems(),
       ])
       setContacts(c); setApps(a); setInteractions(i); setCalls(cl); setContactRelationships(cr)
-      setActionItems(ai); setEmailDrafts(ed)
+      setActionItems(ai)
       setLastLoaded(new Date().toLocaleTimeString())
     } catch (e) { setError(e.message) }
     finally { loadedOnceRef.current = true; setLoading(false); setRefreshing(false) }
@@ -397,8 +394,8 @@ function AppInner() {
   useEffect(() => {
     const onChanged = async () => {
       try {
-        const [c, a, i, ai, ed] = await Promise.all([fetchContacts(), fetchApplications(), fetchInteractions(), fetchActionItems(), fetchEmailDrafts().catch(() => [])])
-        setContacts(c); setApps(a); setInteractions(i); setActionItems(ai); setEmailDrafts(ed)
+        const [c, a, i, ai] = await Promise.all([fetchContacts(), fetchApplications(), fetchInteractions(), fetchActionItems()])
+        setContacts(c); setApps(a); setInteractions(i); setActionItems(ai)
       } catch { /* the next full load picks it up */ }
     }
     window.addEventListener('rec:data-changed', onChanged)
@@ -446,10 +443,9 @@ function AppInner() {
         <PipelineTab apps={apps} contacts={contacts} interactions={interactions} relationships={contactRelationships} onRefresh={load}
           onFindPeople={goFindPeople} onRefreshRelationships={refreshContactRelationships} onRefreshApps={refreshApps} onImported={refreshApps} views={pipelineViewsFor(profile)} />
       )}
-      {!loading && tab === 'today'    && <TodayTab attention={todayAttention} contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships} onOpenPrep={openPrep} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} onOpenDraft={openDraft} />}
+      {!loading && tab === 'today'    && <TodayTab attention={todayAttention} contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships} onOpenPrep={openPrep} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} eventPool={eventPool} onOpenEvents={() => setTab('calendar')} />}
       {!loading && tab === 'inbox'    && (
-        <InboxTab contacts={contacts} apps={apps} interactions={interactions} actionItems={actionItems} onRefresh={load}
-          drafts={emailDrafts} onDraftsChange={setEmailDrafts} initialThreadId={inboxThread} />
+        <InboxTab contacts={contacts} apps={apps} interactions={interactions} actionItems={actionItems} onRefresh={load} />
       )}
       {!loading && tab === 'learn'    && <LearnTab learning={learning} apps={apps} profile={profile} focusCompany={learnFocus} />}
       {!loading && tab === 'calendar' && <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={calls} onRefresh={load} eventPool={eventPool} eventCalendarSync={eventCalendarSync} onRefreshContacts={refreshContacts} />}
@@ -521,9 +517,6 @@ function DemoAppInner() {
   const [apps, setApps] = useState([])
   const [interactions, setInteractions] = useState([])
   const [contactRelationships, setContactRelationships] = useState([])
-  const [emailDrafts, setEmailDrafts] = useState([])
-  const [inboxThread, setInboxThread] = useState(null)
-  const openDraft = threadId => { setInboxThread(threadId); setTab('inbox') }
   const [learnFocus, setLearnFocus] = useState(null)
   const openPrep = company => { setLearnFocus({ company, ts: Date.now() }); setTab('learn') }
   const [loading, setLoading] = useState(true)
@@ -531,7 +524,7 @@ function DemoAppInner() {
   // Recruiting events from demoData.js (db.js's demo branch). isDemo skips the AI
   // enrichment pass; there's no Google account, so no calendar sync hook.
   const eventPool = useRecruitingEvents({ enabled: true, isDemo: true, contacts, apps })
-  const todayAttention = useTodayAttention({ contacts, apps, interactions, actionItems: NO_ACTION_ITEMS, emailDrafts, eventPool, profile: null })
+  const todayAttention = useTodayAttention({ contacts, apps, interactions, actionItems: NO_ACTION_ITEMS, eventPool, profile: null })
   usePrefetchTabs(!loading)
 
   useEffect(() => { load() }, [])
@@ -542,8 +535,8 @@ function DemoAppInner() {
   const [refreshing, setRefreshing] = useState(false)
   async function load() {
     if (loadedOnceRef.current) setRefreshing(true); else setLoading(true)
-    const [c, a, i, cr, ed] = await Promise.all([fetchContacts(), fetchApplications(), fetchInteractions(), fetchContactRelationships(), fetchEmailDrafts()])
-    setContacts(c); setApps(a); setInteractions(i); setContactRelationships(cr); setEmailDrafts(ed)
+    const [c, a, i, cr] = await Promise.all([fetchContacts(), fetchApplications(), fetchInteractions(), fetchContactRelationships()])
+    setContacts(c); setApps(a); setInteractions(i); setContactRelationships(cr)
     loadedOnceRef.current = true; setLoading(false); setRefreshing(false)
   }
 
@@ -591,14 +584,13 @@ function DemoAppInner() {
       {!loading && tab === 'today' && (
         <TodayTab attention={todayAttention} contacts={contacts} apps={apps} interactions={interactions} relationships={contactRelationships}
           onOpenPrep={openPrep} onFindPeople={goFindPeople} onRefresh={load} onRefreshRelationships={refreshContactRelationships} isDemoMode
-          eventPool={eventPool} onOpenEvents={() => setTab('calendar')} onOpenDraft={openDraft} />
+          eventPool={eventPool} onOpenEvents={() => setTab('calendar')} />
       )}
       {!loading && tab === 'calendar' && (
         <CalendarTab contacts={contacts} apps={apps} interactions={interactions} calls={[]} onRefresh={load} eventPool={eventPool} eventCalendarSync={null} isDemoMode onRefreshContacts={refreshContacts} />
       )}
       {!loading && tab === 'inbox' && (
-        <InboxTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} demoMode
-          drafts={emailDrafts} onDraftsChange={setEmailDrafts} initialThreadId={inboxThread} />
+        <InboxTab contacts={contacts} apps={apps} interactions={interactions} onRefresh={load} demoMode />
       )}
       {!loading && tab === 'learn' && <LearnTab learning={learning} apps={apps} isDemoMode focusCompany={learnFocus} />}
       {tab === 'settings' && (

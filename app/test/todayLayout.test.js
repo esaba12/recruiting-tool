@@ -17,7 +17,7 @@ describe('defaultLayout', () => {
   })
 
   it('keeps the old action cards out of the default but available to add', () => {
-    for (const id of ['decisions', 'replies', 'email', 'people', 'apps', 'queue']) {
+    for (const id of ['decisions', 'email', 'people', 'apps', 'queue']) {
       expect(ids(defaultLayout(SWE))).not.toContain(id)
       expect(cardAvailable(id, SWE)).toBe(true)
     }

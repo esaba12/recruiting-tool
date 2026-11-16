@@ -14,7 +14,7 @@ import { dueOf } from './snooze.js'
 export const SNOOZE_KEY = {
   thankYou: x => x.id, overdue: c => c.id, awaiting: x => x.contact.id, schedule: c => c.id, urgent: c => c.id,
   keepInTouch: x => x.contact.id, stale: a => a.id, review: a => a.id, oa: a => a.id, oaCheck: a => a.id,
-  replies: d => d.id, interview: a => a.id, decisions: a => a.id,
+  interview: a => a.id, decisions: a => a.id,
 }
 
 export const snoozeKey = (list, row) => `${list}:${SNOOZE_KEY[list](row)}`
@@ -22,7 +22,7 @@ export const snoozeKey = (list, row) => `${list}:${SNOOZE_KEY[list](row)}`
 const total = groups => Object.values(groups).reduce((n, rows) => n + rows.length, 0)
 
 export function deriveTodayAttention(
-  { contacts = [], apps = [], interactions = [], actionItems = [], emailDrafts = [], eventPool = null },
+  { contacts = [], apps = [], interactions = [], actionItems = [], eventPool = null },
   { layout, ctx, isSnoozed = () => false, now = Date.now() },
 ) {
   const placed = Object.fromEntries(layout.cards.map(c => [c.id, c]))
@@ -54,7 +54,6 @@ export function deriveTodayAttention(
   })
 
   const openItems = cardOn('email') ? trimmed.items : []
-  const replyDrafts = cardOn('replies') ? visible('replies', emailDrafts) : []
   const peopleGroups = Object.fromEntries(PEOPLE_GROUPS.map(id => [id, visible(id, people[id])]))
   const staleDays = setting('apps', 'staleDays') ?? 14
   const decisions = cardOn('decisions') ? visible('decisions', offerDecisions(apps, now)) : []
@@ -77,17 +76,17 @@ export function deriveTodayAttention(
 
   // Counts cover the cards and lists that are on, so a hidden list never inflates the total.
   const counts = {
-    decisions: decisions.length, replies: replyDrafts.length, email: openItems.length,
+    decisions: decisions.length, email: openItems.length,
     people: total(peopleGroups), apps: total(appGroups), events: eventAttention.count,
     oas: oas.length, interviews: interviews.length,
   }
   // With the queue placed, the count is its Now tier: what the strip shows (overdue or due today).
-  const queue = placed.queue ? buildActionQueue({ decisions, replyDrafts, openItems, peopleGroups, appGroups, eventAttention }, { now }) : null
+  const queue = placed.queue ? buildActionQueue({ decisions, openItems, peopleGroups, appGroups, eventAttention }, { now }) : null
   if (queue) counts.queue = queue.now.length
   const openCount = queue ? queue.now.length : Object.values(counts).reduce((a, b) => a + b, 0)
 
   return {
-    placed, trimmed, openItems, replyDrafts, peopleGroups, appGroups, decisions, eventAttention,
+    placed, trimmed, openItems, peopleGroups, appGroups, decisions, eventAttention,
     queue, oas, interviews, updates, staleDays, counts, openCount, hidden, snoozedHidden: hidden.length,
   }
 }
