@@ -339,11 +339,13 @@ function sendScheduledDigest(force) {
 function buildStatusPush(data) {
   const company = data.company || 'Unknown company'
   const role    = data.role ? ` — ${data.role}` : ''
+  // The role rides in the title too: a combined push shows only titles (same as api/_lib/pushes.js).
+  const who     = data.role ? `${company} · ${data.role}` : company
 
   if (data.type === 'OA_INVITE') {
     const due = data.oa_due_date ? `\nDue ${data.oa_due_date}` : '\nNo stated deadline — check the assessment page.'
     return {
-      title: `🧪 OA received — ${company}`,
+      title: `🧪 OA received — ${who}`,
       message: `${role.slice(3) || 'Online Assessment'}${due}${data.oa_link ? `\n${data.oa_link}` : ''}`,
       priority: 'high',
       tags: ['test_tube'],
@@ -352,28 +354,28 @@ function buildStatusPush(data) {
     // Deliberately low priority/default, unlike OA_INVITE — this is a quiet confirmation that
     // the digest will stop nagging about this one, not urgent news.
     return {
-      title: `✅ OA marked complete — ${company}`,
+      title: `✅ OA marked complete — ${who}`,
       message: `${role.slice(3) || 'Online Assessment'}\nNo more deadline reminders for this one.`,
       priority: 'default',
       tags: ['white_check_mark'],
     }
   } else if (data.type === 'INTERVIEW_INVITE') {
     return {
-      title: `📞 Interview invite — ${company}`,
+      title: `📞 Interview invite — ${who}`,
       message: `${role.slice(3) || ''}${data.interview_date ? `\nScheduled ${data.interview_date}` : ''}`.trim(),
       priority: 'high',
       tags: ['phone'],
     }
   } else if (data.type === 'OFFER') {
     return {
-      title: `🎉 Offer — ${company}!`,
+      title: `🎉 Offer — ${who}!`,
       message: role.slice(3) || 'Offer received',
       priority: 'urgent',
       tags: ['tada'],
     }
   } else if (data.type === 'REJECTION') {
     return {
-      title: `❌ Rejected — ${company}`,
+      title: `❌ Rejected — ${who}`,
       message: role.slice(3) || 'Rejection received',
       priority: 'default',
       tags: ['x'],

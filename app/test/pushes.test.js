@@ -14,12 +14,14 @@ const AT_MIDNIGHT = new Date('2026-10-19T04:10:00Z').getTime()
 describe('statusPush (ported from the Apps Script buildStatusPush)', () => {
   it('builds the four update kinds and skips routine mail', () => {
     expect(statusPush({ type: 'OA_INVITE', company: 'Rippling', role: 'SWE Intern', oa_due_date: '2026-10-22', oa_link: 'https://hackerrank.com/x' }))
-      .toEqual({ title: '🧪 OA received — Rippling', message: 'SWE Intern\nDue 2026-10-22\nhttps://hackerrank.com/x', priority: 'high', tags: ['test_tube'] })
+      .toEqual({ title: '🧪 OA received — Rippling · SWE Intern', message: 'SWE Intern\nDue 2026-10-22\nhttps://hackerrank.com/x', priority: 'high', tags: ['test_tube'] })
     expect(statusPush({ type: 'INTERVIEW_INVITE', company: 'Stripe', interview_date: '2026-10-21' }))
       .toMatchObject({ title: '📞 Interview invite — Stripe', message: 'Scheduled 2026-10-21', priority: 'high' })
-    expect(statusPush({ type: 'OFFER', company: 'Ramp', role: 'SWE Intern' })).toMatchObject({ title: '🎉 Offer — Ramp!', priority: 'urgent' })
+    expect(statusPush({ type: 'OFFER', company: 'Ramp', role: 'SWE Intern' })).toMatchObject({ title: '🎉 Offer — Ramp · SWE Intern!', priority: 'urgent' })
     expect(statusPush({ type: 'REJECTION', company: null })).toMatchObject({ title: '❌ Rejected — Unknown company', message: 'Rejection received' })
     expect(statusPush({ type: 'OA_COMPLETED', company: 'Figma' })).toMatchObject({ priority: 'default' })
+    // Role in the title, so a combined push (titles only) still says which application
+    expect(statusPush({ type: 'REJECTION', company: 'Meta', role: 'Product Manager Intern' }).title).toBe('❌ Rejected — Meta · Product Manager Intern')
     expect(statusPush({ type: 'REPLY', company: 'Figma' })).toBeNull()
     expect(statusPush({ type: 'APPLICATION_CONFIRMATION', company: 'Figma' })).toBeNull()
   })
