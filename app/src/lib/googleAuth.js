@@ -25,7 +25,7 @@ export async function linkGoogleIdentity() {
 }
 
 // "Connect Calendar" (personal or school slot — see api/_lib/googleOAuth.js's
-// CALENDAR_SLOTS) — a direct Google OAuth flow (api/google-oauth-start.js +
+// CALENDAR_SLOTS) — a direct Google OAuth flow (api/google-connect.js ?action=start +
 // api/google-oauth-callback.js), NOT supabase.auth.signInWithOAuth()/linkIdentity().
 // Deliberately: signInWithOAuth risks switching the active login session to a different
 // account if the Google identity picked isn't already this account's, and linkIdentity
