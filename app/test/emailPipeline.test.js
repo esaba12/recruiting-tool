@@ -6,7 +6,7 @@ import {
   isAutomatedSender, isBulkMail, isGenericNetworking, shouldCreateContact, contactFollowUpDate, keepActionItem,
   isAlreadyLogged, logThreadMessages,
   scanQueries, nextCursor, orderConnections, runThreadBudget, MAX_CLASSIFIED_PER_RUN, scanStageChange,
-  roleKey, pickApplication, oaInviteFields, scheduleFields,
+  roleKey, pickApplication, roleAmbiguous, unplacedInterview, oaInviteFields, scheduleFields,
   gmailFetch, isGmailRateLimit,
 } from '../api/_lib/emailPipeline.js'
 
@@ -537,6 +537,34 @@ describe('scanStageChange', () => {
     expect(scanStageChange('Applied', { stage: 'Accepted' })).toEqual({ stage: null })
     expect(scanStageChange('Rejected', { stage: 'Onsite' })).toEqual({ stage: 'Rejected' })
   })
+  // A recruiter's "quick call" after an offer is not an interview: it used to write
+  // interview_at onto the offer, so Today showed an upcoming interview (2026-11-18).
+  it('never puts an interview on an offer', () => {
+    expect(scanStageChange('Phone Screen', { stage: 'Offer' })).toEqual({ skip: true })
+    expect(scanStageChange('Technical', { stage: 'Offer' })).toEqual({ skip: true })
+    expect(scanStageChange('Onsite', { stage: 'Offer' })).toEqual({ skip: true })
+    expect(scanStageChange('Offer', { stage: 'Offer' })).toEqual({ stage: 'Offer' })
+    expect(scanStageChange('Rejected', { stage: 'Offer' })).toEqual({ stage: 'Rejected' })
+  })
+})
+
+// A recruiter's first outreach labeled INTERVIEW_INVITE had no application to land on, so it
+// sat in the Inbox as "Interview" with no follow-up (2026-11-18).
+describe('unplacedInterview', () => {
+  const iv = { type: 'INTERVIEW_INVITE', personal: true }
+  it('a person\'s interview with no application to land on becomes a follow-up', () => {
+    expect(unplacedInterview(iv, null, 'jane.doe@meta.com')).toBe(true)
+  })
+  it('keeps the interview when it landed, or came from a scheduling tool or role mailbox', () => {
+    expect(unplacedInterview(iv, 'app-1', 'jane.doe@meta.com')).toBe(false)
+    expect(unplacedInterview(iv, null, 'scheduling@goodtime.io')).toBe(false)
+    expect(unplacedInterview(iv, null, 'recruiting@meta.com')).toBe(false)
+    expect(unplacedInterview({ ...iv, personal: false }, null, 'jane.doe@meta.com')).toBe(false)
+  })
+  it('only applies to interviews', () => {
+    expect(unplacedInterview({ type: 'OFFER', personal: true }, null, 'jane.doe@meta.com')).toBe(false)
+    expect(unplacedInterview({ type: 'REJECTION', personal: true }, null, 'jane.doe@meta.com')).toBe(false)
+  })
 })
 
 // Three IBM applications used to collapse into one row; its completed OA then swallowed the
@@ -561,6 +589,20 @@ describe('pickApplication', () => {
   it('no role in the email falls back to the newest row', () => {
     expect(pickApplication(ibm, null).id).toBe('zos')
     expect(pickApplication([], 'SWE')).toBeUndefined()
+  })
+  it('no role prefers the newest open row over a closed one', () => {
+    const meta = [{ id: 'pm', role: 'Product Manager Intern', stage: 'Rejected' }, { id: 'swe', role: 'Software Engineer Intern', stage: 'Phone Screen' }]
+    expect(pickApplication(meta, null).id).toBe('swe')
+    expect(pickApplication([{ id: 'a', stage: 'Rejected' }, { id: 'b', stage: 'Accepted' }], null).id).toBe('a')
+  })
+  it('roleAmbiguous: no role and several open roles at the company', () => {
+    const meta = [{ role: 'Product Manager Intern', stage: 'Applied' }, { role: 'Software Engineer Intern', stage: 'Phone Screen' }]
+    expect(roleAmbiguous(meta, null)).toBe(true)
+    expect(roleAmbiguous(meta, 'Software Engineer')).toBe(false)
+    expect(roleAmbiguous([meta[0]], null)).toBe(false)
+    expect(roleAmbiguous([meta[0], { role: 'Product Manager Intern, Summer 2027', stage: 'Applied' }], null)).toBe(false)
+    expect(roleAmbiguous([meta[0], { ...meta[1], stage: 'Rejected' }], null)).toBe(false)
+    expect(roleAmbiguous(undefined, null)).toBe(false)
   })
   it('roleKey ignores case, punctuation, years, req ids and filler', () => {
     expect(roleKey('Software Engineering Intern, Summer 2027 (131545)')).toBe(roleKey('software engineer'))

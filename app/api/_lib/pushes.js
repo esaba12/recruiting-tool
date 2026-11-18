@@ -36,21 +36,24 @@ export function validTopic(topic) {
 export function statusPush(data) {
   const company = data.company || 'Unknown company'
   const role = data.role || ''
+  // The role rides in the title: a combined "N updates" push shows only titles, and a company
+  // often has several open applications (which one got rejected?).
+  const who = role ? `${company} · ${role}` : company
   switch (data.type) {
     case 'OA_INVITE':
       return {
-        title: `🧪 OA received — ${company}`,
+        title: `🧪 OA received — ${who}`,
         message: `${role || 'Online Assessment'}${data.oa_due_date ? `\nDue ${data.oa_due_date}` : '\nNo stated deadline — check the assessment page.'}${data.oa_link ? `\n${data.oa_link}` : ''}`,
         priority: 'high', tags: ['test_tube'],
       }
     case 'OA_COMPLETED':
-      return { title: `✅ OA marked complete — ${company}`, message: `${role || 'Online Assessment'}\nNo more deadline reminders for this one.`, priority: 'default', tags: ['white_check_mark'] }
+      return { title: `✅ OA marked complete — ${who}`, message: `${role || 'Online Assessment'}\nNo more deadline reminders for this one.`, priority: 'default', tags: ['white_check_mark'] }
     case 'INTERVIEW_INVITE':
-      return { title: `📞 Interview invite — ${company}`, message: `${role}${data.interview_date ? `\nScheduled ${data.interview_date}` : ''}`.trim(), priority: 'high', tags: ['phone'] }
+      return { title: `📞 Interview invite — ${who}`, message: `${role}${data.interview_date ? `\nScheduled ${data.interview_date}` : ''}`.trim(), priority: 'high', tags: ['phone'] }
     case 'OFFER':
-      return { title: `🎉 Offer — ${company}!`, message: role || 'Offer received', priority: 'urgent', tags: ['tada'] }
+      return { title: `🎉 Offer — ${who}!`, message: role || 'Offer received', priority: 'urgent', tags: ['tada'] }
     case 'REJECTION':
-      return { title: `❌ Rejected — ${company}`, message: role || 'Rejection received', priority: 'default', tags: ['x'] }
+      return { title: `❌ Rejected — ${who}`, message: role || 'Rejection received', priority: 'default', tags: ['x'] }
     default:
       return null
   }
