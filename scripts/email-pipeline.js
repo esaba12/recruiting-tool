@@ -1,6 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Recruiting Email Pipeline — Google Apps Script
 //
+// RETIRED (2026-11-18). Superseded by app/api/gmail.js + app/api/_lib/emailPipeline.js, which
+// scans every connected mailbox. This copy is frozen: it is NOT kept in sync, and the "keep the
+// two in sync" notes below are history. Its interview handling is already behind (it always
+// sets Phone Screen and ignores the round). Don't revive it without porting from emailPipeline.js.
+//
 // SETUP (one time):
 //   1. script.google.com → New project → paste this entire file
 //   2. Project Settings (gear icon) → Script Properties → Add:

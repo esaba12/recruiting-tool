@@ -8,6 +8,9 @@
 // built (./pushes.js statusPush); api/gmail.js sends them, with the digests and daily recap,
 // after the connection loop. An interview with a date but no invite gets a calendar event
 // (./interviewEvent.js) when the user has a Calendar connected.
+//
+// scripts/email-pipeline.js is retired (2026-11-18) and frozen: this file is the only pipeline,
+// so the "same as scripts/email-pipeline.js" notes below are history, not a sync rule.
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { decrypt } from './crypto.js'
 import { llmForUser, completeJSON } from './llm.js'
@@ -96,12 +99,11 @@ const GENERIC_EMAIL_DOMAINS = new Set([
 ])
 const REFERRAL_MENTION_RE = /\b(referred by|referred you|referral from|recommended by|thanks to (?:the |your )?(?:introduction|referral)|your referrer|employee referral|referral (?:portal|link|program)|apply(?:ing)? through a referral)\b/i
 const APPLICATION_CONFIRMATION_RE = /\b(thank(?:s| you) for (?:your interest|applying)|we(?:'| ha)ve received your application|your application (?:has been received|was submitted|is being reviewed)|application (?:received|submitted|confirmation)|successfully applied)\b/i
-// Same regex as scripts/email-pipeline.js (v1.5 spec 07 port) — keep the two in sync.
+// Ported from scripts/email-pipeline.js (v1.5 spec 07).
 export const OA_COMPLETED_RE = /\b(assessment (?:has been |was )?(?:submitted|completed)|(?:submitted|completed) (?:your|the) assessment|thank(?:s| you) for completing|test (?:has been |was )?(?:submitted|completed)|your (?:hackerrank|codesignal|codility|hackerearth) (?:test|assessment) (?:is complete|has been received))\b/i
 const OA_INVITE_RE = /\b(online assessment|coding assessment|coding challenge|skills assessment|hackerrank|codesignal|codility|hackerearth|pymetrics|numerical reasoning|complete (?:your|the) assessment|assessment invit)/i
 // Role mailboxes and platform senders — never a person, so never a contact. Matched on the
-// address alone (the display name is no help: "Google Careers" reads like a name). Shared with
-// scripts/email-pipeline.js — keep the two in sync.
+// address alone (the display name is no help: "Google Careers" reads like a name).
 const AUTOMATED_LOCAL_RE = /^(no-?reply|do-?not-?reply|notifications?|mailer(-daemon)?|automated|system|recruit(ing|ment|er)?|careers?|jobs|ats|talent(acquisition)?|hello|team|info|news(letter)?s?|events?|marketing|updates?|support|admin|hr|campus|university|students?|hiring|apply|applications?|alerts?|digest)([._+-][^@]*)?@/i
 const AUTOMATED_DOMAINS = [
   ...ATS_DOMAINS, 'greenhouse-mail.io', 'hackerrank.com', 'codesignal.com', 'codility.com', 'hackerearth.com',
@@ -396,7 +398,7 @@ async function getThreadMessages(accessToken, threadId, deadline) {
   return (thread.messages || []).map(parseGmailMessage)
 }
 
-// Shared with scripts/email-pipeline.js's prompt — keep the two in sync.
+// Started as scripts/email-pipeline.js's prompt (frozen there).
 export const PERSONAL_VS_BULK = `Only one-to-one mail counts as networking. A person reaching out means a specific human wrote
 this message to the candidate (or the candidate wrote to them): it reads as individual
 correspondence, not a template. These are NOT outreach, however friendly or personalized-looking
@@ -436,7 +438,7 @@ export function interviewStage(round) {
   return { second: 'Technical', final: 'Onsite' }[round] || 'Phone Screen'
 }
 
-// Shared with scripts/email-pipeline.js's prompt — keep the two in sync.
+// Started as scripts/email-pipeline.js's prompt (frozen there).
 export const INTERVIEW_VS_NETWORKING = `INTERVIEW_INVITE is ONLY a formal evaluation step in a hiring process for a role: scheduled by a
 recruiter, recruiting coordinator, ATS or interview-scheduling tool (GoodTime, ModernLoop, Calendly
 from a recruiting team, etc.), or explicitly called an interview, phone screen, technical, onsite,
@@ -450,7 +452,10 @@ or org meeting, workshop, webinar, hackathon, open house, recruiting dinner, any
 attend — is never INTERVIEW_INVITE, even when a company hosts it or it arrives as a Google Calendar
 invite: use NEW_CONTACT or FOLLOW_UP_NEEDED if someone personal sent it, else UNRELATED. When
 unsure, choose networking: a false interview moves the application to Phone Screen and puts an
-interview on the calendar.`
+interview on the calendar. A recruiter's first outreach (asking about the candidate's interest, an
+intro chat about "roles that might be a fit", or a sourcing message) with no application or named
+interview step is networking: NEW_CONTACT or FOLLOW_UP_NEEDED. A recruiter screen or call about an
+application the candidate submitted is INTERVIEW_INVITE.`
 
 export async function classifyEmail(llm, { subject, from, body, date, meetingLink, invite, bulk, extraHints, profile }) {
   const inviteHintText = inviteHint(invite, subject)
@@ -595,11 +600,13 @@ async function findContactByName(db, userId, name) {
 // sent and still open. Event invites get mislabeled INTERVIEW_INVITE, and the fuzzy company
 // match lands them on job-board Wishlist rows or creates a fresh row: 17 fake Phone Screens
 // on the owner's account before this guard (2026-10-21). { skip } means touch nothing.
-// scripts/email-pipeline.js has the same rule — keep the two in sync.
+// An interview on an application already at Offer is a recruiter call, not a round: it used to
+// write interview_at onto the offer, so Today showed an upcoming interview (2026-11-18).
 export function scanStageChange(stage, existing) {
   const progress = stage !== 'Applied' && stage !== 'Rejected'
   if (!existing) return progress ? { skip: true } : { stage }
   if (stage === 'Rejected') return { stage }
+  if (progress && stage !== 'Offer' && existing.stage === 'Offer') return { skip: true }
   const rank = s => STAGE_RANK[s] ?? 0
   const closed = existing.stage === 'Rejected' || existing.stage === 'Accepted'
   if (progress && (closed || rank(existing.stage) < STAGE_RANK.Applied)) return { skip: true }
@@ -618,19 +625,39 @@ export function roleKey(role) {
 // several applications per season, so a stated role only lands on that role (or on a row
 // with no role yet); otherwise it's a new application. Matching on company alone collapsed
 // three IBM applications into one row whose completed OA then swallowed two new OA invites
-// (2026-10-23). No role in the email → newest row, as before.
-// scripts/email-pipeline.js has the same rule — keep the two in sync.
+// (2026-10-23). No role in the email → the newest open row, else the newest row.
+const isOpenApplication = r => r.stage !== 'Rejected' && r.stage !== 'Accepted'
 export function pickApplication(rows, role) {
   if (!rows?.length) return undefined
   const key = roleKey(role)
-  if (!key) return rows[0]
+  if (!key) return rows.find(isOpenApplication) || rows[0]
   return rows.find(r => roleKey(r.role) === key) || rows.find(r => !roleKey(r.role))
+}
+
+// The email named no role and the company has more than one open role, so pickApplication
+// guessed. The scan flags the guess on Today rather than leaving it silent.
+export function roleAmbiguous(rows, role) {
+  if (roleKey(role)) return false
+  return new Set((rows || []).filter(isOpenApplication).map(r => roleKey(r.role))).size > 1
+}
+
+// An interview from a person that no application took (none sent yet, or it's at Offer): most
+// often a recruiter's first outreach. It becomes a networking follow-up so the lead gets a
+// contact follow-up date instead of an "Interview" label that goes nowhere. A scheduling tool
+// or role mailbox keeps the label: it may be a real interview for something untracked.
+export function unplacedInterview(data, applicationId, senderEmail) {
+  return data.type === 'INTERVIEW_INVITE' && !applicationId
+    && data.personal !== false && !isAutomatedSender(senderEmail)
+}
+
+const AMBIGUOUS_ROLE_TYPES = ['INTERVIEW_INVITE', 'OFFER', 'REJECTION', 'OA_INVITE']
+export function ambiguousRoleNote(company, landedRole) {
+  return `Check this ${company || 'company'} email landed on the right application${landedRole ? ` (${landedRole})` : ''}. It didn't name a role.`
 }
 
 // OA fields an OA_INVITE writes. A finished OA stays finished against a re-sent invite (same
 // link), but an invite with a new link is a new assessment (a second round, a retake) and
 // reopens it: a missed OA costs more than one wrongly reopened.
-// scripts/email-pipeline.js has the same rule — keep the two in sync.
 // An OA_COMPLETED receipt marks an open OA done (v1.5 spec 07, ported from the Apps Script).
 // Only ever on an application that exists and isn't already done: a receipt never creates one.
 export function oaCompletedFields(data, existing) {
@@ -660,7 +687,6 @@ export function oaInviteFields(data, existing) {
 // is the same day, where a real time replaces a guess (a reschedule within the day too) and
 // a guess never replaces a real time. A stated offer deadline is written; a missing one never
 // clears a value the user may have typed.
-// scripts/email-pipeline.js has the same rule — keep the two in sync.
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/
 // The interview's video link rides along with its time (v1.5 spec 06): on a new or moved time,
 // or to fill a link the stored interview is missing. An email with no link never clears one.
@@ -713,11 +739,12 @@ async function upsertApplication(db, userId, data, { timeZone }) {
     const fields = oaCompletedFields(data, app)
     if (!Object.keys(fields).length) return null
     await db.from('applications').update({ ...fields, last_activity: today }).eq('id', app.id)
-    return app.id
+    return { id: app.id }
   }
   const existing = pickApplication(rows, data.role)
   const change = scanStageChange(stage, existing)
   if (change.skip) return null
+  const ambiguous = !!existing && AMBIGUOUS_ROLE_TYPES.includes(data.type) && roleAmbiguous(rows, data.role)
 
   const props = {
     last_activity: today,
@@ -731,12 +758,12 @@ async function upsertApplication(db, userId, data, { timeZone }) {
   if (existing) {
     if (change.stage) props.stage = change.stage
     await db.from('applications').update(props).eq('id', existing.id)
-    return existing.id
+    return { id: existing.id, ambiguous, role: existing.role || null }
   }
   const { data: created } = await db.from('applications').insert({
     user_id: userId, company: data.company || 'Unknown', applied_date: today, stage, ...props,
   }).select('id').single()
-  return created?.id || null
+  return created?.id ? { id: created.id } : null
 }
 
 async function upsertActionItem(db, userId, { gmailMessageId, threadId, contactId, applicationId, summary, priority, dueDate }) {
@@ -908,12 +935,20 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
       data.contact_email = counterpart.email || null
       if (!data.contact_name && counterpart.displayName) data.contact_name = counterpart.displayName
 
-      const contactId = await upsertContact(db, userId, data, { fromMe, sentDay })
-
-      let applicationId = null
+      // The application goes first: an interview that lands nowhere is re-typed as a follow-up
+      // before the contact and the Inbox row are written.
+      let placed = null
       if (['APPLICATION_CONFIRMATION', 'OA_INVITE', 'OA_COMPLETED', 'INTERVIEW_INVITE', 'OFFER', 'REJECTION'].includes(data.type)) {
-        applicationId = await upsertApplication(db, userId, data, { timeZone })
+        placed = await upsertApplication(db, userId, data, { timeZone })
       }
+      const applicationId = placed?.id || null
+      if (unplacedInterview(data, applicationId, data.contact_email)) {
+        data.type = 'FOLLOW_UP_NEEDED'
+        data.interview_date = null
+        data.invite = null
+      }
+
+      const contactId = await upsertContact(db, userId, data, { fromMe, sentDay })
 
       // Best effort: a Calendar problem (revoked grant, quota) is logged, never retried, so it
       // can't hold the thread back. The same-day title check keeps a re-classified thread
@@ -928,10 +963,16 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
         }
       }
 
-      if (keepActionItem(data, data.contact_email)) {
+      // A role-less email that guessed between several open applications is flagged on Today,
+      // on top of (or instead of) the classifier's own action item: one row per message.
+      const roleNote = placed?.ambiguous ? ambiguousRoleNote(data.company, placed.role) : null
+      const keepOwn = keepActionItem(data, data.contact_email)
+      if (keepOwn || roleNote) {
         await upsertActionItem(db, userId, {
           gmailMessageId: msg.id, threadId, contactId, applicationId,
-          summary: data.action_item, priority: data.action_priority || 'medium', dueDate: data.action_due_date || null,
+          summary: [keepOwn && data.action_item, roleNote].filter(Boolean).join(' · '),
+          priority: (keepOwn && data.action_priority) || 'medium',
+          dueDate: (keepOwn && data.action_due_date) || null,
         })
       }
 
