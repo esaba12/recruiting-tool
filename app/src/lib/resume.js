@@ -1,5 +1,5 @@
-// Résumé text (v1.4 spec 09): pure helpers shared by the onboarding/Settings editor, client
-// drafting (lib/drafting.js) and the server reply drafter (api/_lib/replyDraft.js).
+// Résumé text (v1.4 spec 09): pure helpers shared by the onboarding/Settings editor and
+// outreach drafting (lib/drafting.js).
 // Only the text is stored (profiles.resume_text); the PDF itself is never uploaded.
 
 export const RESUME_MAX_CHARS = 20000
