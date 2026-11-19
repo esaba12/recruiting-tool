@@ -650,6 +650,16 @@ export function unplacedInterview(data, applicationId, senderEmail) {
     && data.personal !== false && !isAutomatedSender(senderEmail)
 }
 
+// Whole-word, case-insensitive: "Meta" matches "Meta Platforms" but not "Metabase". The
+// ilike prefilter in upsertApplication is a bare substring, so this is the real test. A missing
+// company matches nothing (it used to be '%%', which matched every application).
+export function matchesCompany(rowCompany, company) {
+  const name = (company || '').trim()
+  if (!name || !rowCompany) return false
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(^|[^a-z0-9])${escaped}($|[^a-z0-9])`, 'i').test(rowCompany)
+}
+
 const AMBIGUOUS_ROLE_TYPES = ['INTERVIEW_INVITE', 'OFFER', 'REJECTION', 'OA_INVITE']
 export function ambiguousRoleNote(company, landedRole) {
   return `Check this ${company || 'company'} email landed on the right application${landedRole ? ` (${landedRole})` : ''}. It didn't name a role.`
@@ -729,10 +739,15 @@ async function upsertApplication(db, userId, data, { timeZone }) {
   const stage = stageMap[data.type] || 'Applied'
   const referrerId = data.referrer_name ? await findContactByName(db, userId, data.referrer_name) : null
 
-  const { data: rows } = await db.from('applications')
-    .select('id,role,stage,referred_by_id,oa_completed,oa_link,oa_due_date,interview_at,interview_time_known,interview_link')
-    .eq('user_id', userId).ilike('company', `%${data.company || ''}%`).eq('archived', false)
+  // No company, no application: there's nothing to match it to, and an "Unknown" row is noise.
+  const company = (data.company || '').trim()
+  if (!company) return null
+  // ilike treats % and _ as wildcards; escape them so the prefilter stays a plain substring.
+  const { data: fetched } = await db.from('applications')
+    .select('id,company,role,stage,referred_by_id,oa_completed,oa_link,oa_due_date,interview_at,interview_time_known,interview_link')
+    .eq('user_id', userId).ilike('company', `%${company.replace(/[\\%_]/g, '\\$&')}%`).eq('archived', false)
     .order('created_at', { ascending: false }).limit(50)
+  const rows = (fetched || []).filter(r => matchesCompany(r.company, company))
   if (data.type === 'OA_COMPLETED') {
     // Never creates or moves an application: it only closes an OA that's open. null = nothing changed.
     const app = pickOaApplication(rows, data.role)
@@ -761,7 +776,7 @@ async function upsertApplication(db, userId, data, { timeZone }) {
     return { id: existing.id, ambiguous, role: existing.role || null }
   }
   const { data: created } = await db.from('applications').insert({
-    user_id: userId, company: data.company || 'Unknown', applied_date: today, stage, ...props,
+    user_id: userId, company, applied_date: today, stage, ...props,
   }).select('id').single()
   return created?.id ? { id: created.id } : null
 }

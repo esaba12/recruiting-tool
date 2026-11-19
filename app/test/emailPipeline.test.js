@@ -6,7 +6,7 @@ import {
   isAutomatedSender, isBulkMail, isGenericNetworking, shouldCreateContact, contactFollowUpDate, keepActionItem,
   isAlreadyLogged, logThreadMessages,
   scanQueries, nextCursor, orderConnections, runThreadBudget, MAX_CLASSIFIED_PER_RUN, scanStageChange,
-  roleKey, pickApplication, roleAmbiguous, unplacedInterview, oaInviteFields, scheduleFields,
+  roleKey, pickApplication, roleAmbiguous, matchesCompany, unplacedInterview, oaInviteFields, scheduleFields,
   gmailFetch, isGmailRateLimit,
 } from '../api/_lib/emailPipeline.js'
 
@@ -569,6 +569,29 @@ describe('unplacedInterview', () => {
 
 // Three IBM applications used to collapse into one row; its completed OA then swallowed the
 // next two OA invites (2026-10-23).
+// The company filter was a bare substring: "Meta" matched Metabase, and a missing company
+// ('%%') matched every application, so a company-less rejection closed a random one.
+describe('matchesCompany', () => {
+  it('matches the company as whole words, any case', () => {
+    expect(matchesCompany('Meta', 'Meta')).toBe(true)
+    expect(matchesCompany('meta platforms', 'Meta')).toBe(true)
+    expect(matchesCompany('Goldman Sachs & Co.', 'Goldman Sachs')).toBe(true)
+    expect(matchesCompany('Jane Street', 'jane street')).toBe(true)
+  })
+  it('never matches inside another word or on a missing company', () => {
+    expect(matchesCompany('Metabase', 'Meta')).toBe(false)
+    expect(matchesCompany('Metaview', 'Meta')).toBe(false)
+    expect(matchesCompany('Meta', '')).toBe(false)
+    expect(matchesCompany('Meta', null)).toBe(false)
+    expect(matchesCompany(null, 'Meta')).toBe(false)
+  })
+  it('treats regex characters in a name literally', () => {
+    expect(matchesCompany('C3.ai', 'C3.ai')).toBe(true)
+    expect(matchesCompany('C3xai', 'C3.ai')).toBe(false)
+    expect(matchesCompany('AT&T', 'AT&T')).toBe(true)
+  })
+})
+
 describe('pickApplication', () => {
   const ibm = [
     { id: 'zos', role: 'z/OS Core Technologies Back End Developer Intern 2027' },
