@@ -32,8 +32,12 @@ function store(key, data) { try { lsSet(key, { at: Date.now(), data }) } catch {
 export async function fetchCompanyIndex() {
   const hit = cached(INDEX_KEY)
   if (hit) return hit
-  const res = await fetch(`/gh-api/repos/${COMPANY_REPO}/contents/`, { headers: await authHeader() })
-  if (!res.ok) throw new Error(`Company list unavailable (${res.status})`)
+  // No trailing slash: Vercel's /gh-api/:path* rewrite doesn't match one, so ".../contents/"
+  // falls through to the SPA rewrite and comes back as index.html.
+  const res = await fetch(`/gh-api/repos/${COMPANY_REPO}/contents`, { headers: await authHeader() })
+  if (!res.ok || !(res.headers.get('content-type') || '').includes('json')) {
+    throw new Error(`Company list unavailable (${res.status})`)
+  }
   const folders = (await res.json()).filter(e => e.type === 'dir').map(e => e.name)
   store(INDEX_KEY, folders)
   return folders
