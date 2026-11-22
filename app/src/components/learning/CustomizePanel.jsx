@@ -48,6 +48,39 @@ export default function CustomizePanel({ view, learning, onClose, initialSection
 
 // ── Topics ──
 
+// One tick per category ("SQL", "System Design"…). Unticking hides every topic in it, which
+// drops it from gaps, goals, readiness, mastery and the plan; ticking shows them all again.
+// A category with only some topics hidden shows as indeterminate.
+function AreaToggles({ topics, learning, onError }) {
+  const areas = [...new Set(topics.map(t => t.category))].map(cat => {
+    const inCat = topics.filter(t => t.category === cat)
+    const shown = inCat.filter(t => !t.hidden).length
+    return { cat, inCat, shown }
+  })
+  if (areas.length < 2) return null
+  function toggle({ inCat, shown }) {
+    const hidden = shown > 0
+    Promise.all(inCat.filter(t => !!t.hidden !== hidden).map(t => learning.updateTopic(t.id, { hidden })))
+      .catch(e => onError(e.message))
+  }
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-400 mb-1.5">Areas</p>
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+        {areas.map(a => (
+          <label key={a.cat} className="inline-flex items-center gap-1.5 text-sm text-ink-700 cursor-pointer select-none">
+            <input type="checkbox" className="accent-accent-600 cursor-pointer" checked={a.shown > 0}
+              ref={el => { if (el) el.indeterminate = a.shown > 0 && a.shown < a.inCat.length }}
+              onChange={() => toggle(a)} />
+            {a.cat}
+            <Mono className="text-[11px] text-ink-400">{a.shown}/{a.inCat.length}</Mono>
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function TopicsEditor({ view, learning }) {
   const [order, setOrder] = useState(view.topics.map(t => t.id))
   const orderRef = useRef(order)
@@ -98,7 +131,9 @@ function TopicsEditor({ view, learning }) {
   const byId = new Map(view.topics.map(t => [t.id, t]))
   return (
     <div className="space-y-5">
-      <p className="text-xs text-ink-500">Drag to reorder. Set a <b>target</b> level for where you need to be, and optionally rate yourself (<b>self</b>) — practice evidence takes over as you log.</p>
+      <p className="text-xs text-ink-500">Untick an area to drop all of its topics. Drag to reorder. Set a <b>target</b> level for where you need to be, and optionally rate yourself (<b>self</b>) — practice evidence takes over as you log.</p>
+
+      <AreaToggles topics={view.topics} learning={learning} onError={setErr} />
 
       <Reorder.Group axis="y" values={order} onReorder={onReorder} className="border border-ink-200 divide-y divide-ink-100">
         {order.map(id => byId.get(id) && (

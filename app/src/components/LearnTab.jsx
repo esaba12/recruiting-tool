@@ -21,6 +21,18 @@ import ImportPracticeModal from './learning/ImportPracticeModal.jsx'
 
 const ACTIVE_TRACK_KEY = 'rec_learn_active_track'
 
+// Full-width widgets always span both columns. A half-width one does too when it has no
+// partner in its row (odd one out before a full-width widget or the end), so it never
+// leaves an empty half-row beside it.
+export function spanFull(widgets, i) {
+  if (FULL_WIDTH.has(widgets[i].type)) return true
+  let start = i
+  while (start > 0 && !FULL_WIDTH.has(widgets[start - 1].type)) start--
+  let end = i
+  while (end + 1 < widgets.length && !FULL_WIDTH.has(widgets[end + 1].type)) end++
+  return (end - start + 1) % 2 === 1 && i === end
+}
+
 // Learn — interview-prep tracking. One dashboard per track (SWE, IB, PM, custom…), built
 // from the widgets the user chose in Customize, over a pure mastery/gap/goal engine
 // (lib/learning/mastery.js). Practice happens off-app (LeetCode, CodeSignal, mocks); this
@@ -131,7 +143,7 @@ export default function LearnTab({ learning, apps, profile, logRequest, onLogReq
       {!widgets.length && <EmptyState msg="Every panel is hidden — turn some on in Customize → Stats." />}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {widgets.map((w, i) => (
-          <div key={w.type} className={`${FULL_WIDTH.has(w.type) ? 'lg:col-span-2' : ''} learn-rise`} style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}>
+          <div key={w.type} className={`${spanFull(widgets, i) ? 'lg:col-span-2' : ''} learn-rise`} style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}>
             {renderWidget(w.type)}
           </div>
         ))}

@@ -19,7 +19,7 @@ import NeedsKey from '../onboarding/NeedsKey.jsx'
 // squared-off label bar. Every widget renders inside this so the page reads as one panel.
 export function Panel({ title, meta, children, className = '', action }) {
   return (
-    <section className={`bg-surface border border-ink-300 rounded-sm ${className}`}>
+    <section className={`h-full flex flex-col bg-surface border border-ink-300 rounded-sm ${className}`}>
       <header className="flex items-center justify-between gap-2 px-4 py-2 border-b border-ink-200 bg-ink-50">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-600">{title}</h3>
         <div className="flex items-center gap-2">
@@ -27,7 +27,7 @@ export function Panel({ title, meta, children, className = '', action }) {
           {action}
         </div>
       </header>
-      <div className="p-4">{children}</div>
+      <div className="p-4 flex-1">{children}</div>
     </section>
   )
 }
