@@ -22,10 +22,10 @@ function daysFromNow(n) {
 }
 
 // An instant n days out at a local hour, for interview times.
-function atLocal(n, hour) {
+function atLocal(n, hour, minute = 0) {
   const d = new Date()
   d.setDate(d.getDate() + n)
-  d.setHours(hour, 0, 0, 0)
+  d.setHours(hour, minute, 0, 0)
   return d.toISOString()
 }
 
@@ -142,7 +142,7 @@ const SEED_APPLICATIONS = [
   { id: 'demo-a6', company: 'Notion', role: 'SWE Intern', stage: 'Rejected', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: '', appliedDate: daysFromNow(-50), closedDate: daysFromNow(-10), lastActivity: daysFromNow(-10), daysInStage: 10, jdLink: '', notes: 'Didn\'t move past the first round.', createdTime: daysFromNow(-55), referredById: 'demo-c2' },
   { id: 'demo-a7', company: 'Airbnb', role: 'SWE Intern', stage: 'Wishlist', triage: 'Needs Review', location: 'San Francisco, CA', sourceRepo: 'speedyapply/2027-SWE-College-Jobs', appliedDate: null, closedDate: null, lastActivity: daysFromNow(-1), daysInStage: null, jdLink: 'https://careers.airbnb.com', notes: '', createdTime: daysFromNow(-1), referredById: null },
   { id: 'demo-a8', company: 'Discord', role: 'SWE Intern', stage: 'Wishlist', triage: 'Needs Review', location: 'San Francisco, CA', sourceRepo: 'speedyapply/2027-SWE-College-Jobs', appliedDate: null, closedDate: null, lastActivity: daysFromNow(-1), daysInStage: null, jdLink: 'https://discord.com/careers', notes: '', createdTime: daysFromNow(-1), referredById: null },
-  { id: 'demo-a9', company: 'Rippling', role: 'SWE Intern', stage: 'Applied', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: 'speedyapply/2027-SWE-College-Jobs', appliedDate: daysFromNow(-3), closedDate: null, lastActivity: daysFromNow(-3), daysInStage: 3, jdLink: '', notes: '', createdTime: daysFromNow(-3), referredById: null, oaDueDate: daysFromNow(4), oaLink: 'https://hackerrank.com/test/rippling-swe-intern', oaCompleted: false, oaResearchCheckedAt: null },
+  { id: 'demo-a9', company: 'Rippling', role: 'SWE Intern', stage: 'Applied', triage: 'Applied', location: 'San Francisco, CA', sourceRepo: 'speedyapply/2027-SWE-College-Jobs', appliedDate: daysFromNow(-3), closedDate: null, lastActivity: daysFromNow(-3), daysInStage: 3, jdLink: '', notes: '', createdTime: daysFromNow(-3), referredById: null, oaDueDate: daysFromNow(4), oaDueAt: atLocal(4, 23, 59), oaLink: 'https://hackerrank.com/test/rippling-swe-intern', oaCompleted: false, oaResearchCheckedAt: null },
   { id: 'demo-a10', company: 'Linear', role: 'SWE Intern', stage: 'Wishlist', triage: 'Maybe', location: 'Remote', sourceRepo: 'speedyapply/2027-SWE-College-Jobs', appliedDate: null, closedDate: null, lastActivity: daysFromNow(-2), daysInStage: null, jdLink: '', notes: 'Small team, not sure about internship structure yet.', createdTime: daysFromNow(-2), referredById: null },
   { id: 'demo-a11', company: 'Morgan Stanley', role: 'Investment Banking Summer Analyst', stage: 'Onsite', triage: 'Applied', location: 'New York, NY', sourceRepo: '', appliedDate: daysFromNow(-30), closedDate: null, lastActivity: daysFromNow(-3), daysInStage: 3, jdLink: 'https://example.com/careers', notes: 'Superday Friday — four back-to-back 30-min interviews (technicals + fit).', createdTime: daysFromNow(-35), referredById: 'demo-c8', interviewAt: atLocal(4, 12), interviewTimeKnown: false },
   { id: 'demo-a12', company: 'Datadog', role: 'Software Engineering Intern', stage: 'Offer', triage: 'Applied', location: 'New York, NY', sourceRepo: '', appliedDate: daysFromNow(-35), closedDate: null, lastActivity: daysFromNow(-2), daysInStage: 2, jdLink: 'https://example.com/careers', notes: 'Exploding offer: they asked for an answer within a week.', createdTime: daysFromNow(-38), referredById: null, offerDeadline: daysFromNow(5), offerDetails: { base: '$52/hr', bonus: '$3k signing', location: 'New York, NY', start: 'May 2027', notes: 'Team match after you accept' } },
@@ -202,7 +202,7 @@ const moreApplications = MORE_APPLICATIONS.map(([company, role, path, source, oa
     appliedDate: daysFromNow(applied), closedDate: stage === 'Rejected' ? daysFromNow(last) : null,
     lastActivity: daysFromNow(oaDue && oaDue > last ? Math.min(oaDue, 0) : last), daysInStage: null,
     jdLink: '', notes: '', createdTime: daysFromNow(applied), referredById: source && source.startsWith('demo-c') ? source : null,
-    oaDueDate: oaDue !== null ? daysFromNow(oaDue) : null, oaLink: null, oaCompleted: !!oa && oaDue < 0,
+    oaDueDate: oaDue !== null ? daysFromNow(oaDue) : null, oaDueAt: oaDue === 0 ? atLocal(0, 23, 59) : null, oaLink: null, oaCompleted: !!oa && oaDue < 0,
     oaResearchCheckedAt: null,
   }
 })

@@ -391,7 +391,7 @@ export async function updateApplication(id, fields) {
     const a = demoStore().applications.find(a => a.id === id)
     if (!a) return
     if ('stage' in fields) demoLogStage(a, fields.stage)
-    for (const k of ['company', 'role', 'location', 'jdLink', 'notes', 'stage', 'triage', 'appliedDate', 'closedDate', 'referredById', 'oaDueDate', 'oaLink', 'oaCompleted', 'oaResearchCheckedAt', 'interviewAt', 'interviewTimeKnown', 'interviewLink', 'offerDeadline', 'offerDetails']) {
+    for (const k of ['company', 'role', 'location', 'jdLink', 'notes', 'stage', 'triage', 'appliedDate', 'closedDate', 'referredById', 'oaDueDate', 'oaDueAt', 'oaLink', 'oaCompleted', 'oaResearchCheckedAt', 'interviewAt', 'interviewTimeKnown', 'interviewLink', 'offerDeadline', 'offerDetails']) {
       if (k in fields) a[k] = fields[k]
     }
     return
@@ -408,6 +408,7 @@ export async function updateApplication(id, fields) {
   if ('closedDate' in fields) patch.closed_date = fields.closedDate || null
   if ('referredById' in fields) patch.referred_by_id = fields.referredById || null
   if ('oaDueDate' in fields) patch.oa_due_date = fields.oaDueDate || null
+  if ('oaDueAt' in fields) patch.oa_due_at = fields.oaDueAt || null
   if ('oaLink' in fields) patch.oa_link = fields.oaLink || null
   if ('oaCompleted' in fields) patch.oa_completed = !!fields.oaCompleted
   if ('oaResearchCheckedAt' in fields) patch.oa_research_checked_at = fields.oaResearchCheckedAt || null
@@ -478,6 +479,7 @@ async function fetchApplicationRows() {
     createdTime: r.created_at,
     referredById: r.referred_by_id || null,
     oaDueDate: r.oa_due_date || null,
+    oaDueAt: r.oa_due_at || null,
     oaLink: r.oa_link || null,
     oaCompleted: !!r.oa_completed,
     oaResearchCheckedAt: r.oa_research_checked_at || null,

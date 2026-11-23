@@ -43,7 +43,7 @@ export function statusPush(data) {
     case 'OA_INVITE':
       return {
         title: `🧪 OA received — ${who}`,
-        message: `${role || 'Online Assessment'}${data.oa_due_date ? `\nDue ${data.oa_due_date}` : '\nNo stated deadline — check the assessment page.'}${data.oa_link ? `\n${data.oa_link}` : ''}`,
+        message: `${role || 'Online Assessment'}${data.oa_due_date ? `\nDue ${data.oa_due_date}${clock12(data.oa_due_time, data.oa_due_timezone)}` : '\nNo stated deadline — check the assessment page.'}${data.oa_link ? `\n${data.oa_link}` : ''}`,
         priority: 'high', tags: ['test_tube'],
       }
     case 'OA_COMPLETED':
@@ -83,19 +83,29 @@ export function maxPriority(items) {
   return Object.keys(PRIORITY_RANK).find(k => PRIORITY_RANK[k] === top)
 }
 
+// '23:59', 'PT' → ' 11:59 PM PT' (as the email stated it), '' without a valid time.
+function clock12(hhmm, zone) {
+  const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(hhmm || '')
+  if (!m) return ''
+  const h = +m[1]
+  return ` ${h % 12 || 12}:${m[2]} ${h < 12 ? 'AM' : 'PM'}${zone ? ` ${zone}` : ''}`
+}
+
 export function combineUpdates(queue) {
   if (queue.length === 1) return queue[0]
   return { title: `📬 ${queue.length} recruiting updates`, message: queue.map(p => p.title).join('\n'), priority: maxPriority(queue), tags: ['mailbox_with_mail'] }
 }
 
 // Every open OA, with urgency carried in the priority. `today` is the user's local date.
-export function oaDigest(apps, today) {
+// A known due time rides along, in the user's zone ("due today 11:59 PM").
+export function oaDigest(apps, today, { timeZone = DEFAULT_TIME_ZONE } = {}) {
   if (!apps?.length) return null
   const todayMs = Date.parse(today)
   const rows = apps.map(a => ({ ...a, daysUntil: Math.round((Date.parse(a.oa_due_date) - todayMs) / 86400000) }))
   const lines = rows.map(a => {
     const label = a.daysUntil < 0 ? `overdue by ${-a.daysUntil}d` : a.daysUntil === 0 ? 'due today' : `due in ${a.daysUntil}d`
-    return `${a.company}${a.role ? ` (${a.role})` : ''} — ${label}`
+    const at = a.oa_due_at && a.daysUntil >= 0 ? ` ${new Date(a.oa_due_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone })}` : ''
+    return `${a.company}${a.role ? ` (${a.role})` : ''} — ${label}${at}`
   })
   const soonest = Math.min(...rows.map(a => a.daysUntil))
   return { lines, priority: soonest <= 1 ? 'urgent' : soonest <= 3 ? 'high' : 'default' }
@@ -222,7 +232,7 @@ async function upcomingInterviewRows(db, userId, now) {
 }
 
 async function openOas(db, userId) {
-  const { data } = await db.from('applications').select('company, role, oa_due_date')
+  const { data } = await db.from('applications').select('company, role, oa_due_date, oa_due_at')
     .eq('user_id', userId).not('oa_due_date', 'is', null).eq('oa_completed', false).eq('archived', false)
     .order('oa_due_date', { ascending: true })
   return data || []
@@ -276,7 +286,7 @@ export async function runUserPushes(db, userId, newPushes, { llm, click, now = D
     if (await send(combineUpdates(queue))) queue = []
   } else if (plan.action === 'digest') {
     const today = localClock(now, settings.timeZone).date
-    const oa = oaDigest(await openOas(db, userId), today)
+    const oa = oaDigest(await openOas(db, userId), today, { timeZone: settings.timeZone })
     const offers = offerDigest(await openOffers(db, userId), today)
     const interviews = interviewDigest(await upcomingInterviewRows(db, userId, now), { now, timeZone: settings.timeZone })
     let recap = null

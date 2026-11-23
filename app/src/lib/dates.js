@@ -111,3 +111,32 @@ export function parseLooseDate(v, today = todayLocal()) {
   const out = ymd(y, m, d)
   return out && out <= today ? out : null
 }
+
+// ── OA deadlines ───────────────────────────────────────────────────────────────────────
+// oaDueDate is the day; oaDueAt is the exact instant when the invite stated a time (else null).
+// A day with no time counts as due at the end of that day.
+export function oaDueMs(app) {
+  if (app?.oaDueAt) return new Date(app.oaDueAt).getTime()
+  if (!app?.oaDueDate) return null
+  const d = parseDay(app.oaDueDate)
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).getTime()
+}
+
+export function oaOverdue(app, now = Date.now()) {
+  const t = oaDueMs(app)
+  return t !== null && t < now
+}
+
+const dueClock = iso => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+const dueDay = d => parseDay(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+
+// "Due today, 5:00 PM", "Due tomorrow", "Due Wed, Nov 25, 9:00 AM (4d)", "Was due Thu, Nov 19 (2d ago)".
+export function oaDueLabel(app, now = Date.now()) {
+  if (!app?.oaDueDate && !app?.oaDueAt) return ''
+  const day = app.oaDueAt ? localDateStr(new Date(app.oaDueAt)) : app.oaDueDate
+  const d = daysUntil(day, now)
+  const time = app.oaDueAt ? `, ${dueClock(app.oaDueAt)}` : ''
+  const when = d === 0 ? `today${time}` : d === 1 ? `tomorrow${time}` : d === -1 ? `yesterday${time}` : `${dueDay(day)}${time}`
+  const tail = d > 1 ? ` (${d}d)` : d < -1 ? ` (${-d}d ago)` : ''
+  return `${oaOverdue(app, now) ? 'Was due' : 'Due'} ${when}${tail}`
+}

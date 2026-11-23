@@ -636,7 +636,7 @@ describe('pickApplication', () => {
 describe('oaInviteFields', () => {
   const invite = { type: 'OA_INVITE', oa_due_date: '2026-10-24', oa_link: 'https://hr.test/new' }
   it('writes the OA onto an open or new application', () => {
-    expect(oaInviteFields(invite, undefined)).toEqual({ oa_due_date: '2026-10-24', oa_link: 'https://hr.test/new', oa_research_checked_at: null })
+    expect(oaInviteFields(invite, undefined)).toEqual({ oa_due_date: '2026-10-24', oa_due_at: null, oa_link: 'https://hr.test/new', oa_research_checked_at: null })
     expect(oaInviteFields(invite, { oa_completed: false }).oa_link).toBe('https://hr.test/new')
   })
   it('a re-sent invite leaves a finished OA finished', () => {
@@ -645,7 +645,7 @@ describe('oaInviteFields', () => {
   })
   it('a new assessment link reopens a finished OA', () => {
     expect(oaInviteFields(invite, { oa_completed: true, oa_link: 'https://hr.test/old' }))
-      .toEqual({ oa_due_date: '2026-10-24', oa_link: 'https://hr.test/new', oa_research_checked_at: null, oa_completed: false })
+      .toEqual({ oa_due_date: '2026-10-24', oa_due_at: null, oa_link: 'https://hr.test/new', oa_research_checked_at: null, oa_completed: false })
   })
   it('other types touch no OA fields', () => {
     expect(oaInviteFields({ type: 'REJECTION' }, { oa_completed: false })).toEqual({})

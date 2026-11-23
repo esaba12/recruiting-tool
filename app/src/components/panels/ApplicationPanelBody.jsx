@@ -149,7 +149,9 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
   // recruiter DM) needs a manual way in — this is that. Kept in its own state/save path from
   // `dates` above since it's a separate concern (assessment tracking vs. pipeline stage).
   const [oa, setOa] = useState(() => ({
-    oaDueDate:  app?.oaDueDate ? app.oaDueDate.slice(0, 10) : '',
+    // A stated due time is shown (and edited) in the browser's zone, like the interview time.
+    oaDueDate:  app?.oaDueAt ? instantToInputs(app.oaDueAt, true).date : app?.oaDueDate ? app.oaDueDate.slice(0, 10) : '',
+    oaDueTime:  app?.oaDueAt ? instantToInputs(app.oaDueAt, true).time : '',
     oaLink:     app?.oaLink || '',
     oaCompleted: app?.oaCompleted || false,
   }))
@@ -219,6 +221,8 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
     try {
       await updateApplication(app.id, {
         oaDueDate: oa.oaDueDate || null,
+        // No time typed = the day only.
+        oaDueAt: oa.oaDueDate && oa.oaDueTime ? inputsToInstant(oa.oaDueDate, oa.oaDueTime).at : null,
         oaLink: oa.oaLink.trim() || null,
         oaCompleted: oa.oaCompleted,
         // A fresh/edited due date means the client-side research fallback (lib/oaResearch.js)
@@ -429,7 +433,12 @@ export default function ApplicationPanelBody({ app, contacts = [], apps = [], in
                 <input type="date" value={oa.oaDueDate} onChange={e => setOa(o => ({ ...o, oaDueDate: e.target.value }))}
                   className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400" />
               </div>
-              <div className="flex items-end pb-1.5">
+              <div>
+                <label className="block text-xs text-ink-400 mb-0.5">Due Time <span className="text-ink-300">(optional)</span></label>
+                <input type="time" value={oa.oaDueTime} disabled={!oa.oaDueDate} onChange={e => setOa(o => ({ ...o, oaDueTime: e.target.value }))}
+                  className="w-full px-2.5 py-1.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:border-accent-400 disabled:opacity-50" />
+              </div>
+              <div className="col-span-2 flex items-center">
                 <label className="flex items-center gap-2 text-sm text-ink-700">
                   <input type="checkbox" checked={oa.oaCompleted} onChange={e => setOa(o => ({ ...o, oaCompleted: e.target.checked }))}
                     className="w-4 h-4 accent-accent-500" />
