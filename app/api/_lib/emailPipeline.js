@@ -14,7 +14,7 @@
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { decrypt } from './crypto.js'
 import { llmForUser, completeJSON } from './llm.js'
-import { parseInvite, findCalendarPart, zonedToUtc } from './ics.js'
+import { parseInvite, findCalendarPart, zonedToUtc, ianaZone } from './ics.js'
 import { statusPush, isFreshEnoughToPush } from './pushes.js'
 import { shouldCreateInterviewEvent, createInterviewEvent, calendarRefreshToken } from './interviewEvent.js'
 import { tracksLabel, isTechOnly } from '../../src/lib/tracks.js'
@@ -493,6 +493,8 @@ Otherwise return:
   "meeting_link": "the Zoom/Google Meet/Teams/etc. video call URL if one is mentioned in the body, else null",
   "referrer_name": "the full name of the person who referred/recommended the candidate for this specific role, ONLY if the email explicitly says so (e.g. 'referred by Jane Doe', 'submitted your referral', 'thanks to an employee referral from...'). Otherwise null — never guess.",
   "oa_due_date": "YYYY-MM-DD if this is an Online Assessment invite AND the email states a completion deadline, else null — never guess or estimate a date that isn't actually stated",
+  "oa_due_time": "HH:MM (24-hour) if the email states the time of day the Online Assessment is due (e.g. '11:59 PM' → '23:59'), else null — never guess a time that isn't stated",
+  "oa_due_timezone": "the IANA time zone of oa_due_time if the email states one (PT/PST/Pacific → America/Los_Angeles, ET/EST/EDT → America/New_York, CT → America/Chicago, MT → America/Denver, UTC/GMT → UTC), else null",
   "oa_link": "the URL the candidate clicks to start/complete the Online Assessment, if this is an OA_INVITE, else null",
   "offer_deadline": "YYYY-MM-DD if this is an OFFER AND the email states a date to accept or respond by, else null — never guess or estimate a date that isn't actually stated",
   "contact_phone": "a phone number for the sender, ONLY if one is explicitly given in their email signature/body (e.g. a mobile number under their name) — otherwise null, never guess or use a company switchboard number",
@@ -512,6 +514,8 @@ skills test, typically via HackerRank/CodeSignal/Codility/HackerEarth or a simil
 Extract oa_due_date only when the email explicitly states a completion deadline ("complete by
 August 20", "you have 7 days to complete this assessment", etc.) — many OA invites don't state
 one at all, in which case leave it null rather than estimating from the email's send date.
+When the deadline also states a time ("expires Nov 21, 2026 11:59 PM EST", "by 5pm PT"), put
+it in oa_due_time and its zone in oa_due_timezone; a date with no stated time leaves both null.
 The same goes for offer_deadline: only a stated respond-by date ("please let us know by
 November 14", "this offer expires in two weeks"), else null.
 
@@ -683,9 +687,42 @@ export function pickOaApplication(rows, role) {
   return open(byRole) ? byRole : (rows || []).find(open) || null
 }
 
-export function oaInviteFields(data, existing) {
+// "PT", "EST", "Pacific" or an IANA name → an IANA zone, else null.
+const ZONE_ABBR = {
+  et: 'America/New_York', est: 'America/New_York', edt: 'America/New_York', eastern: 'America/New_York',
+  ct: 'America/Chicago', cst: 'America/Chicago', cdt: 'America/Chicago', central: 'America/Chicago',
+  mt: 'America/Denver', mst: 'America/Denver', mdt: 'America/Denver', mountain: 'America/Denver',
+  pt: 'America/Los_Angeles', pst: 'America/Los_Angeles', pdt: 'America/Los_Angeles', pacific: 'America/Los_Angeles',
+  utc: 'UTC', gmt: 'UTC', z: 'UTC',
+}
+export function oaZone(label) {
+  if (!label) return null
+  const s = String(label).trim()
+  const abbr = ZONE_ABBR[s.toLowerCase().replace(/\s*time$/, '')]
+  if (abbr) return abbr
+  return s.includes('/') ? ianaZone(s) : null
+}
+
+// An OA's stated deadline → { oa_due_date, oa_due_at }. With a time, oa_due_at is the exact
+// instant (read in the stated zone, else campus time) and oa_due_date is that instant's day in
+// campus time, so date-based views agree with it. Without one, the day alone and oa_due_at null.
+const TIME_RE = /^([01]?\d|2[0-3]):([0-5]\d)$/
+export function oaDueFields(data, timeZone) {
+  if (!DATE_ONLY_RE.test(data.oa_due_date || '')) return { oa_due_date: null, oa_due_at: null }
+  const t = TIME_RE.exec(data.oa_due_time || '')
+  if (!t) return { oa_due_date: data.oa_due_date, oa_due_at: null }
+  const [y, m, d] = data.oa_due_date.split('-').map(Number)
+  const at = zonedToUtc(y, m, d, +t[1], +t[2], 0, oaZone(data.oa_due_timezone) || timeZone)
+  return { oa_due_date: localDate(at, timeZone), oa_due_at: at.toISOString() }
+}
+
+export function oaInviteFields(data, existing, { timeZone = DEFAULT_TIME_ZONE } = {}) {
   if (data.type !== 'OA_INVITE') return {}
-  const fields = { oa_due_date: data.oa_due_date || null, oa_link: data.oa_link || null, oa_research_checked_at: null }
+  const due = oaDueFields(data, timeZone)
+  // A reminder for the same assessment that doesn't restate the deadline keeps the stored one.
+  const sameOa = existing && (!data.oa_link || data.oa_link === existing.oa_link)
+  const keepDue = !due.oa_due_date && sameOa && existing.oa_due_date
+  const fields = { ...(keepDue ? {} : due), oa_link: data.oa_link || existing?.oa_link || null, oa_research_checked_at: null }
   if (!existing?.oa_completed) return fields
   return data.oa_link && data.oa_link !== existing.oa_link ? { ...fields, oa_completed: false } : {}
 }
@@ -744,7 +781,7 @@ async function upsertApplication(db, userId, data, { timeZone }) {
   if (!company) return null
   // ilike treats % and _ as wildcards; escape them so the prefilter stays a plain substring.
   const { data: fetched } = await db.from('applications')
-    .select('id,company,role,stage,referred_by_id,oa_completed,oa_link,oa_due_date,interview_at,interview_time_known,interview_link')
+    .select('id,company,role,stage,referred_by_id,oa_completed,oa_link,oa_due_date,oa_due_at,interview_at,interview_time_known,interview_link')
     .eq('user_id', userId).ilike('company', `%${company.replace(/[\\%_]/g, '\\$&')}%`).eq('archived', false)
     .order('created_at', { ascending: false }).limit(50)
   const rows = (fetched || []).filter(r => matchesCompany(r.company, company))
@@ -766,7 +803,7 @@ async function upsertApplication(db, userId, data, { timeZone }) {
     ...(stage === 'Rejected' ? { closed_date: today } : {}),
     ...(data.role ? { role: data.role } : {}),
     ...(referrerId && !existing?.referred_by_id ? { referred_by_id: referrerId } : {}),
-    ...oaInviteFields(data, existing),
+    ...oaInviteFields(data, existing, { timeZone }),
     ...scheduleFields(data, existing, { timeZone }),
   }
 
@@ -920,7 +957,7 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
         ? '\n\nThis email appears to mention a referral or recommendation. If a specific person is named as having referred/recommended the candidate, extract their name into "referrer_name".'
         : ''
       const oaHint = OA_INVITE_RE.test(msg.subject + ' ' + msg.plainBody)
-        ? '\n\nThis email\'s subject/body matches typical Online Assessment (OA) invite phrasing (HackerRank/CodeSignal/Codility/etc., or a generic "complete your assessment" template) — likely type OA_INVITE. Extract oa_due_date only if the email actually states a completion deadline, and oa_link as the URL the candidate clicks to start/complete the assessment.'
+        ? '\n\nThis email\'s subject/body matches typical Online Assessment (OA) invite phrasing (HackerRank/CodeSignal/Codility/etc., or a generic "complete your assessment" template) — likely type OA_INVITE. Extract oa_due_date only if the email actually states a completion deadline (with oa_due_time/oa_due_timezone when it states the time of day too), and oa_link as the URL the candidate clicks to start/complete the assessment.'
         : ''
       const oaCompletedHint = OA_COMPLETED_RE.test(msg.subject + ' ' + msg.plainBody)
         ? '\n\nThis email\'s subject/body matches typical Online Assessment submission-confirmation phrasing ("assessment submitted", "thank you for completing", etc.) — likely type OA_COMPLETED, an automated receipt that the candidate finished the OA (distinct from OA_INVITE, which is the invitation to start it).'

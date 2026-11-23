@@ -7,7 +7,7 @@
 //         thank-you (48h window), registration closing ≤ 2 days
 //   week  due within 7 days, awaiting reply, schedule, high urgency, email to-dos
 //   later stale apps, job boards to review, keep in touch, OA deadline unknown, far-off items
-import { daysUntil, parseDay } from './dates.js'
+import { daysUntil, parseDay, oaDueMs } from './dates.js'
 
 const HOUR = 3600000
 const DAY = 24 * HOUR
@@ -66,7 +66,7 @@ export function buildActionQueue(attention, { now = Date.now() } = {}) {
     const t = ms(app.interviewAt)
     out.push(item('interview', `interview:${app.id}`, app, t - now <= 36 * HOUR ? 'now' : t - now <= 7 * DAY ? 'week' : 'later', t))
   }
-  for (const app of a('oa')) out.push(item('oa', `oa:${app.id}`, app, byDay(app.oaDueDate, now), dayMs(app.oaDueDate)))
+  for (const app of a('oa')) out.push(item('oa', `oa:${app.id}`, app, byDay(app.oaDueDate, now), oaDueMs(app)))
   for (const row of p('thankYou')) out.push(item('thankYou', `thankYou:${row.id}`, row, 'now', null, ms(row.at)))
   for (const c of p('overdue')) out.push(item('overdue', `overdue:${c.id}`, c, 'now', dayMs(c.followUpDate)))
   for (const x of p('awaiting')) out.push(item('awaiting', `awaiting:${x.contact.id}`, x, 'week', null, dayMs(x.lastInteraction?.date)))

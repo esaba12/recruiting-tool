@@ -26,7 +26,7 @@ import { DashCard, Group, Label } from './today/DashCard.jsx'
 import { PipelineCard, NetworkCard, OutreachCard, RatesCard } from './today/MetricCards.jsx'
 import GettingStarted from './onboarding/GettingStarted.jsx'
 import { isFreshAccount } from '../lib/onboarding.js'
-import { todayLocal } from '../lib/dates.js'
+import { todayLocal, oaDueLabel, oaOverdue } from '../lib/dates.js'
 import { EventsCard, StepRow, RegistrationRow, FollowUpRow } from './today/EventAttentionSections.jsx'
 import UpNext from './today/UpNext.jsx'
 import { KIND } from '../lib/actionQueue.js'
@@ -440,7 +440,8 @@ function DecisionRow({ app: a, onOpen }) {
 // row itself wasn't clickable yet.
 function OaRow({ app: a, needsCheck, onOpen, onRefresh }) {
   const [marking, setMarking] = useState(false)
-  const overdue = !needsCheck && daysUntil(a.oaDueDate) <= 0
+  // Past the stated time (or the day, when only the day is known), or due today: red.
+  const urgent = !needsCheck && (oaOverdue(a) || daysUntil(a.oaDueDate) <= 0)
 
   // An OA is a task, not practice: Done just clears it and keeps you on Today.
   async function markCompleted() {
@@ -469,12 +470,8 @@ function OaRow({ app: a, needsCheck, onOpen, onRefresh }) {
         {needsCheck
           ? <p className="text-xs font-medium text-ink-400">No deadline found</p>
           : (
-            <p className={`text-xs font-medium ${overdue ? 'text-danger-600' : 'text-ink-500'}`}>
-              {daysUntil(a.oaDueDate) === 0
-                ? <span className="text-danger-600">Due today</span>
-                : overdue
-                ? <>Was due <Mono>{fmt(a.oaDueDate)}</Mono> (<Mono className="text-danger-600 font-medium">{Math.abs(daysUntil(a.oaDueDate))}d</Mono> ago)</>
-                : <>Due <Mono>{fmt(a.oaDueDate)}</Mono> (<Mono>{daysUntil(a.oaDueDate)}d</Mono>)</>}
+            <p className={`text-xs font-medium ${urgent ? 'text-danger-600' : 'text-ink-500'}`}>
+              <Mono>{oaDueLabel(a)}</Mono>
             </p>
           )}
         <button onClick={e => { e.stopPropagation(); markCompleted() }} disabled={marking}
