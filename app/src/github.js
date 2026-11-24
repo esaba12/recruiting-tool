@@ -4,10 +4,13 @@ import { getDemoData } from './db.js'
 
 // ── URL parsing ───────────────────────────────────────────────────────────────
 
+// "Owner/Repo" or any github.com URL into that repo. Drops the query and hash first: GitHub
+// adds "?tab=readme-ov-file" or "#readme" when you open the README, and left in the repo name
+// they turned the README request into the repo request (no `content` → decode crash).
 export function parseGitHubInput(input) {
-  input = input.trim().replace(/^https?:\/\//, '').replace(/^github\.com\//, '').replace(/\/$/, '')
+  input = input.trim().replace(/[?#].*$/, '').replace(/^https?:\/\//, '').replace(/^(www\.)?github\.com\//, '')
   const parts = input.split('/').filter(Boolean)
-  if (parts.length >= 2) return { type: 'repo', owner: parts[0], repo: parts[1] }
+  if (parts.length >= 2) return { type: 'repo', owner: parts[0], repo: parts[1].replace(/\.git$/, '') }
   return null
 }
 
@@ -234,6 +237,7 @@ export async function fetchRepoJobs(owner, repo, branch) {
   const readmeRes = await fetch(readmeUrl, { headers })
   if (!readmeRes.ok) throw new Error(`No README found in ${owner}/${repo}`)
   const readmeData = await readmeRes.json()
+  if (typeof readmeData?.content !== 'string') throw new Error(`No README found in ${owner}/${repo}`)
   const md = decodeBase64Utf8(readmeData.content)
 
   const jobs = parseJobsFromMarkdown(md)
