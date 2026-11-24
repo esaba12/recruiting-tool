@@ -60,6 +60,15 @@ export function LevelMeter({ level, target, verified = true, compact = false }) 
 }
 
 // ── Summary strip ──
+// Synced LeetCode solves carry no minutes, so a week of them used to read "10 · 0 min logged",
+// as if none of it counted. Show minutes when any were logged, else what got solved.
+export function weekSub(thisWeek, minutes) {
+  if (minutes > 0) return `${minutes} min logged`
+  if (!thisWeek.length) return 'nothing logged yet'
+  const solved = thisWeek.filter(l => l.outcome === 'solved' || l.outcome === 'hinted').length
+  return solved ? `${solved} solved` : `${thisWeek.length === 1 ? 'entry' : 'entries'}, no time logged`
+}
+
 export function SummaryWidget({ view }) {
   const weekStart = startOfWeek()
   const thisWeek = view.logs.filter(l => new Date(l.occurredAt).getTime() >= weekStart)
@@ -74,7 +83,7 @@ export function SummaryWidget({ view }) {
   const next = dated[0] || upcoming[0]
   const days = next?.date ? Math.max(0, daysUntil(next.date)) : null
   const tiles = [
-    { label: 'This week', value: thisWeek.length, sub: `${minutes} min logged` },
+    { label: 'This week', value: thisWeek.length, sub: weekSub(thisWeek, minutes) },
     { label: 'Streak', value: `${view.streak}d`, sub: view.streak ? 'keep it alive today' : 'log anything to start' },
     { label: 'Readiness', value: `${readiness}%`, sub: `${atTarget}/${view.visible.length} topics at target`, bar: readiness },
     { label: 'Next up', value: next ? (days != null ? `${days}d` : 'now') : '—', sub: next ? next.label : 'no interviews in pipeline' },
