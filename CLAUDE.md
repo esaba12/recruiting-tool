@@ -22,7 +22,7 @@ interview/offer dates, résumé; its "Where we are" checklist is the live status
 | React 18 + Vite 5 (`app/`) | Dashboard. Dev at http://localhost:3001 |
 | Vercel (root dir `app/`) | Hosting; auto-deploys `main`. Serverless functions in `app/api/` (**12/12 Hobby cap**) |
 | Supabase | Postgres + Auth (email/password, Google, "sign in with API key") + encrypted BYOK/token vault. RLS on every user table |
-| Claude (Haiku 4.5 / Sonnet) | Default AI provider; vision (screenshots) always uses Claude |
+| Claude (Haiku 5.5 / Sonnet 5.5) | Default AI provider; vision (screenshots) always uses Claude |
 | OpenAI (GPT-5.1 / mini) | Alternate provider, picked per user in Settings |
 | Exa | Public-web search: people/company discovery, apply-page deadline extraction |
 | Google Calendar + Gmail APIs | Per-user OAuth (two calendar slots, N Gmail accounts) |

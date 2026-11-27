@@ -1,4 +1,5 @@
 import { getUserKey } from './keys.js'
+import { CLAUDE_MODELS, claudeRequestBody, readClaudeText } from '../../src/lib/claudeRequest.js'
 
 // Server-side text→JSON calls on the user's own BYOK key, for the code that runs with no
 // browser (the Gmail scan and the push recap). The server-side twin of src/lib/ai.js: same
@@ -7,7 +8,7 @@ import { getUserKey } from './keys.js'
 // the user does have, since a background scan has no UI to ask them to switch.
 
 export const SERVER_MODELS = {
-  anthropic: { mini: 'claude-haiku-4-5-20251001', standard: 'claude-sonnet-4-6' },
+  anthropic: { mini: CLAUDE_MODELS.HAIKU, standard: CLAUDE_MODELS.SONNET },
   openai:    { mini: 'gpt-5-mini', standard: 'gpt-5.1' },
 }
 
@@ -45,12 +46,12 @@ export async function completeJSON(llm, { tier = 'mini', prompt, maxTokens = 100
     : await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'x-api-key': llm.apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-        body: JSON.stringify({ model, max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] }),
+        body: JSON.stringify(claudeRequestBody({ model, content: prompt, maxTokens })),
       })
   const label = llm.provider === 'openai' ? 'OpenAI' : 'Claude'
   if (!res.ok) throw new Error(`${label} ${res.status}: ${(await res.text()).slice(0, 200)}`)
   const json = await res.json()
-  const text = llm.provider === 'openai' ? json.choices?.[0]?.message?.content || '' : json.content?.[0]?.text || ''
+  const text = llm.provider === 'openai' ? json.choices?.[0]?.message?.content || '' : readClaudeText(json)
   const match = text.match(/\{[\s\S]*\}/)
   if (!match) throw new Error(`No JSON in ${label} response`)
   return JSON.parse(match[0])

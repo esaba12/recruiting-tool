@@ -26,13 +26,27 @@ const okJson = body => ({ ok: true, json: async () => body })
 
 describe('completeJSON', () => {
   it('calls Anthropic with the tier model and parses the JSON out of the text', async () => {
-    const fetch = vi.fn(async () => okJson({ content: [{ text: 'Sure: {"type":"OFFER"}' }] }))
+    const fetch = vi.fn(async () => okJson({ content: [{ type: 'text', text: 'Sure: {"type":"OFFER"}' }] }))
     const out = await completeJSON({ provider: 'anthropic', apiKey: 'k' }, { tier: 'mini', prompt: 'p', maxTokens: 700, fetch })
     expect(out).toEqual({ type: 'OFFER' })
     const [url, init] = fetch.mock.calls[0]
     expect(url).toBe('https://api.anthropic.com/v1/messages')
     expect(init.headers['x-api-key']).toBe('k')
     expect(JSON.parse(init.body)).toMatchObject({ model: SERVER_MODELS.anthropic.mini, max_tokens: 700 })
+  })
+
+  it('uses the Claude 5.5 models with thinking off, and reads past thinking blocks', async () => {
+    expect(SERVER_MODELS.anthropic).toEqual({ mini: 'claude-haiku-5-5', standard: 'claude-sonnet-5-5' })
+    const fetch = vi.fn(async () => okJson({ content: [{ type: 'thinking', thinking: '', signature: 's' }, { type: 'text', text: '{"ok":true}' }] }))
+    expect(await completeJSON({ provider: 'anthropic', apiKey: 'k' }, { tier: 'mini', prompt: 'p', fetch })).toEqual({ ok: true })
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({ thinking: { type: 'disabled' }, output_config: { effort: 'low' } })
+    await completeJSON({ provider: 'anthropic', apiKey: 'k' }, { tier: 'standard', prompt: 'p', fetch })
+    expect(JSON.parse(fetch.mock.calls[1][1].body).thinking).toEqual({ type: 'between_tools' })
+  })
+
+  it('says Claude declined instead of "No JSON" on a refusal', async () => {
+    const fetch = vi.fn(async () => okJson({ stop_reason: 'refusal', content: [] }))
+    await expect(completeJSON({ provider: 'anthropic', apiKey: 'k' }, { tier: 'mini', prompt: 'p', fetch })).rejects.toThrow('Claude declined this request')
   })
 
   it('calls OpenAI chat completions in JSON mode', async () => {
@@ -58,7 +72,7 @@ describe('completeJSON', () => {
   it('throws on an HTTP error and on a reply with no JSON', async () => {
     const bad = vi.fn(async () => ({ ok: false, status: 401, text: async () => 'nope' }))
     await expect(completeJSON({ provider: 'openai', apiKey: 'k' }, { tier: 'mini', prompt: 'p', fetch: bad })).rejects.toThrow('401')
-    const noJson = vi.fn(async () => okJson({ content: [{ text: 'no json here' }] }))
+    const noJson = vi.fn(async () => okJson({ content: [{ type: 'text', text: 'no json here' }] }))
     await expect(completeJSON({ provider: 'anthropic', apiKey: 'k' }, { tier: 'mini', prompt: 'p', fetch: noJson })).rejects.toThrow('No JSON')
   })
 })
