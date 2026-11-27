@@ -89,12 +89,13 @@ export default defineConfig(({ mode }) => {
       port: 3001,
     },
     build: {
-      rollupOptions: {
+      rolldownOptions: {
         output: {
           // React and Supabase change far less often than app code, so they get their own
-          // long-cached chunk (v1.3 spec 09). Everything else is left to Rollup's splitting.
-          manualChunks(id) {
-            if (/node_modules\/(react|react-dom|scheduler|@supabase)\//.test(id)) return 'vendor'
+          // long-cached chunk (v1.3 spec 09). Everything else is left to Rolldown's splitting.
+          // Vite 8 deprecated the manualChunks function for these codeSplitting groups.
+          codeSplitting: {
+            groups: [{ name: 'vendor', test: /node_modules[\\/](react|react-dom|scheduler|@supabase)[\\/]/ }],
           },
         },
       },
