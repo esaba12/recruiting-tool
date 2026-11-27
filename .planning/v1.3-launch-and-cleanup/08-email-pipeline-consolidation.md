@@ -58,7 +58,7 @@ Each feature the Apps Script has and `api/_lib/emailPipeline.js` doesn't, roughl
 1. ✅ Ship 1–3, with tests (done 2026-10-18: `test/pushes.test.js`, `test/interviewEvent.test.js`, `test/ics.test.js`).
 2. Run both pipelines for a week against your mailbox. Both write `gmail_message_id` with a
    unique index (spec [11](11-interaction-dedup.md), which must land first), so the overlap is harmless. Compare the rows each one wrote.
-3. Disable the Apps Script triggers (editor → clock icon); don't delete the project yet.
+3. Disable the Apps Script triggers (editor → clock icon); don't delete the project yet. **Not done as of 2026-11-27:** a Google "Summary of failures" email for the leftover `checkOaDeadlines` day timer (a transient "server error") showed the triggers still run, and the script still sends its own Offer/OA pushes without the server's fixes. Delete every trigger (`processRecruitingEmails`, `checkOaDeadlines`, `generateDailyRecap`, any backfill timer), then save your ntfy topic in Settings → Push notifications so the server pushes reach you.
 4. Two weeks later: delete `scripts/email-pipeline.js`, `scripts/appsscript.json`,
    `.clasp.json`/`.claspignore`, and the Apps Script sections of CLAUDE.md and the README.
    The root `package.json` keeps only the migration script.

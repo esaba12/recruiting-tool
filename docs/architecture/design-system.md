@@ -10,6 +10,8 @@ Layout is a persistent dark sidebar (`components/layout/Sidebar.jsx`) + full-wid
 
 `App.jsx` was decomposed from ~1836 lines (monolithic, every tab inline) down to ~250 lines (root state/routing only) — every tab is now its own file under `components/`.
 
+**Favicon (2026-11-27):** `public/favicon.svg`, three rising Safety Orange bars on the sidebar's near-black, linked from `index.html`. SVG only; same-origin, so the CSP allows it.
+
 ## Affordances: only clickable things look clickable (2026-10-17)
 
 Rule: anything that does something on click answers the mouse (pointer **and** a hover state), and nothing else does. Concretely:

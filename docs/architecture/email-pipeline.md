@@ -29,6 +29,12 @@ Cost: ~$0.001/email with Haiku (classification only runs once per thread-update,
 - Threads aren't scanned in date order, so the later interview wins, except on the same day, where a real time replaces a guess and a guess never replaces a real time.
 - The server digest (`api/_lib/pushes.js` `offerDigest`) leads with offers due in 0–3 days.
 
+**Follow-up offer emails (2026-11-27, PR #62, server pipeline only):** every later email about an offer (paperwork, "any questions?", a recruiter check-in) is re-classified `OFFER` and used to push "🎉 Offer" again. `offerContext()` in `emailPipeline.js` now marks an `OFFER` on an application already at Offer as a follow-up, with the deadline the row holds after this email and whether the email set or moved it. `statusPush(data, { offer })` then sends:
+- deadline 0–3 days out (`OFFER_REMINDER_DAYS`, shared with `offerDigest`): `⏳ Offer deadline today/tomorrow/in Nd` (urgent ≤ 1 day, else high);
+- a new or moved deadline further out: `📅 Offer deadline set` (default);
+- anything else: no push. The application and Inbox rows are written exactly as before.
+Known gap: several follow-ups on the same near-deadline day each push a reminder (only one tick's pushes are combined). The Apps Script still pushes "Offer" on every follow-up until its triggers are off (CLAUDE.md → Known issues).
+
 ### Push reminders — ntfy.sh (shipped 2026-09-17)
 
 The pipeline can push a real phone notification instead of relying on you to notice something in the app or your inbox — deliberately not another email, since the whole point is cutting through the inbox this script already reads. Uses [ntfy.sh](https://ntfy.sh), a free public push-notification relay: `sendPush()` POSTs to `https://ntfy.sh/<NTFY_TOPIC>` and anything subscribed to that topic (the ntfy phone app, or the web app) gets a native push. Entirely optional — `NTFY_TOPIC` unset means `sendPush()` no-ops and everything else keeps working; there's no paid tier, phone number, or account involved.

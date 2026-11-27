@@ -100,7 +100,7 @@ same user.
 
 | Layer | Tech |
 |---|---|
-| Dashboard | React 18 + Vite, Tailwind v4 (5 color schemes × light/dark) |
+| Dashboard | React 19 + Vite 8, Tailwind v4 (5 color schemes × light/dark) |
 | Auth + data | Supabase (Postgres + Auth), Row Level Security |
 | Tables / graph / charts | `@tanstack/react-table`, `react-force-graph-2d`, Recharts |
 | Interaction | `motion`, `@dnd-kit` (Today's card editor) |

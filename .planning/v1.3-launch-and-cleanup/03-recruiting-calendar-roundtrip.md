@@ -20,7 +20,7 @@ created a real calendar on a real Google account. It's the one v1.1 claim nobody
 | 1 | Open the app (any tab) | `ensureRecruitingCalendar` creates a calendar named "Recruiting" | It shows in Google Calendar's sidebar; `user_settings` has `recruiting_calendar_id:personal` |
 | 2 | Wait for one auto-push (or mark an event Going) | The relevance-high event and one reminder per required step with a `due_at` land on the Recruiting calendar, **not** primary | Google UI; `user_events.calendar_event_id` and `calendar_reminder_ids` are set |
 | 3 | Reload | No re-PATCH of unchanged events | Network tab: no `PATCH .../events/` requests (the `calendar_sync_hash` gate) |
-| 4 | Delete the pushed event in Google, then reload the app | `reconcile()` nulls `calendar_event_id` and **keeps** the `user_events` row (status and notes intact) | SQL: `select status, notes, calendar_event_id from user_events where event_id = …` |
+| 4 | Delete the pushed event in Google, then reload the app | `reconcile()` nulls `calendar_event_id` and **keeps** the `user_events` row (status and notes intact) | SQL: `select status, notes, calendar_event_id from user_events where event_id = …`; and the event is **not** auto-pushed back on the next run (PR #40, merged 2026-11-27: `shouldAutoPush` skips anything with a `calendar_slot`; only "Add to Recruiting calendar" re-adds it) |
 | 5 | Calendar → Grid: create an event, then delete it | Feed updates without a reload (CR-02) | Visually, both ways |
 
 Also confirm the proxy refuses calendar deletion: `DELETE /google-calendar?path=calendar/v3/calendars/<id>&slot=personal`

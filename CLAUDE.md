@@ -19,7 +19,7 @@ interview/offer dates, résumé; its "Where we are" checklist is the live status
 
 | Piece | Role |
 |---|---|
-| React 18 + Vite 5 (`app/`) | Dashboard. Dev at http://localhost:3001 |
+| React 19 + Vite 8 (`app/`) | Dashboard. Dev at http://localhost:3001 |
 | Vercel (root dir `app/`) | Hosting; auto-deploys `main`. Serverless functions in `app/api/` (**12/12 Hobby cap**) |
 | Supabase | Postgres + Auth (email/password, Google, "sign in with API key") + encrypted BYOK/token vault. RLS on every user table |
 | Claude (Haiku 4.5 / Sonnet) | Default AI provider; vision (screenshots) always uses Claude |
@@ -121,12 +121,14 @@ Pipeline · Calendar**, with Settings in the sidebar footer. `/demo` shows every
 - pdf.js under the CSP: no `unsafe-eval`, so `getDocument` needs `isEvalSupported: false`. The worker comes from a same-origin `?url` import, and cleanup is `loadingTask.destroy()` (pdf.js 6 has no `doc.destroy()`).
 - ICS invites: read fields only from the `VEVENT` block (`VTIMEZONE` has its own `DTSTART`). Server-side, convert `TZID` times through `api/_lib/ics.js` (Vercel runs in UTC).
 - Node 20 + Supabase Realtime in scripts/tests: pass `realtime: { transport: ws }`.
+- Vite 8 bundles with Rolldown: build options go in `build.rolldownOptions`, and chunk splitting is `output.codeSplitting.groups` (the `manualChunks` function is deprecated). Vite 8 needs Node ≥ 20.19.
+- Sentry v11 has no `sendDefaultPii`; an unset `dataCollection` collects user info, cookies, headers, bodies and query params. `lib/sentry.js` `DATA_COLLECTION` turns all of it off; keep it that way.
 - Apps Script: more than 50 Script Properties makes the UI read-only (set them from code); `UrlFetchApp` to ntfy.sh fails intermittently (retries in place).
 
 ## Known issues
 
 - Calendar/Gmail connections made before 2026-11-02 (Testing mode) still have 7-day refresh tokens; reconnecting in Settings fixes each one. For Gmail use **Reconnect**, not Disconnect + connect: disconnecting deletes the scan position and restarts the 45-day backfill.
-- `scripts/email-pipeline.js` (Apps Script) is retired and frozen (2026-11-18): change only `api/_lib/emailPipeline.js`; the Apps Script copy is no longer kept in sync.
+- `scripts/email-pipeline.js` (Apps Script) is retired and frozen (2026-11-18): change only `api/_lib/emailPipeline.js`; the Apps Script copy is no longer kept in sync. **Its triggers are still on** (cutover step 3 of v1.3 spec 08 not done as of 2026-11-27): it still classifies mail and pushes to its own ntfy topic, without the server's fixes (e.g. repeat "Offer" pushes), and Google emails failure summaries for its leftover `checkOaDeadlines` timer. Owner step: Apps Script editor → Triggers (clock icon) → delete every trigger.
 
 ## docs/architecture index
 
@@ -143,4 +145,4 @@ Pipeline · Calendar**, with Settings in the sidebar footer. `/demo` shows every
 | `data-model.md` | Supabase tables vs the legacy Notion DBs |
 | `design-system.md` | Tokens, schemes + dark mode, fonts, motion budget, charts |
 | `deployment-and-demo.md` | Vercel env vars, deploy steps, `/demo` architecture |
-| `dev-tooling.md` | graphify, GitHub MCP guardrails, project subagents, clasp |
+| `dev-tooling.md` | graphify, GitHub MCP guardrails, project subagents, clasp, dependency upgrade log |
