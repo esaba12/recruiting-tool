@@ -5,7 +5,7 @@ import {
   parseGmailMessage, findHeader, candidateFraming, trackGuidance, interviewStage,
   isAutomatedSender, isBulkMail, isGenericNetworking, shouldCreateContact, contactFollowUpDate, keepActionItem,
   isAlreadyLogged, logThreadMessages,
-  scanQueries, nextCursor, orderConnections, runThreadBudget, MAX_CLASSIFIED_PER_RUN, scanStageChange,
+  scanQueries, nextCursor, orderConnections, runThreadBudget, MAX_CLASSIFIED_PER_RUN, scanStageChange, offerContext,
   roleKey, pickApplication, roleAmbiguous, matchesCompany, unplacedInterview, oaInviteFields, scheduleFields,
   gmailFetch, isGmailRateLimit,
 } from '../api/_lib/emailPipeline.js'
@@ -509,6 +509,25 @@ describe('logThreadMessages interview line (v1.3 spec 12)', () => {
 
 // Event invites mislabeled INTERVIEW_INVITE used to create apps at Phone Screen or bump
 // job-board Wishlist rows there (17 fake interviews on the owner's account, 2026-10-21).
+describe('offerContext (follow-up offer mail)', () => {
+  const offer = { type: 'OFFER' }
+  it('is null for a first offer or any other email', () => {
+    expect(offerContext(offer, undefined, {})).toBeNull()
+    expect(offerContext(offer, { stage: 'Onsite' }, {})).toBeNull()
+    expect(offerContext({ type: 'REPLY' }, { stage: 'Offer' }, {})).toBeNull()
+  })
+  it('keeps the stored deadline when the follow-up states none', () => {
+    expect(offerContext(offer, { stage: 'Offer', offer_deadline: '2026-12-01' }, {}))
+      .toEqual({ already: true, deadline: '2026-12-01', deadlineChanged: false })
+  })
+  it('flags a new or moved deadline, not a repeated one', () => {
+    expect(offerContext(offer, { stage: 'Offer', offer_deadline: null }, { offer_deadline: '2026-12-10' }))
+      .toEqual({ already: true, deadline: '2026-12-10', deadlineChanged: true })
+    expect(offerContext(offer, { stage: 'Offer', offer_deadline: '2026-12-01' }, { offer_deadline: '2026-12-08' }).deadlineChanged).toBe(true)
+    expect(offerContext(offer, { stage: 'Offer', offer_deadline: '2026-12-01' }, { offer_deadline: '2026-12-01' }).deadlineChanged).toBe(false)
+  })
+})
+
 describe('scanStageChange', () => {
   it('never creates an application from an interview or offer', () => {
     expect(scanStageChange('Phone Screen', undefined)).toEqual({ skip: true })

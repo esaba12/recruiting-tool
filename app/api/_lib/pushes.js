@@ -33,7 +33,25 @@ export function validTopic(topic) {
 
 // ── Pure helpers ─────────────────────────────────────────────────────────────────────────
 
-export function statusPush(data) {
+// The decision window a follow-up offer email turns into a reminder; offerDigest uses the same.
+const OFFER_REMINDER_DAYS = 3
+
+// A second, third… email about an offer already recorded (paperwork, "any questions?", the
+// recruiter checking in) used to push "🎉 Offer" every time. Now it's quiet unless it tells you
+// something: the decision is close (a reminder) or the email set or moved the deadline.
+// `offer` = { already, deadline, deadlineChanged, today } (today = the user's local date).
+function offerFollowUpPush(who, company, { deadline, deadlineChanged, today }) {
+  const daysUntil = deadline && today ? Math.round((Date.parse(deadline) - Date.parse(today)) / 86400000) : null
+  if (daysUntil === null || daysUntil < 0) return null
+  if (daysUntil <= OFFER_REMINDER_DAYS) {
+    const when = daysUntil === 0 ? 'today' : daysUntil === 1 ? 'tomorrow' : `in ${daysUntil}d`
+    return { title: `⏳ Offer deadline ${when} — ${who}`, message: `Follow-up from ${company}. Decide by ${deadline}.`, priority: daysUntil <= 1 ? 'urgent' : 'high', tags: ['hourglass'] }
+  }
+  if (deadlineChanged) return { title: `📅 Offer deadline set — ${who}`, message: `Decide by ${deadline}.`, priority: 'default', tags: ['date'] }
+  return null
+}
+
+export function statusPush(data, { offer } = {}) {
   const company = data.company || 'Unknown company'
   const role = data.role || ''
   // The role rides in the title: a combined "N updates" push shows only titles, and a company
@@ -51,6 +69,7 @@ export function statusPush(data) {
     case 'INTERVIEW_INVITE':
       return { title: `📞 Interview invite — ${who}`, message: `${role}${data.interview_date ? `\nScheduled ${data.interview_date}` : ''}`.trim(), priority: 'high', tags: ['phone'] }
     case 'OFFER':
+      if (offer?.already) return offerFollowUpPush(who, company, offer)
       return { title: `🎉 Offer — ${who}!`, message: role || 'Offer received', priority: 'urgent', tags: ['tada'] }
     case 'REJECTION':
       return { title: `❌ Rejected — ${who}`, message: role || 'Rejection received', priority: 'default', tags: ['x'] }
@@ -116,7 +135,7 @@ export function oaDigest(apps, today, { timeZone = DEFAULT_TIME_ZONE } = {}) {
 export function offerDigest(apps, today) {
   const todayMs = Date.parse(today)
   const rows = (apps || []).map(a => ({ ...a, daysUntil: Math.round((Date.parse(a.offer_deadline) - todayMs) / 86400000) }))
-    .filter(a => a.daysUntil >= 0 && a.daysUntil <= 3)
+    .filter(a => a.daysUntil >= 0 && a.daysUntil <= OFFER_REMINDER_DAYS)
   if (!rows.length) return null
   const lines = rows.map(a => {
     const label = a.daysUntil === 0 ? 'decide today' : a.daysUntil === 1 ? 'decide by tomorrow' : `decide in ${a.daysUntil}d`
