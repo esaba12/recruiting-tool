@@ -33,13 +33,28 @@ export function scrubBreadcrumb(crumb) {
   return crumb
 }
 
+// Sentry v11 replaced sendDefaultPii with dataCollection, and an unset dataCollection collects
+// user info, cookies, headers, bodies and query params (2026-11-27). Everything is off; the
+// scrubbers above stay the backstop since key-name filtering is only best effort.
+export const DATA_COLLECTION = {
+  userInfo: false,
+  cookies: false,
+  httpHeaders: false,
+  httpBodies: [],
+  urlQueryParams: false,
+  graphQL: { document: false, variables: false },
+  genAI: { inputs: false, outputs: false },
+  mcp: { inputs: false, outputs: false },
+  databaseQueryData: false,
+}
+
 export function initSentry() {
   if (!DSN || enabled) return
   Sentry.init({
     dsn: DSN,
     environment: import.meta.env.MODE,
     release: import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA || undefined,
-    sendDefaultPii: false,
+    dataCollection: DATA_COLLECTION,
     beforeSend: scrubEvent,
     beforeBreadcrumb: scrubBreadcrumb,
   })
