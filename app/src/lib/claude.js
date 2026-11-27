@@ -3,11 +3,9 @@
 // LogInteractionModal.jsx, jobBoards/helpers.js, and AddToCalendarModal.jsx.
 import { authHeader } from './supabaseClient.js'
 import { assertKey } from './keyStore.js'
+import { CLAUDE_MODELS, claudeRequestBody, readClaudeText } from './claudeRequest.js'
 
-export const CLAUDE_MODELS = {
-  HAIKU: 'claude-haiku-4-5-20251001',
-  SONNET: 'claude-sonnet-4-6',
-}
+export { CLAUDE_MODELS }
 
 // content: a plain string, or a content-block array (e.g. AddToCalendarModal's
 // [{type:'image', source:{...}}, {type:'text', text:'...'}] vision payload).
@@ -16,7 +14,7 @@ async function callClaude({ model, content, maxTokens = 1000 }) {
   const res = await fetch('/claude-api/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
-    body: JSON.stringify({ model, max_tokens: maxTokens, messages: [{ role: 'user', content }] }),
+    body: JSON.stringify(claudeRequestBody({ model, content, maxTokens })),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -25,7 +23,7 @@ async function callClaude({ model, content, maxTokens = 1000 }) {
       : err.error?.message || `API error ${res.status}`)
   }
   const data = await res.json()
-  return data.content[0].text
+  return readClaudeText(data)
 }
 
 export async function claudeText({ model, content, maxTokens }) {
