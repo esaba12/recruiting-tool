@@ -764,6 +764,15 @@ function scheduleTimeFields(data, existing, { timeZone }) {
   return new Date(next.interview_at) > was ? next : {}
 }
 
+// An OFFER email on an application already at Offer is a follow-up, not news: statusPush
+// turns it into a deadline reminder or stays quiet (2026-11-27: every follow-up re-pushed
+// "🎉 Offer"). The deadline is whatever the row holds after this email.
+export function offerContext(data, existing, props) {
+  if (data.type !== 'OFFER' || existing?.stage !== 'Offer') return null
+  const deadline = props.offer_deadline || existing.offer_deadline || null
+  return { already: true, deadline, deadlineChanged: !!props.offer_deadline && props.offer_deadline !== existing.offer_deadline }
+}
+
 async function upsertApplication(db, userId, data, { timeZone }) {
   const today = new Date().toISOString().slice(0, 10)
   const stageMap = {
@@ -781,7 +790,7 @@ async function upsertApplication(db, userId, data, { timeZone }) {
   if (!company) return null
   // ilike treats % and _ as wildcards; escape them so the prefilter stays a plain substring.
   const { data: fetched } = await db.from('applications')
-    .select('id,company,role,stage,referred_by_id,oa_completed,oa_link,oa_due_date,oa_due_at,interview_at,interview_time_known,interview_link')
+    .select('id,company,role,stage,referred_by_id,oa_completed,oa_link,oa_due_date,oa_due_at,interview_at,interview_time_known,interview_link,offer_deadline')
     .eq('user_id', userId).ilike('company', `%${company.replace(/[\\%_]/g, '\\$&')}%`).eq('archived', false)
     .order('created_at', { ascending: false }).limit(50)
   const rows = (fetched || []).filter(r => matchesCompany(r.company, company))
@@ -810,7 +819,7 @@ async function upsertApplication(db, userId, data, { timeZone }) {
   if (existing) {
     if (change.stage) props.stage = change.stage
     await db.from('applications').update(props).eq('id', existing.id)
-    return { id: existing.id, ambiguous, role: existing.role || null }
+    return { id: existing.id, ambiguous, role: existing.role || null, offer: offerContext(data, existing, props) }
   }
   const { data: created } = await db.from('applications').insert({
     user_id: userId, company, applied_date: today, stage, ...props,
@@ -1037,7 +1046,8 @@ export async function scanGmailConnection(connection, { deadline } = {}) {
       // Last, so a thread that fails above (and is retried next tick) never pushes twice.
       // OA_COMPLETED that closed nothing (no open OA at that company) changed nothing, so no push.
       const unmatchedProgress = !applicationId && ['INTERVIEW_INVITE', 'OFFER', 'OA_COMPLETED'].includes(data.type)
-      const push = isFreshEnoughToPush(msg.date) && !unmatchedProgress ? statusPush(data) : null
+      const offer = placed?.offer && { ...placed.offer, today: localDate(new Date(), timeZone) }
+      const push = isFreshEnoughToPush(msg.date) && !unmatchedProgress ? statusPush(data, { offer }) : null
       if (push) pushes.push(push)
       return 'classified'
     } catch (e) {

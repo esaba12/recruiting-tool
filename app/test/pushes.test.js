@@ -11,6 +11,34 @@ const AT_3PM = new Date('2026-10-18T19:00:00Z').getTime()
 const AT_11PM = new Date('2026-10-19T03:00:00Z').getTime()
 const AT_MIDNIGHT = new Date('2026-10-19T04:10:00Z').getTime()
 
+describe('statusPush on an offer that was already recorded (follow-up mail)', () => {
+  const today = '2026-11-27'
+  const followUp = extra => statusPush({ type: 'OFFER', company: 'Ramp', role: 'SWE Intern' }, { offer: { already: true, today, ...extra } })
+  it('stays quiet when nothing about the decision changed', () => {
+    expect(followUp({ deadline: null })).toBeNull()
+    expect(followUp({ deadline: '2026-12-20' })).toBeNull()
+    // A deadline already past is the app's to show, not a push
+    expect(followUp({ deadline: '2026-11-20' })).toBeNull()
+  })
+  it('becomes a deadline reminder when the decision is 3 days out or less', () => {
+    expect(followUp({ deadline: '2026-11-30' })).toEqual({
+      title: '⏳ Offer deadline in 3d — Ramp · SWE Intern', message: 'Follow-up from Ramp. Decide by 2026-11-30.', priority: 'high', tags: ['hourglass'],
+    })
+    expect(followUp({ deadline: '2026-11-28' })).toMatchObject({ title: '⏳ Offer deadline tomorrow — Ramp · SWE Intern', priority: 'urgent' })
+    expect(followUp({ deadline: '2026-11-27' })).toMatchObject({ title: '⏳ Offer deadline today — Ramp · SWE Intern', priority: 'urgent' })
+  })
+  it('says so when the follow-up sets or moves the deadline', () => {
+    expect(followUp({ deadline: '2026-12-20', deadlineChanged: true })).toEqual({
+      title: '📅 Offer deadline set — Ramp · SWE Intern', message: 'Decide by 2026-12-20.', priority: 'default', tags: ['date'],
+    })
+    // A close deadline that just moved still reads as the reminder
+    expect(followUp({ deadline: '2026-11-29', deadlineChanged: true })).toMatchObject({ title: '⏳ Offer deadline in 2d — Ramp · SWE Intern' })
+  })
+  it('still celebrates the first offer email', () => {
+    expect(statusPush({ type: 'OFFER', company: 'Ramp' }, { offer: { already: false, today, deadline: '2026-11-28' } })).toMatchObject({ title: '🎉 Offer — Ramp!' })
+  })
+})
+
 describe('statusPush (ported from the Apps Script buildStatusPush)', () => {
   it('builds the four update kinds and skips routine mail', () => {
     expect(statusPush({ type: 'OA_INVITE', company: 'Rippling', role: 'SWE Intern', oa_due_date: '2026-10-22', oa_link: 'https://hackerrank.com/x' }))
