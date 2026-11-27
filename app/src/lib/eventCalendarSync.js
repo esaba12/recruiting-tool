@@ -149,9 +149,13 @@ export async function reconcile({ userEvents, slot, calendarId, now = Date.now()
 }
 
 // Should this event be on the calendar automatically? (relevance ≥ high, in the future,
-// not dismissed/skipped) — the brief's "push events at relevance >= high".
+// not dismissed/skipped, never pushed before) — the brief's "push events at relevance >= high".
+// calendarSlot is set by the first push and survives unpushEvent and reconcile, so an event
+// the user took off the calendar (in the app or by deleting it in Google) stays off; only
+// "Add to Recruiting calendar" puts it back.
 export function shouldAutoPush(event, { tier, userEvent, now = Date.now() } = {}) {
   if (tier !== 'high') return false
+  if (userEvent?.calendarSlot) return false
   if (Date.parse(event.startsAt) < now) return false
   if (['skipped'].includes(userEvent?.status)) return false
   return true

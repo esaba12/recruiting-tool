@@ -98,4 +98,15 @@ describe('unpush + reconcile', () => {
     expect(shouldAutoPush({ ...event, startsAt: iso(-1) }, { tier: 'high', now })).toBe(false)
     expect(shouldAutoPush(event, { tier: 'high', userEvent: { status: 'skipped' }, now })).toBe(false)
   })
+
+  // v1.3 spec 03: the in-session autoPushedRef forgot after a reload, so a high-tier event the
+  // user removed (in the app, or by deleting it in Google) came straight back. calendar_slot is
+  // set by the first push and kept by unpush/reconcile, so it marks "was on the calendar once".
+  it('shouldAutoPush: never re-adds an event that was pushed once and then removed', () => {
+    const removedInApp = { status: 'interested', calendarSlot: 'personal', calendarEventId: null, calendarSyncedAt: null }
+    const deletedInGoogle = { status: 'interested', calendarSlot: 'personal', calendarEventId: null, calendarSyncedAt: iso(-1) }
+    expect(shouldAutoPush(event, { tier: 'high', userEvent: removedInApp, now })).toBe(false)
+    expect(shouldAutoPush(event, { tier: 'high', userEvent: deletedInGoogle, now })).toBe(false)
+    expect(shouldAutoPush(event, { tier: 'high', userEvent: { status: 'interested', calendarSlot: null }, now })).toBe(true)
+  })
 })
